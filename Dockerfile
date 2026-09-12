@@ -13,12 +13,13 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libpq-dev \
     nodejs \
     npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo \
-        pdo_mysql \
+        pdo_pgsql \
         mbstring \
         exif \
         pcntl \
@@ -40,9 +41,7 @@ RUN composer install \
 
 RUN npm ci && npm run build
 
-RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache \
+RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
