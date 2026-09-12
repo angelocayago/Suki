@@ -155,7 +155,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI Shopping"
+                        alt="SUKI SHOP Shopping"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -190,7 +190,7 @@
 
                                 Discover products from trusted sellers,
                                 enjoy great deals, and choose convenient
-                                delivery options with SUKI.
+                                delivery options with SUKI SHOP.
 
                             </p>
 
@@ -231,7 +231,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI Flash Deals"
+                        alt="SUKI SHOP Flash Deals"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -303,7 +303,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI New Arrivals"
+                        alt="SUKI SHOP New Arrivals"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -335,7 +335,7 @@
                             <p class="mt-3 max-w-md text-xs sm:text-sm md:text-base leading-relaxed text-white/85">
 
                                 Explore the latest products and fresh
-                                finds from SUKI sellers.
+                                finds from SUKI SHOP sellers.
 
                             </p>
 
@@ -370,7 +370,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI Beauty Essentials"
+                        alt="SUKI SHOP Beauty Essentials"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -437,7 +437,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI Home Essentials"
+                        alt="SUKI SHOP Home Essentials"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -1204,7 +1204,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Fresh products recently added to SUKI.
+                    Fresh products recently added to SUKI SHOP.
                 </p>
 
             </div>
@@ -1260,7 +1260,7 @@
                         </p>
 
                         <p class="mt-1 text-xs text-gray-400">
-                            New on SUKI
+                            New on SUKI SHOP
                         </p>
 
                     </div>
@@ -1294,17 +1294,17 @@
                 <div>
 
                     <p class="text-xs font-semibold uppercase tracking-wider text-[#DDF3EC]">
-                        Grow with SUKI
+                        Grow with SUKI SHOP
                     </p>
 
                     <h2 class="mt-2 text-xl font-bold md:text-2xl">
-                        Start selling with SUKI.
+                        Start selling with SUKI SHOP.
                     </h2>
 
                     <p class="mt-2 max-w-sm text-sm leading-relaxed text-white/70">
 
                         Reach more customers, manage your products,
-                        and grow your online business with SUKI.
+                        and grow your online business with SUKI SHOP.
 
                     </p>
 
@@ -1349,11 +1349,11 @@
                 <div>
 
                     <p class="text-xs font-semibold uppercase tracking-wider text-[#1F6F5B]">
-                        Deliver with SUKI
+                        Deliver with SUKI SHOP
                     </p>
 
                     <h2 class="mt-2 text-xl font-bold text-[#173F35] md:text-2xl">
-                        Become a SUKI Rider.
+                        Become a SUKI SHOP Rider.
                     </h2>
 
                     <p class="mt-2 max-w-sm text-sm leading-relaxed text-gray-500">

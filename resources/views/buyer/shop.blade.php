@@ -12,7 +12,7 @@
             'rating' => '4.9',
             'sold' => '1.2k',
             'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Wireless Headphones',
@@ -22,7 +22,7 @@
             'rating' => '4.8',
             'sold' => '856',
             'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Ceramic Home Set',
@@ -32,7 +32,7 @@
             'rating' => '4.7',
             'sold' => '642',
             'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Everyday Sneakers',
@@ -42,7 +42,7 @@
             'rating' => '4.9',
             'sold' => '2.1k',
             'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Skincare Essentials Set',
@@ -52,7 +52,7 @@
             'rating' => '4.8',
             'sold' => '934',
             'category' => 'Beauty',
-            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Classic Analog Watch',
@@ -62,7 +62,7 @@
             'rating' => '4.8',
             'sold' => '721',
             'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Portable Bluetooth Speaker',
@@ -72,7 +72,7 @@
             'rating' => '4.7',
             'sold' => '534',
             'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80',
         ],
         [
             'name' => 'Modern Table Lamp',
@@ -82,7 +82,7 @@
             'rating' => '4.6',
             'sold' => '438',
             'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80'
+            'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80',
         ],
     ];
 
@@ -96,8 +96,32 @@
         'Food',
         'Pets',
         'Toys',
-        'Automotive'
+        'Automotive',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | CURRENT BUYER WISHLIST
+    |--------------------------------------------------------------------------
+    |
+    | Kinukuha natin ang product_slug ng wishlist items ng currently
+    | authenticated buyer para malaman kung filled green o gray
+    | ang bawat heart button.
+    |
+    */
+
+    $wishlistSlugs = [];
+
+    if (
+        auth()->check() &&
+        auth()->user()->role === 'buyer'
+    ) {
+        $wishlistSlugs = auth()
+            ->user()
+            ->wishlistItems()
+            ->pluck('product_slug')
+            ->toArray();
+    }
 @endphp
 
 
@@ -133,16 +157,13 @@
 
                 </div>
 
-
                 <p class="text-xs font-semibold tracking-wider text-[#1F6F5B] uppercase">
-                    SUKI Marketplace
+                    SUKI SHOP Marketplace
                 </p>
-
 
                 <h1 class="text-3xl md:text-4xl font-bold text-[#173F35] mt-2">
                     Shop All Products
                 </h1>
-
 
                 <p class="text-sm text-gray-500 mt-2 max-w-xl">
                     Discover products from trusted sellers,
@@ -151,7 +172,6 @@
                 </p>
 
             </div>
-
 
             <div class="hidden md:flex w-16 h-16 rounded-2xl bg-white items-center justify-center border border-[#DCEDE6]">
 
@@ -167,7 +187,6 @@
     </div>
 
 </section>
-
 
 
 {{-- ========================================================= --}}
@@ -206,9 +225,7 @@
                 }}
                 text-sm font-medium transition"
             >
-
                 {{ $category }}
-
             </a>
 
         @endforeach
@@ -216,7 +233,6 @@
     </div>
 
 </section>
-
 
 
 {{-- ========================================================= --}}
@@ -236,6 +252,7 @@
 
             <div class="bg-white border border-gray-200 rounded-2xl sticky top-28 overflow-hidden">
 
+
                 {{-- FILTER HEADER --}}
                 <div class="px-5 py-4 border-b border-gray-200">
 
@@ -254,7 +271,6 @@
 
                         </div>
 
-
                         <button
                             type="button"
                             class="text-xs font-medium text-[#1F6F5B] hover:underline"
@@ -267,14 +283,12 @@
                 </div>
 
 
-
                 {{-- CATEGORY --}}
                 <div class="px-5 py-5 border-b border-gray-100">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
                         Categories
                     </h3>
-
 
                     <div class="space-y-3">
 
@@ -308,14 +322,12 @@
                 </div>
 
 
-
                 {{-- PRICE --}}
                 <div class="px-5 py-5 border-b border-gray-100">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
                         Price Range
                     </h3>
-
 
                     <div class="flex items-center gap-2">
 
@@ -337,7 +349,6 @@
 
                     </div>
 
-
                     <button
                         type="button"
                         class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
@@ -348,14 +359,12 @@
                 </div>
 
 
-
                 {{-- RATING --}}
                 <div class="px-5 py-5">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
                         Customer Rating
                     </h3>
-
 
                     <div class="space-y-3">
 
@@ -399,7 +408,6 @@
         </aside>
 
 
-
         {{-- ================================================= --}}
         {{-- PRODUCTS AREA --}}
         {{-- ================================================= --}}
@@ -412,8 +420,6 @@
 
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-
-                    {{-- RESULT COUNT --}}
                     <div>
 
                         <p class="text-sm text-gray-700">
@@ -429,27 +435,21 @@
                     </div>
 
 
-                    {{-- ACTIONS --}}
                     <div class="flex items-center gap-2">
 
-
-                        {{-- MOBILE FILTER --}}
                         <button
                             type="button"
                             class="lg:hidden inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
                         >
-
                             <i
                                 data-lucide="sliders-horizontal"
                                 class="w-4 h-4"
                             ></i>
 
                             Filters
-
                         </button>
 
 
-                        {{-- SORT --}}
                         <div class="flex items-center gap-2">
 
                             <span class="hidden sm:block text-xs text-gray-400">
@@ -459,13 +459,11 @@
                             <select
                                 class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1F6F5B]"
                             >
-
                                 <option>Recommended</option>
                                 <option>Newest</option>
                                 <option>Best Selling</option>
                                 <option>Price: Low to High</option>
                                 <option>Price: High to Low</option>
-
                             </select>
 
                         </div>
@@ -477,58 +475,104 @@
             </div>
 
 
-
             {{-- ================================================= --}}
             {{-- PRODUCT GRID --}}
             {{-- ================================================= --}}
 
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
 
-
                 @foreach($products as $product)
 
-                    <a
-                        href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
-                        class="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-[#D5EAE2] hover:shadow-lg hover:-translate-y-0.5 transition duration-200"
+                    @php
+                        $isWishlisted = in_array(
+                            $product['slug'],
+                            $wishlistSlugs,
+                            true
+                        );
+                    @endphp
+
+
+                    <article
+                        class="group relative bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-[#D5EAE2] hover:shadow-lg hover:-translate-y-0.5 transition duration-200"
                     >
 
 
                         {{-- PRODUCT IMAGE --}}
                         <div class="relative aspect-square overflow-hidden bg-gray-100">
 
-                            <img
-                                src="{{ $product['image'] }}"
-                                alt="{{ $product['name'] }}"
-                                class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                            <a
+                                href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
+                                class="block w-full h-full"
                             >
+
+                                <img
+                                    src="{{ $product['image'] }}"
+                                    alt="{{ $product['name'] }}"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                                >
+
+                            </a>
 
 
                             {{-- SALE BADGE --}}
-                            <span class="absolute top-3 left-3 bg-[#F59E0B] text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                            <span
+                                class="absolute top-3 left-3 z-10 bg-[#F59E0B] text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm"
+                            >
                                 SALE
                             </span>
 
 
-                            {{-- WISHLIST --}}
-                            <button
-                                type="button"
-                                onclick="event.preventDefault(); event.stopPropagation();"
-                                class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white shadow-sm transition"
-                            >
+                            {{-- ================================================= --}}
+{{-- WISHLIST TOGGLE --}}
+{{-- ================================================= --}}
 
-                                <i
-                                    data-lucide="heart"
-                                    class="w-4 h-4"
-                                ></i>
+<form
+    action="{{ route('buyer.wishlist.toggle', ['slug' => $product['slug']]) }}"
+    method="POST"
+    class="absolute top-3 right-3 z-20"
+>
+    @csrf
 
-                            </button>
-
+    <button
+        type="submit"
+        class="w-9 h-9 rounded-full border flex items-center justify-center shadow-sm transition-all duration-200"
+        style="
+            @if($isWishlisted)
+                background-color: #1F6F5B;
+                border-color: #1F6F5B;
+                color: #ffffff;
+            @else
+                background-color: #ffffff;
+                border-color: #e5e7eb;
+                color: #6b7280;
+            @endif
+        "
+        title="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
+        aria-label="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
+    >
+        <i
+            data-lucide="heart"
+            class="w-4 h-4"
+            style="
+                @if($isWishlisted)
+                    fill: #ffffff;
+                    stroke: #ffffff;
+                @else
+                    fill: none;
+                    stroke: #6b7280;
+                @endif
+            "
+        ></i>
+    </button>
+</form>
                         </div>
 
 
-
                         {{-- PRODUCT DETAILS --}}
-                        <div class="p-3.5 sm:p-4">
+                        <a
+                            href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
+                            class="block p-3.5 sm:p-4"
+                        >
 
 
                             {{-- CATEGORY --}}
@@ -538,12 +582,11 @@
 
 
                             {{-- NAME --}}
-                            <h3 class="text-sm font-medium text-gray-800 leading-5 line-clamp-2 min-h-[40px] group-hover:text-[#1F6F5B] transition">
-
+                            <h3
+                                class="text-sm font-medium text-gray-800 leading-5 line-clamp-2 min-h-[40px] group-hover:text-[#1F6F5B] transition"
+                            >
                                 {{ $product['name'] }}
-
                             </h3>
-
 
 
                             {{-- PRICE --}}
@@ -558,7 +601,6 @@
                                 </span>
 
                             </div>
-
 
 
                             {{-- RATING + SOLD --}}
@@ -577,13 +619,11 @@
 
                                 </div>
 
-
                                 <span class="text-xs text-gray-400">
                                     {{ $product['sold'] }} sold
                                 </span>
 
                             </div>
-
 
 
                             {{-- SHIPPING --}}
@@ -600,14 +640,13 @@
 
                             </div>
 
-                        </div>
+                        </a>
 
-                    </a>
+                    </article>
 
                 @endforeach
 
             </div>
-
 
 
             {{-- ================================================= --}}
@@ -616,19 +655,15 @@
 
             <div class="flex items-center justify-center gap-2 mt-10">
 
-
                 <button
                     type="button"
                     class="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
                 >
-
                     <i
                         data-lucide="chevron-left"
                         class="w-4 h-4"
                     ></i>
-
                 </button>
-
 
                 <button
                     type="button"
@@ -637,14 +672,12 @@
                     1
                 </button>
 
-
                 <button
                     type="button"
                     class="w-9 h-9 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
                 >
                     2
                 </button>
-
 
                 <button
                     type="button"
@@ -653,22 +686,18 @@
                     3
                 </button>
 
-
                 <span class="px-1 text-gray-400">
                     ...
                 </span>
-
 
                 <button
                     type="button"
                     class="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
                 >
-
                     <i
                         data-lucide="chevron-right"
                         class="w-4 h-4"
                     ></i>
-
                 </button>
 
             </div>

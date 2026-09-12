@@ -88,7 +88,7 @@
                             <div>
 
                                 <h2 class="text-lg font-semibold text-gray-900">
-                                    {{ session('buyer_profile.first_name', 'SUKI Buyer') }}
+                                    {{ session('buyer_profile.first_name', 'SUKI SHOP Buyer') }}
                                     {{ session('buyer_profile.last_name', '') }}
                                 </h2>
 
@@ -400,11 +400,11 @@
                         <div>
 
                             <h3 class="text-sm font-semibold text-gray-900">
-                                Want to earn with SUKI?
+                                Want to earn with SUKI SHOP?
                             </h3>
 
                             <p class="mt-1 text-xs leading-5 text-gray-600">
-                                Become a seller or apply as a SUKI Rider.
+                                Become a seller or apply as a SUKI SHOP Rider.
                             </p>
 
                         </div>
@@ -636,7 +636,7 @@
                 </h2>
 
                 <p class="mt-1 text-xs text-gray-500">
-                    Keep your SUKI account secure.
+                    Keep your SUKI SHOP account secure.
                 </p>
 
             </div>

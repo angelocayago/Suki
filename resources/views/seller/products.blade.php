@@ -675,7 +675,7 @@
                                         </h3>
 
                                         <p class="mt-1 text-xs text-gray-500 max-w-sm">
-                                            Start adding products to build your SUKI store.
+                                            Start adding products to build your SUKI SHOP store.
                                         </p>
 
                                         <a
@@ -882,7 +882,7 @@
                             </h3>
 
                             <p class="mt-1 text-xs text-gray-500">
-                                Start adding products to build your SUKI store.
+                                Start adding products to build your SUKI SHOP store.
                             </p>
 
                             <a

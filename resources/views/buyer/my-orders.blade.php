@@ -23,7 +23,7 @@
                     </h1>
 
                     <p class="mt-1 text-sm text-gray-500">
-                        Track and manage your SUKI orders.
+                        Track and manage your SUKI SHOP orders.
                     </p>
                 </div>
 

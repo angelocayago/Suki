@@ -1377,7 +1377,7 @@
         <div class="mt-8 text-center">
 
             <p class="text-xs text-gray-400">
-                SUKI Seller Centre
+                SUKI SHOP Seller Centre
                 <span class="mx-1">•</span>
                 Manage your store with ease
             </p>

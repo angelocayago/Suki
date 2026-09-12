@@ -84,7 +84,7 @@
             </h2>
 
             <p class="mt-1 text-sm text-gray-500">
-                Create a product listing for your SUKI store.
+                Create a product listing for your SUKI SHOP store.
             </p>
 
         </div>
@@ -926,11 +926,11 @@
                                 <div>
 
                                     <p class="text-sm font-medium text-gray-800">
-                                        SUKI Rider
+                                        SUKI SHOP Rider
                                     </p>
 
                                     <p class="text-xs text-gray-500">
-                                        Pickup and delivery through SUKI's rider network.
+                                        Pickup and delivery through SUKI SHOP's rider network.
                                     </p>
 
                                 </div>

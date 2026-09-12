@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Sign Up - SUKI</title>
+    <title>Sign Up - SUKI SHOP</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -24,7 +24,7 @@
     <div class="min-h-screen grid lg:grid-cols-[45%_55%]">
 
         <!-- ================================================= -->
-        <!-- LEFT SIDE - SUKI BRANDING -->
+        <!-- LEFT SIDE - SUKI SHOP BRANDING -->
         <!-- ================================================= -->
 
         <section class="hidden lg:flex items-center justify-center bg-[#EEF8F3] px-10">
@@ -38,7 +38,7 @@
 
                         <img
                             src="{{ asset('images/suki-logo.png') }}"
-                            alt="SUKI"
+                            alt="SUKI SHOP"
                             class="w-[210px] xl:w-[240px] h-auto object-contain"
                         >
 
@@ -135,7 +135,7 @@
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI"
+                        alt="SUKI SHOP"
                         class="w-[150px] mx-auto h-auto"
                     >
 
@@ -146,7 +146,7 @@
                 <div class="mb-7">
 
                     <p class="text-sm font-semibold tracking-wide text-[#1F6F5B] mb-2">
-                        JOIN SUKI
+                        JOIN SUKI SHOP
                     </p>
 
                     <h2 class="text-2xl sm:text-3xl font-semibold text-gray-900">
@@ -154,7 +154,7 @@
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-2">
-                        Sign up and start shopping with SUKI.
+                        Sign up and start shopping with SUKI SHOP.
                     </p>
 
                 </div>
@@ -419,7 +419,7 @@
                             class="text-xs text-gray-500 leading-relaxed"
                         >
 
-                            I agree to SUKI's
+                            I agree to SUKI SHOP's
 
                             <a
                                 href="#"
@@ -477,7 +477,7 @@
                 <div class="text-center text-sm">
 
                     <span class="text-gray-500">
-                        Already have a SUKI account?
+                        Already have a SUKI SHOP account?
                     </span>
 
                     <a
@@ -515,7 +515,7 @@
                             <div class="flex-1">
 
                                 <h3 class="text-sm font-semibold text-[#173F35]">
-                                    Become a SUKI Rider
+                                    Become a SUKI SHOP Rider
                                 </h3>
 
                                 <p class="text-xs text-gray-500 mt-1">
@@ -527,7 +527,7 @@
                                     class="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-[#1F6F5B] hover:text-[#155244] transition"
                                 >
 
-                                    Apply as a SUKI Rider
+                                    Apply as a SUKI SHOP Rider
 
                                     <i
                                         data-lucide="arrow-right"

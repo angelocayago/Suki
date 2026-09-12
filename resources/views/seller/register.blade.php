@@ -19,7 +19,7 @@
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI"
+                        alt="SUKI SHOP"
                         class="h-36 sm:h-40 lg:h-44 w-auto object-contain"
                     >
 
@@ -33,7 +33,7 @@
 
                     with
                     <span class="text-[#1F6F5B]">
-                        SUKI.
+                        SUKI SHOP.
                     </span>
 
                 </h1>
@@ -67,7 +67,7 @@
                         </div>
 
                         <span class="text-sm font-medium text-gray-700">
-                            Manage your own SUKI shop
+                            Manage your own SUKI SHOP shop
                         </span>
 
                     </div>
@@ -122,7 +122,7 @@
                     ></i>
 
                     <span>
-                        Secure seller platform by SUKI
+                        Secure seller platform by SUKI SHOP
                     </span>
 
                 </div>
@@ -148,7 +148,7 @@
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI"
+                        alt="SUKI SHOP"
                         class="h-20 sm:h-24 w-auto object-contain"
                     >
 
@@ -170,7 +170,7 @@
                     </h2>
 
                     <p class="mt-2 text-sm text-gray-500 leading-relaxed">
-                        Fill in your details to start selling on SUKI.
+                        Fill in your details to start selling on SUKI SHOP.
                     </p>
 
                 </div>
@@ -518,7 +518,7 @@
 
                         <p class="text-xs leading-relaxed text-gray-500">
 
-                            I agree to SUKI's
+                            I agree to SUKI SHOP's
 
                             <span class="font-medium text-gray-700">
                                 Terms of Service
@@ -600,7 +600,7 @@
                             class="w-4 h-4"
                         ></i>
 
-                        Back to SUKI Marketplace
+                        Back to SUKI SHOP Marketplace
 
                     </a>
 

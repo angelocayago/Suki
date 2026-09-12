@@ -636,7 +636,7 @@
                                             <div class="text-xs text-gray-600">
 
                                                 <p class="font-medium text-gray-800">
-                                                    SUKI Official GCash
+                                                    SUKI SHOP Official GCash
                                                 </p>
 
                                                 <p class="mt-1">
@@ -756,7 +756,7 @@
 
                             {{-- TERMS --}}
                             <p class="text-center text-xs leading-5 text-gray-400">
-                                By placing your order, you agree to SUKI's
+                                By placing your order, you agree to SUKI SHOP's
                                 <span class="font-medium text-gray-500">
                                     Terms & Conditions
                                 </span>

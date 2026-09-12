@@ -4,38 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Log In - SUKI</title>
+    <title>Log In - SUKI SHOP</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
 
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body class="min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
 
-    <div class="min-h-screen grid lg:grid-cols-[45%_55%]">
+    <div class="grid min-h-screen lg:grid-cols-[45%_55%]">
 
         <!-- ================================================= -->
-        <!-- LEFT SIDE - SUKI BRANDING -->
+        <!-- LEFT SIDE - SUKI SHOP BRANDING -->
         <!-- ================================================= -->
 
-        <section class="hidden lg:flex items-center justify-center bg-[#EEF8F3] px-10">
+        <section class="hidden items-center justify-center bg-[#EEF8F3] px-10 lg:flex">
 
-            <div class="text-center max-w-lg">
+            <div class="max-w-lg text-center">
 
                 <!-- Logo -->
                 <div class="flex justify-center">
 
-                    <div class="bg-white rounded-[28px] px-8 py-6 shadow-sm border border-[#DCEDE6]">
+                    <div class="rounded-[28px] border border-[#DCEDE6] bg-white px-8 py-6 shadow-sm">
 
                         <img
                             src="{{ asset('images/suki-logo.png') }}"
-                            alt="SUKI"
-                            class="w-[210px] xl:w-[240px] h-auto object-contain"
+                            alt="SUKI SHOP"
+                            class="h-auto w-[210px] object-contain xl:w-[240px]"
                         >
 
                     </div>
@@ -44,7 +48,7 @@
 
 
                 <!-- Tagline -->
-                <h1 class="mt-8 text-3xl xl:text-4xl font-semibold text-[#173F35] leading-tight">
+                <h1 class="mt-8 text-3xl font-semibold leading-tight text-[#173F35] xl:text-4xl">
 
                     Your everyday
 
@@ -56,7 +60,7 @@
 
 
                 <!-- Description -->
-                <p class="mt-4 text-sm xl:text-base text-gray-500 leading-relaxed max-w-md mx-auto">
+                <p class="mx-auto mt-4 max-w-md text-sm leading-relaxed text-gray-500 xl:text-base">
 
                     Discover products, find great deals, and shop
                     from sellers you can trust — all in one place.
@@ -65,14 +69,14 @@
 
 
                 <!-- Features -->
-                <div class="flex justify-center gap-3 mt-8">
+                <div class="mt-8 flex justify-center gap-3">
 
                     <!-- Great Deals -->
-                    <div class="flex items-center gap-2 bg-white border border-[#DCEDE6] rounded-full px-4 py-2">
+                    <div class="flex items-center gap-2 rounded-full border border-[#DCEDE6] bg-white px-4 py-2">
 
                         <i
                             data-lucide="tag"
-                            class="w-4 h-4 text-[#1F6F5B]"
+                            class="h-4 w-4 text-[#1F6F5B]"
                         ></i>
 
                         <span class="text-xs font-medium text-gray-600">
@@ -83,11 +87,11 @@
 
 
                     <!-- Easy Delivery -->
-                    <div class="flex items-center gap-2 bg-white border border-[#DCEDE6] rounded-full px-4 py-2">
+                    <div class="flex items-center gap-2 rounded-full border border-[#DCEDE6] bg-white px-4 py-2">
 
                         <i
                             data-lucide="truck"
-                            class="w-4 h-4 text-[#1F6F5B]"
+                            class="h-4 w-4 text-[#1F6F5B]"
                         ></i>
 
                         <span class="text-xs font-medium text-gray-600">
@@ -100,11 +104,11 @@
 
 
                 <!-- Trust Message -->
-                <div class="flex justify-center items-center gap-2 mt-10 text-xs text-gray-400">
+                <div class="mt-10 flex items-center justify-center gap-2 text-xs text-gray-400">
 
                     <i
                         data-lucide="shield-check"
-                        class="w-4 h-4 text-[#1F6F5B]"
+                        class="h-4 w-4 text-[#1F6F5B]"
                     ></i>
 
                     <span>
@@ -122,17 +126,17 @@
         <!-- RIGHT SIDE - LOGIN -->
         <!-- ================================================= -->
 
-        <section class="flex items-center justify-center bg-[#F8FAF8] px-6 sm:px-10 lg:px-16 py-10">
+        <section class="flex items-center justify-center bg-[#F8FAF8] px-6 py-10 sm:px-10 lg:px-16">
 
             <div class="w-full max-w-[440px]">
 
                 <!-- Mobile Logo -->
-                <div class="lg:hidden text-center mb-8">
+                <div class="mb-8 text-center lg:hidden">
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI"
-                        class="w-[155px] mx-auto h-auto"
+                        alt="SUKI SHOP"
+                        class="mx-auto h-auto w-[155px]"
                     >
 
                 </div>
@@ -141,15 +145,15 @@
                 <!-- Header -->
                 <div class="mb-8">
 
-                    <p class="text-sm font-semibold tracking-wide text-[#1F6F5B] mb-2">
+                    <p class="mb-2 text-sm font-semibold tracking-wide text-[#1F6F5B]">
                         WELCOME BACK
                     </p>
 
                     <h2 class="text-3xl font-semibold text-gray-900">
-                        Log in to SUKI
+                        Log in to SUKI SHOP
                     </h2>
 
-                    <p class="text-sm text-gray-500 mt-2">
+                    <p class="mt-2 text-sm text-gray-500">
                         Sign in to continue shopping with us.
                     </p>
 
@@ -159,9 +163,9 @@
                 <!-- Error Messages -->
                 @if ($errors->any())
 
-                    <div class="mb-5 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+                    <div class="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
 
-                        <ul class="text-sm text-red-600 space-y-1">
+                        <ul class="space-y-1 text-sm text-red-600">
 
                             @foreach ($errors->all() as $error)
 
@@ -196,17 +200,19 @@
 
                         <label
                             for="login"
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="mb-2 block text-sm font-medium text-gray-700"
                         >
                             Phone Number or Gmail
                         </label>
+
 
                         <div class="relative">
 
                             <i
                                 data-lucide="user"
-                                class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                                class="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
                             ></i>
+
 
                             <input
                                 type="text"
@@ -214,7 +220,7 @@
                                 name="login"
                                 value="{{ old('login') }}"
                                 placeholder="Enter phone number or Gmail"
-                                class="w-full pl-11 pr-4 py-3.5 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                class="w-full rounded-lg border border-gray-300 bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
 
@@ -226,7 +232,7 @@
                     <!-- Password -->
                     <div>
 
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="mb-2 flex items-center justify-between">
 
                             <label
                                 for="password"
@@ -234,6 +240,7 @@
                             >
                                 Password
                             </label>
+
 
                             <a
                                 href="#"
@@ -249,30 +256,32 @@
 
                             <i
                                 data-lucide="lock"
-                                class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                                class="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
                             ></i>
+
 
                             <input
                                 type="password"
                                 id="password"
                                 name="password"
                                 placeholder="Enter your password"
-                                class="w-full pl-11 pr-12 py-3.5 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                class="w-full rounded-lg border border-gray-300 bg-white py-3.5 pl-11 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
+
 
                             <!-- Show Password -->
                             <button
                                 type="button"
                                 onclick="togglePassword()"
-                                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1F6F5B] transition"
+                                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-[#1F6F5B]"
                                 aria-label="Show password"
                             >
 
                                 <i
                                     id="passwordIcon"
                                     data-lucide="eye"
-                                    class="w-5 h-5"
+                                    class="h-5 w-5"
                                 ></i>
 
                             </button>
@@ -285,7 +294,7 @@
                     <!-- Login Button -->
                     <button
                         type="submit"
-                        class="w-full py-3.5 rounded-lg bg-[#1F6F5B] text-white text-sm font-semibold hover:bg-[#155244] transition"
+                        class="w-full rounded-lg bg-[#1F6F5B] py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244]"
                     >
                         LOG IN
                     </button>
@@ -297,15 +306,15 @@
                 <!-- DIVIDER -->
                 <!-- ================================================= -->
 
-                <div class="flex items-center gap-4 my-7">
+                <div class="my-7 flex items-center gap-4">
 
-                    <div class="flex-1 h-px bg-gray-200"></div>
+                    <div class="h-px flex-1 bg-gray-200"></div>
 
-                    <span class="text-xs text-gray-400 font-medium">
+                    <span class="text-xs font-medium text-gray-400">
                         OR
                     </span>
 
-                    <div class="flex-1 h-px bg-gray-200"></div>
+                    <div class="h-px flex-1 bg-gray-200"></div>
 
                 </div>
 
@@ -317,12 +326,12 @@
                 <div class="text-center text-sm">
 
                     <span class="text-gray-500">
-                        Don't have a SUKI account?
+                        Don't have a SUKI SHOP account?
                     </span>
 
                     <a
                         href="{{ route('register') }}"
-                        class="font-semibold text-[#1F6F5B] hover:underline ml-1"
+                        class="ml-1 font-semibold text-[#1F6F5B] hover:underline"
                     >
                         Sign Up
                     </a>
@@ -341,11 +350,11 @@
                         <div class="flex items-center gap-4">
 
                             <!-- Rider Icon -->
-                            <div class="shrink-0 w-11 h-11 rounded-xl bg-white border border-[#DDF3EC] flex items-center justify-center">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#DDF3EC] bg-white">
 
                                 <i
                                     data-lucide="bike"
-                                    class="w-5 h-5 text-[#1F6F5B]"
+                                    class="h-5 w-5 text-[#1F6F5B]"
                                 ></i>
 
                             </div>
@@ -355,23 +364,26 @@
                             <div class="flex-1">
 
                                 <h3 class="text-sm font-semibold text-[#173F35]">
-                                    Become a SUKI Rider
+                                    Become a SUKI SHOP Rider
                                 </h3>
 
-                                <p class="text-xs text-gray-500 mt-1">
+
+                                <p class="mt-1 text-xs text-gray-500">
                                     Earn while delivering orders in your area.
                                 </p>
 
+
+                                <!-- FIXED LINK -->
                                 <a
-                                    href="/rider/register"
-                                    class="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-[#1F6F5B] hover:text-[#155244] transition"
+                                    href="{{ route('rider.apply') }}"
+                                    class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#1F6F5B] transition hover:text-[#155244]"
                                 >
 
-                                    Apply as a SUKI Rider
+                                    Apply as a SUKI SHOP Rider
 
                                     <i
                                         data-lucide="arrow-right"
-                                        class="w-3.5 h-3.5"
+                                        class="h-3.5 w-3.5"
                                     ></i>
 
                                 </a>
@@ -389,16 +401,16 @@
                 <!-- CONTINUE AS GUEST -->
                 <!-- ================================================= -->
 
-                <div class="text-center mt-6">
+                <div class="mt-6 text-center">
 
                     <a
                         href="{{ route('buyer.home') }}"
-                        class="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#1F6F5B] transition"
+                        class="inline-flex items-center gap-1.5 text-xs text-gray-400 transition hover:text-[#1F6F5B]"
                     >
 
                         <i
                             data-lucide="arrow-left"
-                            class="w-3.5 h-3.5"
+                            class="h-3.5 w-3.5"
                         ></i>
 
                         Continue as Guest

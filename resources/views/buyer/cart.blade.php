@@ -3,7 +3,7 @@
 @section('content')
 
 {{-- =========================================================
-   SUKI SHOPPING CART
+   SUKI SHOP SHOPPING CART
 ========================================================= --}}
 
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
@@ -425,7 +425,7 @@
                             </p>
 
                             <p class="mt-0.5 text-xs leading-5 text-gray-600">
-                                Your order is protected through SUKI's secure checkout process.
+                                Your order is protected through SUKI SHOP's secure checkout process.
                             </p>
                         </div>
 
@@ -588,7 +588,7 @@
                                     data-lucide="headphones"
                                     class="w-3.5 h-3.5 text-[#1F6F5B]"
                                 ></i>
-                                SUKI customer support
+                                SUKI SHOP customer support
                             </div>
 
                         </div>

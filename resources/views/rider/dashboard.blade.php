@@ -3,39 +3,21 @@
 @section('content')
 
 @php
+
+    /*
+    |--------------------------------------------------------------------------
+    | ORDERS
+    |--------------------------------------------------------------------------
+    */
+
     $orders = session('orders', []);
 
-    $readyForPickup = collect($orders)
-        ->where('status', 'ready_for_pickup')
-        ->count();
 
-    $pickedUp = collect($orders)
-        ->where('status', 'picked_up')
-        ->count();
-
-    $atSortingCenter = collect($orders)
-        ->where('status', 'at_sorting_center')
-        ->count();
-
-    $outForDelivery = collect($orders)
-        ->where('status', 'out_for_delivery')
-        ->count();
-
-    $delivered = collect($orders)
-        ->where('status', 'delivered')
-        ->count();
-
-    $assigned = collect($orders)
-        ->where('status', 'assigned_to_rider')
-        ->count();
-
-    $activeDeliveries = $assigned + $outForDelivery;
-
-    $totalCompleted = $delivered;
-
-    $deliveryFee = 50;
-
-    $todayEarnings = $totalCompleted * $deliveryFee;
+    /*
+    |--------------------------------------------------------------------------
+    | RIDER INFORMATION
+    |--------------------------------------------------------------------------
+    */
 
     $riderName = trim(
         ($application['first_name'] ?? '') . ' ' .
@@ -46,41 +28,169 @@
         $riderName = 'Rider';
     }
 
-    $recentOrders = collect($orders)
+
+    /*
+    |--------------------------------------------------------------------------
+    | AVAILABLE PICKUP REQUESTS
+    |--------------------------------------------------------------------------
+    |
+    | Orders ready for pickup that have not yet been accepted
+    | by another rider.
+    |
+    */
+
+    $availablePickups = collect($orders)
         ->filter(function ($order) {
+
+            return ($order['status'] ?? '') === 'ready_for_pickup'
+                && empty($order['rider_name'];
+
+        });
+
+
+    $availablePickupCount = $availablePickups->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MY RIDER ORDERS
+    |--------------------------------------------------------------------------
+    */
+
+    $myOrders = collect($orders)
+        ->filter(function ($order) use ($riderName) {
+
+            return ($order['rider_name'] ?? '') === $riderName;
+
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELIVERY STATUS COUNTS
+    |--------------------------------------------------------------------------
+    */
+
+    $assigned = $myOrders
+        ->where('status', 'assigned_to_rider')
+        ->count();
+
+
+    $pickedUp = $myOrders
+        ->where('status', 'picked_up')
+        ->count();
+
+
+    $atSortingCenter = $myOrders
+        ->where('status', 'at_sorting_center')
+        ->count();
+
+
+    $outForDelivery = $myOrders
+        ->where('status', 'out_for_delivery')
+        ->count();
+
+
+    $delivered = $myOrders
+        ->where('status', 'delivered')
+        ->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DASHBOARD SUMMARY
+    |--------------------------------------------------------------------------
+    */
+
+    $activeDeliveries =
+        $assigned +
+        $pickedUp +
+        $atSortingCenter +
+        $outForDelivery;
+
+
+    $totalCompleted = $delivered;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EARNINGS
+    |--------------------------------------------------------------------------
+    */
+
+    $deliveryFee = 50;
+
+    $todayEarnings =
+        $totalCompleted * $deliveryFee;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RECENT ACTIVE TASKS
+    |--------------------------------------------------------------------------
+    */
+
+    $recentOrders = $myOrders
+        ->filter(function ($order) {
+
             return in_array(
                 $order['status'] ?? '',
                 [
-                    'ready_for_pickup',
+                    'assigned_to_rider',
                     'picked_up',
                     'at_sorting_center',
-                    'assigned_to_rider',
                     'out_for_delivery',
-                    'delivered',
                 ]
             );
+
         })
         ->reverse()
-        ->take(4);
+        ->take(3);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GREETING
+    |--------------------------------------------------------------------------
+    */
+
+    $hour = now()->format('H');
+
+    if ($hour < 12) {
+        $greeting = 'Good morning';
+    } elseif ($hour < 18) {
+        $greeting = 'Good afternoon';
+    } else {
+        $greeting = 'Good evening';
+    }
+
 @endphp
 
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
     {{-- =====================================================
          WELCOME HEADER
     ====================================================== --}}
 
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
 
         <div>
 
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
-                Good morning, {{ $riderName }}
-            </h1>
+            <div class="flex items-center gap-2">
 
-            <p class="text-gray-500 mt-1">
-                Manage your deliveries and earnings from here.
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+                    {{ $greeting }}, {{ $riderName }}!
+                </h1>
+
+                <span class="text-2xl">
+                    👋
+                </span>
+
+            </div>
+
+            <p class="text-sm sm:text-base text-gray-500 mt-2">
+                Here's what's happening with your deliveries today.
             </p>
 
         </div>
@@ -88,12 +198,18 @@
 
         {{-- ONLINE STATUS --}}
 
-        <div class="inline-flex items-center gap-2 self-start lg:self-auto px-4 py-2.5 rounded-lg bg-[#EEF8F3] text-[#1F6F5B]">
+        <div class="inline-flex items-center gap-2 self-start sm:self-auto px-4 py-2.5 rounded-full bg-[#EEF8F3] border border-[#D7EFE5]">
 
-            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            <span class="relative flex w-2.5 h-2.5">
 
-            <span class="text-sm font-semibold">
-                Online
+                <span class="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60 animate-ping"></span>
+
+                <span class="relative inline-flex rounded-full w-2.5 h-2.5 bg-green-500"></span>
+
+            </span>
+
+            <span class="text-sm font-semibold text-[#1F6F5B]">
+                You're Online
             </span>
 
         </div>
@@ -102,22 +218,123 @@
 
 
     {{-- =====================================================
+         AVAILABLE PICKUP ALERT
+    ====================================================== --}}
+
+    @if($availablePickupCount > 0)
+
+        <div class="mb-6 rounded-2xl bg-gradient-to-r from-[#FFF8E8] to-[#FFFDF7] border border-[#FDE7B2] p-4 sm:p-5">
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+                <div class="flex items-start gap-4">
+
+                    <div class="w-12 h-12 shrink-0 rounded-xl bg-amber-100 flex items-center justify-center">
+
+                        <i
+                            data-lucide="package-check"
+                            class="w-6 h-6 text-amber-600"
+                        ></i>
+
+                    </div>
+
+
+                    <div>
+
+                        <p class="font-semibold text-gray-900">
+                            New pickup requests available!
+                        </p>
+
+                        <p class="text-sm text-gray-600 mt-1">
+
+                            {{ $availablePickupCount }}
+
+                            {{ $availablePickupCount === 1 ? 'order is' : 'orders are' }}
+
+                            waiting for a rider.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <a
+                    href="{{ route('rider.deliveries') }}"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#F59E0B] text-white text-sm font-semibold hover:bg-amber-600 transition shadow-sm"
+                >
+
+                    View Requests
+
+                    <i
+                        data-lucide="arrow-right"
+                        class="w-4 h-4"
+                    ></i>
+
+                </a>
+
+            </div>
+
+        </div>
+
+    @endif
+
+
+    {{-- =====================================================
          SUMMARY CARDS
     ====================================================== --}}
 
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-8">
 
 
-        {{-- TODAY'S DELIVERIES --}}
+        {{-- AVAILABLE PICKUPS --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition">
 
             <div class="flex items-start justify-between gap-3">
 
                 <div>
 
-                    <p class="text-sm text-gray-500">
-                        Today's Deliveries
+                    <p class="text-xs sm:text-sm text-gray-500">
+                        Available Pickups
+                    </p>
+
+                    <p class="text-3xl font-bold text-gray-900 mt-2">
+                        {{ $availablePickupCount }}
+                    </p>
+
+                    <p class="text-xs text-amber-600 mt-2">
+                        Ready to accept
+                    </p>
+
+                </div>
+
+
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+
+                    <i
+                        data-lucide="package-plus"
+                        class="w-5 h-5 text-amber-600"
+                    ></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        {{-- ACTIVE DELIVERIES --}}
+
+        <div class="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition">
+
+            <div class="flex items-start justify-between gap-3">
+
+                <div>
+
+                    <p class="text-xs sm:text-sm text-gray-500">
+                        Active Deliveries
                     </p>
 
                     <p class="text-3xl font-bold text-gray-900 mt-2">
@@ -125,15 +342,16 @@
                     </p>
 
                     <p class="text-xs text-[#1F6F5B] mt-2">
-                        Active deliveries
+                        Currently active
                     </p>
 
                 </div>
 
-                <div class="w-11 h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
+
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center shrink-0">
 
                     <i
-                        data-lucide="package"
+                        data-lucide="truck"
                         class="w-5 h-5 text-[#1F6F5B]"
                     ></i>
 
@@ -146,13 +364,13 @@
 
         {{-- COMPLETED --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition">
 
             <div class="flex items-start justify-between gap-3">
 
                 <div>
 
-                    <p class="text-sm text-gray-500">
+                    <p class="text-xs sm:text-sm text-gray-500">
                         Completed
                     </p>
 
@@ -161,12 +379,13 @@
                     </p>
 
                     <p class="text-xs text-[#1F6F5B] mt-2">
-                        Delivered orders
+                        Successfully delivered
                     </p>
 
                 </div>
 
-                <div class="w-11 h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
+
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center shrink-0">
 
                     <i
                         data-lucide="circle-check"
@@ -182,66 +401,31 @@
 
         {{-- EARNINGS --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition">
 
             <div class="flex items-start justify-between gap-3">
 
                 <div>
 
-                    <p class="text-sm text-gray-500">
-                        Earnings Today
+                    <p class="text-xs sm:text-sm text-gray-500">
+                        Today's Earnings
                     </p>
 
-                    <p class="text-3xl font-bold text-gray-900 mt-2">
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">
                         ₱{{ number_format($todayEarnings, 2) }}
                     </p>
 
                     <p class="text-xs text-[#1F6F5B] mt-2">
-                        From completed deliveries
+                        Completed deliveries
                     </p>
 
                 </div>
 
-                <div class="w-11 h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
+
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center shrink-0">
 
                     <i
                         data-lucide="wallet"
-                        class="w-5 h-5 text-[#1F6F5B]"
-                    ></i>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        {{-- RATING --}}
-
-        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-
-            <div class="flex items-start justify-between gap-3">
-
-                <div>
-
-                    <p class="text-sm text-gray-500">
-                        Rating
-                    </p>
-
-                    <p class="text-3xl font-bold text-gray-900 mt-2">
-                        4.9
-                    </p>
-
-                    <p class="text-xs text-[#1F6F5B] mt-2">
-                        Excellent performance
-                    </p>
-
-                </div>
-
-                <div class="w-11 h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
-
-                    <i
-                        data-lucide="star"
                         class="w-5 h-5 text-[#1F6F5B]"
                     ></i>
 
@@ -255,31 +439,32 @@
 
 
     {{-- =====================================================
-         MAIN DASHBOARD GRID
+         MAIN GRID
     ====================================================== --}}
 
-    <div class="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-5 mb-5">
+    <div class="grid grid-cols-1 xl:grid-cols-[1.45fr_1fr] gap-5 mb-5">
 
 
         {{-- =================================================
              DELIVERY OVERVIEW
         ================================================== --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
             <div class="flex items-center justify-between px-5 sm:px-6 py-5 border-b border-gray-100">
 
                 <div>
 
-                    <h2 class="text-lg font-semibold text-gray-900">
+                    <h2 class="text-lg font-bold text-gray-900">
                         Delivery Overview
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-1">
-                        Current status of your delivery assignments.
+                        Track the status of your delivery tasks.
                     </p>
 
                 </div>
+
 
                 <a
                     href="{{ route('rider.deliveries') }}"
@@ -291,257 +476,119 @@
             </div>
 
 
-            <div class="p-5 sm:p-6 space-y-5">
+            <div class="p-5 sm:p-6 space-y-3">
 
 
-                {{-- READY FOR PICKUP --}}
+                {{-- STATUS ITEM --}}
 
-                <div>
+                @php
 
-                    <div class="flex items-center justify-between gap-3 mb-2">
+                    $overviewStatuses = [
 
-                        <div class="flex items-center gap-3">
+                        [
+                            'label' => 'Available Pickups',
+                            'description' => 'Waiting for a rider to accept',
+                            'count' => $availablePickupCount,
+                            'icon' => 'package-check',
+                            'iconBg' => 'bg-amber-50',
+                            'iconColor' => 'text-amber-600',
+                        ],
 
-                            <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
+                        [
+                            'label' => 'Assigned',
+                            'description' => 'Accepted delivery assignments',
+                            'count' => $assigned,
+                            'icon' => 'clipboard-check',
+                            'iconBg' => 'bg-[#EEF8F3]',
+                            'iconColor' => 'text-[#1F6F5B]',
+                        ],
+
+                        [
+                            'label' => 'Picked Up',
+                            'description' => 'Collected from seller',
+                            'count' => $pickedUp,
+                            'icon' => 'package',
+                            'iconBg' => 'bg-[#EEF8F3]',
+                            'iconColor' => 'text-[#1F6F5B]',
+                        ],
+
+                        [
+                            'label' => 'At Sorting Center',
+                            'description' => 'Being processed',
+                            'count' => $atSortingCenter,
+                            'icon' => 'warehouse',
+                            'iconBg' => 'bg-blue-50',
+                            'iconColor' => 'text-blue-600',
+                        ],
+
+                        [
+                            'label' => 'Out for Delivery',
+                            'description' => 'Heading to customer',
+                            'count' => $outForDelivery,
+                            'icon' => 'truck',
+                            'iconBg' => 'bg-[#EEF8F3]',
+                            'iconColor' => 'text-[#1F6F5B]',
+                        ],
+
+                        [
+                            'label' => 'Delivered',
+                            'description' => 'Successfully completed',
+                            'count' => $delivered,
+                            'icon' => 'circle-check',
+                            'iconBg' => 'bg-[#EEF8F3]',
+                            'iconColor' => 'text-[#1F6F5B]',
+                        ],
+
+                    ];
+
+                @endphp
+
+
+                @foreach($overviewStatuses as $item)
+
+                    <div class="flex items-center justify-between gap-4 p-3 rounded-xl hover:bg-gray-50 transition">
+
+                        <div class="flex items-center gap-4 min-w-0">
+
+                            <div class="w-10 h-10 rounded-xl {{ $item['iconBg'] }} flex items-center justify-center shrink-0">
 
                                 <i
-                                    data-lucide="package-check"
-                                    class="w-5 h-5 text-[#1F6F5B]"
+                                    data-lucide="{{ $item['icon'] }}"
+                                    class="w-5 h-5 {{ $item['iconColor'] }}"
                                 ></i>
 
                             </div>
 
-                            <div>
 
-                                <p class="text-sm font-medium text-gray-900">
-                                    Ready for Pickup
+                            <div class="min-w-0">
+
+                                <p class="text-sm font-semibold text-gray-900">
+                                    {{ $item['label'] }}
                                 </p>
 
-                                <p class="text-xs text-gray-400">
-                                    Waiting for pickup
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    {{ $item['description'] }}
                                 </p>
 
                             </div>
 
                         </div>
 
-                        <span class="text-sm font-semibold text-gray-700">
-                            {{ $readyForPickup }}
+
+                        <span class="min-w-9 h-9 px-3 rounded-full bg-gray-100 inline-flex items-center justify-center text-sm font-bold text-gray-700">
+
+                            {{ $item['count'] }}
+
                         </span>
 
                     </div>
 
-                    <div class="ml-13 h-2 rounded-full bg-gray-100 overflow-hidden">
-
-                        <div
-                            class="h-full bg-[#F59E0B] rounded-full"
-                            style="width: {{ $readyForPickup > 0 ? '45%' : '0%' }}"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                {{-- PICKED UP --}}
-
-                <div>
-
-                    <div class="flex items-center justify-between gap-3 mb-2">
-
-                        <div class="flex items-center gap-3">
-
-                            <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
-
-                                <i
-                                    data-lucide="package"
-                                    class="w-5 h-5 text-[#1F6F5B]"
-                                ></i>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-900">
-                                    Picked Up
-                                </p>
-
-                                <p class="text-xs text-gray-400">
-                                    In transit to sorting center
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <span class="text-sm font-semibold text-gray-700">
-                            {{ $pickedUp }}
-                        </span>
-
-                    </div>
-
-                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-
-                        <div
-                            class="h-full bg-[#1F6F5B] rounded-full"
-                            style="width: {{ $pickedUp > 0 ? '55%' : '0%' }}"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                {{-- SORTING CENTER --}}
-
-                <div>
-
-                    <div class="flex items-center justify-between gap-3 mb-2">
-
-                        <div class="flex items-center gap-3">
-
-                            <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
-
-                                <i
-                                    data-lucide="warehouse"
-                                    class="w-5 h-5 text-[#1F6F5B]"
-                                ></i>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-900">
-                                    At Sorting Center
-                                </p>
-
-                                <p class="text-xs text-gray-400">
-                                    Being processed
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <span class="text-sm font-semibold text-gray-700">
-                            {{ $atSortingCenter }}
-                        </span>
-
-                    </div>
-
-                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-
-                        <div
-                            class="h-full bg-[#2563EB] rounded-full"
-                            style="width: {{ $atSortingCenter > 0 ? '65%' : '0%' }}"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                {{-- OUT FOR DELIVERY --}}
-
-                <div>
-
-                    <div class="flex items-center justify-between gap-3 mb-2">
-
-                        <div class="flex items-center gap-3">
-
-                            <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
-
-                                <i
-                                    data-lucide="truck"
-                                    class="w-5 h-5 text-[#1F6F5B]"
-                                ></i>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-900">
-                                    Out for Delivery
-                                </p>
-
-                                <p class="text-xs text-gray-400">
-                                    Currently delivering
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <span class="text-sm font-semibold text-gray-700">
-                            {{ $outForDelivery }}
-                        </span>
-
-                    </div>
-
-                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-
-                        <div
-                            class="h-full bg-[#1F6F5B] rounded-full"
-                            style="width: {{ $outForDelivery > 0 ? '75%' : '0%' }}"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-
-                {{-- DELIVERED --}}
-
-                <div>
-
-                    <div class="flex items-center justify-between gap-3 mb-2">
-
-                        <div class="flex items-center gap-3">
-
-                            <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
-
-                                <i
-                                    data-lucide="circle-check"
-                                    class="w-5 h-5 text-[#1F6F5B]"
-                                ></i>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-900">
-                                    Delivered
-                                </p>
-
-                                <p class="text-xs text-gray-400">
-                                    Successfully completed
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <span class="text-sm font-semibold text-gray-700">
-                            {{ $delivered }}
-                        </span>
-
-                    </div>
-
-                    <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-
-                        <div
-                            class="h-full bg-[#1F6F5B] rounded-full"
-                            style="width: {{ $delivered > 0 ? '100%' : '0%' }}"
-                        ></div>
-
-                    </div>
-
-                </div>
+                @endforeach
 
 
                 <a
                     href="{{ route('rider.deliveries') }}"
-                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#1F6F5B] text-white text-sm font-semibold hover:bg-[#155244] transition"
+                    class="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#1F6F5B] text-white text-sm font-semibold hover:bg-[#155244] transition"
                 >
 
                     <i
@@ -549,7 +596,7 @@
                         class="w-4 h-4"
                     ></i>
 
-                    Go to Deliveries
+                    Manage Deliveries
 
                 </a>
 
@@ -562,23 +609,24 @@
              EARNINGS SUMMARY
         ================================================== --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
             <div class="flex items-center justify-between px-5 sm:px-6 py-5 border-b border-gray-100">
 
                 <div>
 
-                    <h2 class="text-lg font-semibold text-gray-900">
+                    <h2 class="text-lg font-bold text-gray-900">
                         Earnings Summary
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-1">
-                        Your delivery earnings.
+                        Your earnings for today.
                     </p>
 
                 </div>
 
-                <div class="w-10 h-10 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
+
+                <div class="w-10 h-10 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
 
                     <i
                         data-lucide="wallet"
@@ -592,17 +640,16 @@
 
             <div class="p-5 sm:p-6">
 
-
                 <p class="text-sm text-gray-500">
-                    Today
+                    Today's Earnings
                 </p>
 
-                <p class="text-3xl font-bold text-gray-900 mt-1">
+                <p class="text-4xl font-bold text-gray-900 mt-2">
                     ₱{{ number_format($todayEarnings, 2) }}
                 </p>
 
 
-                <div class="flex items-center gap-2 mt-2 text-sm text-[#1F6F5B]">
+                <div class="flex items-center gap-2 mt-3 text-sm text-[#1F6F5B]">
 
                     <i
                         data-lucide="trending-up"
@@ -610,7 +657,9 @@
                     ></i>
 
                     <span>
-                        {{ $totalCompleted }} completed deliveries
+                        {{ $totalCompleted }}
+                        {{ $totalCompleted === 1 ? 'delivery' : 'deliveries' }}
+                        completed
                     </span>
 
                 </div>
@@ -619,21 +668,7 @@
                 <div class="border-t border-gray-100 my-6"></div>
 
 
-                <div class="space-y-4">
-
-
-                    <div class="flex items-center justify-between">
-
-                        <span class="text-sm text-gray-500">
-                            Base Earnings
-                        </span>
-
-                        <span class="text-sm font-semibold text-gray-900">
-                            ₱{{ number_format($todayEarnings, 2) }}
-                        </span>
-
-                    </div>
-
+                <div class="space-y-5">
 
                     <div class="flex items-center justify-between">
 
@@ -641,7 +676,7 @@
                             Completed Deliveries
                         </span>
 
-                        <span class="text-sm font-semibold text-gray-900">
+                        <span class="text-sm font-bold text-gray-900">
                             {{ $totalCompleted }}
                         </span>
 
@@ -654,8 +689,21 @@
                             Rate per Delivery
                         </span>
 
-                        <span class="text-sm font-semibold text-gray-900">
+                        <span class="text-sm font-bold text-gray-900">
                             ₱{{ number_format($deliveryFee, 2) }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="flex items-center justify-between">
+
+                        <span class="text-sm text-gray-500">
+                            Active Deliveries
+                        </span>
+
+                        <span class="text-sm font-bold text-gray-900">
+                            {{ $activeDeliveries }}
                         </span>
 
                     </div>
@@ -668,8 +716,8 @@
 
                 <div class="flex items-center justify-between">
 
-                    <span class="text-sm font-medium text-gray-600">
-                        Total Earnings
+                    <span class="text-sm font-semibold text-gray-600">
+                        Total
                     </span>
 
                     <span class="text-2xl font-bold text-[#1F6F5B]">
@@ -681,7 +729,7 @@
 
                 <a
                     href="{{ route('rider.earnings') }}"
-                    class="mt-5 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-[#1F6F5B] text-[#1F6F5B] text-sm font-semibold hover:bg-[#EEF8F3] transition"
+                    class="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-[#1F6F5B] text-[#1F6F5B] text-sm font-semibold hover:bg-[#EEF8F3] transition"
                 >
 
                     <i
@@ -708,24 +756,25 @@
 
 
         {{-- =================================================
-             UPCOMING TASKS
+             MY ACTIVE TASKS
         ================================================== --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
             <div class="flex items-center justify-between px-5 sm:px-6 py-5 border-b border-gray-100">
 
                 <div>
 
-                    <h2 class="text-lg font-semibold text-gray-900">
-                        Upcoming Tasks
+                    <h2 class="text-lg font-bold text-gray-900">
+                        My Active Tasks
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-1">
-                        Your next delivery assignments.
+                        Your current delivery assignments.
                     </p>
 
                 </div>
+
 
                 <i
                     data-lucide="list-checks"
@@ -739,42 +788,53 @@
 
                 @if($recentOrders->count() > 0)
 
-                    @foreach($recentOrders->take(3) as $orderId => $order)
+                    @foreach($recentOrders as $orderId => $order)
 
                         @php
-                            $status = $order['status'] ?? 'placed';
+
+                            $status = $order['status'] ?? 'assigned_to_rider';
 
                             $statusLabels = [
-                                'ready_for_pickup' => 'Pickup Order',
-                                'picked_up' => 'In Transit',
-                                'at_sorting_center' => 'Sorting Center',
-                                'assigned_to_rider' => 'Delivery Assignment',
-                                'out_for_delivery' => 'Deliver Order',
-                                'delivered' => 'Completed Order',
+
+                                'assigned_to_rider' => 'New Delivery Assignment',
+
+                                'picked_up' => 'Order Picked Up',
+
+                                'at_sorting_center' => 'At Sorting Center',
+
+                                'out_for_delivery' => 'Out for Delivery',
+
                             ];
+
 
                             $statusLabel =
                                 $statusLabels[$status]
                                 ?? 'Delivery Order';
+
 
                             $customerName =
                                 $order['customer_name']
                                 ?? $order['buyer_name']
                                 ?? 'Customer';
 
+
                             $address =
                                 $order['shipping_address']
                                 ?? $order['address']
                                 ?? 'Delivery address unavailable';
+
                         @endphp
 
 
-                        <div class="p-5 flex items-center gap-4">
+                        <a
+                            href="{{ route('rider.deliveries') }}"
+                            class="p-5 flex items-center gap-4 hover:bg-gray-50 transition"
+                        >
 
-                            <div class="w-10 h-10 shrink-0 rounded-lg bg-[#EEF8F3] flex items-center justify-center">
+                            <div class="w-11 h-11 shrink-0 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
 
                                 <i
-                                    data-lucide="{{ $status === 'ready_for_pickup' ? 'package-check' : 'map-pin' }}"
+                                    data-lucide="map-pin"
                                     class="w-5 h-5 text-[#1F6F5B]"
                                 ></i>
 
@@ -784,12 +844,20 @@
                             <div class="flex-1 min-w-0">
 
                                 <p class="text-sm font-semibold text-gray-900 truncate">
-                                    {{ $statusLabel }} #{{ $orderId }}
+
+                                    {{ $statusLabel }}
+
+                                    <span class="text-gray-400">
+                                        #{{ $orderId }}
+                                    </span>
+
                                 </p>
+
 
                                 <p class="text-xs text-gray-500 mt-1 truncate">
                                     {{ $customerName }}
                                 </p>
+
 
                                 <p class="text-xs text-gray-400 mt-1 truncate">
                                     {{ $address }}
@@ -803,7 +871,7 @@
                                 class="w-4 h-4 text-gray-400 shrink-0"
                             ></i>
 
-                        </div>
+                        </a>
 
                     @endforeach
 
@@ -811,22 +879,43 @@
 
                     <div class="px-5 py-12 text-center">
 
-                        <div class="w-12 h-12 mx-auto rounded-xl bg-gray-50 flex items-center justify-center mb-3">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
 
                             <i
                                 data-lucide="clipboard-list"
-                                class="w-6 h-6 text-gray-400"
+                                class="w-7 h-7 text-gray-400"
                             ></i>
 
                         </div>
 
-                        <p class="text-sm font-medium text-gray-900">
-                            No upcoming tasks
+
+                        <p class="text-sm font-semibold text-gray-900">
+                            No active tasks yet
                         </p>
 
-                        <p class="text-xs text-gray-500 mt-1">
-                            New delivery assignments will appear here.
+
+                        <p class="text-xs text-gray-500 mt-2 max-w-xs mx-auto">
+                            Accept an available pickup request to start managing deliveries.
                         </p>
+
+
+                        @if($availablePickupCount > 0)
+
+                            <a
+                                href="{{ route('rider.deliveries') }}"
+                                class="inline-flex items-center gap-2 mt-5 text-sm font-semibold text-[#1F6F5B]"
+                            >
+
+                                View available pickups
+
+                                <i
+                                    data-lucide="arrow-right"
+                                    class="w-4 h-4"
+                                ></i>
+
+                            </a>
+
+                        @endif
 
                     </div>
 
@@ -841,25 +930,31 @@
              NOTIFICATIONS
         ================================================== --}}
 
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
             <div class="flex items-center justify-between px-5 sm:px-6 py-5 border-b border-gray-100">
 
                 <div>
 
-                    <h2 class="text-lg font-semibold text-gray-900">
+                    <h2 class="text-lg font-bold text-gray-900">
                         Notifications
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-1">
-                        Important delivery updates.
+                        Important rider updates.
                     </p>
 
                 </div>
 
-                <span class="text-sm font-semibold text-[#1F6F5B]">
-                    View all
-                </span>
+
+                <div class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
+
+                    <i
+                        data-lucide="bell"
+                        class="w-5 h-5 text-gray-500"
+                    ></i>
+
+                </div>
 
             </div>
 
@@ -867,31 +962,28 @@
             <div class="divide-y divide-gray-100">
 
 
-                {{-- NOTIFICATION 1 --}}
+                {{-- ACCOUNT STATUS --}}
 
                 <div class="p-5 flex items-start gap-4">
 
                     <div class="w-10 h-10 shrink-0 rounded-full bg-[#EEF8F3] flex items-center justify-center">
 
                         <i
-                            data-lucide="check"
+                            data-lucide="circle-check"
                             class="w-5 h-5 text-[#1F6F5B]"
                         ></i>
 
                     </div>
 
+
                     <div>
 
-                        <p class="text-sm font-medium text-gray-900">
+                        <p class="text-sm font-semibold text-gray-900">
                             Your rider account is active
                         </p>
 
                         <p class="text-xs text-gray-500 mt-1">
-                            You can now manage your delivery assignments.
-                        </p>
-
-                        <p class="text-xs text-gray-400 mt-2">
-                            Recently
+                            You can accept pickup requests and manage your deliveries.
                         </p>
 
                     </div>
@@ -899,9 +991,9 @@
                 </div>
 
 
-                {{-- NOTIFICATION 2 --}}
+                {{-- PICKUP NOTIFICATION --}}
 
-                @if($readyForPickup > 0)
+                @if($availablePickupCount > 0)
 
                     <div class="p-5 flex items-start gap-4">
 
@@ -914,18 +1006,21 @@
 
                         </div>
 
+
                         <div>
 
-                            <p class="text-sm font-medium text-gray-900">
+                            <p class="text-sm font-semibold text-gray-900">
                                 New pickup request available
                             </p>
 
                             <p class="text-xs text-gray-500 mt-1">
-                                {{ $readyForPickup }} order(s) are ready for pickup.
-                            </p>
 
-                            <p class="text-xs text-gray-400 mt-2">
-                                Check your deliveries
+                                {{ $availablePickupCount }}
+
+                                {{ $availablePickupCount === 1 ? 'order is' : 'orders are' }}
+
+                                waiting to be accepted.
+
                             </p>
 
                         </div>
@@ -945,18 +1040,15 @@
 
                         </div>
 
+
                         <div>
 
-                            <p class="text-sm font-medium text-gray-900">
+                            <p class="text-sm font-semibold text-gray-900">
                                 No new pickup requests
                             </p>
 
                             <p class="text-xs text-gray-500 mt-1">
                                 New requests will appear when sellers prepare orders.
-                            </p>
-
-                            <p class="text-xs text-gray-400 mt-2">
-                                Check back later
                             </p>
 
                         </div>
@@ -966,31 +1058,34 @@
                 @endif
 
 
-                {{-- NOTIFICATION 3 --}}
+                {{-- ACTIVE DELIVERIES --}}
 
                 <div class="p-5 flex items-start gap-4">
 
                     <div class="w-10 h-10 shrink-0 rounded-full bg-gray-50 flex items-center justify-center">
 
                         <i
-                            data-lucide="shield-check"
+                            data-lucide="truck"
                             class="w-5 h-5 text-gray-500"
                         ></i>
 
                     </div>
 
+
                     <div>
 
-                        <p class="text-sm font-medium text-gray-900">
-                            Keep your rider account active
+                        <p class="text-sm font-semibold text-gray-900">
+
+                            {{ $activeDeliveries }}
+
+                            active
+
+                            {{ $activeDeliveries === 1 ? 'delivery' : 'deliveries' }}
+
                         </p>
 
                         <p class="text-xs text-gray-500 mt-1">
-                            Complete assigned deliveries and maintain good service.
-                        </p>
-
-                        <p class="text-xs text-gray-400 mt-2">
-                            Rider guidelines
+                            Keep your delivery status updated as you complete each task.
                         </p>
 
                     </div>

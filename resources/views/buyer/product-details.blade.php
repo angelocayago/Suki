@@ -65,19 +65,64 @@
                         class="w-full h-full object-cover"
                     >
 
-                    {{-- IMAGE ACTION --}}
-                    <button
-                        type="button"
-                        class="absolute top-4 right-4 w-10 h-10
-                               rounded-full bg-white/95 shadow
-                               flex items-center justify-center
-                               text-gray-500 hover:text-red-500 transition"
-                    >
-                        <i data-lucide="heart" class="w-5 h-5"></i>
-                    </button>
+                    {{-- ===================================================== --}}
+{{-- WISHLIST TOGGLE --}}
+{{-- ===================================================== --}}
 
-                </div>
+@php
+    $isWishlisted = false;
 
+    if (
+        auth()->check() &&
+        auth()->user()->role === 'buyer'
+    ) {
+        $isWishlisted = auth()
+            ->user()
+            ->wishlistItems()
+            ->where('product_slug', $slug)
+            ->exists();
+    }
+@endphp
+
+<form
+    action="{{ route('buyer.wishlist.toggle', ['slug' => $slug]) }}"
+    method="POST"
+    class="absolute top-4 right-4 z-20"
+>
+    @csrf
+
+    <button
+        type="submit"
+        class="w-10 h-10 rounded-full border flex items-center justify-center shadow-sm transition-all duration-200"
+        style="
+            @if($isWishlisted)
+                background-color: #1F6F5B;
+                border-color: #1F6F5B;
+                color: #ffffff;
+            @else
+                background-color: #ffffff;
+                border-color: #d1d5db;
+                color: #6b7280;
+            @endif
+        "
+        title="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
+        aria-label="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
+    >
+        <i
+            data-lucide="heart"
+            class="w-5 h-5"
+            style="
+                @if($isWishlisted)
+                    fill: #ffffff;
+                    stroke: #ffffff;
+                @else
+                    fill: none;
+                    stroke: #6b7280;
+                @endif
+            "
+        ></i>
+    </button>
+</form>
 
                 {{-- THUMBNAILS --}}
                 <div class="grid grid-cols-4 gap-3 mt-4">

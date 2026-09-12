@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{{ $title ?? 'SUKI Rider' }}</title>
+    <title>{{ $title ?? 'SUKI SHOP Rider' }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -28,7 +28,7 @@
          TOP HEADER
     ====================================================== --}}
 
-    <header class="fixed top-0 left-0 right-0 h-[110px] bg-white border-b border-gray-200 z-50">
+    <header class="fixed top-0 left-0 right-0 h-[80px] bg-white border-b border-gray-200 z-50">
 
         <div class="h-full flex items-center justify-between">
 
@@ -47,8 +47,8 @@
 
         <img
             src="{{ asset('images/suki-rider.jpg') }}"
-            alt="SUKI Rider"
-            class="w-[82px] h-[58px] object-contain"
+            alt="SUKI SHOP Rider"
+            class="w-[75px] h-[52px] object-contain"
         >
 
     </a>
@@ -56,7 +56,7 @@
     <div class="ml-2 pl-2 border-l border-gray-200">
 
         <p class="text-[16px] font-bold text-[#075C4A] whitespace-nowrap leading-tight">
-            SUKI Logistics
+            SUKI SHOP Logistics
         </p>
 
         <p class="text-[9px] text-gray-400 mt-0.5 whitespace-nowrap">
@@ -126,7 +126,7 @@
          DESKTOP SIDEBAR
     ====================================================== --}}
 
-    <aside class="hidden lg:flex fixed left-0 top-[110px] bottom-0 w-[280px] bg-[#075C4A] text-white flex-col z-40">
+    <aside class="hidden lg:flex fixed left-0 top-[80px] bottom-0 w-[280px] bg-[#075C4A] text-white flex-col z-40">
 
 
         {{-- =================================================
@@ -172,7 +172,7 @@
                     </p>
 
                     <p class="text-xs text-white/70 mt-0.5">
-                        SUKI Rider
+                        SUKI SHOP Rider
                     </p>
 
 
@@ -413,7 +413,7 @@
 
                 <img
                     src="{{ asset('images/suki-rider.jpg') }}"
-                    alt="SUKI Rider"
+                    alt="SUKI SHOP Rider"
                     class="h-11 w-auto object-contain"
                 >
 
@@ -446,7 +446,7 @@
          MAIN CONTENT
     ====================================================== --}}
 
-    <div class="lg:ml-[280px] pt-[110px] min-h-screen">
+    <div class="lg:ml-[280px] pt-[80px] min-h-screen">
 
 
         <main class="min-h-screen">
@@ -466,7 +466,7 @@
             <div class="px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
 
                 <p class="text-xs text-gray-500">
-                    © {{ date('Y') }} SUKI Logistics. All rights reserved.
+                    © {{ date('Y') }} SUKI SHOP Logistics. All rights reserved.
                 </p>
 
                 <p class="text-xs text-gray-400">

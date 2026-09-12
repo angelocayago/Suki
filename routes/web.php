@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\User;
+use App\Models\CartItem;
+use App\Models\WishlistItem;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -327,7 +330,7 @@ Route::get('/product/{slug}', function ($slug) use ($products) {
 
 $requireBuyer = function () {
 
-    if (!session('buyer_logged_in')) {
+    if (!auth()->check()) {
 
         $intendedUrl = request()->isMethod('GET')
             ? request()->fullUrl()
@@ -347,6 +350,25 @@ $requireBuyer = function () {
             );
     }
 
+    $user = auth()->user();
+
+    if (
+        $user->role !== 'buyer' ||
+        $user->status !== 'active'
+    ) {
+        auth()->logout();
+
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->with(
+                'error',
+                'This account does not have access to the Buyer portal.'
+            );
+    }
+
     return null;
 };
 
@@ -361,7 +383,21 @@ Route::get('/cart', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $cart = session()->get('cart', []);
+    $cart = auth()
+        ->user()
+        ->cartItems()
+        ->get()
+        ->mapWithKeys(function ($item) {
+            return [
+                $item->product_slug => [
+                    'name' => $item->product_name,
+                    'price' => (float) $item->price,
+                    'image' => $item->image,
+                    'quantity' => $item->quantity,
+                ],
+            ];
+        })
+        ->toArray();
 
     return view('buyer.cart', [
         'cart' => $cart,
@@ -374,7 +410,7 @@ Route::get('/cart', function () use ($requireBuyer) {
 // ADD TO CART
 // =====================================================
 
-Route::post('/cart/add/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($products, $requireBuyer) {
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -384,38 +420,56 @@ Route::post('/cart/add/{slug}', function ($slug) use ($products, $requireBuyer) 
         abort(404);
     }
 
-    $cart = session()->get('cart', []);
+    $user = auth()->user();
 
-    if (isset($cart[$slug])) {
+    $product = $products[$slug];
 
-        $currentQuantity = $cart[$slug]['quantity'];
-        $maxStock = $products[$slug]['stock'];
+    $maxStock = (int) $product['stock'];
 
-        if ($currentQuantity < $maxStock) {
-            $cart[$slug]['quantity']++;
-        }
+    $requestedQuantity = (int) $request->input('quantity', 1);
+
+    $requestedQuantity = max(
+        1,
+        min($requestedQuantity, $maxStock)
+    );
+
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if ($cartItem) {
+
+        $newQuantity = $cartItem->quantity + $requestedQuantity;
+
+        $newQuantity = min(
+            $newQuantity,
+            $maxStock
+        );
+
+        $cartItem->update([
+            'quantity' => $newQuantity,
+        ]);
 
     } else {
 
-        $cart[$slug] = [
-            'name' => $products[$slug]['name'],
-            'price' => $products[$slug]['price'],
-            'image' => $products[$slug]['image'],
-            'quantity' => 1,
-        ];
+        CartItem::create([
+            'user_id' => $user->id,
+            'product_slug' => $slug,
+            'product_name' => $product['name'],
+            'price' => $product['price'],
+            'image' => $product['image'] ?? null,
+            'quantity' => $requestedQuantity,
+        ]);
     }
-
-    session()->put('cart', $cart);
 
     return redirect()
         ->back()
         ->with(
             'success',
-            $products[$slug]['name'] . ' added to cart!'
+            $product['name'] . ' added to cart!'
         );
 
 })->name('buyer.cart.add');
-
 
 // =====================================================
 // INCREASE CART QUANTITY
@@ -431,19 +485,21 @@ Route::post('/cart/increase/{slug}', function ($slug) use ($products, $requireBu
         abort(404);
     }
 
-    $cart = session()->get('cart', []);
+    $user = auth()->user();
 
-    if (!isset($cart[$slug])) {
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if (!$cartItem) {
         abort(404);
     }
 
-    $maxStock = $products[$slug]['stock'];
+    $maxStock = (int) $products[$slug]['stock'];
 
-    if ($cart[$slug]['quantity'] < $maxStock) {
-        $cart[$slug]['quantity']++;
+    if ($cartItem->quantity < $maxStock) {
+        $cartItem->increment('quantity');
     }
-
-    session()->put('cart', $cart);
 
     return redirect()->back();
 
@@ -460,24 +516,28 @@ Route::post('/cart/decrease/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $cart = session()->get('cart', []);
+    $user = auth()->user();
 
-    if (!isset($cart[$slug])) {
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if (!$cartItem) {
         abort(404);
     }
 
-    if ($cart[$slug]['quantity'] > 1) {
-        $cart[$slug]['quantity']--;
-    } else {
-        unset($cart[$slug]);
-    }
+    if ($cartItem->quantity > 1) {
 
-    session()->put('cart', $cart);
+        $cartItem->decrement('quantity');
+
+    } else {
+
+        $cartItem->delete();
+    }
 
     return redirect()->back();
 
 })->name('buyer.cart.decrease');
-
 
 // =====================================================
 // REMOVE FROM CART
@@ -489,20 +549,24 @@ Route::post('/cart/remove/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $cart = session()->get('cart', []);
+    $user = auth()->user();
 
-    if (isset($cart[$slug])) {
-        unset($cart[$slug]);
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if ($cartItem) {
+        $cartItem->delete();
     }
-
-    session()->put('cart', $cart);
 
     return redirect()
         ->back()
-        ->with('success', 'Item removed from cart.');
+        ->with(
+            'success',
+            'Item removed from cart.'
+        );
 
 })->name('buyer.cart.remove');
-
 
 // =====================================================
 // UPDATE CART QUANTITY
@@ -518,28 +582,37 @@ Route::post('/cart/update/{slug}', function ($slug) use ($products, $requireBuye
         abort(404);
     }
 
-    $cart = session()->get('cart', []);
+    $user = auth()->user();
 
-    if (!isset($cart[$slug])) {
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if (!$cartItem) {
         abort(404);
     }
 
     $quantity = (int) request()->input('quantity', 1);
 
-    $maxStock = $products[$slug]['stock'];
+    $maxStock = (int) $products[$slug]['stock'];
 
-    $quantity = max(1, min($quantity, $maxStock));
+    $quantity = max(
+        1,
+        min($quantity, $maxStock)
+    );
 
-    $cart[$slug]['quantity'] = $quantity;
-
-    session()->put('cart', $cart);
+    $cartItem->update([
+        'quantity' => $quantity,
+    ]);
 
     return redirect()
         ->back()
-        ->with('success', 'Cart updated successfully.');
+        ->with(
+            'success',
+            'Cart updated successfully.'
+        );
 
 })->name('buyer.cart.update');
-
 
 // =====================================================
 // CLEAR CART
@@ -551,14 +624,19 @@ Route::post('/cart/clear', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    session()->forget('cart');
+    $user = auth()->user();
+
+    CartItem::where('user_id', $user->id)
+        ->delete();
 
     return redirect()
         ->route('buyer.cart')
-        ->with('success', 'Cart cleared.');
+        ->with(
+            'success',
+            'Cart cleared.'
+        );
 
 })->name('buyer.cart.clear');
-
 
 // =====================================================
 // WISHLIST
@@ -570,14 +648,26 @@ Route::get('/wishlist', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $wishlist = session()->get('wishlist', []);
+    $wishlist = auth()
+        ->user()
+        ->wishlistItems()
+        ->get()
+        ->mapWithKeys(function ($item) {
+            return [
+                $item->product_slug => [
+                    'name' => $item->product_name,
+                    'price' => (float) $item->price,
+                    'image' => $item->image,
+                ],
+            ];
+        })
+        ->toArray();
 
     return view('buyer.wishlist', [
         'wishlist' => $wishlist,
     ]);
 
 })->name('buyer.wishlist');
-
 
 // =====================================================
 // ADD TO WISHLIST
@@ -593,38 +683,36 @@ Route::post('/wishlist/add/{slug}', function ($slug) use ($products, $requireBuy
         abort(404);
     }
 
-    $wishlist = session()->get('wishlist', []);
+    $user = auth()->user();
 
-    if (!isset($wishlist[$slug])) {
+    $product = $products[$slug];
 
-        $wishlist[$slug] = [
-            'name' => $products[$slug]['name'],
-            'price' => $products[$slug]['price'],
-            'old_price' => $products[$slug]['old_price'],
-            'rating' => $products[$slug]['rating'],
-            'sold' => $products[$slug]['sold'],
-            'image' => $products[$slug]['image'],
-        ];
-    }
+    WishlistItem::updateOrCreate(
+        [
+            'user_id' => $user->id,
+            'product_slug' => $slug,
+        ],
+        [
+            'product_name' => $product['name'],
+            'price' => $product['price'],
+            'image' => $product['image'] ?? null,
+        ]
+    );
 
-    $cart = session()->get('cart', []);
-
-    if (isset($cart[$slug])) {
-        unset($cart[$slug]);
-    }
-
-    session()->put('wishlist', $wishlist);
-    session()->put('cart', $cart);
+    // Kapag nasa cart ang product,
+    // alisin ito dahil nilipat na sa wishlist.
+    CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->delete();
 
     return redirect()
         ->back()
         ->with(
             'success',
-            $products[$slug]['name'] . ' moved to your wishlist!'
+            $product['name'] . ' moved to your wishlist!'
         );
 
 })->name('buyer.wishlist.add');
-
 
 // =====================================================
 // REMOVE FROM WISHLIST
@@ -636,20 +724,71 @@ Route::post('/wishlist/remove/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $wishlist = session()->get('wishlist', []);
+    $user = auth()->user();
 
-    if (isset($wishlist[$slug])) {
-        unset($wishlist[$slug]);
-    }
-
-    session()->put('wishlist', $wishlist);
+    WishlistItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->delete();
 
     return redirect()
         ->back()
-        ->with('success', 'Item removed from wishlist.');
+        ->with(
+            'success',
+            'Item removed from wishlist.'
+        );
 
 })->name('buyer.wishlist.remove');
 
+// =====================================================
+// TOGGLE WISHLIST
+// =====================================================
+
+Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $requireBuyer) {
+
+    if ($redirect = $requireBuyer()) {
+        return $redirect;
+    }
+
+    if (!isset($products[$slug])) {
+        abort(404);
+    }
+
+    $user = auth()->user();
+
+    $product = $products[$slug];
+
+    $wishlistItem = WishlistItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if ($wishlistItem) {
+
+        $wishlistItem->delete();
+
+        return redirect()
+            ->back()
+            ->with(
+                'success',
+                $product['name'] . ' removed from your wishlist.'
+            );
+    }
+
+    WishlistItem::create([
+        'user_id' => $user->id,
+        'product_slug' => $slug,
+        'product_name' => $product['name'],
+        'price' => $product['price'],
+        'image' => $product['image'] ?? null,
+    ]);
+
+    return redirect()
+        ->back()
+        ->with(
+            'success',
+            $product['name'] . ' added to your wishlist!'
+        );
+
+})->name('buyer.wishlist.toggle');
 
 // =====================================================
 // MOVE WISHLIST ITEM TO CART
@@ -661,43 +800,64 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $r
         return $redirect;
     }
 
+    $user = auth()->user();
+
+    // Hanapin muna ang item sa wishlist ng current buyer.
+    $wishlistItem = WishlistItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
+
+    if (!$wishlistItem) {
+        return redirect()
+            ->back()
+            ->with(
+                'error',
+                'Wishlist item not found.'
+            );
+    }
+
+    // Kunin ang stock mula sa product catalog.
     if (!isset($products[$slug])) {
         abort(404);
     }
 
-    $wishlist = session()->get('wishlist', []);
-    $cart = session()->get('cart', []);
+    $product = $products[$slug];
 
-    $maxStock = $products[$slug]['stock'];
+    $maxStock = (int) $product['stock'];
 
-    if (isset($cart[$slug])) {
+    // Check kung nasa cart na ang product.
+    $cartItem = CartItem::where('user_id', $user->id)
+        ->where('product_slug', $slug)
+        ->first();
 
-        if ($cart[$slug]['quantity'] < $maxStock) {
-            $cart[$slug]['quantity']++;
+    if ($cartItem) {
+
+        // Existing na sa cart, dagdagan ng 1.
+        if ($cartItem->quantity < $maxStock) {
+            $cartItem->increment('quantity');
         }
 
     } else {
 
-        $cart[$slug] = [
-            'name' => $products[$slug]['name'],
-            'price' => $products[$slug]['price'],
-            'image' => $products[$slug]['image'],
+        // Wala pa sa cart, gumawa ng bagong cart item.
+        CartItem::create([
+            'user_id' => $user->id,
+            'product_slug' => $slug,
+            'product_name' => $wishlistItem->product_name,
+            'price' => $wishlistItem->price,
+            'image' => $wishlistItem->image,
             'quantity' => 1,
-        ];
+        ]);
     }
 
-    if (isset($wishlist[$slug])) {
-        unset($wishlist[$slug]);
-    }
-
-    session()->put('cart', $cart);
-    session()->put('wishlist', $wishlist);
+    // Tanggalin na sa wishlist pagkatapos mailipat sa cart.
+    $wishlistItem->delete();
 
     return redirect()
-        ->back()
+        ->route('buyer.cart')
         ->with(
             'success',
-            $products[$slug]['name'] . ' moved to your cart!'
+            $product['name'] . ' moved to your cart!'
         );
 
 })->name('buyer.wishlist.move-to-cart');
@@ -1452,6 +1612,34 @@ Route::post('/my-account/addresses/{address}/delete', function (
 
 })->name('buyer.addresses.delete');
 
+// =====================================================
+// SELLER AUTH CHECK
+// =====================================================
+
+$requireSeller = function () {
+
+    if (!session('seller_logged_in')) {
+
+        $intendedUrl = request()->isMethod('GET')
+            ? request()->fullUrl()
+            : url()->previous();
+
+        if (!str_starts_with($intendedUrl, url('/seller'))) {
+            $intendedUrl = route('seller.dashboard');
+        }
+
+        session()->put('url.intended', $intendedUrl);
+
+        return redirect()
+            ->route('seller.register')
+            ->with(
+                'error',
+                'Please register or log in as a seller to continue.'
+            );
+    }
+
+    return null;
+};
 
 // =====================================================
 // SELLER ORDERS
@@ -1509,7 +1697,7 @@ Route::post('/seller/register', function (Request $request) {
         ->route('seller.dashboard')
         ->with(
             'success',
-            'Your SUKI Seller account has been created successfully!'
+            'Your SUKI SHOP Seller account has been created successfully!'
         );
 
 })->name('seller.register.submit');
@@ -1519,7 +1707,11 @@ Route::post('/seller/register', function (Request $request) {
 // SELLER DASHBOARD
 // =====================================================
 
-Route::get('/seller', function () {
+Route::get('/seller', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     return view('seller.dashboard');
 
@@ -1530,7 +1722,11 @@ Route::get('/seller', function () {
 // SELLER PRODUCTS
 // =====================================================
 
-Route::get('/seller/products', function () {
+Route::get('/seller/products', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $products = session()->get('seller_products', []);
 
@@ -1556,7 +1752,13 @@ Route::get('/seller/products/create', function () {
 // SELLER STORE PRODUCT
 // =====================================================
 
-Route::post('/seller/products', function (Request $request) {
+Route::post('/seller/products', function (
+    Request $request
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $request->validate([
         'name' => 'required|string|max:150',
@@ -1588,7 +1790,6 @@ Route::post('/seller/products', function (Request $request) {
         'stock' => (int) $request->stock,
 
         'sku' => $request->sku,
-
         'status' => $request->status,
 
         'weight' => $request->weight,
@@ -1604,6 +1805,7 @@ Route::post('/seller/products', function (Request $request) {
         'sold' => 0,
 
         'created_at' => now()->format('Y-m-d H:i:s'),
+        'updated_at' => now()->format('Y-m-d H:i:s'),
     ];
 
     session()->put('seller_products', $products);
@@ -1617,12 +1819,17 @@ Route::post('/seller/products', function (Request $request) {
 
 })->name('seller.products.store');
 
-
 // =====================================================
 // SELLER EDIT PRODUCT
 // =====================================================
 
-Route::get('/seller/products/{product}/edit', function ($productId) {
+Route::get('/seller/products/{product}/edit', function (
+    $productId
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $products = session()->get('seller_products', []);
 
@@ -1630,10 +1837,11 @@ Route::get('/seller/products/{product}/edit', function ($productId) {
         abort(404);
     }
 
-    return view('seller.products-edit');
+    return view('seller.products-edit', [
+        'product' => $products[$productId],
+    ]);
 
 })->name('seller.products.edit');
-
 
 // =====================================================
 // SELLER UPDATE PRODUCT
@@ -1642,7 +1850,11 @@ Route::get('/seller/products/{product}/edit', function ($productId) {
 Route::put('/seller/products/{product}', function (
     Request $request,
     $productId
-) {
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $products = session()->get('seller_products', []);
 
@@ -1660,44 +1872,33 @@ Route::put('/seller/products/{product}', function (
         'status' => 'required|in:active,inactive',
     ]);
 
-    $products[$productId]['name'] =
-        $request->name;
+    $products[$productId] = array_merge(
+        $products[$productId],
+        [
+            'name' => $request->name,
+            'category' => $request->category,
+            'brand' => $request->brand,
+            'description' => $request->description,
 
-    $products[$productId]['category'] =
-        $request->category;
+            'price' => (float) $request->price,
+            'stock' => (int) $request->stock,
 
-    $products[$productId]['brand'] =
-        $request->brand;
+            'sku' => $request->sku,
+            'status' => $request->status,
 
-    $products[$productId]['description'] =
-        $request->description;
+            'weight' => $request->weight,
+            'length' => $request->length,
+            'width' => $request->width,
+            'height' => $request->height,
 
-    $products[$productId]['price'] =
-        (float) $request->price;
+            'variation_names' => $request->variation_name ?? [],
+            'variation_values' => $request->variation_value ?? [],
 
-    $products[$productId]['stock'] =
-        (int) $request->stock;
+            'shipping_options' => $request->shipping_options ?? [],
 
-    $products[$productId]['sku'] =
-        $request->sku;
-
-    $products[$productId]['status'] =
-        $request->status;
-
-    $products[$productId]['weight'] =
-        $request->weight;
-
-    $products[$productId]['length'] =
-        $request->length;
-
-    $products[$productId]['width'] =
-        $request->width;
-
-    $products[$productId]['height'] =
-        $request->height;
-
-    $products[$productId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
+            'updated_at' => now()->format('Y-m-d H:i:s'),
+        ]
+    );
 
     session()->put('seller_products', $products);
 
@@ -1715,14 +1916,28 @@ Route::put('/seller/products/{product}', function (
 // SELLER INVENTORY
 // =====================================================
 
-Route::get('/seller/inventory', function () {
+Route::get('/seller/inventory', function () use ($requireSeller) {
 
-    return view('seller.inventory');
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $products = session()->get('seller_products', []);
+
+    return view('seller.inventory', [
+        'products' => $products,
+    ]);
 
 })->name('seller.inventory');
 
 
-Route::post('/seller/inventory/{product}/increase', function ($productId) {
+Route::post('/seller/inventory/{product}/increase', function (
+    $productId
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $products = session()->get('seller_products', []);
 
@@ -1746,7 +1961,13 @@ Route::post('/seller/inventory/{product}/increase', function ($productId) {
 })->name('seller.inventory.increase');
 
 
-Route::post('/seller/inventory/{product}/decrease', function ($productId) {
+Route::post('/seller/inventory/{product}/decrease', function (
+    $productId
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $products = session()->get('seller_products', []);
 
@@ -1758,8 +1979,7 @@ Route::post('/seller/inventory/{product}/decrease', function ($productId) {
         (int) ($products[$productId]['stock'] ?? 0);
 
     if ($currentStock > 0) {
-        $products[$productId]['stock'] =
-            $currentStock - 1;
+        $products[$productId]['stock'] = $currentStock - 1;
     }
 
     $products[$productId]['updated_at'] =
@@ -1804,61 +2024,396 @@ Route::get('/rider/apply', function () {
 Route::post('/rider/apply', function (Request $request) {
 
     $validated = $request->validate([
+
         'first_name' => 'required|string|max:100',
         'last_name' => 'required|string|max:100',
         'phone' => 'required|string|max:30',
         'email' => 'required|email|max:255',
         'address' => 'required|string|max:1000',
+
         'vehicle_type' => 'required|in:Motorcycle,E-bike,Bicycle',
+
         'plate_number' => 'nullable|string|max:30',
+
         'license_number' => 'required|string|max:100',
+
+        'password' => 'required|string|min:8|confirmed',
+
         'terms' => 'required',
+
+        // DOCUMENTS
+        'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+
+        'drivers_license' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+
+        'vehicle_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+
     ]);
 
-    session()->put('rider_application', [
 
-        'first_name' =>
-            $validated['first_name'],
+    // =====================================================
+    // UPLOAD DOCUMENTS
+    // =====================================================
 
-        'last_name' =>
-            $validated['last_name'],
+    $governmentIdPath = null;
+    $driversLicensePath = null;
+    $vehicleDocumentPath = null;
 
-        'phone' =>
-            $validated['phone'],
 
-        'email' =>
-            $validated['email'],
+    if ($request->hasFile('government_id')) {
 
-        'address' =>
-            $validated['address'],
+        $governmentIdPath = $request
+            ->file('government_id')
+            ->store('rider-documents/government-ids', 'public');
 
-        'vehicle_type' =>
-            $validated['vehicle_type'],
+    }
 
-        'plate_number' =>
-            $validated['plate_number'] ?? '',
 
-        'license_number' =>
-            $validated['license_number'],
+    if ($request->hasFile('drivers_license')) {
 
-        // Application starts as pending.
-        // Admin can approve this later.
-        'status' =>
-            'pending',
+        $driversLicensePath = $request
+            ->file('drivers_license')
+            ->store('rider-documents/drivers-licenses', 'public');
 
-        'created_at' =>
-            now()->format('Y-m-d H:i:s'),
-    ]);
+    }
+
+
+    if ($request->hasFile('vehicle_document')) {
+
+        $vehicleDocumentPath = $request
+            ->file('vehicle_document')
+            ->store('rider-documents/vehicle-documents', 'public');
+
+    }
+
+
+    // =====================================================
+    // GET EXISTING RIDER APPLICATIONS
+    // =====================================================
+
+    $riderApplications = session('rider_applications', []);
+
+
+    if (!is_array($riderApplications)) {
+
+        $riderApplications = [];
+
+    }
+
+
+    // =====================================================
+    // CREATE NEW RIDER APPLICATION
+    // =====================================================
+
+    $newRider = [
+
+        'first_name' => $validated['first_name'],
+
+        'last_name' => $validated['last_name'],
+
+        'phone' => $validated['phone'],
+
+        'email' => $validated['email'],
+
+        'address' => $validated['address'],
+
+        'vehicle_type' => $validated['vehicle_type'],
+
+        'plate_number' => $validated['plate_number'] ?? '',
+
+        'license_number' => $validated['license_number'],
+
+        // Login password
+        'password' => $validated['password'],
+
+
+        // =====================================================
+        // DOCUMENT PATHS
+        // =====================================================
+
+        'government_id' => $governmentIdPath,
+
+        'drivers_license' => $driversLicensePath,
+
+        'vehicle_document' => $vehicleDocumentPath,
+
+
+        // =====================================================
+        // APPLICATION STATUS
+        // =====================================================
+
+        'status' => 'pending',
+
+        'created_at' => now()->format('Y-m-d H:i:s'),
+
+    ];
+
+
+    // Add rider to applications list
+    $riderApplications[] = $newRider;
+
+
+    // Save ALL rider applications
+    session()->put(
+        'rider_applications',
+        $riderApplications
+    );
+
 
     return redirect()
-        ->route('rider.dashboard')
+        ->route('rider.application.pending')
         ->with(
             'success',
-            'Your SUKI Rider application has been submitted successfully.'
+            'Your SUKI Rider application has been submitted successfully. Please wait for approval from SUKI Logistics.'
         );
 
 })->name('rider.apply.submit');
 
+// =====================================================
+// RIDER APPLICATION PENDING
+// =====================================================
+
+Route::get('/rider/application-pending', function () {
+
+    return view('rider.application-pending');
+
+})->name('rider.application.pending');
+
+// =====================================================
+// RIDER MANAGEMENT
+// =====================================================
+
+Route::get('/logistics/riders', function () {
+
+    $riders = session('rider_applications', []);
+
+    return view('logistics.riders', [
+        'riders' => $riders,
+    ]);
+
+})->name('logistics.riders');
+
+// =====================================================
+// RIDER REVIEW
+// =====================================================
+
+Route::get('/logistics/riders/{rider}/review', function ($riderId) {
+
+    $riders = session('rider_applications', []);
+
+    if (!isset($riders[$riderId])) {
+
+        return redirect()
+            ->route('logistics.riders')
+            ->with('error', 'Rider application not found.');
+    }
+
+    return view('logistics.rider-review', [
+        'rider' => $riders[$riderId],
+        'riderId' => $riderId,
+    ]);
+
+})->name('logistics.riders.review');
+
+// =====================================================
+// APPROVE RIDER
+// =====================================================
+
+Route::post('/logistics/riders/{riderId}/approve', function ($riderId) {
+
+    $riders = session('rider_applications', []);
+
+    if (!isset($riders[$riderId])) {
+
+        return back()
+            ->with('error', 'Rider application not found.');
+    }
+
+    // Update status
+    $riders[$riderId]['status'] = 'approved';
+
+    // Save approval date
+    $riders[$riderId]['approved_at'] =
+        now()->format('Y-m-d H:i:s');
+
+    $riders[$riderId]['updated_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    // Save back to session
+    session()->put('rider_applications', $riders);
+
+
+    return redirect()
+        ->route('logistics.riders')
+        ->with(
+            'success',
+            'Rider application approved successfully!'
+        );
+
+})->name('logistics.riders.approve');
+
+
+// =====================================================
+// DISAPPROVE RIDER
+// =====================================================
+
+Route::post('/logistics/riders/{riderId}/disapprove', function ($riderId) {
+
+    $riders = session('rider_applications', []);
+
+    if (!isset($riders[$riderId])) {
+
+        return back()
+            ->with('error', 'Rider application not found.');
+    }
+
+    // Update status
+    $riders[$riderId]['status'] = 'disapproved';
+
+    // Save disapproval date
+    $riders[$riderId]['disapproved_at'] =
+        now()->format('Y-m-d H:i:s');
+
+    $riders[$riderId]['updated_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    // Save back to session
+    session()->put('rider_applications', $riders);
+
+
+    return redirect()
+        ->route('logistics.riders')
+        ->with(
+            'success',
+            'Rider application has been disapproved.'
+        );
+
+})->name('logistics.riders.disapprove');
+
+// =====================================================
+// RIDER LOGIN PAGE
+// =====================================================
+
+Route::get('/rider/login', function () {
+
+    return view('rider.login');
+
+})->name('rider.login');
+
+
+// =====================================================
+// RIDER LOGIN SUBMIT
+// =====================================================
+
+Route::post('/rider/login', function (Request $request) {
+
+    $request->validate([
+        'login' => 'required|string',
+        'password' => 'required|string',
+    ]);
+
+    // Get all rider applications
+    $riders = session('rider_applications', []);
+
+
+    // Make sure we have an array of riders
+    if (empty($riders)) {
+
+        return back()
+            ->withInput()
+            ->with(
+                'error',
+                'No rider account found. Please apply as a SUKI Rider first.'
+            );
+    }
+
+
+    // Find rider using email OR phone number
+    $riderIndex = null;
+    $rider = null;
+
+
+    foreach ($riders as $index => $application) {
+
+        if (
+
+            $request->login === ($application['email'] ?? '') ||
+
+            $request->login === ($application['phone'] ?? '')
+
+        ) {
+
+            $riderIndex = $index;
+            $rider = $application;
+
+            break;
+
+        }
+
+    }
+
+
+    // Rider not found
+    if (!$rider) {
+
+        return back()
+            ->withInput()
+            ->with(
+                'error',
+                'No rider account was found using that email or phone number.'
+            );
+
+    }
+
+
+    // Check password
+    if ($request->password !== ($rider['password'] ?? '')) {
+
+        return back()
+            ->withInput()
+            ->with(
+                'error',
+                'Invalid password.'
+            );
+
+    }
+
+
+    // IMPORTANT:
+    // Only approved riders can log in
+
+    if (($rider['status'] ?? 'pending') !== 'approved') {
+
+        return back()
+            ->withInput()
+            ->with(
+                'error',
+                'Your SUKI Rider application is still pending approval from the SUKI Logistics Center.'
+            );
+
+    }
+
+
+    // Save logged-in rider
+    session()->put('rider_logged_in', true);
+
+    session()->put(
+        'logged_in_rider_index',
+        $riderIndex
+    );
+
+
+    // Redirect to Rider Dashboard
+    return redirect()
+        ->route('rider.dashboard')
+        ->with(
+            'success',
+            'Welcome back, ' . ($rider['first_name'] ?? 'Rider') . '!'
+        );
+
+})->name('rider.login.submit');
 
 // =====================================================
 // RIDER DASHBOARD
@@ -1866,26 +2421,73 @@ Route::post('/rider/apply', function (Request $request) {
 
 Route::get('/rider/dashboard', function () {
 
-    if (!session()->has('rider_application')) {
+    // Check if rider is logged in
+    if (!session('rider_logged_in')) {
 
         return redirect()
-            ->route('rider.apply')
+            ->route('rider.login')
             ->with(
                 'error',
-                'Please submit your rider application first.'
+                'Please log in as a SUKI Rider first.'
             );
     }
 
-    $application =
-        session('rider_application');
+
+    // Get all rider applications
+    $riders = session('rider_applications', []);
+
+
+    // Get currently logged-in rider index
+    $riderIndex = session('logged_in_rider_index');
+
+
+    // Check if rider exists
+    if (
+        $riderIndex === null ||
+        !isset($riders[$riderIndex])
+    ) {
+
+        session()->forget([
+            'rider_logged_in',
+            'logged_in_rider_index',
+        ]);
+
+        return redirect()
+            ->route('rider.login')
+            ->with(
+                'error',
+                'Your rider session has expired. Please log in again.'
+            );
+    }
+
+
+    // Get the currently logged-in rider
+    $application = $riders[$riderIndex];
+
+
+    // Extra security:
+    // Only approved riders can access the dashboard
+    if (($application['status'] ?? '') !== 'approved') {
+
+        session()->forget([
+            'rider_logged_in',
+            'logged_in_rider_index',
+        ]);
+
+        return redirect()
+            ->route('rider.login')
+            ->with(
+                'error',
+                'Your rider account is not approved for access.'
+            );
+    }
+
 
     return view('rider.dashboard', [
-        'application' =>
-            $application,
+        'application' => $application,
     ]);
 
 })->name('rider.dashboard');
-
 
 // =====================================================
 // RIDER DELIVERIES
@@ -1893,16 +2495,15 @@ Route::get('/rider/dashboard', function () {
 
 Route::get('/rider/deliveries', function () {
 
-    if (!session()->has('rider_application')) {
+    if (!session('rider_logged_in')) {
 
-        return redirect()
-            ->route('rider.apply')
-            ->with(
-                'error',
-                'Please submit your rider application first.'
-            );
-    }
-
+    return redirect()
+        ->route('rider.login')
+        ->with(
+            'error',
+            'Please log in as a SUKI Rider first.'
+        );
+}
     $orders =
         session('orders', []);
 
@@ -1942,15 +2543,15 @@ Route::get('/rider/deliveries', function () {
 
 Route::get('/rider/earnings', function () {
 
-    if (!session()->has('rider_application')) {
+    if (!session('rider_logged_in')) {
 
-        return redirect()
-            ->route('rider.apply')
-            ->with(
-                'error',
-                'Please submit your rider application first.'
-            );
-    }
+    return redirect()
+        ->route('rider.login')
+        ->with(
+            'error',
+            'Please log in as a SUKI Rider first.'
+        );
+}
 
     $orders =
         session('orders', []);
@@ -1997,7 +2598,7 @@ Route::get('/rider/earnings', function () {
 
 
 // =====================================================
-// RIDER ERP STATUS ACTIONS
+// RIDER ORDER STATUS ACTIONS
 // =====================================================
 //
 // Pickup Rider:
@@ -2008,14 +2609,6 @@ Route::get('/rider/earnings', function () {
 //        ↓
 // at_sorting_center
 //
-// Logistics:
-//
-// at_sorting_center
-//        ↓
-// sorted
-//        ↓
-// assigned_to_rider
-//
 // Delivery Rider:
 //
 // assigned_to_rider
@@ -2023,12 +2616,6 @@ Route::get('/rider/earnings', function () {
 // out_for_delivery
 //        ↓
 // delivered
-//
-// Buyer:
-//
-// delivered
-//        ↓
-// completed
 // =====================================================
 
 Route::post('/rider/orders/{order}/status', function (
@@ -2036,19 +2623,23 @@ Route::post('/rider/orders/{order}/status', function (
     $orderId
 ) {
 
-    if (!session()->has('rider_application')) {
+    // Check if rider has applied
+    if (!session('rider_logged_in')) {
 
-        return redirect()
-            ->route('rider.apply')
-            ->with(
-                'error',
-                'Please submit your rider application first.'
-            );
-    }
+    return redirect()
+        ->route('rider.login')
+        ->with(
+            'error',
+            'Please log in as a SUKI Rider first.'
+        );
+}
 
-    $orders =
-        session('orders', []);
 
+    // Get all orders
+    $orders = session('orders', []);
+
+
+    // Check if order exists
     if (!isset($orders[$orderId])) {
 
         return back()->with(
@@ -2057,24 +2648,29 @@ Route::post('/rider/orders/{order}/status', function (
         );
     }
 
+
+    // Get current order status
     $currentStatus =
         $orders[$orderId]['status'] ?? 'placed';
 
+
+    // Allowed Rider transitions
     $allowedTransitions = [
 
-        'ready_for_pickup' =>
-            'picked_up',
+        // Pickup Rider
+        'ready_for_pickup' => 'picked_up',
 
-        'picked_up' =>
-            'at_sorting_center',
+        'picked_up' => 'at_sorting_center',
 
-        'assigned_to_rider' =>
-            'out_for_delivery',
 
-        'out_for_delivery' =>
-            'delivered',
+        // Delivery Rider
+        'assigned_to_rider' => 'out_for_delivery',
+
+        'out_for_delivery' => 'delivered',
     ];
 
+
+    // Check if rider can update this order
     if (!isset($allowedTransitions[$currentStatus])) {
 
         return back()->with(
@@ -2083,26 +2679,38 @@ Route::post('/rider/orders/{order}/status', function (
         );
     }
 
+
+    // Get requested status
     $requestedStatus =
         $request->input('status');
 
+
+    // Get expected next status
     $expectedStatus =
         $allowedTransitions[$currentStatus];
 
+
+    // Prevent skipping order statuses
     if ($requestedStatus !== $expectedStatus) {
 
         return back()->with(
             'error',
-            'Invalid ERP status transition.'
+            'Invalid order status transition.'
         );
     }
 
+
+    // Update order status
     $orders[$orderId]['status'] =
         $requestedStatus;
 
+
+    // Update timestamp
     $orders[$orderId]['updated_at'] =
         now()->format('Y-m-d H:i:s');
 
+
+    // Status timestamps
     $timestampFields = [
 
         'picked_up' =>
@@ -2118,6 +2726,8 @@ Route::post('/rider/orders/{order}/status', function (
             'delivered_at',
     ];
 
+
+    // Save timestamp for the new status
     if (isset($timestampFields[$requestedStatus])) {
 
         $orders[$orderId][
@@ -2126,9 +2736,13 @@ Route::post('/rider/orders/{order}/status', function (
             now()->format('Y-m-d H:i:s');
     }
 
+
+    // Get rider information
     $rider =
         session('rider_application');
 
+
+    // Assign rider information to the order
     $orders[$orderId]['rider'] = [
 
         'first_name' =>
@@ -2139,27 +2753,35 @@ Route::post('/rider/orders/{order}/status', function (
 
         'phone' =>
             $rider['phone'] ?? '',
+
+        'vehicle_type' =>
+            $rider['vehicle_type'] ?? '',
     ];
 
+
+    // Save updated orders
     session()->put(
         'orders',
         $orders
     );
 
+
+    // Success messages
     $messages = [
 
         'picked_up' =>
             'Order picked up successfully.',
 
         'at_sorting_center' =>
-            'Order marked as arrived at the sorting center.',
+            'Order has arrived at the sorting center.',
 
         'out_for_delivery' =>
-            'Delivery has started.',
+            'Delivery is now out for delivery.',
 
         'delivered' =>
             'Order marked as delivered successfully.',
     ];
+
 
     return back()->with(
         'success',
@@ -2189,6 +2811,63 @@ Route::get('/logistics', function () {
     ]);
 
 })->name('logistics.dashboard');
+
+// =====================================================
+// LOGISTICS PARCEL SORTING
+// =====================================================
+
+Route::get('/logistics/sorting', function () {
+
+    return view('logistics.sorting');
+
+})->name('logistics.sorting');
+
+
+// =====================================================
+// LOGISTICS DELIVERY ASSIGNMENTS
+// =====================================================
+
+Route::get('/logistics/assignments', function () {
+
+    return view('logistics.assignments');
+
+})->name('logistics.assignments');
+
+
+// =====================================================
+// LOGISTICS DELIVERY MONITORING
+// =====================================================
+
+Route::get('/logistics/monitoring', function () {
+
+    return view('logistics.monitoring');
+
+})->name('logistics.monitoring');
+
+
+// =====================================================
+// LOGISTICS REPORTS
+// =====================================================
+
+Route::get('/logistics/reports', function () {
+
+    return view('logistics.reports');
+
+})->name('logistics.reports');
+
+// =====================================================
+// LOGISTICS PARCELS
+// =====================================================
+
+Route::get('/logistics/parcels', function () {
+
+    $orders = session('orders', []);
+
+    return view('logistics.parcels', [
+        'orders' => $orders,
+    ]);
+
+})->name('logistics.parcels');
 
 
 // =====================================================
@@ -2337,6 +3016,236 @@ Route::post('/logistics/orders/{order}/status', function (
 
 })->name('logistics.order.status');
 
+// =====================================================
+// LOGISTICS RIDER MANAGEMENT
+// =====================================================
+
+Route::get('/logistics/riders', function () {
+
+    $applications = session('rider_applications', []);
+
+    $finalApplications = [];
+
+
+    // OLD / MIXED SESSION FORMAT
+    // Example:
+    //
+    // [
+    //     'first_name' => 'Angelo',
+    //     'last_name' => 'Cayago',
+    //     0 => [...],
+    //     1 => [...],
+    // ]
+
+
+    // Check if root data is a rider
+    if (
+        is_array($applications) &&
+        isset($applications['first_name'])
+    ) {
+
+        $firstRider = [];
+
+        foreach ($applications as $key => $value) {
+
+            // Only get string keys
+            if (!is_int($key)) {
+
+                $firstRider[$key] = $value;
+
+            }
+
+        }
+
+        $finalApplications[] = $firstRider;
+
+    }
+
+
+    // Get riders stored in numeric indexes
+    foreach ($applications as $key => $application) {
+
+        if (
+            is_int($key) &&
+            is_array($application)
+        ) {
+
+            $finalApplications[] = $application;
+
+        }
+
+    }
+
+
+    // If already a normal numeric array
+    if (
+        empty($finalApplications) &&
+        is_array($applications)
+    ) {
+
+        foreach ($applications as $application) {
+
+            if (
+                is_array($application) &&
+                isset($application['first_name'])
+            ) {
+
+                $finalApplications[] = $application;
+
+            }
+
+        }
+
+    }
+
+
+    // Save cleaned format permanently
+    session()->put(
+        'rider_applications',
+        $finalApplications
+    );
+
+
+    return view('logistics.riders', [
+
+        'applications' => $finalApplications,
+
+    ]);
+
+})->name('logistics.riders');
+
+// =====================================================
+// LOGISTICS RIDER REVIEW
+// =====================================================
+
+Route::get('/logistics/riders/{rider}/review', function ($rider) {
+
+    $applications = session('rider_applications', []);
+
+
+    if (!isset($applications[$rider])) {
+
+        return redirect()
+            ->route('logistics.riders')
+            ->with(
+                'error',
+                'Rider application not found.'
+            );
+
+    }
+
+
+    return view('logistics.rider-review', [
+
+        'rider' => $applications[$rider],
+
+        'riderId' => $rider,
+
+    ]);
+
+})->name('logistics.riders.review');
+
+
+
+// =====================================================
+// LOGISTICS APPROVE RIDER
+// =====================================================
+
+Route::post('/logistics/riders/{rider}/approve', function ($rider) {
+
+    $applications = session('rider_applications', []);
+
+
+    if (!isset($applications[$rider])) {
+
+        return back()->with(
+            'error',
+            'Rider application not found.'
+        );
+
+    }
+
+
+    // APPROVED RIDERS CAN LOG IN
+    $applications[$rider]['status'] = 'approved';
+
+
+    $applications[$rider]['approved_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    $applications[$rider]['updated_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    session()->put(
+        'rider_applications',
+        $applications
+    );
+
+
+    return redirect()
+        ->route('logistics.riders')
+        ->with(
+            'success',
+            'Rider application approved successfully!'
+        );
+
+})->name('logistics.riders.approve');
+
+
+
+// =====================================================
+// LOGISTICS DISAPPROVE RIDER
+// =====================================================
+
+Route::post('/logistics/riders/{rider}/disapprove', function (
+    Request $request,
+    $rider
+) {
+
+    $applications = session('rider_applications', []);
+
+
+    if (!isset($applications[$rider])) {
+
+        return back()->with(
+            'error',
+            'Rider application not found.'
+        );
+
+    }
+
+
+    $applications[$rider]['status'] = 'disapproved';
+
+
+    $applications[$rider]['disapproved_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    $applications[$rider]['disapproval_reason'] =
+        $request->input('reason');
+
+
+    $applications[$rider]['updated_at'] =
+        now()->format('Y-m-d H:i:s');
+
+
+    session()->put(
+        'rider_applications',
+        $applications
+    );
+
+
+    return redirect()
+        ->route('logistics.riders')
+        ->with(
+            'success',
+            'Rider application has been disapproved.'
+        );
+
+})->name('logistics.riders.disapprove');
 
 // =====================================================
 // AUTHENTICATION
@@ -2360,9 +3269,42 @@ Route::get('/login', function () {
 
 Route::post('/login', function (Request $request) {
 
-    $request->validate([
+    $validated = $request->validate([
         'login' => 'required|string',
         'password' => 'required|string',
+    ]);
+
+    $loginField = filter_var(
+        $validated['login'],
+        FILTER_VALIDATE_EMAIL
+    )
+        ? 'email'
+        : 'phone';
+
+    $loggedIn = auth()->attempt([
+        $loginField => $validated['login'],
+        'password' => $validated['password'],
+        'role' => 'buyer',
+        'status' => 'active',
+    ]);
+
+    if (!$loggedIn) {
+        return back()
+            ->withErrors([
+                'login' => 'Invalid email/phone number or password.',
+            ])
+            ->onlyInput('login');
+    }
+
+    $request->session()->regenerate();
+
+    $user = auth()->user();
+
+    $request->session()->put('buyer_profile', [
+        'first_name' => $user->first_name,
+        'last_name' => $user->last_name,
+        'email' => $user->email,
+        'phone' => $user->phone,
     ]);
 
     $request->session()->put(
@@ -2374,7 +3316,7 @@ Route::post('/login', function (Request $request) {
         ->intended(route('buyer.home'))
         ->with(
             'success',
-            'Welcome back to SUKI!'
+            'Welcome back to SUKI SHOP!'
         );
 
 })->name('login.submit');
@@ -2397,28 +3339,33 @@ Route::get('/register', function () {
 
 Route::post('/register', function (Request $request) {
 
-    $request->validate([
+    $validated = $request->validate([
         'first_name' => 'required|string|max:100',
         'last_name' => 'required|string|max:100',
-        'phone' => 'required|string|max:30',
-        'email' => 'required|email|max:255',
+        'phone' => 'required|string|max:30|unique:users,phone',
+        'email' => 'required|email|max:255|unique:users,email',
         'password' => 'required|string|min:8|confirmed',
         'terms' => 'required',
     ]);
 
+    $user = User::create([
+        'role' => 'buyer',
+        'first_name' => $validated['first_name'],
+        'last_name' => $validated['last_name'],
+        'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+        'email' => $validated['email'],
+        'phone' => $validated['phone'],
+        'status' => 'active',
+        'password' => $validated['password'],
+    ]);
+
+    auth()->login($user);
+
     $request->session()->put('buyer_profile', [
-
-        'first_name' =>
-            $request->first_name,
-
-        'last_name' =>
-            $request->last_name,
-
-        'email' =>
-            $request->email,
-
-        'phone' =>
-            $request->phone,
+        'first_name' => $user->first_name,
+        'last_name' => $user->last_name,
+        'email' => $user->email,
+        'phone' => $user->phone,
     ]);
 
     $request->session()->put(
@@ -2426,11 +3373,13 @@ Route::post('/register', function (Request $request) {
         true
     );
 
+    $request->session()->regenerate();
+
     return redirect()
         ->intended(route('buyer.home'))
         ->with(
             'success',
-            'Your SUKI Buyer account has been created successfully!'
+            'Your SUKI SHOP Buyer account has been created successfully!'
         );
 
 })->name('register.submit');
@@ -2442,9 +3391,16 @@ Route::post('/register', function (Request $request) {
 
 Route::post('/logout', function (Request $request) {
 
-    $request->session()->forget(
-        'buyer_logged_in'
-    );
+    auth()->logout();
+
+    $request->session()->forget([
+        'buyer_logged_in',
+        'buyer_profile',
+    ]);
+
+    $request->session()->invalidate();
+
+    $request->session()->regenerateToken();
 
     return redirect()
         ->route('buyer.home')

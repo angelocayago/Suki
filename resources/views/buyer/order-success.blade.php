@@ -26,7 +26,7 @@
             </h1>
 
             <p class="mt-2 text-sm text-gray-500 sm:text-base">
-                Thank you for shopping with SUKI.
+                Thank you for shopping with SUKI SHOP.
             </p>
 
         </div>

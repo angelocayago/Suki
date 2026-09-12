@@ -44,7 +44,7 @@
                 <div class="w-24 h-12 flex items-center justify-center">
                     <img
                         src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI"
+                        alt="SUKI SHOP"
                         class="w-full h-full object-contain"
                     >
                 </div>
@@ -96,32 +96,45 @@
             {{-- RIGHT ACTIONS --}}
             <div class="flex items-center gap-5">
 
-                {{-- CART --}}
-                <a
-                    href="{{ session('buyer_logged_in') ? route('buyer.cart') : route('login') }}"
-                    class="relative text-gray-600 hover:text-[#1F6F5B] transition"
-                    title="Shopping Cart"
-                >
+               {{-- CART --}}
+@php
+    $cartCount = 0;
 
-                    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+    if (
+        auth()->check() &&
+        auth()->user()->role === 'buyer'
+    ) {
+        $cartCount = auth()
+            ->user()
+            ->cartItems()
+            ->count();
+    }
+@endphp
 
-                    @if(session('buyer_logged_in'))
-                        <span
-                            class="absolute -top-2 -right-2
-                                   min-w-5 h-5 px-1
-                                   rounded-full
-                                   bg-[#F59E0B]
-                                   text-white
-                                   text-[10px]
-                                   font-semibold
-                                   flex items-center justify-center"
-                        >
-                            {{ collect(session('cart', []))->sum('quantity') }}
-                        </span>
-                    @endif
+<a
+    href="{{ auth()->check() ? route('buyer.cart') : route('login') }}"
+    class="relative text-gray-600 hover:text-[#1F6F5B] transition"
+    title="Shopping Cart"
+>
 
-                </a>
+    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
 
+    @if($cartCount > 0)
+        <span
+            class="absolute -top-2 -right-2
+                   min-w-5 h-5 px-1
+                   rounded-full
+                   bg-[#F59E0B]
+                   text-white
+                   text-[10px]
+                   font-semibold
+                   flex items-center justify-center"
+        >
+            {{ $cartCount > 99 ? '99+' : $cartCount }}
+        </span>
+    @endif
+
+</a>
 
                 {{-- AUTHENTICATED BUYER --}}
                 @if(session('buyer_logged_in'))
