@@ -285,10 +285,19 @@ $products = [
 
 
 // =====================================================
-// BUYER HOME
+// PUBLIC SUKI SHOP LANDING PAGE
 // =====================================================
 
 Route::get('/', function () {
+    return view('landing');
+})->name('landing');
+
+
+// =====================================================
+// BUYER HOME
+// =====================================================
+
+Route::get('/home', function () {
     return view('buyer.home');
 })->name('buyer.home');
 

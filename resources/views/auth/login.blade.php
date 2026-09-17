@@ -46,7 +46,6 @@
 
                 </div>
 
-
                 <!-- Tagline -->
                 <h1 class="mt-8 text-3xl font-semibold leading-tight text-[#173F35] xl:text-4xl">
 
@@ -58,7 +57,6 @@
 
                 </h1>
 
-
                 <!-- Description -->
                 <p class="mx-auto mt-4 max-w-md text-sm leading-relaxed text-gray-500 xl:text-base">
 
@@ -66,7 +64,6 @@
                     from sellers you can trust — all in one place.
 
                 </p>
-
 
                 <!-- Features -->
                 <div class="mt-8 flex justify-center gap-3">
@@ -85,7 +82,6 @@
 
                     </div>
 
-
                     <!-- Easy Delivery -->
                     <div class="flex items-center gap-2 rounded-full border border-[#DCEDE6] bg-white px-4 py-2">
 
@@ -101,7 +97,6 @@
                     </div>
 
                 </div>
-
 
                 <!-- Trust Message -->
                 <div class="mt-10 flex items-center justify-center gap-2 text-xs text-gray-400">
@@ -120,7 +115,6 @@
             </div>
 
         </section>
-
 
         <!-- ================================================= -->
         <!-- RIGHT SIDE - LOGIN -->
@@ -141,7 +135,6 @@
 
                 </div>
 
-
                 <!-- Header -->
                 <div class="mb-8">
 
@@ -158,7 +151,6 @@
                     </p>
 
                 </div>
-
 
                 <!-- Error Messages -->
                 @if ($errors->any())
@@ -181,7 +173,6 @@
 
                 @endif
 
-
                 <!-- ================================================= -->
                 <!-- LOGIN FORM -->
                 <!-- ================================================= -->
@@ -194,7 +185,6 @@
 
                     @csrf
 
-
                     <!-- Phone / Gmail -->
                     <div>
 
@@ -205,7 +195,6 @@
                             Phone Number or Gmail
                         </label>
 
-
                         <div class="relative">
 
                             <i
@@ -213,13 +202,13 @@
                                 class="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
                             ></i>
 
-
                             <input
                                 type="text"
                                 id="login"
                                 name="login"
                                 value="{{ old('login') }}"
                                 placeholder="Enter phone number or Gmail"
+                                autocomplete="username"
                                 class="w-full rounded-lg border border-gray-300 bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
@@ -227,7 +216,6 @@
                         </div>
 
                     </div>
-
 
                     <!-- Password -->
                     <div>
@@ -241,7 +229,6 @@
                                 Password
                             </label>
 
-
                             <a
                                 href="#"
                                 class="text-xs font-medium text-[#1F6F5B] hover:underline"
@@ -251,7 +238,6 @@
 
                         </div>
 
-
                         <div class="relative">
 
                             <i
@@ -259,16 +245,15 @@
                                 class="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
                             ></i>
 
-
                             <input
                                 type="password"
                                 id="password"
                                 name="password"
                                 placeholder="Enter your password"
+                                autocomplete="current-password"
                                 class="w-full rounded-lg border border-gray-300 bg-white py-3.5 pl-11 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
-
 
                             <!-- Show Password -->
                             <button
@@ -290,6 +275,46 @@
 
                     </div>
 
+                    <!-- ================================================= -->
+                    <!-- REMEMBER ME -->
+                    <!-- ================================================= -->
+
+                    <div class="flex items-center justify-between">
+
+                        <label
+                            for="remember"
+                            class="flex cursor-pointer items-center gap-2.5"
+                        >
+
+                            <input
+                                type="checkbox"
+                                id="remember"
+                                name="remember"
+                                value="1"
+                                {{ old('remember') ? 'checked' : '' }}
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#1F6F5B] accent-[#1F6F5B] focus:ring-[#1F6F5B]"
+                            >
+
+                            <span class="text-sm text-gray-600">
+                                Remember me
+                            </span>
+
+                        </label>
+
+                        <div class="flex items-center gap-1.5 text-xs text-gray-400">
+
+                            <i
+                                data-lucide="shield-check"
+                                class="h-3.5 w-3.5"
+                            ></i>
+
+                            <span>
+                                Stay signed in
+                            </span>
+
+                        </div>
+
+                    </div>
 
                     <!-- Login Button -->
                     <button
@@ -300,7 +325,6 @@
                     </button>
 
                 </form>
-
 
                 <!-- ================================================= -->
                 <!-- DIVIDER -->
@@ -317,7 +341,6 @@
                     <div class="h-px flex-1 bg-gray-200"></div>
 
                 </div>
-
 
                 <!-- ================================================= -->
                 <!-- SIGN UP -->
@@ -337,7 +360,6 @@
                     </a>
 
                 </div>
-
 
                 <!-- ================================================= -->
                 <!-- RIDER APPLICATION -->
@@ -359,7 +381,6 @@
 
                             </div>
 
-
                             <!-- Rider Information -->
                             <div class="flex-1">
 
@@ -367,13 +388,10 @@
                                     Become a SUKI SHOP Rider
                                 </h3>
 
-
                                 <p class="mt-1 text-xs text-gray-500">
                                     Earn while delivering orders in your area.
                                 </p>
 
-
-                                <!-- FIXED LINK -->
                                 <a
                                     href="{{ route('rider.apply') }}"
                                     class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#1F6F5B] transition hover:text-[#155244]"
@@ -395,7 +413,6 @@
                     </div>
 
                 </div>
-
 
                 <!-- ================================================= -->
                 <!-- CONTINUE AS GUEST -->
@@ -424,7 +441,6 @@
         </section>
 
     </div>
-
 
     <!-- ================================================= -->
     <!-- JAVASCRIPT -->
@@ -458,7 +474,9 @@
 
             }
 
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
 
         }
 
