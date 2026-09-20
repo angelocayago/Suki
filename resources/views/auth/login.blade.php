@@ -392,6 +392,7 @@
                                     Earn while delivering orders in your area.
                                 </p>
 
+                                <!-- FIXED LINK -->
                                 <a
                                     href="{{ route('rider.apply') }}"
                                     class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#1F6F5B] transition hover:text-[#155244]"
@@ -455,7 +456,6 @@
             }
 
         });
-
 
         function togglePassword() {
 

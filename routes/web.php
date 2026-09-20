@@ -2733,7 +2733,7 @@ Route::post('/rider/orders/{order}/status', function (
 
         'delivered' =>
             'delivered_at',
-    ];
+        ];
 
 
     // Save timestamp for the new status
@@ -2745,11 +2745,18 @@ Route::post('/rider/orders/{order}/status', function (
             now()->format('Y-m-d H:i:s');
     }
 
+    // Get the currently logged-in rider
+    $riders = session('rider_applications', []);
+    $riderIndex = session('logged_in_rider_index');
 
-    // Get rider information
-    $rider =
-        session('rider_application');
+    $rider = [];
 
+    if (
+        $riderIndex !== null &&
+        isset($riders[$riderIndex])
+    ) {
+        $rider = $riders[$riderIndex];
+    }
 
     // Assign rider information to the order
     $orders[$orderId]['rider'] = [
@@ -2934,12 +2941,9 @@ Route::post('/logistics/orders/{order}/status', function (
     Request $request,
     $orderId
 ) {
-
-    $orders =
-        session('orders', []);
+    $orders = session('orders', []);
 
     if (!isset($orders[$orderId])) {
-
         return back()->with(
             'error',
             'Order not found.'
@@ -2949,78 +2953,155 @@ Route::post('/logistics/orders/{order}/status', function (
     $currentStatus =
         $orders[$orderId]['status'] ?? 'placed';
 
-    $allowedTransitions = [
-
-        'at_sorting_center' =>
-            'sorted',
-
-        'sorted' =>
-            'assigned_to_rider',
-    ];
-
-    if (!isset($allowedTransitions[$currentStatus])) {
-
-        return back()->with(
-            'error',
-            'This order cannot be updated by Logistics at its current status.'
-        );
-    }
-
     $requestedStatus =
         $request->input('status');
 
-    $expectedStatus =
-        $allowedTransitions[$currentStatus];
+    // =====================================================
+    // AT SORTING CENTER → SORTED
+    // =====================================================
 
-    if ($requestedStatus !== $expectedStatus) {
+    if ($currentStatus === 'at_sorting_center') {
+
+        if ($requestedStatus !== 'sorted') {
+            return back()->with(
+                'error',
+                'Invalid Logistics ERP status transition.'
+            );
+        }
+
+        $request->validate([
+            'area' => 'required|string|max:100',
+        ]);
+
+        // Save delivery area
+        $orders[$orderId]['area'] =
+            $request->input('area');
+
+        // Update status
+        $orders[$orderId]['status'] =
+            'sorted';
+
+        $orders[$orderId]['sorted_at'] =
+            now()->format('Y-m-d H:i:s');
+
+        $orders[$orderId]['updated_at'] =
+            now()->format('Y-m-d H:i:s');
+
+        session()->put('orders', $orders);
 
         return back()->with(
-            'error',
-            'Invalid Logistics ERP status transition.'
+            'success',
+            'Shipment sorted successfully and assigned to ' .
+            $request->input('area') . '.'
         );
     }
 
-    $orders[$orderId]['status'] =
-        $requestedStatus;
 
-    $orders[$orderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
+    // =====================================================
+    // SORTED → ASSIGNED TO RIDER
+    // =====================================================
 
-    $timestampFields = [
+    if ($currentStatus === 'sorted') {
 
-        'sorted' =>
-            'sorted_at',
+        if ($requestedStatus !== 'assigned_to_rider') {
+            return back()->with(
+                'error',
+                'Invalid Logistics ERP status transition.'
+            );
+        }
 
-        'assigned_to_rider' =>
-            'assigned_to_rider_at',
-    ];
+        $request->validate([
+            'rider_index' => 'required',
+        ]);
 
-    if (isset($timestampFields[$requestedStatus])) {
+        $riders = session(
+            'rider_applications',
+            []
+        );
 
-        $orders[$orderId][
-            $timestampFields[$requestedStatus]
-        ] =
+        $riderIndex =
+            $request->input('rider_index');
+
+        if (!isset($riders[$riderIndex])) {
+            return back()->with(
+                'error',
+                'Selected rider was not found.'
+            );
+        }
+
+        $rider = $riders[$riderIndex];
+
+        if (
+            ($rider['status'] ?? 'pending')
+            !== 'approved'
+        ) {
+            return back()->with(
+                'error',
+                'The selected rider is not approved.'
+            );
+        }
+
+        $riderName = trim(
+            ($rider['first_name'] ?? '') . ' ' .
+            ($rider['last_name'] ?? '')
+        );
+
+        // Save assigned rider
+        $orders[$orderId]['rider_index'] =
+            $riderIndex;
+
+        $orders[$orderId]['rider_name'] =
+            $riderName;
+
+        $orders[$orderId]['rider'] = [
+            'first_name' =>
+                $rider['first_name'] ?? '',
+
+            'last_name' =>
+                $rider['last_name'] ?? '',
+
+            'phone' =>
+                $rider['phone'] ?? '',
+
+            'vehicle_type' =>
+                $rider['vehicle_type'] ?? '',
+
+            'plate_number' =>
+                $rider['plate_number'] ?? '',
+        ];
+
+        // Keep the sorted area
+        $orders[$orderId]['assigned_area'] =
+            $orders[$orderId]['area'] ?? '';
+
+        // Update status
+        $orders[$orderId]['status'] =
+            'assigned_to_rider';
+
+        $orders[$orderId]['assigned_to_rider_at'] =
             now()->format('Y-m-d H:i:s');
+
+        $orders[$orderId]['updated_at'] =
+            now()->format('Y-m-d H:i:s');
+
+        session()->put('orders', $orders);
+
+        return back()->with(
+            'success',
+            'Shipment assigned to ' .
+            $riderName .
+            ' successfully.'
+        );
     }
 
-    session()->put(
-        'orders',
-        $orders
-    );
 
-    $messages = [
-
-        'sorted' =>
-            'Shipment marked as sorted successfully.',
-
-        'assigned_to_rider' =>
-            'Shipment assigned to delivery rider successfully.',
-    ];
+    // =====================================================
+    // INVALID LOGISTICS ACTION
+    // =====================================================
 
     return back()->with(
-        'success',
-        $messages[$requestedStatus]
-            ?? 'Shipment status updated successfully.'
+        'error',
+        'This order cannot be updated by Logistics at its current status.'
     );
 
 })->name('logistics.order.status');
