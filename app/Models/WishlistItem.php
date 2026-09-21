@@ -8,29 +8,33 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class WishlistItem extends Model
 {
     /**
-     * Fields that can be mass assigned.
+     * Compatibility fields for both legacy and new schema.
      */
     protected $fillable = [
         'user_id',
         'product_slug',
         'product_name',
+
+        // Legacy production field
+        'price',
+
+        // New schema field
         'price_minor',
+
         'image',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
     protected function casts(): array
     {
         return [
+            // Legacy production schema
+            'price' => 'decimal:2',
+
+            // New schema
             'price_minor' => 'integer',
         ];
     }
 
-    /**
-     * User who owns this wishlist item.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

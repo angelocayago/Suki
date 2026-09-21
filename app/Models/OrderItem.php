@@ -8,48 +8,79 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class OrderItem extends Model
 {
     /**
-     * Fields that can be mass assigned.
+     * Supports both the existing SUKI order flow
+     * and the new seller-order architecture.
      */
     protected $fillable = [
+
+        // Legacy production fields
+        'order_id',
+        'seller_id',
+        'product_slug',
+        'product_name',
+        'image',
+        'variation',
+        'unit_price',
+        'quantity',
+        'line_total',
+
+        // New architecture fields
         'seller_order_id',
         'product_id',
         'product_variant_id',
-        'product_name',
         'variant_name',
         'unit_price_minor',
-        'quantity',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
     protected function casts(): array
     {
         return [
-            'unit_price_minor' => 'integer',
+
+            // Legacy
+            'variation' => 'array',
+            'unit_price' => 'decimal:2',
+            'line_total' => 'decimal:2',
+
+            // Shared / new
             'quantity' => 'integer',
+            'unit_price_minor' => 'integer',
         ];
     }
 
     /**
-     * Seller order this item belongs to.
+     * Legacy parent order.
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * Legacy seller reference.
+     *
+     * Current production seller_id points to users.id.
+     */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'seller_id'
+        );
+    }
+
+    /**
+     * New seller-order architecture.
      */
     public function sellerOrder(): BelongsTo
     {
         return $this->belongsTo(SellerOrder::class);
     }
 
-    /**
-     * Product referenced by this item.
-     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * Product variant referenced by this item.
-     */
     public function productVariant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class);

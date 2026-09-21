@@ -8,33 +8,59 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('order_items', function (Blueprint $table) {
-            $table->id();
+        Schema::table('order_items', function (Blueprint $table) {
+
+            /*
+             * New order architecture.
+             *
+             * Nullable muna habang ginagamit pa ng existing
+             * SUKI code ang legacy order_items structure.
+             */
 
             $table->foreignId('seller_order_id')
-                ->constrained()
+                ->nullable()
+                ->constrained('seller_orders')
                 ->cascadeOnDelete();
 
             $table->foreignId('product_id')
-                ->constrained();
+                ->nullable()
+                ->constrained('products');
 
             $table->foreignId('product_variant_id')
-                ->constrained();
+                ->nullable()
+                ->constrained('product_variants');
 
-            $table->string('product_name');
+            $table->string('variant_name')
+                ->nullable();
 
-            $table->string('variant_name');
-
-            $table->unsignedInteger('unit_price_minor');
-
-            $table->unsignedInteger('quantity');
-
-            $table->timestamps();
+            $table->unsignedInteger('unit_price_minor')
+                ->nullable();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('order_items');
+        Schema::table('order_items', function (Blueprint $table) {
+
+            $table->dropForeign([
+                'seller_order_id',
+            ]);
+
+            $table->dropForeign([
+                'product_id',
+            ]);
+
+            $table->dropForeign([
+                'product_variant_id',
+            ]);
+
+            $table->dropColumn([
+                'seller_order_id',
+                'product_id',
+                'product_variant_id',
+                'variant_name',
+                'unit_price_minor',
+            ]);
+        });
     }
 };

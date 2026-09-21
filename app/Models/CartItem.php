@@ -8,28 +8,53 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CartItem extends Model
 {
     /**
-     * Fields that can be mass assigned.
+     * Temporary compatibility fields.
+     *
+     * Legacy production cart:
+     * user_id, product_slug, product_name, price, image, quantity
+     *
+     * New cart architecture:
+     * cart_id, product_variant_id, quantity, selected
      */
     protected $fillable = [
+        // Legacy fields
+        'user_id',
+        'product_slug',
+        'product_name',
+        'price',
+        'image',
+
+        // New schema fields
         'cart_id',
         'product_variant_id',
-        'quantity',
         'selected',
+
+        // Shared field
+        'quantity',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
     protected function casts(): array
     {
         return [
+            // Legacy schema
+            'price' => 'decimal:2',
+
+            // Shared/new schema
             'quantity' => 'integer',
             'selected' => 'boolean',
         ];
     }
 
     /**
-     * Cart that owns this item.
+     * Legacy cart owner.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * New cart architecture.
      */
     public function cart(): BelongsTo
     {
@@ -37,7 +62,7 @@ class CartItem extends Model
     }
 
     /**
-     * Product variant added to the cart.
+     * New product variant architecture.
      */
     public function productVariant(): BelongsTo
     {

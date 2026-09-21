@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
@@ -17,13 +18,18 @@ class User extends Authenticatable
 
     /**
      * Fields that can be mass assigned.
+     *
+     * role + status are kept temporarily for compatibility
+     * with the existing SUKI application.
      */
     protected $fillable = [
+        'role',
         'first_name',
         'last_name',
         'name',
         'email',
         'phone',
+        'status',
         'is_suspended',
         'password',
     ];
@@ -49,7 +55,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Roles assigned to this user.
+     * New role architecture.
      */
     public function roles(): BelongsToMany
     {
@@ -57,98 +63,94 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user has a specific role.
+     * Check a role while supporting both:
+     * - current legacy users.role
+     * - future roles / role_user tables
      */
     public function hasRole(string $role): bool
     {
+        // Existing production role system.
+        if (($this->role ?? null) === $role) {
+            return true;
+        }
+
+        // New role system may not exist yet in production.
+        if (
+            ! Schema::hasTable('roles') ||
+            ! Schema::hasTable('role_user')
+        ) {
+            return false;
+        }
+
         return $this->roles()
-            ->where('name', $role)
+            ->where('roles.name', $role)
             ->exists();
     }
 
-    /**
-     * Buyer checker.
-     */
     public function isBuyer(): bool
     {
         return $this->hasRole('buyer');
     }
 
-    /**
-     * Seller checker.
-     */
     public function isSeller(): bool
     {
         return $this->hasRole('seller');
     }
 
-    /**
-     * Rider checker.
-     */
     public function isRider(): bool
     {
         return $this->hasRole('rider');
     }
 
-    /**
-     * Logistics checker.
-     */
     public function isLogistics(): bool
     {
         return $this->hasRole('logistics');
     }
 
-    /**
-     * Admin checker.
-     */
     public function isAdmin(): bool
     {
         return $this->hasRole('admin');
     }
 
     /**
-     * Shops owned by this user.
+     * Legacy cart relationship.
+     *
+     * Keep this until routes/views have been migrated
+     * to the new carts table architecture.
      */
-    public function sellers(): HasMany
+    public function cartItems(): HasMany
     {
-        return $this->hasMany(Seller::class);
+        return $this->hasMany(CartItem::class);
     }
 
     /**
-     * Saved addresses of this user.
-     */
-    public function addresses(): HasMany
-    {
-        return $this->hasMany(Address::class);
-    }
-
-    /**
-     * Rider profile of this user.
-     */
-    public function rider(): HasOne
-    {
-        return $this->hasOne(Rider::class);
-    }
-
-    /**
-     * Buyer's cart.
+     * New cart architecture.
      */
     public function cart(): HasOne
     {
         return $this->hasOne(Cart::class);
     }
 
-    /**
-     * Buyer's wishlist items.
-     */
     public function wishlistItems(): HasMany
     {
         return $this->hasMany(WishlistItem::class);
     }
 
-    /**
-     * Orders placed by this user.
-     */
+    public function sellers(): HasMany
+    {
+        return $this->hasMany(Seller::class);
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    public function rider(): HasOne
+    {
+        return $this->hasOne(Rider::class);
+    }
+
     public function buyerOrders(): HasMany
     {
         return $this->hasMany(
@@ -157,9 +159,6 @@ class User extends Authenticatable
         );
     }
 
-    /**
-     * User's full name.
-     */
     public function getFullNameAttribute(): string
     {
         return trim(

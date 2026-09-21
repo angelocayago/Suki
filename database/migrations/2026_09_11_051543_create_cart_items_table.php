@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wishlist_items', function (Blueprint $table) {
+        Schema::create('cart_items', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('user_id')
@@ -25,6 +25,9 @@ return new class extends Migration
             $table->decimal('price', 12, 2);
 
             $table->string('image')->nullable();
+
+            $table->unsignedInteger('quantity')
+                ->default(1);
 
             $table->timestamps();
 
@@ -40,6 +43,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wishlist_items');
+        Schema::dropIfExists('cart_items');
     }
 };
