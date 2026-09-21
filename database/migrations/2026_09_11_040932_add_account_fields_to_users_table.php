@@ -12,14 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('role', 20)
-                ->default('buyer')
-                ->after('id')
-                ->index();
 
             $table->string('first_name')
                 ->nullable()
-                ->after('role');
+                ->after('name');
 
             $table->string('last_name')
                 ->nullable()
@@ -30,10 +26,10 @@ return new class extends Migration
                 ->unique()
                 ->after('email');
 
-            $table->string('status', 20)
-                ->default('active')
-                ->after('phone')
-                ->index();
+            $table->boolean('is_suspended')
+                ->default(false)
+                ->index()
+                ->after('phone');
         });
     }
 
@@ -43,14 +39,14 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
+
             $table->dropUnique(['phone']);
 
             $table->dropColumn([
-                'role',
                 'first_name',
                 'last_name',
                 'phone',
-                'status',
+                'is_suspended',
             ]);
         });
     }

@@ -5,17 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class WishlistItem extends Model
+class ProductImage extends Model
 {
     /**
      * Fields that can be mass assigned.
      */
     protected $fillable = [
-        'user_id',
-        'product_slug',
-        'product_name',
-        'price_minor',
-        'image',
+        'product_id',
+        'path',
+        'position',
     ];
 
     /**
@@ -24,15 +22,15 @@ class WishlistItem extends Model
     protected function casts(): array
     {
         return [
-            'price_minor' => 'integer',
+            'position' => 'integer',
         ];
     }
 
     /**
-     * User who owns this wishlist item.
+     * Product this image belongs to.
      */
-    public function user(): BelongsTo
+    public function product(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Product::class);
     }
 }

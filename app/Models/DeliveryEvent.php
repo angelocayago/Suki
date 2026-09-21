@@ -5,17 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class WishlistItem extends Model
+class DeliveryEvent extends Model
 {
     /**
      * Fields that can be mass assigned.
      */
     protected $fillable = [
+        'shipment_id',
+        'status',
+        'attempt',
         'user_id',
-        'product_slug',
-        'product_name',
-        'price_minor',
-        'image',
+        'note',
+        'photo_path',
+        'occurred_at',
     ];
 
     /**
@@ -24,12 +26,21 @@ class WishlistItem extends Model
     protected function casts(): array
     {
         return [
-            'price_minor' => 'integer',
+            'attempt' => 'integer',
+            'occurred_at' => 'datetime',
         ];
     }
 
     /**
-     * User who owns this wishlist item.
+     * Shipment this event belongs to.
+     */
+    public function shipment(): BelongsTo
+    {
+        return $this->belongsTo(Shipment::class);
+    }
+
+    /**
+     * User who recorded this delivery event.
      */
     public function user(): BelongsTo
     {

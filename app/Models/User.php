@@ -6,7 +6,9 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -14,21 +16,20 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
-     * Mga fields na pwedeng i-save sa users table.
+     * Fields that can be mass assigned.
      */
     protected $fillable = [
-        'role',
         'first_name',
         'last_name',
         'name',
         'email',
         'phone',
-        'status',
+        'is_suspended',
         'password',
     ];
 
     /**
-     * Mga fields na hindi dapat ipakita.
+     * Fields hidden from serialization.
      */
     protected $hidden = [
         'password',
@@ -43,7 +44,26 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_suspended' => 'boolean',
         ];
+    }
+
+    /**
+     * Roles assigned to this user.
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    /**
+     * Check if the user has a specific role.
+     */
+    public function hasRole(string $role): bool
+    {
+        return $this->roles()
+            ->where('name', $role)
+            ->exists();
     }
 
     /**
@@ -51,7 +71,7 @@ class User extends Authenticatable
      */
     public function isBuyer(): bool
     {
-        return $this->role === 'buyer';
+        return $this->hasRole('buyer');
     }
 
     /**
@@ -59,7 +79,7 @@ class User extends Authenticatable
      */
     public function isSeller(): bool
     {
-        return $this->role === 'seller';
+        return $this->hasRole('seller');
     }
 
     /**
@@ -67,7 +87,7 @@ class User extends Authenticatable
      */
     public function isRider(): bool
     {
-        return $this->role === 'rider';
+        return $this->hasRole('rider');
     }
 
     /**
@@ -75,11 +95,70 @@ class User extends Authenticatable
      */
     public function isLogistics(): bool
     {
-        return $this->role === 'logistics';
+        return $this->hasRole('logistics');
     }
 
     /**
-     * Buong pangalan ng user.
+     * Admin checker.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    /**
+     * Shops owned by this user.
+     */
+    public function sellers(): HasMany
+    {
+        return $this->hasMany(Seller::class);
+    }
+
+    /**
+     * Saved addresses of this user.
+     */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    /**
+     * Rider profile of this user.
+     */
+    public function rider(): HasOne
+    {
+        return $this->hasOne(Rider::class);
+    }
+
+    /**
+     * Buyer's cart.
+     */
+    public function cart(): HasOne
+    {
+        return $this->hasOne(Cart::class);
+    }
+
+    /**
+     * Buyer's wishlist items.
+     */
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
+
+    /**
+     * Orders placed by this user.
+     */
+    public function buyerOrders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'buyer_id'
+        );
+    }
+
+    /**
+     * User's full name.
      */
     public function getFullNameAttribute(): string
     {
@@ -88,15 +167,4 @@ class User extends Authenticatable
             ($this->last_name ?? '')
         );
     }
-
-    public function cartItems(): HasMany
-    {   
-    return $this->hasMany(CartItem::class);
-    }
-
-    public function wishlistItems(): HasMany
-    {
-    return $this->hasMany(WishlistItem::class);
-    }
-
 }

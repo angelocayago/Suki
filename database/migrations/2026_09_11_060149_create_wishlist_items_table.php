@@ -22,9 +22,10 @@ return new class extends Migration
 
             $table->string('product_name');
 
-            $table->decimal('price', 12, 2);
+            $table->unsignedInteger('price_minor');
 
-            $table->string('image')->nullable();
+            $table->string('image')
+                ->nullable();
 
             $table->timestamps();
 
