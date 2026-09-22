@@ -341,186 +341,120 @@
 
 
 
-                    {{-- ===================================================== --}}
-                    {{-- SHIPPING METHOD --}}
-                    {{-- ===================================================== --}}
+{{-- ===================================================== --}}
+{{-- SUKI LOGISTICS DELIVERY --}}
+{{-- ===================================================== --}}
 
-                    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
 
-                        <div class="border-b border-gray-100 px-5 py-5 sm:px-6">
+    <div class="border-b border-gray-100 px-5 py-5 sm:px-6">
 
-                            <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3">
 
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DDF3EC]">
-                                    <i data-lucide="truck" class="h-5 w-5 text-[#1F6F5B]"></i>
-                                </div>
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DDF3EC]">
+                <i
+                    data-lucide="truck"
+                    class="h-5 w-5 text-[#1F6F5B]"
+                ></i>
+            </div>
 
-                                <div>
-                                    <h2 class="font-semibold text-gray-900">
-                                        Shipping Method
-                                    </h2>
+            <div>
 
-                                    <p class="text-xs text-gray-500">
-                                        Choose your preferred delivery option.
-                                    </p>
-                                </div>
+                <h2 class="font-semibold text-gray-900">
+                    Delivery
+                </h2>
 
-                            </div>
+                <p class="text-xs text-gray-500">
+                    Your order will be handled by SUKI Logistics.
+                </p>
 
-                        </div>
+            </div>
 
+        </div>
 
-                        <div class="space-y-3 px-5 py-5 sm:px-6">
-
-
-                            {{-- J&T --}}
-                            <label class="block cursor-pointer">
-
-                                <div class="shipping-option rounded-xl border-2 border-[#1F6F5B] bg-[#F8FAF8] p-4 transition">
-
-                                    <div class="flex items-center gap-4">
-
-                                        <input
-                                            type="radio"
-                                            name="shipping_method"
-                                            value="jnt"
-                                            data-price="30"
-                                            checked
-                                            class="shipping-radio h-4 w-4 accent-[#1F6F5B]"
-                                        >
-
-                                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
-                                            <i data-lucide="truck" class="h-5 w-5 text-[#1F6F5B]"></i>
-                                        </div>
-
-                                        <div class="min-w-0 flex-1">
-
-                                            <div class="flex items-center justify-between gap-4">
-
-                                                <div>
-                                                    <p class="font-semibold text-gray-900">
-                                                        J&T Express
-                                                    </p>
-
-                                                    <p class="mt-0.5 text-xs text-gray-500">
-                                                        Standard delivery
-                                                    </p>
-                                                </div>
-
-                                                <span class="shrink-0 font-semibold text-gray-900">
-                                                    ₱30.00
-                                                </span>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </label>
+    </div>
 
 
-                            {{-- FLASH --}}
-                            <label class="block cursor-pointer">
+    <div class="px-5 py-5 sm:px-6">
 
-                                <div class="shipping-option rounded-xl border-2 border-gray-200 bg-white p-4 transition hover:border-[#1F6F5B]">
+        <div class="rounded-xl border-2 border-[#1F6F5B] bg-[#F8FAF8] p-4">
 
-                                    <div class="flex items-center gap-4">
+            <div class="flex items-start gap-4">
 
-                                        <input
-                                            type="radio"
-                                            name="shipping_method"
-                                            value="flash"
-                                            data-price="30"
-                                            class="shipping-radio h-4 w-4 accent-[#1F6F5B]"
-                                        >
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#DDF3EC] bg-white">
 
-                                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
-                                            <i data-lucide="package" class="h-5 w-5 text-gray-600"></i>
-                                        </div>
+                    <i
+                        data-lucide="package-check"
+                        class="h-5 w-5 text-[#1F6F5B]"
+                    ></i>
 
-                                        <div class="min-w-0 flex-1">
-
-                                            <div class="flex items-center justify-between gap-4">
-
-                                                <div>
-                                                    <p class="font-semibold text-gray-900">
-                                                        Flash Express
-                                                    </p>
-
-                                                    <p class="mt-0.5 text-xs text-gray-500">
-                                                        Standard delivery
-                                                    </p>
-                                                </div>
-
-                                                <span class="shrink-0 font-semibold text-gray-900">
-                                                    ₱30.00
-                                                </span>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </label>
+                </div>
 
 
-                            {{-- LBC --}}
-                            <label class="block cursor-pointer">
+                <div class="min-w-0 flex-1">
 
-                                <div class="shipping-option rounded-xl border-2 border-gray-200 bg-white p-4 transition hover:border-[#1F6F5B]">
+                    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
 
-                                    <div class="flex items-center gap-4">
+                        <div>
 
-                                        <input
-                                            type="radio"
-                                            name="shipping_method"
-                                            value="lbc"
-                                            data-price="49"
-                                            class="shipping-radio h-4 w-4 accent-[#1F6F5B]"
-                                        >
+                            <p class="font-semibold text-gray-900">
+                                SUKI Logistics
+                            </p>
 
-                                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
-                                            <i data-lucide="box" class="h-5 w-5 text-gray-600"></i>
-                                        </div>
-
-                                        <div class="min-w-0 flex-1">
-
-                                            <div class="flex items-center justify-between gap-4">
-
-                                                <div>
-                                                    <p class="font-semibold text-gray-900">
-                                                        LBC Express
-                                                    </p>
-
-                                                    <p class="mt-0.5 text-xs text-gray-500">
-                                                        Standard delivery
-                                                    </p>
-                                                </div>
-
-                                                <span class="shrink-0 font-semibold text-gray-900">
-                                                    ₱49.00
-                                                </span>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </label>
+                            <p class="mt-0.5 text-xs leading-5 text-gray-500">
+                                SUKI Logistics will process your parcel,
+                                sort it at the logistics center, and assign
+                                an approved SUKI Rider for delivery.
+                            </p>
 
                         </div>
 
-                    </section>
 
+                        <div class="mt-2 shrink-0 sm:mt-0">
+
+                            @if($shipping > 0)
+
+                                <span class="font-semibold text-gray-900">
+                                    ₱{{ number_format($shipping, 2) }}
+                                </span>
+
+                            @else
+
+                                <span class="inline-flex rounded-full bg-[#DDF3EC] px-3 py-1 text-xs font-semibold text-[#1F6F5B]">
+                                    No delivery fee
+                                </span>
+
+                            @endif
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="mt-4 flex items-start gap-2 border-t border-[#DDF3EC] pt-4">
+
+                        <i
+                            data-lucide="route"
+                            class="mt-0.5 h-4 w-4 shrink-0 text-[#1F6F5B]"
+                        ></i>
+
+                        <p class="text-xs leading-5 text-gray-500">
+                            Seller preparation → Rider pickup →
+                            SUKI Sorting Center → Rider assignment →
+                            Delivery to buyer
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
 
 
                     {{-- ===================================================== --}}
@@ -596,7 +530,7 @@
                             {{-- GCASH --}}
                             <label class="block cursor-pointer">
 
-                                <div class="payment-option rounded-xl border-2 border-gray-200 bg-white p-4 transition hover:border-[#1F6F5B]">
+                                class="payment-option rounded-xl border-2 border-gray-200 bg-white p-4 transition hover:border-[#1F6F5B]"
 
                                     <div class="flex items-center gap-4">
 
@@ -698,21 +632,28 @@
                             </div>
 
 
-                            {{-- SHIPPING --}}
-                            <div class="flex items-center justify-between text-sm">
+                            {{-- SUKI LOGISTICS DELIVERY --}}
+<div class="flex items-center justify-between gap-4 text-sm">
 
-                                <span class="text-gray-500">
-                                    Shipping
-                                </span>
+    <span class="text-gray-500">
+        SUKI Logistics Delivery
+    </span>
 
-                                <span
-                                    id="shipping-price"
-                                    class="font-medium text-gray-900"
-                                >
-                                    ₱{{ number_format($shipping, 2) }}
-                                </span>
+    <span class="font-medium text-gray-900">
 
-                            </div>
+        @if($shipping > 0)
+
+            ₱{{ number_format($shipping, 2) }}
+
+        @else
+
+            Free
+
+        @endif
+
+    </span>
+
+</div>
 
 
                             <div class="border-t border-gray-100 pt-5">
@@ -725,8 +666,8 @@
                                         </p>
 
                                         <p class="mt-1 text-xs text-gray-400">
-                                            Including shipping
-                                        </p>
+    Delivery handled by SUKI Logistics
+</p>
                                     </div>
 
                                     <span
@@ -790,91 +731,23 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     /* =========================================================
-       SHIPPING METHOD
-    ========================================================= */
-
-    const shippingRadios = document.querySelectorAll('.shipping-radio');
-    const shippingOptions = document.querySelectorAll('.shipping-option');
-
-    const shippingPrice = document.getElementById('shipping-price');
-    const orderTotal = document.getElementById('order-total');
-
-    const subtotal = {{ $subtotal }};
-
-
-    function updateShipping() {
-
-        let selectedPrice = 30;
-
-        shippingOptions.forEach(function (option) {
-            option.classList.remove(
-                'border-[#1F6F5B]',
-                'bg-[#F8FAF8]'
-            );
-
-            option.classList.add(
-                'border-gray-200',
-                'bg-white'
-            );
-        });
-
-
-        shippingRadios.forEach(function (radio) {
-
-            if (radio.checked) {
-
-                selectedPrice = Number(radio.dataset.price);
-
-                const option = radio.closest('.shipping-option');
-
-                option.classList.remove(
-                    'border-gray-200',
-                    'bg-white'
-                );
-
-                option.classList.add(
-                    'border-[#1F6F5B]',
-                    'bg-[#F8FAF8]'
-                );
-
-            }
-
-        });
-
-
-        const total = subtotal + selectedPrice;
-
-
-        shippingPrice.textContent =
-            '₱' + selectedPrice.toLocaleString('en-PH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-
-
-        orderTotal.textContent =
-            '₱' + total.toLocaleString('en-PH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-
-    }
-
-
-    shippingRadios.forEach(function (radio) {
-
-        radio.addEventListener('change', updateShipping);
-
-    });
-
-
-    /* =========================================================
        PAYMENT METHOD
     ========================================================= */
 
-    const paymentRadios = document.querySelectorAll('.payment-radio');
-    const paymentOptions = document.querySelectorAll('.payment-option');
-    const gcashDetails = document.querySelector('.gcash-details');
+    const paymentRadios =
+        document.querySelectorAll(
+            '.payment-radio'
+        );
+
+    const paymentOptions =
+        document.querySelectorAll(
+            '.payment-option'
+        );
+
+    const gcashDetails =
+        document.querySelector(
+            '.gcash-details'
+        );
 
 
     function updatePayment() {
@@ -898,12 +771,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (radio.checked) {
 
-                const option = radio.closest('.payment-option');
+                const option =
+                    radio.closest(
+                        '.payment-option'
+                    );
+
+
+                if (!option) {
+                    return;
+                }
+
 
                 option.classList.remove(
                     'border-gray-200',
                     'bg-white'
                 );
+
 
                 option.classList.add(
                     'border-[#1F6F5B]',
@@ -921,16 +804,26 @@ document.addEventListener('DOMContentLoaded', function () {
             );
 
 
+        if (!gcashDetails) {
+            return;
+        }
+
+
         if (
-            selectedPayment &&
+            selectedPayment
+            &&
             selectedPayment.value === 'gcash'
         ) {
 
-            gcashDetails.classList.remove('hidden');
+            gcashDetails.classList.remove(
+                'hidden'
+            );
 
         } else {
 
-            gcashDetails.classList.add('hidden');
+            gcashDetails.classList.add(
+                'hidden'
+            );
 
         }
 
@@ -939,19 +832,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     paymentRadios.forEach(function (radio) {
 
-        radio.addEventListener('change', updatePayment);
+        radio.addEventListener(
+            'change',
+            updatePayment
+        );
 
     });
 
 
     /* =========================================================
-       ADDRESS SELECTION VISUAL
+       ADDRESS SELECTION
     ========================================================= */
 
     const addressRadios =
         document.querySelectorAll(
             'input[name="address_id"]'
         );
+
 
     const addressOptions =
         document.querySelectorAll(
@@ -961,46 +858,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     addressRadios.forEach(function (radio) {
 
-        radio.addEventListener('change', function () {
+        radio.addEventListener(
+            'change',
+            function () {
 
-            addressOptions.forEach(function (option) {
+                addressOptions.forEach(
+                    function (option) {
 
-                option.classList.remove(
-                    'border-[#1F6F5B]',
-                    'bg-[#F8FAF8]'
+                        option.classList.remove(
+                            'border-[#1F6F5B]',
+                            'bg-[#F8FAF8]'
+                        );
+
+
+                        option.classList.add(
+                            'border-gray-200',
+                            'bg-white'
+                        );
+
+                    }
                 );
 
-                option.classList.add(
-                    'border-gray-200'
-                );
 
-            });
+                if (radio.checked) {
+
+                    const option =
+                        radio.closest(
+                            '.address-option'
+                        );
 
 
-            if (radio.checked) {
+                    if (!option) {
+                        return;
+                    }
 
-                const option =
-                    radio.closest('.address-option');
 
-                option.classList.remove(
-                    'border-gray-200'
-                );
+                    option.classList.remove(
+                        'border-gray-200',
+                        'bg-white'
+                    );
 
-                option.classList.add(
-                    'border-[#1F6F5B]',
-                    'bg-[#F8FAF8]'
-                );
+
+                    option.classList.add(
+                        'border-[#1F6F5B]',
+                        'bg-[#F8FAF8]'
+                    );
+
+                }
 
             }
-
-        });
+        );
 
     });
 
 
-    /* INITIAL STATE */
+    /* =========================================================
+       INITIAL STATE
+    ========================================================= */
 
-    updateShipping();
     updatePayment();
 
 });

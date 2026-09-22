@@ -3,7 +3,12 @@
 use App\Models\User;
 use App\Models\CartItem;
 use App\Models\WishlistItem;
+use App\Models\Order;
+use App\Models\OrderItem;
+
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 
@@ -873,6 +878,197 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $r
 
 
 // =====================================================
+// ORDER VIEW FORMATTER
+// =====================================================
+//
+// Existing Blade files still use array-style order data.
+// Supabase/PostgreSQL is now the real source of order data.
+//
+
+$orderToViewArray = function (Order $order): array {
+
+    $items = [];
+
+    foreach ($order->items as $item) {
+
+        $items[$item->product_slug] = [
+            'slug' => $item->product_slug,
+            'name' => $item->product_name,
+            'price' => (float) $item->unit_price,
+            'quantity' => (int) $item->quantity,
+            'image' => $item->image,
+            'variation' => $item->variation,
+            'line_total' => (float) $item->line_total,
+        ];
+    }
+
+    return [
+        'id' => $order->order_number,
+
+        'items' => $items,
+
+        'subtotal' => (float) $order->subtotal,
+
+        'shipping' => (float) $order->shipping_fee,
+
+        'discount' => (float) $order->discount_amount,
+
+        'total' => (float) $order->total_amount,
+
+        /*
+        |--------------------------------------------------------------------------
+        | DELIVERY
+        |--------------------------------------------------------------------------
+        |
+        | Wala nang J&T / Flash / LBC.
+        |
+        | SUKI Logistics ang bahala sa sorting,
+        | rider assignment, at final delivery.
+        |
+        */
+
+        'shipping_method' => 'SUKI Logistics',
+
+        'payment_method' =>
+            $order->payment_method,
+
+        'payment_status' =>
+            strtolower(
+                $order->payment_status ?? 'UNPAID'
+            ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | DELIVERY ADDRESS
+        |--------------------------------------------------------------------------
+        */
+
+        'shipping_address' => [
+
+            'id' => null,
+
+            'name' =>
+                $order->recipient_name,
+
+            'phone' =>
+                $order->recipient_phone,
+
+            'province' =>
+                $order->province,
+
+            'municipality' =>
+                $order->municipality,
+
+            'barangay' =>
+                $order->barangay,
+
+            'street' =>
+                $order->street_address,
+
+            'house_number' =>
+                $order->house_number,
+
+            'postal_code' =>
+                $order->postal_code,
+
+            'label' =>
+                $order->address_label,
+
+            'is_default' => false,
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | ORDER STATUS
+        |--------------------------------------------------------------------------
+        */
+
+        'status' =>
+            strtolower($order->status),
+
+        'created_at' =>
+            optional(
+                $order->placed_at
+                ?? $order->created_at
+            )->format('Y-m-d H:i:s'),
+
+        'updated_at' =>
+            optional(
+                $order->updated_at
+            )->format('Y-m-d H:i:s'),
+
+        'confirmed_at' =>
+            optional(
+                $order->confirmed_at
+            )->format('Y-m-d H:i:s'),
+
+        'preparing_at' =>
+            optional(
+                $order->preparing_at
+            )->format('Y-m-d H:i:s'),
+
+        'ready_for_pickup_at' =>
+            optional(
+                $order->ready_for_pickup_at
+            )->format('Y-m-d H:i:s'),
+
+        'picked_up_at' =>
+            optional(
+                $order->picked_up_at
+            )->format('Y-m-d H:i:s'),
+
+        'at_sorting_center_at' =>
+            optional(
+                $order->at_sorting_center_at
+            )->format('Y-m-d H:i:s'),
+
+        'sorted_at' =>
+            optional(
+                $order->sorted_at
+            )->format('Y-m-d H:i:s'),
+
+        'assigned_to_rider_at' =>
+            optional(
+                $order->assigned_to_rider_at
+            )->format('Y-m-d H:i:s'),
+
+        'out_for_delivery_at' =>
+            optional(
+                $order->out_for_delivery_at
+            )->format('Y-m-d H:i:s'),
+
+        'delivered_at' =>
+            optional(
+                $order->delivered_at
+            )->format('Y-m-d H:i:s'),
+
+        'completed_at' =>
+            optional(
+                $order->completed_at
+            )->format('Y-m-d H:i:s'),
+
+        'delivery_failed_at' =>
+            optional(
+                $order->delivery_failed_at
+            )->format('Y-m-d H:i:s'),
+
+        'returned_at' =>
+            optional(
+                $order->returned_at
+            )->format('Y-m-d H:i:s'),
+
+        'cancel_reason' =>
+            $order->cancel_reason,
+
+        'cancelled_at' =>
+            optional(
+                $order->cancelled_at
+            )->format('Y-m-d H:i:s'),
+    ];
+};
+
+
+// =====================================================
 // CHECKOUT
 // =====================================================
 
@@ -882,57 +1078,193 @@ Route::get('/checkout', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $cart = session('cart', []);
+    $user = auth()->user();
 
-    if (empty($cart)) {
+
+    // =====================================================
+    // GET CART FROM SUPABASE
+    // =====================================================
+
+    $cartRows = $user
+        ->cartItems()
+        ->orderBy('created_at')
+        ->get();
+
+
+    if ($cartRows->isEmpty()) {
+
         return redirect()
             ->route('buyer.cart')
-            ->with('error', 'Your cart is empty.');
+            ->with(
+                'error',
+                'Your cart is empty.'
+            );
     }
 
-    $addresses = session('buyer_addresses', [
+
+    // =====================================================
+    // CONVERT CART TO EXISTING BLADE FORMAT
+    // =====================================================
+
+    $cart = [];
+
+
+    foreach ($cartRows as $item) {
+
+        $cart[$item->product_slug] = [
+
+            'slug' =>
+                $item->product_slug,
+
+            'name' =>
+                $item->product_name,
+
+            'price' =>
+                (float) $item->price,
+
+            'image' =>
+                $item->image,
+
+            'quantity' =>
+                (int) $item->quantity,
+        ];
+    }
+
+
+    // =====================================================
+    // BUYER ADDRESSES
+    // =====================================================
+    //
+    // Address system is still session-based for now.
+    //
+
+    $addresses = session(
+        'buyer_addresses',
         [
-            'id' => 1,
-            'name' => 'Juan Dela Cruz',
-            'phone' => '0912 345 6789',
-            'province' => 'Laguna',
-            'municipality' => 'Santa Rosa',
-            'barangay' => 'San Antonio',
-            'street' => '123 Main Street',
-            'house_number' => '',
-            'postal_code' => '4026',
-            'label' => 'Default Address',
-            'is_default' => true,
-        ],
-    ]);
+            [
+                'id' => 1,
+
+                'name' =>
+                    'Juan Dela Cruz',
+
+                'phone' =>
+                    '0912 345 6789',
+
+                'province' =>
+                    'Laguna',
+
+                'municipality' =>
+                    'Santa Rosa',
+
+                'barangay' =>
+                    'San Antonio',
+
+                'street' =>
+                    '123 Main Street',
+
+                'house_number' =>
+                    '',
+
+                'postal_code' =>
+                    '4026',
+
+                'label' =>
+                    'Default Address',
+
+                'is_default' =>
+                    true,
+            ],
+        ]
+    );
+
 
     if (!session()->has('buyer_addresses')) {
-        session()->put('buyer_addresses', $addresses);
+
+        session()->put(
+            'buyer_addresses',
+            $addresses
+        );
     }
 
-    $defaultAddress = collect($addresses)
-        ->firstWhere('is_default', true);
 
-    if (!$defaultAddress && !empty($addresses)) {
-        $defaultAddress = $addresses[0];
+    $defaultAddress =
+        collect($addresses)
+            ->firstWhere(
+                'is_default',
+                true
+            );
+
+
+    if (
+        !$defaultAddress
+        && !empty($addresses)
+    ) {
+
+        $defaultAddress =
+            $addresses[0];
     }
 
-    $subtotal = collect($cart)->sum(function ($item) {
-        return (float) $item['price'] * (int) $item['quantity'];
-    });
 
-    $shipping = 30;
+    // =====================================================
+    // ORDER TOTAL
+    // =====================================================
 
-    $total = $subtotal + $shipping;
+    $subtotal =
+        $cartRows->sum(
+            function ($item) {
 
-    return view('buyer.checkout', [
-        'cart' => $cart,
-        'addresses' => $addresses,
-        'defaultAddress' => $defaultAddress,
-        'subtotal' => $subtotal,
-        'shipping' => $shipping,
-        'total' => $total,
-    ]);
+                return
+                    (float) $item->price
+                    *
+                    (int) $item->quantity;
+            }
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SUKI LOGISTICS DELIVERY
+    |--------------------------------------------------------------------------
+    |
+    | Wala nang courier selection.
+    |
+    | Logistics ang bahala sa rider/delivery.
+    |
+    | 0 muna ang delivery fee hangga't wala pang
+    | final internal delivery-pricing computation.
+    |
+    */
+
+    $shipping = 0;
+
+
+    $total =
+        $subtotal;
+
+
+    return view(
+        'buyer.checkout',
+        [
+
+            'cart' =>
+                $cart,
+
+            'addresses' =>
+                $addresses,
+
+            'defaultAddress' =>
+                $defaultAddress,
+
+            'subtotal' =>
+                $subtotal,
+
+            'shipping' =>
+                $shipping,
+
+            'total' =>
+                $total,
+        ]
+    );
 
 })->name('buyer.checkout');
 
@@ -941,410 +1273,1121 @@ Route::get('/checkout', function () use ($requireBuyer) {
 // PLACE ORDER
 // =====================================================
 
-Route::post('/checkout/place-order', function (Request $request) use ($requireBuyer) {
+Route::post(
+    '/checkout/place-order',
+    function (
+        Request $request
+    ) use (
+        $requireBuyer
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
 
-    $cart = session('cart', []);
 
-    if (empty($cart)) {
-        return redirect()
-            ->route('buyer.cart')
-            ->with('error', 'Your cart is empty.');
-    }
+        $user =
+            auth()->user();
 
-    $request->validate([
-        'address_id' => 'required',
-        'shipping_method' => 'required|in:jnt,flash,lbc',
-        'payment_method' => 'required|in:cod,gcash',
-    ]);
 
-    $addresses = session('buyer_addresses', []);
+        // =====================================================
+        // VALIDATION
+        // =====================================================
+        //
+        // WALA NANG shipping_method.
+        //
+        // Hindi na pipili ang buyer ng:
+        //
+        // J&T
+        // Flash
+        // LBC
+        //
+        // SUKI Logistics na ang fulfillment.
+        //
 
-    $selectedAddress = collect($addresses)
-        ->firstWhere('id', (int) $request->address_id);
+        $request->validate([
 
-    if (!$selectedAddress) {
-        return redirect()
-            ->route('buyer.checkout')
-            ->with('error', 'Please select a valid delivery address.');
-    }
+            'address_id' =>
+                'required',
 
-    $subtotal = collect($cart)->sum(function ($item) {
-        return (float) $item['price'] * (int) $item['quantity'];
-    });
+            'payment_method' =>
+                'required|in:cod,gcash',
+        ]);
 
-    $shippingFees = [
-        'jnt' => 30,
-        'flash' => 30,
-        'lbc' => 49,
-    ];
 
-    $shipping = $shippingFees[$request->shipping_method];
+        // =====================================================
+        // CART FROM SUPABASE
+        // =====================================================
 
-    $total = $subtotal + $shipping;
+        $cartItems =
+            $user
+                ->cartItems()
+                ->get();
 
-    $orderId = 'SKI-' . now()->format('YmdHis');
 
-    $orders = session('orders', []);
+        if ($cartItems->isEmpty()) {
 
-    $orders[$orderId] = [
-        'id' => $orderId,
-        'items' => $cart,
-        'subtotal' => $subtotal,
-        'shipping' => $shipping,
-        'total' => $total,
+            return redirect()
+                ->route('buyer.cart')
+                ->with(
+                    'error',
+                    'Your cart is empty.'
+                );
+        }
 
-        'shipping_method' => $request->shipping_method,
-        'payment_method' => $request->payment_method,
 
-        'shipping_address' => $selectedAddress,
+        // =====================================================
+        // DELIVERY ADDRESS
+        // =====================================================
 
-        'status' => 'placed',
+        $addresses =
+            session(
+                'buyer_addresses',
+                []
+            );
 
-        'created_at' => now()->format('Y-m-d H:i:s'),
-        'updated_at' => now()->format('Y-m-d H:i:s'),
 
-        'confirmed_at' => null,
-        'preparing_at' => null,
-        'ready_for_pickup_at' => null,
-        'picked_up_at' => null,
-        'at_sorting_center_at' => null,
-        'sorted_at' => null,
-        'assigned_to_rider_at' => null,
-        'out_for_delivery_at' => null,
-        'delivered_at' => null,
-        'completed_at' => null,
+        $selectedAddress =
+            collect($addresses)
+                ->firstWhere(
+                    'id',
+                    (int)
+                    $request->address_id
+                );
 
-        'delivery_failed_at' => null,
-        'returned_at' => null,
 
-        'cancel_reason' => null,
-        'cancelled_at' => null,
-    ];
+        if (!$selectedAddress) {
 
-    session()->put('orders', $orders);
+            return redirect()
+                ->route(
+                    'buyer.checkout'
+                )
+                ->with(
+                    'error',
+                    'Please select a valid delivery address.'
+                );
+        }
 
-    session()->forget('cart');
 
-    return redirect()
-        ->route('buyer.order-success', [
-            'order' => $orderId,
-        ])
-        ->with(
-            'success',
-            'Your order has been placed successfully!'
+        // =====================================================
+        // SERVER-SIDE TOTAL
+        // =====================================================
+
+        $subtotal =
+            $cartItems->sum(
+                function ($item) {
+
+                    return
+                        (float) $item->price
+                        *
+                        (int) $item->quantity;
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DELIVERY FEE
+        |--------------------------------------------------------------------------
+        |
+        | Wala muna tayong arbitrary courier fee.
+        |
+        | Kapag nakagawa na tayo ng delivery area/rate
+        | system para sa SUKI Logistics, dito natin
+        | iko-compute ang delivery fee.
+        |
+        */
+
+        $shipping = 0;
+
+
+        $discount = 0;
+
+
+        $total =
+            $subtotal
+            + $shipping
+            - $discount;
+
+
+        // =====================================================
+        // UNIQUE ORDER NUMBER
+        // =====================================================
+
+        do {
+
+            $orderNumber =
+                'SKI-'
+                .
+                now()->format(
+                    'YmdHis'
+                )
+                .
+                '-'
+                .
+                Str::upper(
+                    Str::random(6)
+                );
+
+        } while (
+
+            Order::where(
+                'order_number',
+                $orderNumber
+            )->exists()
+
         );
 
-})->name('buyer.checkout.place-order');
+
+        // =====================================================
+        // DATABASE TRANSACTION
+        // =====================================================
+
+        try {
+
+            $order =
+                DB::transaction(
+                    function () use (
+
+                        $user,
+
+                        $cartItems,
+
+                        $selectedAddress,
+
+                        $request,
+
+                        $subtotal,
+
+                        $shipping,
+
+                        $discount,
+
+                        $total,
+
+                        $orderNumber
+
+                    ) {
+
+
+                        // =====================================================
+                        // CREATE ORDER
+                        // =====================================================
+
+                        $order =
+                            Order::create([
+
+                                'order_number' =>
+                                    $orderNumber,
+
+
+                                'buyer_id' =>
+                                    $user->id,
+
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | SELLER ID
+                                |--------------------------------------------------------------------------
+                                |
+                                | Null muna dahil hardcoded pa ang products
+                                | at wala pang actual seller user_id linkage.
+                                |
+                                */
+
+                                'seller_id' =>
+                                    null,
+
+
+                                'status' =>
+                                    'PLACED',
+
+
+                                'payment_method' =>
+                                    $request
+                                        ->payment_method,
+
+
+                                'payment_status' =>
+                                    'UNPAID',
+
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | DELIVERY METHOD
+                                |--------------------------------------------------------------------------
+                                */
+
+                                'shipping_method' =>
+                                    'suki_logistics',
+
+
+                                'subtotal' =>
+                                    $subtotal,
+
+
+                                'shipping_fee' =>
+                                    $shipping,
+
+
+                                'discount_amount' =>
+                                    $discount,
+
+
+                                'total_amount' =>
+                                    $total,
+
+
+                                'voucher_code' =>
+                                    null,
+
+
+                                // =====================================================
+                                // ADDRESS SNAPSHOT
+                                // =====================================================
+
+                                'recipient_name' =>
+                                    $selectedAddress[
+                                        'name'
+                                    ],
+
+
+                                'recipient_phone' =>
+                                    $selectedAddress[
+                                        'phone'
+                                    ],
+
+
+                                'province' =>
+                                    $selectedAddress[
+                                        'province'
+                                    ],
+
+
+                                'municipality' =>
+                                    $selectedAddress[
+                                        'municipality'
+                                    ],
+
+
+                                'barangay' =>
+                                    $selectedAddress[
+                                        'barangay'
+                                    ],
+
+
+                                'street_address' =>
+                                    $selectedAddress[
+                                        'street'
+                                    ],
+
+
+                                'house_number' =>
+                                    $selectedAddress[
+                                        'house_number'
+                                    ] ?? null,
+
+
+                                'postal_code' =>
+                                    $selectedAddress[
+                                        'postal_code'
+                                    ] ?? null,
+
+
+                                'address_label' =>
+                                    $selectedAddress[
+                                        'label'
+                                    ] ?? null,
+
+
+                                'delivery_notes' =>
+                                    null,
+
+
+                                'placed_at' =>
+                                    now(),
+                            ]);
+
+
+                        // =====================================================
+                        // CREATE ORDER ITEMS
+                        // =====================================================
+
+                        foreach (
+                            $cartItems
+                            as $cartItem
+                        ) {
+
+
+                            $unitPrice =
+                                (float)
+                                $cartItem->price;
+
+
+                            $quantity =
+                                (int)
+                                $cartItem->quantity;
+
+
+                            $lineTotal =
+                                $unitPrice
+                                *
+                                $quantity;
+
+
+                            $order
+                                ->items()
+                                ->create([
+
+                                    'seller_id' =>
+                                        null,
+
+
+                                    'product_slug' =>
+                                        $cartItem
+                                            ->product_slug,
+
+
+                                    'product_name' =>
+                                        $cartItem
+                                            ->product_name,
+
+
+                                    'image' =>
+                                        $cartItem
+                                            ->image,
+
+
+                                    'variation' =>
+                                        null,
+
+
+                                    'unit_price' =>
+                                        $unitPrice,
+
+
+                                    'quantity' =>
+                                        $quantity,
+
+
+                                    'line_total' =>
+                                        $lineTotal,
+                                ]);
+                        }
+
+
+                        // =====================================================
+                        // CLEAR BUYER CART
+                        // =====================================================
+
+                        $user
+                            ->cartItems()
+                            ->delete();
+
+
+                        return $order;
+                    }
+                );
+
+
+        } catch (\Throwable $exception) {
+
+
+            report($exception);
+
+
+            return redirect()
+                ->route(
+                    'buyer.checkout'
+                )
+                ->with(
+                    'error',
+                    'Unable to place your order. Please try again.'
+                );
+        }
+
+
+        // =====================================================
+        // SUCCESS
+        // =====================================================
+
+        return redirect()
+            ->route(
+                'buyer.order-success',
+                [
+
+                    'order' =>
+                        $order
+                            ->order_number,
+                ]
+            )
+            ->with(
+                'success',
+                'Your order has been placed successfully!'
+            );
+
+    }
+)->name(
+    'buyer.checkout.place-order'
+);
 
 
 // =====================================================
 // ORDER SUCCESS
 // =====================================================
 
-Route::get('/order-success/{order}', function ($orderId) use ($requireBuyer) {
+Route::get(
+    '/order-success/{order}',
+    function (
+        $orderNumber
+    ) use (
+        $requireBuyer,
+        $orderToViewArray
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
+
+
+        $order =
+            Order::with('items')
+                ->where(
+                    'buyer_id',
+                    auth()->id()
+                )
+                ->where(
+                    'order_number',
+                    $orderNumber
+                )
+                ->first();
+
+
+        if (!$order) {
+
+            return redirect()
+                ->route(
+                    'buyer.home'
+                )
+                ->with(
+                    'error',
+                    'Order not found.'
+                );
+        }
+
+
+        return view(
+            'buyer.order-success',
+            [
+
+                'order' =>
+                    $orderToViewArray(
+                        $order
+                    ),
+            ]
+        );
+
     }
-
-    $orders = session('orders', []);
-
-    if (!isset($orders[$orderId])) {
-        return redirect()
-            ->route('buyer.home')
-            ->with('error', 'Order not found.');
-    }
-
-    return view('buyer.order-success', [
-        'order' => $orders[$orderId],
-    ]);
-
-})->name('buyer.order-success');
+)->name(
+    'buyer.order-success'
+);
 
 
 // =====================================================
 // MY ORDERS
 // =====================================================
 
-Route::get('/my-orders', function () use ($requireBuyer) {
+Route::get(
+    '/my-orders',
+    function () use (
+        $requireBuyer,
+        $orderToViewArray
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
+
+
+        $databaseOrders =
+            Order::with('items')
+                ->where(
+                    'buyer_id',
+                    auth()->id()
+                )
+                ->latest()
+                ->get();
+
+
+        $orders = [];
+
+
+        foreach (
+            $databaseOrders
+            as $databaseOrder
+        ) {
+
+            $orders[
+                $databaseOrder
+                    ->order_number
+            ] =
+                $orderToViewArray(
+                    $databaseOrder
+                );
+        }
+
+
+        return view(
+            'buyer.my-orders',
+            [
+
+                'orders' =>
+                    $orders,
+            ]
+        );
+
     }
-
-    $orders = session('orders', []);
-
-    $orders = array_reverse($orders, true);
-
-    return view('buyer.my-orders', [
-        'orders' => $orders,
-    ]);
-
-})->name('buyer.my-orders');
+)->name(
+    'buyer.my-orders'
+);
 
 
 // =====================================================
 // ORDER DETAILS
 // =====================================================
 
-Route::get('/my-orders/{order}', function ($orderId) use ($requireBuyer) {
+Route::get(
+    '/my-orders/{order}',
+    function (
+        $orderNumber
+    ) use (
+        $requireBuyer,
+        $orderToViewArray
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
+
+
+        $order =
+            Order::with('items')
+                ->where(
+                    'buyer_id',
+                    auth()->id()
+                )
+                ->where(
+                    'order_number',
+                    $orderNumber
+                )
+                ->first();
+
+
+        if (!$order) {
+
+            return redirect()
+                ->route(
+                    'buyer.my-orders'
+                )
+                ->with(
+                    'error',
+                    'Order not found.'
+                );
+        }
+
+
+        return view(
+            'buyer.order-details',
+            [
+
+                'order' =>
+                    $orderToViewArray(
+                        $order
+                    ),
+            ]
+        );
+
     }
-
-    $orders = session('orders', []);
-
-    if (!isset($orders[$orderId])) {
-        return redirect()
-            ->route('buyer.my-orders')
-            ->with('error', 'Order not found.');
-    }
-
-    return view('buyer.order-details', [
-        'order' => $orders[$orderId],
-    ]);
-
-})->name('buyer.order-details');
+)->name(
+    'buyer.order-details'
+);
 
 
 // =====================================================
 // CANCEL ORDER
 // =====================================================
 
-Route::post('/my-orders/{order}/cancel', function (
-    Request $request,
-    $orderId
-) use ($requireBuyer) {
+Route::post(
+    '/my-orders/{order}/cancel',
+    function (
+        Request $request,
+        $orderNumber
+    ) use (
+        $requireBuyer
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
+
+
+        $order =
+            Order::where(
+                'buyer_id',
+                auth()->id()
+            )
+                ->where(
+                    'order_number',
+                    $orderNumber
+                )
+                ->first();
+
+
+        if (!$order) {
+
+            return back()
+                ->with(
+                    'error',
+                    'Order not found.'
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ONLY PLACED ORDERS CAN BE CANCELLED
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $order->status
+            !== 'PLACED'
+        ) {
+
+            return back()
+                ->with(
+                    'error',
+                    'This order can no longer be cancelled because the seller has already started processing it.'
+                );
+        }
+
+
+        $request->validate([
+
+            'cancel_reason' =>
+                'required|in:changed_mind,ordered_by_mistake,found_better_price,wrong_product,seller_requested,other',
+        ]);
+
+
+        $order->update([
+
+            'status' =>
+                'CANCELLED',
+
+            'cancel_reason' =>
+                $request
+                    ->cancel_reason,
+
+            'cancelled_at' =>
+                now(),
+        ]);
+
+
+        return redirect()
+            ->route(
+                'buyer.order-details',
+                [
+
+                    'order' =>
+                        $order
+                            ->order_number,
+                ]
+            )
+            ->with(
+                'success',
+                'Your order has been cancelled successfully!'
+            );
+
     }
-
-    $orders = session('orders', []);
-
-    if (!isset($orders[$orderId])) {
-        return back()->with('error', 'Order not found.');
-    }
-
-    if (($orders[$orderId]['status'] ?? '') !== 'placed') {
-
-        return back()->with(
-            'error',
-            'This order can no longer be cancelled because the seller has already started processing it.'
-        );
-    }
-
-    $request->validate([
-        'cancel_reason' => 'required|in:changed_mind,ordered_by_mistake,found_better_price,wrong_product,seller_requested,other',
-    ]);
-
-    $orders[$orderId]['status'] = 'cancelled';
-
-    $orders[$orderId]['cancel_reason'] =
-        $request->cancel_reason;
-
-    $orders[$orderId]['cancelled_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    $orders[$orderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    session()->put('orders', $orders);
-
-    return redirect()
-        ->route('buyer.order-details', [
-            'order' => $orderId,
-        ])
-        ->with(
-            'success',
-            'Your order has been cancelled successfully!'
-        );
-
-})->name('buyer.order.cancel');
+)->name(
+    'buyer.order.cancel'
+);
 
 
 // =====================================================
 // UPDATE ORDER STATUS
 // =====================================================
 //
-// Seller:
-// confirmed → preparing → ready_for_pickup
+// ERP FLOW:
 //
-// Pickup Rider:
-// ready_for_pickup → picked_up → at_sorting_center
+// PLACED
+// ↓
+// CONFIRMED
+// ↓
+// PREPARING
+// ↓
+// READY_FOR_PICKUP
+// ↓
+// PICKED_UP
+// ↓
+// AT_SORTING_CENTER
+// ↓
+// SORTED
+// ↓
+// ASSIGNED_TO_RIDER
+// ↓
+// OUT_FOR_DELIVERY
+// ↓
+// DELIVERED
+// ↓
+// COMPLETED
 //
-// Logistics:
-// at_sorting_center → sorted → assigned_to_rider
+// Alternative:
+// DELIVERY_FAILED
+// RETURNED
 //
-// Delivery Rider:
-// assigned_to_rider → out_for_delivery → delivered
-//
-// Buyer:
-// delivered → completed
 // =====================================================
 
-Route::post('/orders/{order}/status', function (
-    Request $request,
-    $orderId
-) {
+Route::post(
+    '/orders/{order}/status',
+    function (
+        Request $request,
+        $orderNumber
+    ) {
 
-    $orders = session('orders', []);
 
-    if (!isset($orders[$orderId])) {
-        return back()->with('error', 'Order not found.');
-    }
+        $order =
+            Order::where(
+                'order_number',
+                $orderNumber
+            )
+                ->first();
 
-    $allowedStatuses = [
-        'placed',
-        'confirmed',
-        'preparing',
-        'ready_for_pickup',
-        'picked_up',
-        'at_sorting_center',
-        'sorted',
-        'assigned_to_rider',
-        'out_for_delivery',
-        'delivered',
-        'completed',
-        'delivery_failed',
-        'returned',
-        'cancelled',
-    ];
 
-    $request->validate([
-        'status' => 'required|in:' . implode(',', $allowedStatuses),
-    ]);
+        if (!$order) {
 
-    $currentStatus =
-        $orders[$orderId]['status'] ?? 'placed';
+            return back()
+                ->with(
+                    'error',
+                    'Order not found.'
+                );
+        }
 
-    if ($currentStatus === 'completed') {
-        return back()->with(
-            'error',
-            'This order has already been completed.'
+
+        $allowedStatuses = [
+
+            'placed',
+
+            'confirmed',
+
+            'preparing',
+
+            'ready_for_pickup',
+
+            'picked_up',
+
+            'at_sorting_center',
+
+            'sorted',
+
+            'assigned_to_rider',
+
+            'out_for_delivery',
+
+            'delivered',
+
+            'completed',
+
+            'delivery_failed',
+
+            'returned',
+
+            'cancelled',
+        ];
+
+
+        $request->validate([
+
+            'status' =>
+                'required|in:'
+                .
+                implode(
+                    ',',
+                    $allowedStatuses
+                ),
+        ]);
+
+
+        $currentStatus =
+            strtolower(
+                $order->status
+            );
+
+
+        if (
+            $currentStatus
+            === 'completed'
+        ) {
+
+            return back()
+                ->with(
+                    'error',
+                    'This order has already been completed.'
+                );
+        }
+
+
+        if (
+            $currentStatus
+            === 'cancelled'
+        ) {
+
+            return back()
+                ->with(
+                    'error',
+                    'This order has already been cancelled.'
+                );
+        }
+
+
+        $newStatus =
+            strtolower(
+                $request->status
+            );
+
+
+        $timestampFields = [
+
+            'confirmed' =>
+                'confirmed_at',
+
+            'preparing' =>
+                'preparing_at',
+
+            'ready_for_pickup' =>
+                'ready_for_pickup_at',
+
+            'picked_up' =>
+                'picked_up_at',
+
+            'at_sorting_center' =>
+                'at_sorting_center_at',
+
+            'sorted' =>
+                'sorted_at',
+
+            'assigned_to_rider' =>
+                'assigned_to_rider_at',
+
+            'out_for_delivery' =>
+                'out_for_delivery_at',
+
+            'delivered' =>
+                'delivered_at',
+
+            'completed' =>
+                'completed_at',
+
+            'delivery_failed' =>
+                'delivery_failed_at',
+
+            'returned' =>
+                'returned_at',
+        ];
+
+
+        $updates = [
+
+            'status' =>
+                strtoupper(
+                    $newStatus
+                ),
+        ];
+
+
+        if (
+            isset(
+                $timestampFields[
+                    $newStatus
+                ]
+            )
+        ) {
+
+            $updates[
+                $timestampFields[
+                    $newStatus
+                ]
+            ] =
+                now();
+        }
+
+
+        $order->update(
+            $updates
         );
+
+
+        return back()
+            ->with(
+                'success',
+                'Order status updated successfully.'
+            );
+
     }
-
-    if ($currentStatus === 'cancelled') {
-        return back()->with(
-            'error',
-            'This order has already been cancelled.'
-        );
-    }
-
-    $newStatus = $request->status;
-
-    $orders[$orderId]['status'] = $newStatus;
-
-    $orders[$orderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    $timestampFields = [
-
-        'confirmed' =>
-            'confirmed_at',
-
-        'preparing' =>
-            'preparing_at',
-
-        'ready_for_pickup' =>
-            'ready_for_pickup_at',
-
-        'picked_up' =>
-            'picked_up_at',
-
-        'at_sorting_center' =>
-            'at_sorting_center_at',
-
-        'sorted' =>
-            'sorted_at',
-
-        'assigned_to_rider' =>
-            'assigned_to_rider_at',
-
-        'out_for_delivery' =>
-            'out_for_delivery_at',
-
-        'delivered' =>
-            'delivered_at',
-
-        'completed' =>
-            'completed_at',
-
-        'delivery_failed' =>
-            'delivery_failed_at',
-
-        'returned' =>
-            'returned_at',
-    ];
-
-    if (isset($timestampFields[$newStatus])) {
-
-        $orders[$orderId][
-            $timestampFields[$newStatus]
-        ] = now()->format('Y-m-d H:i:s');
-    }
-
-    session()->put('orders', $orders);
-
-    return back()->with(
-        'success',
-        'Order status updated successfully.'
-    );
-
-})->name('order.status.update');
+)->name(
+    'order.status.update'
+);
 
 
 // =====================================================
 // BUY AGAIN
 // =====================================================
 
-Route::post('/my-orders/{order}/buy-again', function (
-    $orderId
-) use ($requireBuyer) {
+Route::post(
+    '/my-orders/{order}/buy-again',
+    function (
+        $orderNumber
+    ) use (
+        $requireBuyer,
+        $products
+    ) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
 
-    $orders = session('orders', []);
 
-    if (!isset($orders[$orderId])) {
+        $order =
+            Order::with('items')
+                ->where(
+                    'buyer_id',
+                    auth()->id()
+                )
+                ->where(
+                    'order_number',
+                    $orderNumber
+                )
+                ->first();
+
+
+        if (!$order) {
+
+            return redirect()
+                ->route(
+                    'buyer.my-orders'
+                )
+                ->with(
+                    'error',
+                    'Order not found.'
+                );
+        }
+
+
+        $user =
+            auth()->user();
+
+
+        foreach (
+            $order->items
+            as $item
+        ) {
+
+
+            if (
+                !isset(
+                    $products[
+                        $item->product_slug
+                    ]
+                )
+            ) {
+
+                continue;
+            }
+
+
+            $maxStock =
+                (int)
+                $products[
+                    $item->product_slug
+                ]['stock'];
+
+
+            $cartItem =
+                CartItem::where(
+                    'user_id',
+                    $user->id
+                )
+                    ->where(
+                        'product_slug',
+                        $item->product_slug
+                    )
+                    ->first();
+
+
+            if ($cartItem) {
+
+
+                $newQuantity =
+                    min(
+
+                        $cartItem->quantity
+                        +
+                        $item->quantity,
+
+                        $maxStock
+                    );
+
+
+                $cartItem->update([
+
+                    'quantity' =>
+                        $newQuantity,
+                ]);
+
+
+            } else {
+
+
+                CartItem::create([
+
+                    'user_id' =>
+                        $user->id,
+
+                    'product_slug' =>
+                        $item->product_slug,
+
+                    'product_name' =>
+                        $item->product_name,
+
+                    'price' =>
+                        $item->unit_price,
+
+                    'image' =>
+                        $item->image,
+
+                    'quantity' =>
+                        min(
+                            $item->quantity,
+                            $maxStock
+                        ),
+                ]);
+            }
+        }
+
 
         return redirect()
-            ->route('buyer.my-orders')
-            ->with('error', 'Order not found.');
+            ->route(
+                'buyer.cart'
+            )
+            ->with(
+                'success',
+                'Items from your previous order have been added to your cart!'
+            );
+
     }
-
-    $cart = session('cart', []);
-
-    foreach ($orders[$orderId]['items'] as $slug => $item) {
-
-        if (isset($cart[$slug])) {
-
-            $cart[$slug]['quantity'] += $item['quantity'];
-
-        } else {
-
-            $cart[$slug] = $item;
-        }
-    }
-
-    session()->put('cart', $cart);
-
-    return redirect()
-        ->route('buyer.cart')
-        ->with(
-            'success',
-            'Items from your previous order have been added to your cart!'
-        );
-
-})->name('buyer.order.buy-again');
+)->name(
+    'buyer.order.buy-again'
+);
 
 
 // =====================================================
@@ -3338,6 +4381,436 @@ Route::post('/logistics/riders/{rider}/disapprove', function (
 })->name('logistics.riders.disapprove');
 
 // =====================================================
+// ADMIN AUTH CHECK
+// =====================================================
+
+$requireAdmin = function () {
+
+    if (!auth()->check()) {
+
+        return redirect()
+            ->route('admin.login')
+            ->with(
+                'error',
+                'Please log in as an administrator.'
+            );
+    }
+
+    $user = auth()->user();
+
+    if (
+        $user->role !== 'admin' ||
+        $user->status !== 'active'
+    ) {
+
+        return redirect()
+            ->route('admin.login')
+            ->with(
+                'error',
+                'You do not have administrator access.'
+            );
+    }
+
+    return null;
+};
+
+
+// =====================================================
+// ADMIN LOGIN PAGE
+// =====================================================
+
+Route::get('/admin/login', function () {
+
+    if (
+        auth()->check() &&
+        auth()->user()->role === 'admin'
+    ) {
+
+        return redirect()
+            ->route('admin.dashboard');
+    }
+
+    return view('admin.login');
+
+})->name('admin.login');
+
+
+// =====================================================
+// ADMIN LOGIN SUBMIT
+// =====================================================
+
+Route::post('/admin/login', function (Request $request) {
+
+    $validated = $request->validate([
+        'login' => 'required|string',
+        'password' => 'required|string',
+    ]);
+
+    $loginField = filter_var(
+        $validated['login'],
+        FILTER_VALIDATE_EMAIL
+    )
+        ? 'email'
+        : 'phone';
+
+
+    $loggedIn = auth()->attempt([
+        $loginField => $validated['login'],
+        'password' => $validated['password'],
+        'role' => 'admin',
+        'status' => 'active',
+    ]);
+
+
+    if (!$loggedIn) {
+
+        return back()
+            ->withErrors([
+                'login' =>
+                    'Invalid administrator credentials.',
+            ])
+            ->onlyInput('login');
+    }
+
+
+    $request
+        ->session()
+        ->regenerate();
+
+
+    return redirect()
+        ->route('admin.dashboard')
+        ->with(
+            'success',
+            'Welcome to the SUKI SHOP Admin Portal.'
+        );
+
+})->name('admin.login.submit');
+
+// =====================================================
+// ADMIN DASHBOARD
+// =====================================================
+
+Route::get('/admin', function () use ($requireAdmin) {
+
+    if ($redirect = $requireAdmin()) {
+        return $redirect;
+    }
+
+
+    // =====================================================
+    // BUYER STATISTICS
+    // =====================================================
+
+    $pendingBuyers = User::where('role', 'buyer')
+        ->where('status', 'pending')
+        ->count();
+
+    $activeBuyers = User::where('role', 'buyer')
+        ->where('status', 'active')
+        ->count();
+
+    $rejectedBuyers = User::where('role', 'buyer')
+        ->where('status', 'rejected')
+        ->count();
+
+    $totalBuyers = User::where('role', 'buyer')
+        ->count();
+
+
+    // =====================================================
+    // ORDER STATISTICS
+    // =====================================================
+
+    $totalOrders = Order::count();
+
+    $placedOrders = Order::where(
+        'status',
+        'PLACED'
+    )->count();
+
+    $processingOrders = Order::whereIn(
+        'status',
+        [
+            'CONFIRMED',
+            'PREPARING',
+            'READY_FOR_PICKUP',
+            'PICKED_UP',
+            'AT_SORTING_CENTER',
+            'SORTED',
+            'ASSIGNED_TO_RIDER',
+        ]
+    )->count();
+
+    $deliveryOrders = Order::whereIn(
+        'status',
+        [
+            'OUT_FOR_DELIVERY',
+            'DELIVERED',
+        ]
+    )->count();
+
+    $completedOrders = Order::where(
+        'status',
+        'COMPLETED'
+    )->count();
+
+
+    // =====================================================
+    // COMPLETED ORDER VALUE
+    // =====================================================
+
+    $completedOrderValue = Order::where(
+        'status',
+        'COMPLETED'
+    )->sum('total_amount');
+
+
+    // =====================================================
+    // LAST 7 DAYS ORDER TREND
+    // =====================================================
+
+    $orderTrend = [];
+
+    for ($i = 6; $i >= 0; $i--) {
+
+        $date = now()
+            ->subDays($i);
+
+        $orderTrend[] = [
+
+            'label' =>
+                $date->format('D'),
+
+            'date' =>
+                $date->format('M d'),
+
+            'count' =>
+                Order::whereDate(
+                    'created_at',
+                    $date->toDateString()
+                )->count(),
+        ];
+    }
+
+
+    // =====================================================
+    // RECENT BUYERS
+    // =====================================================
+
+    $recentBuyers = User::where(
+        'role',
+        'buyer'
+    )
+        ->latest()
+        ->take(5)
+        ->get();
+
+
+    // =====================================================
+    // RECENT ORDERS
+    // =====================================================
+
+    $recentOrders = Order::with('buyer')
+        ->latest()
+        ->take(5)
+        ->get();
+
+
+    return view(
+        'admin.dashboard',
+        compact(
+            'pendingBuyers',
+            'activeBuyers',
+            'rejectedBuyers',
+            'totalBuyers',
+
+            'totalOrders',
+            'placedOrders',
+            'processingOrders',
+            'deliveryOrders',
+            'completedOrders',
+
+            'completedOrderValue',
+
+            'orderTrend',
+
+            'recentBuyers',
+            'recentOrders'
+        )
+    );
+
+})->name('admin.dashboard');
+
+// =====================================================
+// ADMIN BUYER APPLICATIONS
+// =====================================================
+
+Route::get(
+    '/admin/buyers',
+    function () use ($requireAdmin) {
+
+        if ($redirect = $requireAdmin()) {
+            return $redirect;
+        }
+
+
+        $buyers =
+            User::where('role', 'buyer')
+                ->latest()
+                ->get();
+
+
+        return view(
+            'admin.buyers',
+            [
+                'buyers' =>
+                    $buyers,
+            ]
+        );
+
+    }
+)->name('admin.buyers');
+
+
+// =====================================================
+// ADMIN APPROVE BUYER
+// =====================================================
+
+Route::post(
+    '/admin/buyers/{buyer}/approve',
+    function (
+        User $buyer
+    ) use (
+        $requireAdmin
+    ) {
+
+        if ($redirect = $requireAdmin()) {
+            return $redirect;
+        }
+
+
+        if ($buyer->role !== 'buyer') {
+
+            return back()
+                ->with(
+                    'error',
+                    'Invalid buyer account.'
+                );
+        }
+
+
+        if ($buyer->status === 'active') {
+
+            return back()
+                ->with(
+                    'error',
+                    'Buyer account is already approved.'
+                );
+        }
+
+
+        $buyer->update([
+            'status' => 'active',
+        ]);
+
+
+        return back()
+            ->with(
+                'success',
+                $buyer->full_name .
+                ' has been approved successfully.'
+            );
+
+    }
+)->name('admin.buyers.approve');
+
+
+// =====================================================
+// ADMIN REJECT BUYER
+// =====================================================
+
+Route::post(
+    '/admin/buyers/{buyer}/reject',
+    function (
+        User $buyer
+    ) use (
+        $requireAdmin
+    ) {
+
+        if ($redirect = $requireAdmin()) {
+            return $redirect;
+        }
+
+
+        if ($buyer->role !== 'buyer') {
+
+            return back()
+                ->with(
+                    'error',
+                    'Invalid buyer account.'
+                );
+        }
+
+
+        if ($buyer->status === 'rejected') {
+
+            return back()
+                ->with(
+                    'error',
+                    'Buyer account is already rejected.'
+                );
+        }
+
+
+        $buyer->update([
+            'status' => 'rejected',
+        ]);
+
+
+        return back()
+            ->with(
+                'success',
+                $buyer->full_name .
+                ' has been rejected.'
+            );
+
+    }
+)->name('admin.buyers.reject');
+
+
+// =====================================================
+// ADMIN LOGOUT
+// =====================================================
+
+Route::post(
+    '/admin/logout',
+    function (
+        Request $request
+    ) {
+
+        auth()->logout();
+
+        $request
+            ->session()
+            ->invalidate();
+
+        $request
+            ->session()
+            ->regenerateToken();
+
+
+        return redirect()
+            ->route('admin.login')
+            ->with(
+                'success',
+                'Administrator logged out successfully.'
+            );
+
+    }
+)->name('admin.logout');
+
+// =====================================================
 // AUTHENTICATION
 // =====================================================
 
@@ -3438,39 +4911,23 @@ Route::post('/register', function (Request $request) {
         'terms' => 'required',
     ]);
 
-    $user = User::create([
-        'role' => 'buyer',
-        'first_name' => $validated['first_name'],
-        'last_name' => $validated['last_name'],
-        'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-        'email' => $validated['email'],
-        'phone' => $validated['phone'],
-        'status' => 'active',
-        'password' => $validated['password'],
-    ]);
+$user = User::create([
+    'role' => 'buyer',
+    'first_name' => $validated['first_name'],
+    'last_name' => $validated['last_name'],
+    'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+    'email' => $validated['email'],
+    'phone' => $validated['phone'],
+    'status' => 'pending',
+    'password' => $validated['password'],
+]);
 
-    auth()->login($user);
-
-    $request->session()->put('buyer_profile', [
-        'first_name' => $user->first_name,
-        'last_name' => $user->last_name,
-        'email' => $user->email,
-        'phone' => $user->phone,
-    ]);
-
-    $request->session()->put(
-        'buyer_logged_in',
-        true
+return redirect()
+    ->route('login')
+    ->with(
+        'success',
+        'Your buyer application has been submitted. Please wait for administrator approval before logging in.'
     );
-
-    $request->session()->regenerate();
-
-    return redirect()
-        ->intended(route('buyer.home'))
-        ->with(
-            'success',
-            'Your SUKI SHOP Buyer account has been created successfully!'
-        );
 
 })->name('register.submit');
 
