@@ -4821,6 +4821,29 @@ Route::post(
 
 Route::get('/login', function () {
 
+    // If an authenticated account visits the normal login page,
+    // send it directly to the correct portal.
+    if (auth()->check()) {
+
+        $user = auth()->user();
+
+        if (
+            $user->role === 'admin' &&
+            $user->status === 'active'
+        ) {
+            return redirect()
+                ->route('admin.dashboard');
+        }
+
+        if (
+            $user->role === 'buyer' &&
+            $user->status === 'active'
+        ) {
+            return redirect()
+                ->route('buyer.home');
+        }
+    }
+
     return view('auth.login');
 
 })->name('login');
@@ -4844,43 +4867,165 @@ Route::post('/login', function (Request $request) {
         ? 'email'
         : 'phone';
 
+
+    // Authenticate by credentials first.
+    // The account role is checked only after authentication succeeds.
     $loggedIn = auth()->attempt([
         $loginField => $validated['login'],
         'password' => $validated['password'],
-        'role' => 'buyer',
-        'status' => 'active',
     ]);
 
+
     if (!$loggedIn) {
+
         return back()
             ->withErrors([
-                'login' => 'Invalid email/phone number or password.',
+                'login' =>
+                    'Invalid email/phone number or password.',
             ])
             ->onlyInput('login');
     }
+
 
     $request->session()->regenerate();
 
     $user = auth()->user();
 
-    $request->session()->put('buyer_profile', [
-        'first_name' => $user->first_name,
-        'last_name' => $user->last_name,
-        'email' => $user->email,
-        'phone' => $user->phone,
-    ]);
 
-    $request->session()->put(
-        'buyer_logged_in',
-        true
-    );
+    // =====================================================
+    // SUSPENDED ACCOUNT CHECK
+    // =====================================================
+
+    if ($user->is_suspended ?? false) {
+
+        auth()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->withErrors([
+                'login' =>
+                    'This account has been suspended.',
+            ])
+            ->onlyInput('login');
+    }
+
+
+    // =====================================================
+    // ACCOUNT STATUS CHECK
+    // =====================================================
+
+    if ($user->status !== 'active') {
+
+        $status = strtolower(
+            $user->status ?? ''
+        );
+
+        auth()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+
+        if ($status === 'pending') {
+
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'login' =>
+                        'Your account is still pending administrator approval.',
+                ])
+                ->onlyInput('login');
+        }
+
+
+        if ($status === 'rejected') {
+
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'login' =>
+                        'Your account application has been rejected.',
+                ])
+                ->onlyInput('login');
+        }
+
+
+        return redirect()
+            ->route('login')
+            ->withErrors([
+                'login' =>
+                    'This account is currently inactive.',
+            ])
+            ->onlyInput('login');
+    }
+
+
+    // =====================================================
+    // ADMIN LOGIN
+    // =====================================================
+
+    if ($user->role === 'admin') {
+
+        return redirect()
+            ->route('admin.dashboard')
+            ->with(
+                'success',
+                'Welcome to the SUKI SHOP Admin Portal.'
+            );
+    }
+
+
+    // =====================================================
+    // BUYER LOGIN
+    // =====================================================
+
+    if ($user->role === 'buyer') {
+
+        $request->session()->put(
+            'buyer_profile',
+            [
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ]
+        );
+
+        $request->session()->put(
+            'buyer_logged_in',
+            true
+        );
+
+        return redirect()
+            ->intended(
+                route('buyer.home')
+            )
+            ->with(
+                'success',
+                'Welcome back to SUKI SHOP!'
+            );
+    }
+
+
+    // =====================================================
+    // OTHER / UNSUPPORTED ROLES
+    // =====================================================
+
+    auth()->logout();
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
 
     return redirect()
-        ->intended(route('buyer.home'))
-        ->with(
-            'success',
-            'Welcome back to SUKI SHOP!'
-        );
+        ->route('login')
+        ->withErrors([
+            'login' =>
+                'This account cannot use this login portal.',
+        ])
+        ->onlyInput('login');
 
 })->name('login.submit');
 
