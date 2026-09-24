@@ -1,707 +1,1758 @@
-@extends('layouts.app')
+@extends('layouts.seller')
+
+@section('title', 'Inventory')
+@section('page-title', 'Inventory')
 
 @section('content')
 
 @php
-    $products = session('seller_products', []);
+
+    $products = $products ?? session('seller_products', []);
 
     $totalProducts = count($products);
-    $inStock = collect($products)->where('stock', '>', 10)->count();
-    $lowStock = collect($products)->whereBetween('stock', [1, 10])->count();
-    $outOfStock = collect($products)->where('stock', '<=', 0)->count();
+
+    $inStock = collect($products)
+        ->filter(function ($product) {
+            return (int) ($product['stock'] ?? 0) > 10;
+        })
+        ->count();
+
+    $lowStock = collect($products)
+        ->filter(function ($product) {
+            $stock = (int) ($product['stock'] ?? 0);
+
+            return $stock >= 1 && $stock <= 10;
+        })
+        ->count();
+
+    $outOfStock = collect($products)
+        ->filter(function ($product) {
+            return (int) ($product['stock'] ?? 0) <= 0;
+        })
+        ->count();
+
+    $totalUnits = collect($products)
+        ->sum(function ($product) {
+            return max(
+                0,
+                (int) ($product['stock'] ?? 0)
+            );
+        });
+
 @endphp
 
-<div class="min-h-screen bg-[#F8FAF8]">
 
-    {{-- SELLER HEADER --}}
-    <div class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+{{-- =========================================================
+    SUCCESS MESSAGE
+========================================================= --}}
 
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+@if(session('success'))
 
-                <div>
-                    <p class="text-sm text-gray-500">Seller Centre</p>
+    <div
+        class="mb-6
+               flex items-start gap-3
+               rounded-2xl
+               border border-emerald-200
+               bg-emerald-50
+               px-4 py-3.5"
+    >
 
-                    <h1 class="text-xl sm:text-2xl font-semibold text-[#1F2937]">
-                        Everyday Finds PH
-                    </h1>
+        <div
+            class="flex h-8 w-8
+                   shrink-0
+                   items-center justify-center
+                   rounded-xl
+                   bg-white"
+        >
 
-                    <p class="text-sm text-gray-500 mt-1">
-                        Inventory Management
-                    </p>
-                </div>
-
-                <a
-                    href="{{ route('seller.products.create') }}"
-                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-sm font-medium hover:bg-[#155244] transition"
-                >
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Add Product
-                </a>
-
-            </div>
+            <i
+                data-lucide="check"
+                class="h-4 w-4 text-emerald-600"
+            ></i>
 
         </div>
+
+        <div>
+
+            <p
+                class="text-xs
+                       font-semibold
+                       text-emerald-800"
+            >
+                Inventory updated
+            </p>
+
+            <p
+                class="mt-0.5
+                       text-xs
+                       leading-5
+                       text-emerald-700"
+            >
+                {{ session('success') }}
+            </p>
+
+        </div>
+
+    </div>
+
+@endif
+
+
+{{-- =========================================================
+    PAGE INTRODUCTION
+========================================================= --}}
+
+<div
+    class="mb-7
+           flex flex-col gap-4
+           sm:flex-row
+           sm:items-end
+           sm:justify-between"
+>
+
+    <div>
+
+        {{-- BREADCRUMB --}}
+        <div
+            class="mb-2
+                   flex items-center gap-2
+                   text-[11px]
+                   font-medium
+                   text-[#8A9791]"
+        >
+
+            <a
+                href="{{ route('seller.dashboard') }}"
+                class="transition hover:text-[#1F6F5B]"
+            >
+                Dashboard
+            </a>
+
+            <i
+                data-lucide="chevron-right"
+                class="h-3 w-3"
+            ></i>
+
+            <span class="text-[#52635B]">
+                Inventory
+            </span>
+
+        </div>
+
+
+        <h2
+            class="text-2xl
+                   font-semibold
+                   tracking-[-0.04em]
+                   text-[#24312C]
+                   sm:text-[28px]"
+        >
+            Inventory Management
+        </h2>
+
+        <p
+            class="mt-1.5
+                   max-w-2xl
+                   text-sm
+                   leading-6
+                   text-[#728078]"
+        >
+            Monitor product availability and adjust
+            stock levels from one workspace.
+        </p>
+
     </div>
 
 
-    {{-- CONTENT --}}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <a
+        href="{{ route('seller.products.create') }}"
+        class="inline-flex h-10
+               items-center justify-center gap-2
+               self-start
+               rounded-xl
+               bg-[#173F35]
+               px-4
+               text-xs
+               font-semibold
+               text-white
+               transition
+               hover:bg-[#1F6F5B]
+               sm:self-auto"
+    >
 
-        {{-- BREADCRUMB --}}
-        <div class="flex items-center gap-2 text-sm text-gray-500 mb-6">
-            <a href="{{ route('seller.products') }}" class="hover:text-[#1F6F5B]">
-                Products
-            </a>
+        <i
+            data-lucide="plus"
+            class="h-4 w-4"
+        ></i>
 
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        Add Product
 
-            <span class="text-gray-800 font-medium">
-                Inventory
-            </span>
-        </div>
+    </a>
 
-
-        {{-- PAGE TITLE --}}
-        <div class="mb-6">
-            <h2 class="text-2xl font-semibold text-gray-900">
-                Inventory
-            </h2>
-
-            <p class="text-sm text-gray-500 mt-1">
-                Monitor and manage your product stock.
-            </p>
-        </div>
-
-
-        {{-- SUCCESS MESSAGE --}}
-        @if(session('success'))
-            <div class="mb-6 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                <i data-lucide="check-circle" class="w-5 h-5 mt-0.5 shrink-0"></i>
-
-                <span>
-                    {{ session('success') }}
-                </span>
-            </div>
-        @endif
+</div>
 
 
-        {{-- STATS --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+{{-- =========================================================
+    INVENTORY SUMMARY
+========================================================= --}}
 
-            {{-- TOTAL --}}
-            <div class="bg-white border border-gray-200 rounded-xl p-5">
-                <div class="flex items-center justify-between">
-
-                    <div>
-                        <p class="text-sm text-gray-500">
-                            Total Products
-                        </p>
-
-                        <p class="text-2xl font-semibold text-gray-900 mt-2">
-                            {{ $totalProducts }}
-                        </p>
-                    </div>
-
-                    <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <i data-lucide="package" class="w-5 h-5 text-gray-600"></i>
-                    </div>
-
-                </div>
-            </div>
+<div
+    class="mb-6
+           grid grid-cols-2
+           gap-4
+           xl:grid-cols-4"
+>
 
 
-            {{-- IN STOCK --}}
-            <div class="bg-white border border-gray-200 rounded-xl p-5">
-                <div class="flex items-center justify-between">
+    {{-- TOTAL PRODUCTS --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
 
-                    <div>
-                        <p class="text-sm text-gray-500">
-                            In Stock
-                        </p>
+        <div class="flex items-start justify-between gap-4">
 
-                        <p class="text-2xl font-semibold text-gray-900 mt-2">
-                            {{ $inStock }}
-                        </p>
-                    </div>
+            <div>
 
-                    <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                        <i data-lucide="package-check" class="w-5 h-5 text-[#1F6F5B]"></i>
-                    </div>
+                <p
+                    class="text-[10px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Total Products
+                </p>
 
-                </div>
-            </div>
-
-
-            {{-- LOW STOCK --}}
-            <div class="bg-white border border-gray-200 rounded-xl p-5">
-                <div class="flex items-center justify-between">
-
-                    <div>
-                        <p class="text-sm text-gray-500">
-                            Low Stock
-                        </p>
-
-                        <p class="text-2xl font-semibold text-gray-900 mt-2">
-                            {{ $lowStock }}
-                        </p>
-                    </div>
-
-                    <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                        <i data-lucide="triangle-alert" class="w-5 h-5 text-amber-600"></i>
-                    </div>
-
-                </div>
-            </div>
-
-
-            {{-- OUT OF STOCK --}}
-            <div class="bg-white border border-gray-200 rounded-xl p-5">
-                <div class="flex items-center justify-between">
-
-                    <div>
-                        <p class="text-sm text-gray-500">
-                            Out of Stock
-                        </p>
-
-                        <p class="text-2xl font-semibold text-gray-900 mt-2">
-                            {{ $outOfStock }}
-                        </p>
-                    </div>
-
-                    <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                        <i data-lucide="package-x" class="w-5 h-5 text-red-500"></i>
-                    </div>
-
-                </div>
-            </div>
-
-        </div>
-
-
-        {{-- INVENTORY CARD --}}
-        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-
-            {{-- TOOLBAR --}}
-            <div class="p-4 border-b border-gray-200">
-
-                <div class="flex flex-col lg:flex-row gap-3">
-
-                    {{-- SEARCH --}}
-                    <div class="relative flex-1">
-
-                        <i
-                            data-lucide="search"
-                            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                        ></i>
-
-                        <input
-                            type="text"
-                            id="inventorySearch"
-                            placeholder="Search product name or SKU..."
-                            class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#1F6F5B]/20 focus:border-[#1F6F5B]"
-                        >
-
-                    </div>
-
-
-                    {{-- CATEGORY --}}
-                    <select
-                        id="categoryFilter"
-                        class="w-full lg:w-48 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-[#1F6F5B]/20 focus:border-[#1F6F5B]"
-                    >
-                        <option value="all">All Categories</option>
-
-                        @foreach(collect($products)->pluck('category')->filter()->unique()->sort() as $category)
-                            <option value="{{ strtolower($category) }}">
-                                {{ $category }}
-                            </option>
-                        @endforeach
-
-                    </select>
-
-
-                    {{-- STOCK STATUS --}}
-                    <select
-                        id="stockFilter"
-                        class="w-full lg:w-48 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-[#1F6F5B]/20 focus:border-[#1F6F5B]"
-                    >
-                        <option value="all">All Stock Status</option>
-                        <option value="in-stock">In Stock</option>
-                        <option value="low-stock">Low Stock</option>
-                        <option value="out-of-stock">Out of Stock</option>
-                    </select>
-
-                </div>
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $totalProducts }}
+                </p>
 
             </div>
 
 
-            {{-- DESKTOP TABLE --}}
-            <div class="hidden md:block overflow-x-auto">
-
-                <table class="w-full">
-
-                    <thead class="bg-gray-50 border-b border-gray-200">
-
-                        <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-
-                            <th class="px-6 py-4">
-                                Product
-                            </th>
-
-                            <th class="px-6 py-4">
-                                Category
-                            </th>
-
-                            <th class="px-6 py-4">
-                                SKU
-                            </th>
-
-                            <th class="px-6 py-4">
-                                Price
-                            </th>
-
-                            <th class="px-6 py-4 text-center">
-                                Stock
-                            </th>
-
-                            <th class="px-6 py-4">
-                                Status
-                            </th>
-
-                            <th class="px-6 py-4 text-right">
-                                Action
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody id="inventoryTable" class="divide-y divide-gray-100">
-
-                        @forelse($products as $product)
-
-                            @php
-                                $stock = (int) ($product['stock'] ?? 0);
-
-                                if ($stock <= 0) {
-                                    $stockStatus = 'out-of-stock';
-                                    $stockLabel = 'Out of Stock';
-                                } elseif ($stock <= 10) {
-                                    $stockStatus = 'low-stock';
-                                    $stockLabel = 'Low Stock';
-                                } else {
-                                    $stockStatus = 'in-stock';
-                                    $stockLabel = 'In Stock';
-                                }
-                            @endphp
-
-                            <tr
-                                class="inventory-row hover:bg-gray-50 transition"
-                                data-name="{{ strtolower($product['name'] ?? '') }}"
-                                data-sku="{{ strtolower($product['sku'] ?? '') }}"
-                                data-category="{{ strtolower($product['category'] ?? '') }}"
-                                data-stock-status="{{ $stockStatus }}"
-                            >
-
-                                {{-- PRODUCT --}}
-                                <td class="px-6 py-4">
-
-                                    <div class="flex items-center gap-3">
-
-                                        <div class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                                            <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
-                                        </div>
-
-                                        <div class="min-w-0">
-
-                                            <p class="font-medium text-gray-900 truncate max-w-[240px]">
-                                                {{ $product['name'] ?? 'Unnamed Product' }}
-                                            </p>
-
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                {{ $product['brand'] ?? 'No brand' }}
-                                            </p>
-
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-
-                                {{-- CATEGORY --}}
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    {{ $product['category'] ?? '—' }}
-                                </td>
-
-
-                                {{-- SKU --}}
-                                <td class="px-6 py-4 text-sm text-gray-500">
-                                    {{ $product['sku'] ?? '—' }}
-                                </td>
-
-
-                                {{-- PRICE --}}
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">
-                                    ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
-                                </td>
-
-
-                                {{-- STOCK --}}
-                                <td class="px-6 py-4">
-
-                                    <div class="flex items-center justify-center gap-2">
-
-                                        <form
-                                            action="{{ route('seller.inventory.decrease', $product['id']) }}"
-                                            method="POST"
-                                        >
-                                            @csrf
-
-                                            <button
-                                                type="submit"
-                                                class="w-8 h-8 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
-                                            >
-                                                <i data-lucide="minus" class="w-4 h-4"></i>
-                                            </button>
-
-                                        </form>
-
-
-                                        <span class="min-w-[45px] text-center font-semibold text-gray-900">
-                                            {{ $stock }}
-                                        </span>
-
-
-                                        <form
-                                            action="{{ route('seller.inventory.increase', $product['id']) }}"
-                                            method="POST"
-                                        >
-                                            @csrf
-
-                                            <button
-                                                type="submit"
-                                                class="w-8 h-8 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
-                                            >
-                                                <i data-lucide="plus" class="w-4 h-4"></i>
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-                                </td>
-
-
-                                {{-- STATUS --}}
-                                <td class="px-6 py-4">
-
-                                    @if($stockStatus === 'in-stock')
-
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
-                                            In Stock
-                                        </span>
-
-                                    @elseif($stockStatus === 'low-stock')
-
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                                            Low Stock
-                                        </span>
-
-                                    @else
-
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-medium">
-                                            Out of Stock
-                                        </span>
-
-                                    @endif
-
-                                </td>
-
-
-                                {{-- ACTION --}}
-                                <td class="px-6 py-4 text-right">
-
-                                    <a
-                                        href="{{ route('seller.products.edit', $product['id']) }}"
-                                        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-[#1F6F5B] transition"
-                                    >
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                        Edit
-                                    </a>
-
-                                </td>
-
-                            </tr>
-
-                        @empty
-
-                            <tr>
-                                <td colspan="7" class="px-6 py-16 text-center">
-
-                                    <div class="flex flex-col items-center">
-
-                                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                            <i data-lucide="package-open" class="w-6 h-6 text-gray-400"></i>
-                                        </div>
-
-                                        <h3 class="font-medium text-gray-900">
-                                            No products yet
-                                        </h3>
-
-                                        <p class="text-sm text-gray-500 mt-1">
-                                            Add your first product to start managing inventory.
-                                        </p>
-
-                                        <a
-                                            href="{{ route('seller.products.create') }}"
-                                            class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-sm font-medium hover:bg-[#155244]"
-                                        >
-                                            <i data-lucide="plus" class="w-4 h-4"></i>
-                                            Add Product
-                                        </a>
-
-                                    </div>
-
-                                </td>
-                            </tr>
-
-                        @endforelse
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-
-            {{-- MOBILE --}}
-            <div id="inventoryMobile" class="md:hidden divide-y divide-gray-100">
-
-                @forelse($products as $product)
-
-                    @php
-                        $stock = (int) ($product['stock'] ?? 0);
-
-                        if ($stock <= 0) {
-                            $stockStatus = 'out-of-stock';
-                        } elseif ($stock <= 10) {
-                            $stockStatus = 'low-stock';
-                        } else {
-                            $stockStatus = 'in-stock';
-                        }
-                    @endphp
-
-                    <div
-                        class="inventory-mobile-row p-4"
-                        data-name="{{ strtolower($product['name'] ?? '') }}"
-                        data-sku="{{ strtolower($product['sku'] ?? '') }}"
-                        data-category="{{ strtolower($product['category'] ?? '') }}"
-                        data-stock-status="{{ $stockStatus }}"
-                    >
-
-                        <div class="flex gap-3">
-
-                            <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                                <i data-lucide="image" class="w-5 h-5 text-gray-400"></i>
-                            </div>
-
-                            <div class="flex-1 min-w-0">
-
-                                <div class="flex items-start justify-between gap-3">
-
-                                    <div class="min-w-0">
-
-                                        <h3 class="font-medium text-gray-900 truncate">
-                                            {{ $product['name'] ?? 'Unnamed Product' }}
-                                        </h3>
-
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            SKU: {{ $product['sku'] ?? '—' }}
-                                        </p>
-
-                                    </div>
-
-                                    @if($stockStatus === 'in-stock')
-
-                                        <span class="shrink-0 px-2 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-medium">
-                                            In Stock
-                                        </span>
-
-                                    @elseif($stockStatus === 'low-stock')
-
-                                        <span class="shrink-0 px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-[11px] font-medium">
-                                            Low Stock
-                                        </span>
-
-                                    @else
-
-                                        <span class="shrink-0 px-2 py-1 rounded-full bg-red-50 text-red-600 text-[11px] font-medium">
-                                            Out of Stock
-                                        </span>
-
-                                    @endif
-
-                                </div>
-
-
-                                <div class="flex items-center justify-between mt-4">
-
-                                    <div>
-
-                                        <p class="text-xs text-gray-500">
-                                            Price
-                                        </p>
-
-                                        <p class="font-semibold text-gray-900">
-                                            ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
-                                        </p>
-
-                                    </div>
-
-
-                                    <div>
-
-                                        <p class="text-xs text-gray-500 text-center mb-1">
-                                            Stock
-                                        </p>
-
-                                        <div class="flex items-center gap-2">
-
-                                            <form
-                                                action="{{ route('seller.inventory.decrease', $product['id']) }}"
-                                                method="POST"
-                                            >
-                                                @csrf
-
-                                                <button
-                                                    type="submit"
-                                                    class="w-8 h-8 rounded-lg border border-gray-300 flex items-center justify-center"
-                                                >
-                                                    <i data-lucide="minus" class="w-4 h-4"></i>
-                                                </button>
-
-                                            </form>
-
-
-                                            <span class="font-semibold min-w-[30px] text-center">
-                                                {{ $stock }}
-                                            </span>
-
-
-                                            <form
-                                                action="{{ route('seller.inventory.increase', $product['id']) }}"
-                                                method="POST"
-                                            >
-                                                @csrf
-
-                                                <button
-                                                    type="submit"
-                                                    class="w-8 h-8 rounded-lg border border-gray-300 flex items-center justify-center"
-                                                >
-                                                    <i data-lucide="plus" class="w-4 h-4"></i>
-                                                </button>
-
-                                            </form>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-
-                                <a
-                                    href="{{ route('seller.products.edit', $product['id']) }}"
-                                    class="mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                                >
-                                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    Edit Product
-                                </a>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                @empty
-
-                    <div class="px-6 py-16 text-center">
-
-                        <i data-lucide="package-open" class="w-8 h-8 text-gray-400 mx-auto mb-3"></i>
-
-                        <p class="font-medium text-gray-900">
-                            No products yet
-                        </p>
-
-                        <p class="text-sm text-gray-500 mt-1">
-                            Add a product to manage your inventory.
-                        </p>
-
-                    </div>
-
-                @endforelse
-
-            </div>
-
-
-            {{-- NO SEARCH RESULT --}}
             <div
-                id="noInventoryResults"
-                class="hidden px-6 py-16 text-center"
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#EEF5F1]
+                       text-[#173F35]"
             >
-                <i data-lucide="search-x" class="w-8 h-8 text-gray-400 mx-auto mb-3"></i>
 
-                <p class="font-medium text-gray-900">
-                    No matching products
-                </p>
+                <i
+                    data-lucide="package"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
-                <p class="text-sm text-gray-500 mt-1">
-                    Try another search or filter.
-                </p>
             </div>
 
         </div>
+
+
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[11px]
+                   text-[#7B8982]"
+        >
+            {{ $totalUnits }} total units available
+        </p>
+
+    </div>
+
+
+    {{-- IN STOCK --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
+
+        <div class="flex items-start justify-between gap-4">
+
+            <div>
+
+                <p
+                    class="text-[10px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    In Stock
+                </p>
+
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $inStock }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-emerald-50
+                       text-emerald-700"
+            >
+
+                <i
+                    data-lucide="package-check"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[11px]
+                   text-[#7B8982]"
+        >
+            More than 10 units available
+        </p>
+
+    </div>
+
+
+    {{-- LOW STOCK --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
+
+        <div class="flex items-start justify-between gap-4">
+
+            <div>
+
+                <p
+                    class="text-[10px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Low Stock
+                </p>
+
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $lowStock }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-amber-50
+                       text-amber-700"
+            >
+
+                <i
+                    data-lucide="triangle-alert"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[11px]
+                   text-[#7B8982]"
+        >
+            Between 1 and 10 units
+        </p>
+
+    </div>
+
+
+    {{-- OUT OF STOCK --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
+
+        <div class="flex items-start justify-between gap-4">
+
+            <div>
+
+                <p
+                    class="text-[10px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Out of Stock
+                </p>
+
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $outOfStock }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-red-50
+                       text-red-600"
+            >
+
+                <i
+                    data-lucide="package-x"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[11px]
+                   text-[#7B8982]"
+        >
+            Requires restocking
+        </p>
 
     </div>
 
 </div>
 
 
+{{-- =========================================================
+    INVENTORY PANEL
+========================================================= --}}
+
+<section
+    class="overflow-hidden
+           rounded-2xl
+           border border-[#E1E8E4]
+           bg-white"
+>
+
+
+    {{-- =====================================================
+        PANEL HEADER
+    ====================================================== --}}
+
+    <div
+        class="flex flex-col gap-4
+               border-b border-[#EDF1EF]
+               px-5 py-5
+               lg:flex-row
+               lg:items-center
+               lg:justify-between"
+    >
+
+        <div>
+
+            <h3
+                class="text-sm
+                       font-semibold
+                       text-[#24312C]"
+            >
+                Stock Levels
+            </h3>
+
+            <p
+                class="mt-0.5
+                       text-[11px]
+                       text-[#7C8983]"
+            >
+                Search products and adjust available stock.
+            </p>
+
+        </div>
+
+
+        <a
+            href="{{ route('seller.products') }}"
+            class="inline-flex h-9
+                   items-center justify-center gap-2
+                   self-start
+                   rounded-xl
+                   border border-[#DDE6E1]
+                   bg-white
+                   px-3.5
+                   text-[11px]
+                   font-semibold
+                   text-[#52635B]
+                   transition
+                   hover:border-[#BFD2C9]
+                   hover:bg-[#F8FAF8]
+                   hover:text-[#173F35]
+                   lg:self-auto"
+        >
+
+            <i
+                data-lucide="package-search"
+                class="h-4 w-4"
+            ></i>
+
+            Product Management
+
+        </a>
+
+    </div>
+
+
+    {{-- =====================================================
+        FILTERS
+    ====================================================== --}}
+
+    <div
+        class="border-b border-[#EDF1EF]
+               bg-[#FBFCFB]
+               p-4"
+    >
+
+        <div
+            class="grid gap-3
+                   lg:grid-cols-[minmax(0,1fr)_220px_200px_auto]"
+        >
+
+
+            {{-- SEARCH --}}
+            <div class="relative">
+
+                <i
+                    data-lucide="search"
+                    class="pointer-events-none
+                           absolute left-3.5 top-1/2
+                           h-4 w-4
+                           -translate-y-1/2
+                           text-[#91A099]"
+                ></i>
+
+                <input
+                    type="text"
+                    id="inventorySearch"
+                    placeholder="Search product name or SKU"
+                    class="h-10 w-full
+                           rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white
+                           pl-10 pr-4
+                           text-xs
+                           text-[#34483F]
+                           placeholder:text-[#9AA69F]
+                           focus:border-[#1F6F5B]
+                           focus:ring-4
+                           focus:ring-[#DDF3EC]/70"
+                >
+
+            </div>
+
+
+            {{-- CATEGORY --}}
+            <div class="relative">
+
+                <select
+                    id="categoryFilter"
+                    class="h-10 w-full
+                           appearance-none
+                           rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white
+                           px-3 pr-9
+                           text-xs
+                           font-medium
+                           text-[#52635B]
+                           focus:border-[#1F6F5B]
+                           focus:ring-4
+                           focus:ring-[#DDF3EC]/70"
+                >
+
+                    <option value="all">
+                        All categories
+                    </option>
+
+
+                    @foreach(
+                        collect($products)
+                            ->pluck('category')
+                            ->filter()
+                            ->unique()
+                            ->sort()
+                        as $category
+                    )
+
+                        <option
+                            value="{{ strtolower($category) }}"
+                        >
+                            {{ $category }}
+                        </option>
+
+                    @endforeach
+
+                </select>
+
+
+                <i
+                    data-lucide="chevron-down"
+                    class="pointer-events-none
+                           absolute right-3 top-1/2
+                           h-3.5 w-3.5
+                           -translate-y-1/2
+                           text-[#87958E]"
+                ></i>
+
+            </div>
+
+
+            {{-- STOCK FILTER --}}
+            <div class="relative">
+
+                <select
+                    id="stockFilter"
+                    class="h-10 w-full
+                           appearance-none
+                           rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white
+                           px-3 pr-9
+                           text-xs
+                           font-medium
+                           text-[#52635B]
+                           focus:border-[#1F6F5B]
+                           focus:ring-4
+                           focus:ring-[#DDF3EC]/70"
+                >
+
+                    <option value="all">
+                        All stock
+                    </option>
+
+                    <option value="in-stock">
+                        In Stock
+                    </option>
+
+                    <option value="low-stock">
+                        Low Stock
+                    </option>
+
+                    <option value="out-of-stock">
+                        Out of Stock
+                    </option>
+
+                </select>
+
+
+                <i
+                    data-lucide="chevron-down"
+                    class="pointer-events-none
+                           absolute right-3 top-1/2
+                           h-3.5 w-3.5
+                           -translate-y-1/2
+                           text-[#87958E]"
+                ></i>
+
+            </div>
+
+
+            {{-- CLEAR --}}
+            <button
+                type="button"
+                id="clearInventoryFilters"
+                class="inline-flex h-10
+                       items-center justify-center gap-2
+                       rounded-xl
+                       border border-[#DDE6E1]
+                       bg-white
+                       px-3.5
+                       text-[11px]
+                       font-semibold
+                       text-[#68776F]
+                       transition
+                       hover:bg-[#F3F7F5]
+                       hover:text-[#173F35]"
+            >
+
+                <i
+                    data-lucide="rotate-ccw"
+                    class="h-3.5 w-3.5"
+                ></i>
+
+                Clear
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    {{-- =====================================================
+        DESKTOP TABLE
+    ====================================================== --}}
+
+    <div class="hidden overflow-x-auto md:block">
+
+        <table class="w-full">
+
+            <thead>
+
+                <tr
+                    class="border-b
+                           border-[#EDF1EF]
+                           bg-[#F7F9F8]"
+                >
+
+                    <th class="px-5 py-3 text-left">
+                        Product
+                    </th>
+
+                    <th class="px-5 py-3 text-left">
+                        Category
+                    </th>
+
+                    <th class="px-5 py-3 text-left">
+                        SKU
+                    </th>
+
+                    <th class="px-5 py-3 text-left">
+                        Price
+                    </th>
+
+                    <th class="px-5 py-3 text-center">
+                        Stock
+                    </th>
+
+                    <th class="px-5 py-3 text-left">
+                        Status
+                    </th>
+
+                    <th class="px-5 py-3 text-right">
+                        Action
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="inventoryTable">
+
+                @forelse($products as $productId => $product)
+
+                    @php
+
+                        $resolvedProductId =
+                            $product['id'] ?? $productId;
+
+                        $stock =
+                            (int) ($product['stock'] ?? 0);
+
+                        if ($stock <= 0) {
+
+                            $stockStatus =
+                                'out-of-stock';
+
+                            $stockLabel =
+                                'Out of Stock';
+
+                            $stockClass =
+                                'border-red-200 bg-red-50 text-red-700';
+
+                        } elseif ($stock <= 10) {
+
+                            $stockStatus =
+                                'low-stock';
+
+                            $stockLabel =
+                                'Low Stock';
+
+                            $stockClass =
+                                'border-amber-200 bg-amber-50 text-amber-700';
+
+                        } else {
+
+                            $stockStatus =
+                                'in-stock';
+
+                            $stockLabel =
+                                'In Stock';
+
+                            $stockClass =
+                                'border-emerald-200 bg-emerald-50 text-emerald-700';
+
+                        }
+
+                    @endphp
+
+
+                    <tr
+                        class="inventory-row
+                               border-b border-[#F0F3F1]
+                               transition
+                               last:border-b-0
+                               hover:bg-[#FAFCFB]"
+                        data-name="{{ strtolower(
+                            ($product['name'] ?? '') .
+                            ' ' .
+                            ($product['sku'] ?? '')
+                        ) }}"
+                        data-category="{{ strtolower(
+                            $product['category'] ?? ''
+                        ) }}"
+                        data-stock-status="{{ $stockStatus }}"
+                    >
+
+
+                        {{-- PRODUCT --}}
+                        <td class="px-5 py-4">
+
+                            <div class="flex items-center gap-3">
+
+                                <div
+                                    class="flex h-12 w-12
+                                           shrink-0
+                                           items-center justify-center
+                                           overflow-hidden
+                                           rounded-xl
+                                           border border-[#E5EBE7]
+                                           bg-[#F1F5F3]"
+                                >
+
+                                    @if(!empty($product['image']))
+
+                                        <img
+                                            src="{{ $product['image'] }}"
+                                            alt="{{ $product['name'] ?? 'Product' }}"
+                                            class="h-full w-full object-cover"
+                                        >
+
+                                    @else
+
+                                        <i
+                                            data-lucide="package"
+                                            class="h-5 w-5 text-[#87958E]"
+                                        ></i>
+
+                                    @endif
+
+                                </div>
+
+
+                                <div class="min-w-0">
+
+                                    <p
+                                        class="max-w-[230px]
+                                               truncate
+                                               text-xs
+                                               font-semibold
+                                               text-[#34483F]"
+                                    >
+                                        {{ $product['name'] ?? 'Unnamed Product' }}
+                                    </p>
+
+                                    <p
+                                        class="mt-1
+                                               text-[10px]
+                                               text-[#8A9791]"
+                                    >
+                                        {{ $product['brand'] ?? 'No brand' }}
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </td>
+
+
+                        {{-- CATEGORY --}}
+                        <td class="px-5 py-4">
+
+                            <span
+                                class="inline-flex
+                                       rounded-lg
+                                       bg-[#F3F6F4]
+                                       px-2.5 py-1
+                                       text-[10px]
+                                       font-medium
+                                       text-[#65746D]"
+                            >
+                                {{ $product['category'] ?? 'Uncategorized' }}
+                            </span>
+
+                        </td>
+
+
+                        {{-- SKU --}}
+                        <td
+                            class="px-5 py-4
+                                   text-[11px]
+                                   text-[#77857E]"
+                        >
+                            {{ $product['sku'] ?? '—' }}
+                        </td>
+
+
+                        {{-- PRICE --}}
+                        <td
+                            class="px-5 py-4
+                                   text-xs
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            ₱{{ number_format(
+                                (float) ($product['price'] ?? 0),
+                                2
+                            ) }}
+                        </td>
+
+
+                        {{-- STOCK CONTROL --}}
+                        <td class="px-5 py-4">
+
+                            <div
+                                class="flex items-center
+                                       justify-center gap-2"
+                            >
+
+
+                                {{-- DECREASE --}}
+                                <form
+                                    action="{{ route(
+                                        'seller.inventory.decrease',
+                                        $resolvedProductId
+                                    ) }}"
+                                    method="POST"
+                                >
+
+                                    @csrf
+
+
+                                    <button
+                                        type="submit"
+                                        title="Decrease stock"
+                                        {{ $stock <= 0 ? 'disabled' : '' }}
+                                        class="flex h-8 w-8
+                                               items-center justify-center
+                                               rounded-lg
+                                               border border-[#DDE6E1]
+                                               bg-white
+                                               text-[#68776F]
+                                               transition
+                                               hover:border-[#BFD2C9]
+                                               hover:bg-[#EEF5F1]
+                                               hover:text-[#173F35]
+                                               disabled:cursor-not-allowed
+                                               disabled:bg-[#F5F6F5]
+                                               disabled:text-[#B6BFBA]"
+                                    >
+
+                                        <i
+                                            data-lucide="minus"
+                                            class="h-3.5 w-3.5"
+                                        ></i>
+
+                                    </button>
+
+                                </form>
+
+
+                                {{-- CURRENT STOCK --}}
+                                <span
+                                    class="min-w-[42px]
+                                           text-center
+                                           text-sm
+                                           font-semibold
+                                           text-[#24312C]"
+                                >
+                                    {{ $stock }}
+                                </span>
+
+
+                                {{-- INCREASE --}}
+                                <form
+                                    action="{{ route(
+                                        'seller.inventory.increase',
+                                        $resolvedProductId
+                                    ) }}"
+                                    method="POST"
+                                >
+
+                                    @csrf
+
+
+                                    <button
+                                        type="submit"
+                                        title="Increase stock"
+                                        class="flex h-8 w-8
+                                               items-center justify-center
+                                               rounded-lg
+                                               border border-[#DDE6E1]
+                                               bg-white
+                                               text-[#68776F]
+                                               transition
+                                               hover:border-[#BFD2C9]
+                                               hover:bg-[#EEF5F1]
+                                               hover:text-[#173F35]"
+                                    >
+
+                                        <i
+                                            data-lucide="plus"
+                                            class="h-3.5 w-3.5"
+                                        ></i>
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+
+                        {{-- STATUS --}}
+                        <td class="px-5 py-4">
+
+                            <span
+                                class="
+                                    inline-flex
+                                    items-center gap-1.5
+                                    rounded-full
+                                    border
+                                    px-2.5 py-1
+                                    text-[10px]
+                                    font-semibold
+                                    {{ $stockClass }}
+                                "
+                            >
+
+                                <span
+                                    class="
+                                        h-1.5 w-1.5
+                                        rounded-full
+
+                                        {{ $stockStatus === 'in-stock'
+                                            ? 'bg-emerald-500'
+                                            : ($stockStatus === 'low-stock'
+                                                ? 'bg-amber-500'
+                                                : 'bg-red-500') }}
+                                    "
+                                ></span>
+
+                                {{ $stockLabel }}
+
+                            </span>
+
+                        </td>
+
+
+                        {{-- ACTION --}}
+                        <td class="px-5 py-4">
+
+                            <div
+                                class="flex items-center
+                                       justify-end gap-2"
+                            >
+
+                                <a
+                                    href="{{ route(
+                                        'seller.products.edit',
+                                        $resolvedProductId
+                                    ) }}"
+                                    title="Edit product"
+                                    class="inline-flex h-9
+                                           items-center gap-2
+                                           rounded-xl
+                                           border border-[#DDE6E1]
+                                           bg-white
+                                           px-3
+                                           text-[10px]
+                                           font-semibold
+                                           text-[#68776F]
+                                           transition
+                                           hover:border-[#BFD2C9]
+                                           hover:bg-[#EEF5F1]
+                                           hover:text-[#173F35]"
+                                >
+
+                                    <i
+                                        data-lucide="pencil"
+                                        class="h-3.5 w-3.5"
+                                    ></i>
+
+                                    Edit
+
+                                </a>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+
+                @empty
+
+                    <tr>
+
+                        <td
+                            colspan="7"
+                            class="px-6 py-16 text-center"
+                        >
+
+                            <div
+                                class="mx-auto
+                                       flex h-12 w-12
+                                       items-center justify-center
+                                       rounded-2xl
+                                       bg-[#EEF5F1]
+                                       text-[#1F6F5B]"
+                            >
+
+                                <i
+                                    data-lucide="package-open"
+                                    class="h-5 w-5"
+                                ></i>
+
+                            </div>
+
+
+                            <h3
+                                class="mt-4
+                                       text-sm
+                                       font-semibold
+                                       text-[#34483F]"
+                            >
+                                No inventory yet
+                            </h3>
+
+
+                            <p
+                                class="mx-auto mt-1
+                                       max-w-sm
+                                       text-xs
+                                       leading-5
+                                       text-[#849089]"
+                            >
+                                Add your first product to begin
+                                tracking stock levels.
+                            </p>
+
+
+                            <a
+                                href="{{ route('seller.products.create') }}"
+                                class="mt-4
+                                       inline-flex h-9
+                                       items-center gap-2
+                                       rounded-xl
+                                       bg-[#173F35]
+                                       px-4
+                                       text-[11px]
+                                       font-semibold
+                                       text-white
+                                       transition
+                                       hover:bg-[#1F6F5B]"
+                            >
+
+                                <i
+                                    data-lucide="plus"
+                                    class="h-4 w-4"
+                                ></i>
+
+                                Add Product
+
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                @endforelse
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    {{-- =====================================================
+        MOBILE INVENTORY
+    ====================================================== --}}
+
+    <div
+        id="inventoryMobile"
+        class="divide-y divide-[#EDF1EF] md:hidden"
+    >
+
+        @forelse($products as $productId => $product)
+
+            @php
+
+                $resolvedProductId =
+                    $product['id'] ?? $productId;
+
+                $stock =
+                    (int) ($product['stock'] ?? 0);
+
+                if ($stock <= 0) {
+
+                    $stockStatus =
+                        'out-of-stock';
+
+                    $stockLabel =
+                        'Out of Stock';
+
+                    $stockClass =
+                        'border-red-200 bg-red-50 text-red-700';
+
+                } elseif ($stock <= 10) {
+
+                    $stockStatus =
+                        'low-stock';
+
+                    $stockLabel =
+                        'Low Stock';
+
+                    $stockClass =
+                        'border-amber-200 bg-amber-50 text-amber-700';
+
+                } else {
+
+                    $stockStatus =
+                        'in-stock';
+
+                    $stockLabel =
+                        'In Stock';
+
+                    $stockClass =
+                        'border-emerald-200 bg-emerald-50 text-emerald-700';
+
+                }
+
+            @endphp
+
+
+            <article
+                class="inventory-mobile-row p-4"
+                data-name="{{ strtolower(
+                    ($product['name'] ?? '') .
+                    ' ' .
+                    ($product['sku'] ?? '')
+                ) }}"
+                data-category="{{ strtolower(
+                    $product['category'] ?? ''
+                ) }}"
+                data-stock-status="{{ $stockStatus }}"
+            >
+
+                <div class="flex items-start gap-3">
+
+
+                    {{-- IMAGE --}}
+                    <div
+                        class="flex h-14 w-14
+                               shrink-0
+                               items-center justify-center
+                               overflow-hidden
+                               rounded-xl
+                               border border-[#E5EBE7]
+                               bg-[#F1F5F3]"
+                    >
+
+                        @if(!empty($product['image']))
+
+                            <img
+                                src="{{ $product['image'] }}"
+                                alt="{{ $product['name'] ?? 'Product' }}"
+                                class="h-full w-full object-cover"
+                            >
+
+                        @else
+
+                            <i
+                                data-lucide="package"
+                                class="h-5 w-5 text-[#87958E]"
+                            ></i>
+
+                        @endif
+
+                    </div>
+
+
+                    <div class="min-w-0 flex-1">
+
+                        {{-- NAME --}}
+                        <div
+                            class="flex items-start
+                                   justify-between gap-3"
+                        >
+
+                            <div class="min-w-0">
+
+                                <h3
+                                    class="truncate
+                                           text-xs
+                                           font-semibold
+                                           text-[#34483F]"
+                                >
+                                    {{ $product['name'] ?? 'Unnamed Product' }}
+                                </h3>
+
+
+                                <p
+                                    class="mt-1
+                                           truncate
+                                           text-[10px]
+                                           text-[#8A9791]"
+                                >
+                                    {{ $product['category'] ?? 'Uncategorized' }}
+
+                                    @if(!empty($product['sku']))
+                                        · {{ $product['sku'] }}
+                                    @endif
+                                </p>
+
+                            </div>
+
+
+                            <span
+                                class="
+                                    shrink-0
+                                    rounded-full
+                                    border
+                                    px-2 py-1
+                                    text-[9px]
+                                    font-semibold
+                                    {{ $stockClass }}
+                                "
+                            >
+                                {{ $stockLabel }}
+                            </span>
+
+                        </div>
+
+
+                        {{-- PRICE --}}
+                        <p
+                            class="mt-3
+                                   text-sm
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            ₱{{ number_format(
+                                (float) ($product['price'] ?? 0),
+                                2
+                            ) }}
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                {{-- STOCK CONTROLS --}}
+                <div
+                    class="mt-4
+                           flex items-center
+                           justify-between
+                           rounded-xl
+                           bg-[#F7F9F8]
+                           px-3 py-3"
+                >
+
+                    <div>
+
+                        <p
+                            class="text-[9px]
+                                   font-semibold
+                                   uppercase
+                                   tracking-[0.1em]
+                                   text-[#93A099]"
+                        >
+                            Available Stock
+                        </p>
+
+                        <p
+                            class="mt-1
+                                   text-lg
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            {{ $stock }}
+                        </p>
+
+                    </div>
+
+
+                    <div class="flex items-center gap-2">
+
+
+                        {{-- DECREASE --}}
+                        <form
+                            action="{{ route(
+                                'seller.inventory.decrease',
+                                $resolvedProductId
+                            ) }}"
+                            method="POST"
+                        >
+
+                            @csrf
+
+
+                            <button
+                                type="submit"
+                                title="Decrease stock"
+                                {{ $stock <= 0 ? 'disabled' : '' }}
+                                class="flex h-9 w-9
+                                       items-center justify-center
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       text-[#68776F]
+                                       transition
+                                       hover:bg-[#EEF5F1]
+                                       hover:text-[#173F35]
+                                       disabled:cursor-not-allowed
+                                       disabled:bg-[#F1F3F2]
+                                       disabled:text-[#B6BFBA]"
+                            >
+
+                                <i
+                                    data-lucide="minus"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </button>
+
+                        </form>
+
+
+                        {{-- INCREASE --}}
+                        <form
+                            action="{{ route(
+                                'seller.inventory.increase',
+                                $resolvedProductId
+                            ) }}"
+                            method="POST"
+                        >
+
+                            @csrf
+
+
+                            <button
+                                type="submit"
+                                title="Increase stock"
+                                class="flex h-9 w-9
+                                       items-center justify-center
+                                       rounded-xl
+                                       bg-[#173F35]
+                                       text-white
+                                       transition
+                                       hover:bg-[#1F6F5B]"
+                            >
+
+                                <i
+                                    data-lucide="plus"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+
+                {{-- EDIT --}}
+                <a
+                    href="{{ route(
+                        'seller.products.edit',
+                        $resolvedProductId
+                    ) }}"
+                    class="mt-3
+                           inline-flex h-9
+                           w-full
+                           items-center
+                           justify-center gap-2
+                           rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white
+                           text-[10px]
+                           font-semibold
+                           text-[#52635B]
+                           transition
+                           hover:bg-[#EEF5F1]
+                           hover:text-[#173F35]"
+                >
+
+                    <i
+                        data-lucide="pencil"
+                        class="h-3.5 w-3.5"
+                    ></i>
+
+                    Edit Product Details
+
+                </a>
+
+            </article>
+
+
+        @empty
+
+            <div class="px-6 py-14 text-center">
+
+                <div
+                    class="mx-auto
+                           flex h-12 w-12
+                           items-center justify-center
+                           rounded-2xl
+                           bg-[#EEF5F1]
+                           text-[#1F6F5B]"
+                >
+
+                    <i
+                        data-lucide="package-open"
+                        class="h-5 w-5"
+                    ></i>
+
+                </div>
+
+
+                <p
+                    class="mt-4
+                           text-sm
+                           font-semibold
+                           text-[#34483F]"
+                >
+                    No inventory yet
+                </p>
+
+
+                <p
+                    class="mt-1
+                           text-xs
+                           text-[#849089]"
+                >
+                    Add a product to begin managing stock.
+                </p>
+
+            </div>
+
+        @endforelse
+
+    </div>
+
+
+    {{-- =====================================================
+        NO FILTER RESULTS
+    ====================================================== --}}
+
+    <div
+        id="noInventoryResults"
+        class="hidden
+               px-6 py-14
+               text-center"
+    >
+
+        <div
+            class="mx-auto
+                   flex h-12 w-12
+                   items-center justify-center
+                   rounded-2xl
+                   bg-[#F1F4F2]
+                   text-[#87958E]"
+        >
+
+            <i
+                data-lucide="search-x"
+                class="h-5 w-5"
+            ></i>
+
+        </div>
+
+
+        <h3
+            class="mt-4
+                   text-sm
+                   font-semibold
+                   text-[#34483F]"
+        >
+            No matching inventory
+        </h3>
+
+
+        <p
+            class="mt-1
+                   text-xs
+                   text-[#849089]"
+        >
+            Try another keyword or change your filters.
+        </p>
+
+
+        <button
+            type="button"
+            id="noResultsClear"
+            class="mt-4
+                   inline-flex h-9
+                   items-center gap-2
+                   rounded-xl
+                   border border-[#DDE6E1]
+                   bg-white
+                   px-4
+                   text-[11px]
+                   font-semibold
+                   text-[#52635B]
+                   transition
+                   hover:bg-[#F5F8F6]
+                   hover:text-[#173F35]"
+        >
+
+            <i
+                data-lucide="rotate-ccw"
+                class="h-3.5 w-3.5"
+            ></i>
+
+            Clear filters
+
+        </button>
+
+    </div>
+
+</section>
+
+
 @push('scripts')
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
 
-    const searchInput = document.getElementById('inventorySearch');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const stockFilter = document.getElementById('stockFilter');
-    const rows = document.querySelectorAll('.inventory-row');
-    const mobileRows = document.querySelectorAll('.inventory-mobile-row');
-    const noResults = document.getElementById('noInventoryResults');
+        const searchInput =
+            document.getElementById(
+                'inventorySearch'
+            );
 
-    function filterInventory() {
+        const categoryFilter =
+            document.getElementById(
+                'categoryFilter'
+            );
 
-        const search = searchInput.value.toLowerCase().trim();
-        const category = categoryFilter.value;
-        const stock = stockFilter.value;
+        const stockFilter =
+            document.getElementById(
+                'stockFilter'
+            );
 
-        let visibleCount = 0;
+        const clearButton =
+            document.getElementById(
+                'clearInventoryFilters'
+            );
 
-        rows.forEach(row => {
+        const noResultsClear =
+            document.getElementById(
+                'noResultsClear'
+            );
 
-            const name = row.dataset.name || '';
-            const sku = row.dataset.sku || '';
-            const rowCategory = row.dataset.category || '';
-            const rowStock = row.dataset.stockStatus || '';
+        const desktopRows =
+            Array.from(
+                document.querySelectorAll(
+                    '.inventory-row'
+                )
+            );
+
+        const mobileRows =
+            Array.from(
+                document.querySelectorAll(
+                    '.inventory-mobile-row'
+                )
+            );
+
+        const noResults =
+            document.getElementById(
+                'noInventoryResults'
+            );
+
+
+        function matchesInventory(
+            element,
+            search,
+            category,
+            stock
+        ) {
+
+            const name =
+                (
+                    element.dataset.name || ''
+                ).toLowerCase();
+
+            const rowCategory =
+                (
+                    element.dataset.category || ''
+                ).toLowerCase();
+
+            const rowStock =
+                element.dataset.stockStatus || '';
+
 
             const matchesSearch =
-                name.includes(search) ||
-                sku.includes(search);
+                search === '' ||
+                name.includes(search);
 
             const matchesCategory =
                 category === 'all' ||
@@ -711,59 +1762,161 @@ document.addEventListener('DOMContentLoaded', function () {
                 stock === 'all' ||
                 rowStock === stock;
 
-            const visible =
+
+            return (
                 matchesSearch &&
                 matchesCategory &&
-                matchesStock;
+                matchesStock
+            );
 
-            row.classList.toggle('hidden', !visible);
+        }
 
-            if (visible) {
-                visibleCount++;
+
+        function filterInventory() {
+
+            const search =
+                (
+                    searchInput?.value || ''
+                )
+                .toLowerCase()
+                .trim();
+
+            const category =
+                (
+                    categoryFilter?.value ||
+                    'all'
+                ).toLowerCase();
+
+            const stock =
+                stockFilter?.value || 'all';
+
+
+            let visibleProducts = 0;
+
+
+            desktopRows.forEach(
+                function (row) {
+
+                    const visible =
+                        matchesInventory(
+                            row,
+                            search,
+                            category,
+                            stock
+                        );
+
+                    row.classList.toggle(
+                        'hidden',
+                        !visible
+                    );
+
+                    if (visible) {
+                        visibleProducts++;
+                    }
+
+                }
+            );
+
+
+            mobileRows.forEach(
+                function (row) {
+
+                    const visible =
+                        matchesInventory(
+                            row,
+                            search,
+                            category,
+                            stock
+                        );
+
+                    row.classList.toggle(
+                        'hidden',
+                        !visible
+                    );
+
+                }
+            );
+
+
+            const hasProducts =
+                desktopRows.length > 0 ||
+                mobileRows.length > 0;
+
+
+            if (noResults) {
+
+                noResults.classList.toggle(
+                    'hidden',
+                    !hasProducts ||
+                    visibleProducts > 0
+                );
+
             }
 
-        });
+        }
 
 
-        mobileRows.forEach(row => {
+        function clearFilters() {
 
-            const name = row.dataset.name || '';
-            const sku = row.dataset.sku || '';
-            const rowCategory = row.dataset.category || '';
-            const rowStock = row.dataset.stockStatus || '';
+            if (searchInput) {
+                searchInput.value = '';
+            }
 
-            const matchesSearch =
-                name.includes(search) ||
-                sku.includes(search);
+            if (categoryFilter) {
+                categoryFilter.value = 'all';
+            }
 
-            const matchesCategory =
-                category === 'all' ||
-                rowCategory === category;
+            if (stockFilter) {
+                stockFilter.value = 'all';
+            }
 
-            const matchesStock =
-                stock === 'all' ||
-                rowStock === stock;
+            filterInventory();
 
-            const visible =
-                matchesSearch &&
-                matchesCategory &&
-                matchesStock;
-
-            row.classList.toggle('hidden', !visible);
-
-        });
+        }
 
 
-        noResults.classList.toggle('hidden', visibleCount > 0);
+        searchInput?.addEventListener(
+            'input',
+            filterInventory
+        );
+
+
+        categoryFilter?.addEventListener(
+            'change',
+            filterInventory
+        );
+
+
+        stockFilter?.addEventListener(
+            'change',
+            filterInventory
+        );
+
+
+        clearButton?.addEventListener(
+            'click',
+            clearFilters
+        );
+
+
+        noResultsClear?.addEventListener(
+            'click',
+            clearFilters
+        );
+
+
+        if (
+            typeof lucide !== 'undefined' &&
+            typeof lucide.createIcons ===
+                'function'
+        ) {
+
+            lucide.createIcons();
+
+        }
 
     }
-
-
-    searchInput.addEventListener('input', filterInventory);
-    categoryFilter.addEventListener('change', filterInventory);
-    stockFilter.addEventListener('change', filterInventory);
-
-});
+);
 
 </script>
 
