@@ -1,15 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{{ $title ?? 'SUKI SHOP Rider' }}</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <meta
+        name="theme-color"
+        content="#173F35"
+    >
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>
+        @yield('title', 'Rider Portal') | SUKI SHOP
+    </title>
+
+    @vite([
+        'resources/css/app.css',
+        'resources/js/app.js'
+    ])
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
 
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
@@ -17,99 +41,217 @@
     >
 
     <script src="https://unpkg.com/lucide@latest"></script>
+
 </head>
 
-<body class="bg-[#F7F9F8] text-[#111827] antialiased">
 
-<div class="min-h-screen">
+@php
+
+    $sidebarRiders =
+        session('rider_applications', []);
+
+    $sidebarRiderIndex =
+        session('logged_in_rider_index');
+
+    $sidebarRider = [];
+
+    if (
+        $sidebarRiderIndex !== null &&
+        isset($sidebarRiders[$sidebarRiderIndex])
+    ) {
+        $sidebarRider =
+            $sidebarRiders[$sidebarRiderIndex];
+    }
+
+    $sidebarRiderName = trim(
+        ($sidebarRider['first_name'] ?? '') . ' ' .
+        ($sidebarRider['last_name'] ?? '')
+    );
+
+    if ($sidebarRiderName === '') {
+        $sidebarRiderName = 'SUKI Rider';
+    }
+
+    $sidebarVehicle =
+        $sidebarRider['vehicle_type']
+        ?? 'Delivery Rider';
+
+@endphp
 
 
-    {{-- =====================================================
-         TOP HEADER
-    ====================================================== --}}
+<body
+    class="suki-dashboard-shell
+           min-h-screen
+           bg-[#F6F8F6]
+           font-[Poppins]
+           text-[#24312C]
+           antialiased"
+>
 
-    <header class="fixed top-0 left-0 right-0 h-[80px] bg-white border-b border-gray-200 z-50">
 
-        <div class="h-full flex items-center justify-between">
+    {{-- =========================================================
+        MOBILE OVERLAY
+    ========================================================== --}}
+
+    <div
+        id="riderSidebarOverlay"
+        class="fixed inset-0 z-40
+               hidden
+               bg-[#102C25]/40
+               backdrop-blur-[2px]
+               lg:hidden"
+    ></div>
 
 
-            {{-- =================================================
-                 LEFT BRANDING
-                 SAME WIDTH AS SIDEBAR
-            ================================================== --}}
+    {{-- =========================================================
+        SIDEBAR
+    ========================================================== --}}
 
-            <div class="w-[220px] h-full shrink-0 flex items-center px-4">
-
-    <a
-        href="{{ route('rider.dashboard') }}"
-        class="flex items-center shrink-0"
+    <aside
+        id="riderSidebar"
+        class="fixed inset-y-0 left-0 z-50
+               flex w-[270px]
+               -translate-x-full
+               flex-col
+               border-r border-white/10
+               bg-[#173F35]
+               text-white
+               transition-transform
+               duration-300
+               lg:translate-x-0"
     >
 
-        <img
-            src="{{ asset('images/suki-rider.jpg') }}"
-            alt="SUKI SHOP Rider"
-            class="w-[75px] h-[52px] object-contain"
+
+        {{-- BRAND --}}
+        <div
+            class="flex h-[82px]
+                   items-center
+                   border-b border-white/10
+                   px-6"
         >
 
-    </a>
+            <a
+                href="{{ route('rider.dashboard') }}"
+                class="flex items-center gap-3"
+            >
 
-    <div class="ml-2 pl-2 border-l border-gray-200">
-
-        <p class="text-[16px] font-bold text-[#075C4A] whitespace-nowrap leading-tight">
-            SUKI SHOP Logistics
-        </p>
-
-        <p class="text-[9px] text-gray-400 mt-0.5 whitespace-nowrap">
-            Rider Portal
-        </p>
-
-    </div>
-
-</div>
-            {{-- =================================================
-                 RIGHT SIDE
-            ================================================== --}}
-
-            <div class="hidden sm:flex items-center gap-6 pr-8">
-
-
-                {{-- MARKETPLACE --}}
-
-                <a
-                    href="{{ route('buyer.home') }}"
-                    class="flex items-center gap-2 text-sm text-gray-600 hover:text-[#075C4A] transition"
+                <div
+                    class="flex h-11 w-11
+                           items-center justify-center
+                           rounded-xl
+                           bg-white/10"
                 >
 
-                    <i
-                        data-lucide="store"
-                        class="w-4 h-4"
-                    ></i>
+                    <img
+                        src="{{ asset('images/suki-logo.png') }}"
+                        alt="SUKI SHOP"
+                        class="h-9 w-9 object-contain"
+                    >
 
-                    <span>
-                        Marketplace
-                    </span>
-
-                </a>
+                </div>
 
 
-                <div class="h-7 w-px bg-gray-200"></div>
+                <div>
+
+                    <p
+                        class="text-[16px]
+                               font-bold
+                               tracking-[-0.04em]"
+                    >
+                        SUKI SHOP
+                    </p>
+
+                    <p
+                        class="mt-0.5
+                               text-[9px]
+                               font-medium
+                               uppercase
+                               tracking-[0.18em]
+                               text-white/45"
+                    >
+                        Rider Portal
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
 
 
-                {{-- RIDER --}}
+        {{-- RIDER PROFILE --}}
+        <div class="px-4 pt-5">
+
+            <div
+                class="rounded-2xl
+                       border border-white/10
+                       bg-white/[0.06]
+                       p-4"
+            >
 
                 <div class="flex items-center gap-3">
 
-                    <div class="w-10 h-10 rounded-full bg-[#EEF8F3] flex items-center justify-center">
+                    <div
+                        class="flex h-10 w-10
+                               shrink-0
+                               items-center justify-center
+                               rounded-xl
+                               bg-[#DDF3EC]
+                               text-[#173F35]"
+                    >
 
                         <i
                             data-lucide="bike"
-                            class="w-5 h-5 text-[#075C4A]"
+                            class="h-[18px] w-[18px]"
                         ></i>
 
                     </div>
 
-                    <span class="text-sm font-medium text-gray-800">
-                        Rider
+
+                    <div class="min-w-0">
+
+                        <p
+                            class="truncate
+                                   text-[13px]
+                                   font-semibold
+                                   text-white"
+                        >
+                            {{ $sidebarRiderName }}
+                        </p>
+
+                        <p
+                            class="mt-0.5
+                                   truncate
+                                   text-[10px]
+                                   text-white/45"
+                        >
+                            {{ $sidebarVehicle }}
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="mt-4
+                           flex items-center gap-2
+                           border-t border-white/10
+                           pt-3"
+                >
+
+                    <span
+                        class="h-2 w-2
+                               rounded-full
+                               bg-emerald-400"
+                    ></span>
+
+                    <span
+                        class="text-[10px]
+                               font-medium
+                               text-white/55"
+                    >
+                        Approved rider account
                     </span>
 
                 </div>
@@ -118,116 +260,52 @@
 
         </div>
 
-    </header>
 
+        {{-- =====================================================
+            NAVIGATION
+        ====================================================== --}}
 
+        <nav
+            class="flex-1
+                   overflow-y-auto
+                   px-4 py-5"
+        >
 
-    {{-- =====================================================
-         DESKTOP SIDEBAR
-    ====================================================== --}}
-
-    <aside class="hidden lg:flex fixed left-0 top-[80px] bottom-0 w-[280px] bg-[#075C4A] text-white flex-col z-40">
-
-
-        {{-- =================================================
-             RIDER PROFILE
-        ================================================== --}}
-
-        <div class="px-6 py-6 border-b border-white/15">
-
-            <div class="flex items-center gap-4">
-
-
-                {{-- PROFILE ICON --}}
-
-                <div class="w-14 h-14 shrink-0 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-
-                    <i
-                        data-lucide="user-round"
-                        class="w-7 h-7 text-white"
-                    ></i>
-
-                </div>
-
-
-                {{-- PROFILE DETAILS --}}
-
-                <div class="min-w-0">
-
-                    @php
-                        $sidebarRider = session('rider_application', []);
-
-                        $sidebarName = trim(
-                            ($sidebarRider['first_name'] ?? '') . ' ' .
-                            ($sidebarRider['last_name'] ?? '')
-                        );
-
-                        if ($sidebarName === '') {
-                            $sidebarName = 'Rider';
-                        }
-                    @endphp
-
-                    <p class="font-semibold text-sm truncate">
-                        {{ $sidebarName }}
-                    </p>
-
-                    <p class="text-xs text-white/70 mt-0.5">
-                        SUKI SHOP Rider
-                    </p>
-
-
-                    <div class="flex items-center gap-1.5 mt-2">
-
-                        <span class="text-xs px-2 py-0.5 rounded-md bg-white/10">
-                            4.9
-                        </span>
-
-                        <i
-                            data-lucide="star"
-                            class="w-3.5 h-3.5 text-amber-300"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        {{-- =================================================
-             SIDEBAR MENU
-        ================================================== --}}
-
-        <div class="px-4 py-6 flex-1 overflow-y-auto">
-
-
-            {{-- MAIN MENU --}}
-
-            <p class="px-4 mb-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                Main Menu
+            <p
+                class="mb-2 px-3
+                       text-[9px]
+                       font-semibold
+                       uppercase
+                       tracking-[0.18em]
+                       text-white/35"
+            >
+                Delivery Workspace
             </p>
 
 
-            <nav class="space-y-1">
+            <div class="space-y-1">
 
 
                 {{-- DASHBOARD --}}
-
                 <a
                     href="{{ route('rider.dashboard') }}"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium
-                    {{ request()->routeIs('rider.dashboard')
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white' }}
-                    transition"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+
+                        {{ request()->routeIs('rider.dashboard')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
                 >
 
                     <i
                         data-lucide="layout-dashboard"
-                        class="w-5 h-5"
+                        class="h-[18px] w-[18px]"
                     ></i>
 
                     <span>
@@ -238,19 +316,25 @@
 
 
                 {{-- DELIVERIES --}}
-
                 <a
                     href="{{ route('rider.deliveries') }}"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium
-                    {{ request()->routeIs('rider.deliveries')
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white' }}
-                    transition"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+
+                        {{ request()->routeIs('rider.deliveries')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
                 >
 
                     <i
-                        data-lucide="package"
-                        class="w-5 h-5"
+                        data-lucide="package-check"
+                        class="h-[18px] w-[18px]"
                     ></i>
 
                     <span>
@@ -261,19 +345,25 @@
 
 
                 {{-- EARNINGS --}}
-
                 <a
                     href="{{ route('rider.earnings') }}"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium
-                    {{ request()->routeIs('rider.earnings')
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/80 hover:bg-white/10 hover:text-white' }}
-                    transition"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+
+                        {{ request()->routeIs('rider.earnings')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
                 >
 
                     <i
-                        data-lucide="wallet"
-                        class="w-5 h-5"
+                        data-lucide="wallet-cards"
+                        class="h-[18px] w-[18px]"
                     ></i>
 
                     <span>
@@ -282,114 +372,90 @@
 
                 </a>
 
-            </nav>
+            </div>
 
 
-
-            {{-- DIVIDER --}}
-
-            <div class="border-t border-white/15 my-6"></div>
-
-
-
-            {{-- OTHER --}}
-
-            <p class="px-4 mb-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                Other
+            <p
+                class="mb-2 mt-7 px-3
+                       text-[9px]
+                       font-semibold
+                       uppercase
+                       tracking-[0.18em]
+                       text-white/35"
+            >
+                Marketplace
             </p>
 
 
-            <nav class="space-y-1">
-
-
-                {{-- PROFILE --}}
+            <div class="space-y-1">
 
                 <a
-                    href="#"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition"
+                    href="{{ route('buyer.home') }}"
+                    target="_blank"
+                    class="flex items-center gap-3
+                           rounded-xl
+                           px-3 py-2.5
+                           text-[13px]
+                           font-medium
+                           text-white/65
+                           transition
+                           hover:bg-white/[0.07]
+                           hover:text-white"
                 >
 
                     <i
-                        data-lucide="user-round"
-                        class="w-5 h-5"
+                        data-lucide="store"
+                        class="h-[18px] w-[18px]"
                     ></i>
 
                     <span>
-                        Profile
+                        View Marketplace
                     </span>
 
                 </a>
 
+            </div>
 
-                {{-- SETTINGS --}}
-
-                <a
-                    href="#"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition"
-                >
-
-                    <i
-                        data-lucide="settings"
-                        class="w-5 h-5"
-                    ></i>
-
-                    <span>
-                        Settings
-                    </span>
-
-                </a>
+        </nav>
 
 
-                {{-- HELP CENTER --}}
+        {{-- =====================================================
+            LOGOUT
+        ====================================================== --}}
 
-                <a
-                    href="#"
-                    class="flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition"
-                >
-
-                    <i
-                        data-lucide="circle-help"
-                        class="w-5 h-5"
-                    ></i>
-
-                    <span>
-                        Help Center
-                    </span>
-
-                </a>
-
-            </nav>
-
-        </div>
-
-
-
-        {{-- =================================================
-             LOGOUT
-        ================================================== --}}
-
-        <div class="px-4 py-5 border-t border-white/15">
+        <div
+            class="border-t border-white/10
+                   p-4"
+        >
 
             <form
-                method="POST"
                 action="{{ route('logout') }}"
+                method="POST"
             >
 
                 @csrf
 
+
                 <button
                     type="submit"
-                    class="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition"
+                    class="flex w-full
+                           items-center gap-3
+                           rounded-xl
+                           px-3 py-2.5
+                           text-xs
+                           font-medium
+                           text-white/55
+                           transition
+                           hover:bg-white/[0.07]
+                           hover:text-white"
                 >
 
                     <i
                         data-lucide="log-out"
-                        class="w-5 h-5"
+                        class="h-4 w-4"
                     ></i>
 
-                    <span>
-                        Logout
-                    </span>
+                    Sign Out
 
                 </button>
 
@@ -400,101 +466,273 @@
     </aside>
 
 
+    {{-- =========================================================
+        MAIN AREA
+    ========================================================== --}}
 
-    {{-- =====================================================
-         MOBILE HEADER
-    ====================================================== --}}
-
-    <header class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50">
-
-        <div class="h-full px-4 flex items-center justify-between">
-
-            <a href="{{ route('rider.dashboard') }}">
-
-                <img
-                    src="{{ asset('images/suki-rider.jpg') }}"
-                    alt="SUKI SHOP Rider"
-                    class="h-11 w-auto object-contain"
-                >
-
-            </a>
+    <div
+        class="min-h-screen
+               lg:pl-[270px]"
+    >
 
 
-            <a
-                href="{{ route('buyer.home') }}"
-                class="flex items-center gap-2 text-sm text-gray-600"
+        {{-- TOPBAR --}}
+        <header
+            class="sticky top-0 z-30
+                   border-b border-[#DDE6E1]
+                   bg-[#F8FAF8]/95
+                   backdrop-blur-xl"
+        >
+
+            <div
+                class="flex min-h-[74px]
+                       items-center gap-4
+                       px-4
+                       sm:px-6
+                       lg:px-8"
             >
 
-                <i
-                    data-lucide="store"
-                    class="w-4 h-4"
-                ></i>
 
-                <span>
-                    Marketplace
-                </span>
+                {{-- MOBILE MENU --}}
+                <button
+                    id="riderSidebarOpen"
+                    type="button"
+                    aria-label="Open rider navigation"
+                    class="flex h-10 w-10
+                           shrink-0
+                           items-center justify-center
+                           rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white
+                           text-[#52635B]
+                           transition
+                           hover:bg-[#F3F7F5]
+                           lg:hidden"
+                >
 
-            </a>
+                    <i
+                        data-lucide="menu"
+                        class="h-5 w-5"
+                    ></i>
 
-        </div>
-
-    </header>
-
-
-
-    {{-- =====================================================
-         MAIN CONTENT
-    ====================================================== --}}
-
-    <div class="lg:ml-[280px] pt-[80px] min-h-screen">
+                </button>
 
 
-        <main class="min-h-screen">
+                {{-- PAGE TITLE --}}
+                <div class="min-w-0 flex-1">
+
+                    <p
+                        class="text-[10px]
+                               font-semibold
+                               uppercase
+                               tracking-[0.14em]
+                               text-[#1F6F5B]"
+                    >
+                        Rider Portal
+                    </p>
+
+
+                    <h1
+                        class="truncate
+                               text-[17px]
+                               font-semibold
+                               tracking-[-0.025em]
+                               text-[#24312C]
+                               sm:text-lg"
+                    >
+                        @yield('page-heading', 'Dashboard')
+                    </h1>
+
+                </div>
+
+
+                {{-- STATUS --}}
+                <div class="flex items-center gap-2">
+
+                    <div
+                        class="hidden
+                               items-center gap-2
+                               rounded-xl
+                               border border-emerald-200
+                               bg-emerald-50
+                               px-3.5 py-2.5
+                               text-[10px]
+                               font-semibold
+                               text-emerald-700
+                               sm:flex"
+                    >
+
+                        <span
+                            class="h-2 w-2
+                                   rounded-full
+                                   bg-emerald-500"
+                        ></span>
+
+                        Online
+
+                    </div>
+
+
+                    <a
+                        href="{{ route('buyer.home') }}"
+                        target="_blank"
+                        title="Open marketplace"
+                        class="flex h-10 w-10
+                               items-center justify-center
+                               rounded-xl
+                               border border-[#DDE6E1]
+                               bg-white
+                               text-[#52635B]
+                               transition
+                               hover:border-[#BFD2C9]
+                               hover:bg-[#F3F7F5]
+                               hover:text-[#173F35]"
+                    >
+
+                        <i
+                            data-lucide="external-link"
+                            class="h-4 w-4"
+                        ></i>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        {{-- PAGE CONTENT --}}
+        <main
+            class="mx-auto
+                   w-full
+                   max-w-[1500px]
+                   px-4 py-6
+                   sm:px-6
+                   lg:px-8
+                   lg:py-8"
+        >
 
             @yield('content')
 
         </main>
 
-
-
-        {{-- =================================================
-             FOOTER
-        ================================================== --}}
-
-        <footer class="border-t border-gray-200 bg-white">
-
-            <div class="px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
-
-                <p class="text-xs text-gray-500">
-                    © {{ date('Y') }} SUKI SHOP Logistics. All rights reserved.
-                </p>
-
-                <p class="text-xs text-gray-400">
-                    Rider Portal v1.0.0
-                </p>
-
-            </div>
-
-        </footer>
-
     </div>
 
-</div>
+
+    @stack('scripts')
 
 
+    {{-- =========================================================
+        SIDEBAR SCRIPT
+    ========================================================== --}}
 
-@stack('scripts')
+    <script>
+
+        document.addEventListener(
+            'DOMContentLoaded',
+            function () {
+
+                const sidebar =
+                    document.getElementById(
+                        'riderSidebar'
+                    );
+
+                const overlay =
+                    document.getElementById(
+                        'riderSidebarOverlay'
+                    );
+
+                const openButton =
+                    document.getElementById(
+                        'riderSidebarOpen'
+                    );
 
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
+                function openSidebar() {
 
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+                    sidebar?.classList.remove(
+                        '-translate-x-full'
+                    );
 
-    });
-</script>
+                    overlay?.classList.remove(
+                        'hidden'
+                    );
+
+                    document.body.classList.add(
+                        'overflow-hidden'
+                    );
+
+                }
+
+
+                function closeSidebar() {
+
+                    sidebar?.classList.add(
+                        '-translate-x-full'
+                    );
+
+                    overlay?.classList.add(
+                        'hidden'
+                    );
+
+                    document.body.classList.remove(
+                        'overflow-hidden'
+                    );
+
+                }
+
+
+                openButton?.addEventListener(
+                    'click',
+                    openSidebar
+                );
+
+
+                overlay?.addEventListener(
+                    'click',
+                    closeSidebar
+                );
+
+
+                window.addEventListener(
+                    'resize',
+                    function () {
+
+                        if (
+                            window.innerWidth >= 1024
+                        ) {
+
+                            overlay?.classList.add(
+                                'hidden'
+                            );
+
+                            document.body.classList.remove(
+                                'overflow-hidden'
+                            );
+
+                        }
+
+                    }
+                );
+
+
+                if (
+                    typeof lucide !== 'undefined' &&
+                    typeof lucide.createIcons ===
+                        'function'
+                ) {
+
+                    lucide.createIcons();
+
+                }
+
+            }
+        );
+
+    </script>
 
 </body>
+
 </html>
