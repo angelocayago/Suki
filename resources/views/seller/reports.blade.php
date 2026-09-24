@@ -1,14 +1,16 @@
-@extends('layouts.app')
+@extends('layouts.seller')
+
+@section('title', 'Reports & Analytics')
+@section('page-title', 'Reports & Analytics')
 
 @section('content')
 
 @php
+
     /*
     |--------------------------------------------------------------------------
-    | SELLER REPORTS DATA
+    | SELLER REPORT DATA
     |--------------------------------------------------------------------------
-    | Front-end prototype:
-    | Uses seller orders/products stored in session.
     */
 
     $products = session('seller_products', []);
@@ -18,41 +20,127 @@
 
     $totalOrders = $sellerOrders->count();
 
-    $completedOrders = $sellerOrders->filter(function ($order) {
-        return in_array($order['status'] ?? '', ['delivered', 'completed']);
-    });
 
-    $totalSales = $completedOrders->sum(function ($order) {
-        return (float) ($order['total'] ?? $order['grand_total'] ?? 0);
-    });
+    /*
+    |--------------------------------------------------------------------------
+    | COMPLETED SALES
+    |--------------------------------------------------------------------------
+    */
 
-    $allOrderSales = $sellerOrders->sum(function ($order) {
-        return (float) ($order['total'] ?? $order['grand_total'] ?? 0);
-    });
+    $completedOrders = $sellerOrders
+        ->filter(function ($order) {
 
-    $productsSold = $completedOrders->sum(function ($order) {
-        return collect($order['items'] ?? [])->sum(function ($item) {
-            return (int) ($item['quantity'] ?? 0);
+            return in_array(
+                $order['status'] ?? '',
+                [
+                    'delivered',
+                    'completed'
+                ]
+            );
+
         });
-    });
+
+
+    $totalSales = $completedOrders
+        ->sum(function ($order) {
+
+            return (float) (
+                $order['total']
+                ?? $order['grand_total']
+                ?? 0
+            );
+
+        });
+
+
+    $allOrderSales = $sellerOrders
+        ->sum(function ($order) {
+
+            return (float) (
+                $order['total']
+                ?? $order['grand_total']
+                ?? 0
+            );
+
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCT SALES
+    |--------------------------------------------------------------------------
+    */
+
+    $productsSold = $completedOrders
+        ->sum(function ($order) {
+
+            return collect(
+                $order['items'] ?? []
+            )
+            ->sum(function ($item) {
+
+                return (int) (
+                    $item['quantity'] ?? 0
+                );
+
+            });
+
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXISTING PROTOTYPE EARNINGS
+    |--------------------------------------------------------------------------
+    */
 
     $netEarnings = $totalSales * 0.90;
 
-    $toShip = $sellerOrders->filter(function ($order) {
-        return in_array($order['status'] ?? '', [
-            'confirmed',
-            'preparing',
-            'ready_for_pickup'
-        ]);
-    })->count();
 
-    $cancelledOrders = $sellerOrders->filter(function ($order) {
-        return ($order['status'] ?? '') === 'cancelled';
-    })->count();
+    /*
+    |--------------------------------------------------------------------------
+    | ORDER COUNTS
+    |--------------------------------------------------------------------------
+    */
 
-    $deliveryFailed = $sellerOrders->filter(function ($order) {
-        return ($order['status'] ?? '') === 'delivery_failed';
-    })->count();
+    $toShip = $sellerOrders
+        ->filter(function ($order) {
+
+            return in_array(
+                $order['status'] ?? '',
+                [
+                    'confirmed',
+                    'preparing',
+                    'ready_for_pickup'
+                ]
+            );
+
+        })
+        ->count();
+
+
+    $cancelledOrders = $sellerOrders
+        ->where('status', 'cancelled')
+        ->count();
+
+
+    $deliveryFailed = $sellerOrders
+        ->where('status', 'delivery_failed')
+        ->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RATES
+    |--------------------------------------------------------------------------
+    */
+
+    $completionRate = $totalOrders > 0
+        ? round(
+            ($completedOrders->count() / $totalOrders) * 100,
+            1
+        )
+        : 0;
 
 
     /*
@@ -65,10 +153,33 @@
         ->map(function ($product) {
 
             return [
-                'name' => $product['name'] ?? 'Unnamed Product',
-                'sold' => (int) ($product['sold'] ?? 0),
-                'stock' => (int) ($product['stock'] ?? 0),
-                'price' => (float) ($product['price'] ?? 0),
+
+                'name' =>
+                    $product['name']
+                    ?? 'Unnamed Product',
+
+                'image' =>
+                    $product['image']
+                    ?? null,
+
+                'sold' =>
+                    (int) (
+                        $product['sold']
+                        ?? 0
+                    ),
+
+                'stock' =>
+                    (int) (
+                        $product['stock']
+                        ?? 0
+                    ),
+
+                'price' =>
+                    (float) (
+                        $product['price']
+                        ?? 0
+                    ),
+
             ];
 
         })
@@ -78,38 +189,85 @@
 
     /*
     |--------------------------------------------------------------------------
-    | RECENT SALES
+    | RECENT ORDERS
     |--------------------------------------------------------------------------
     */
 
     $recentOrders = $sellerOrders
         ->sortByDesc(function ($order) {
-            return $order['created_at'] ?? '';
+
+            return $order['created_at']
+                ?? '';
+
         })
         ->take(6);
 
 
     /*
     |--------------------------------------------------------------------------
-    | ORDER STATUS COUNTS
+    | STATUS COUNTS
     |--------------------------------------------------------------------------
     */
 
     $statusCounts = [
-        'Placed' => $sellerOrders->where('status', 'placed')->count(),
-        'Confirmed' => $sellerOrders->where('status', 'confirmed')->count(),
-        'Preparing' => $sellerOrders->where('status', 'preparing')->count(),
-        'Ready for Pickup' => $sellerOrders->where('status', 'ready_for_pickup')->count(),
-        'Picked Up' => $sellerOrders->where('status', 'picked_up')->count(),
-        'In Transit' => $sellerOrders->whereIn('status', [
-            'at_sorting_center',
-            'sorted',
-            'assigned_to_rider'
-        ])->count(),
-        'Out for Delivery' => $sellerOrders->where('status', 'out_for_delivery')->count(),
-        'Delivered' => $sellerOrders->where('status', 'delivered')->count(),
-        'Completed' => $sellerOrders->where('status', 'completed')->count(),
-        'Cancelled' => $sellerOrders->where('status', 'cancelled')->count(),
+
+        'Placed' =>
+            $sellerOrders
+                ->where('status', 'placed')
+                ->count(),
+
+        'Confirmed' =>
+            $sellerOrders
+                ->where('status', 'confirmed')
+                ->count(),
+
+        'Preparing' =>
+            $sellerOrders
+                ->where('status', 'preparing')
+                ->count(),
+
+        'Ready for Pickup' =>
+            $sellerOrders
+                ->where('status', 'ready_for_pickup')
+                ->count(),
+
+        'Picked Up' =>
+            $sellerOrders
+                ->where('status', 'picked_up')
+                ->count(),
+
+        'In Transit' =>
+            $sellerOrders
+                ->whereIn(
+                    'status',
+                    [
+                        'at_sorting_center',
+                        'sorted',
+                        'assigned_to_rider'
+                    ]
+                )
+                ->count(),
+
+        'Out for Delivery' =>
+            $sellerOrders
+                ->where('status', 'out_for_delivery')
+                ->count(),
+
+        'Delivered' =>
+            $sellerOrders
+                ->where('status', 'delivered')
+                ->count(),
+
+        'Completed' =>
+            $sellerOrders
+                ->where('status', 'completed')
+                ->count(),
+
+        'Cancelled' =>
+            $sellerOrders
+                ->where('status', 'cancelled')
+                ->count(),
+
     ];
 
 
@@ -117,7 +275,7 @@
     |--------------------------------------------------------------------------
     | CHART DATA
     |--------------------------------------------------------------------------
-    | Demo values are used when the prototype has no orders yet.
+    | Existing frontend prototype data retained.
     */
 
     $chartLabels = [
@@ -130,6 +288,7 @@
         'Sun'
     ];
 
+
     $salesChart = [
         4200,
         6800,
@@ -139,6 +298,7 @@
         11200,
         9800
     ];
+
 
     $ordersChart = [
         8,
@@ -150,971 +310,2095 @@
         18
     ];
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    $orderStatusLabels = [
+
+        'placed' => 'Placed',
+
+        'confirmed' => 'Confirmed',
+
+        'preparing' => 'Preparing',
+
+        'ready_for_pickup' =>
+            'Ready for Pickup',
+
+        'picked_up' => 'Picked Up',
+
+        'at_sorting_center' =>
+            'At Sorting Center',
+
+        'sorted' => 'Sorted',
+
+        'assigned_to_rider' =>
+            'Assigned to Rider',
+
+        'out_for_delivery' =>
+            'Out for Delivery',
+
+        'delivered' => 'Delivered',
+
+        'completed' => 'Completed',
+
+        'delivery_failed' =>
+            'Delivery Failed',
+
+        'returned' => 'Returned',
+
+        'cancelled' => 'Cancelled',
+
+    ];
+
+
+    $orderStatusClasses = [
+
+        'placed' =>
+            'border-amber-200 bg-amber-50 text-amber-700',
+
+        'confirmed' =>
+            'border-blue-200 bg-blue-50 text-blue-700',
+
+        'preparing' =>
+            'border-violet-200 bg-violet-50 text-violet-700',
+
+        'ready_for_pickup' =>
+            'border-indigo-200 bg-indigo-50 text-indigo-700',
+
+        'picked_up' =>
+            'border-cyan-200 bg-cyan-50 text-cyan-700',
+
+        'at_sorting_center' =>
+            'border-sky-200 bg-sky-50 text-sky-700',
+
+        'sorted' =>
+            'border-teal-200 bg-teal-50 text-teal-700',
+
+        'assigned_to_rider' =>
+            'border-violet-200 bg-violet-50 text-violet-700',
+
+        'out_for_delivery' =>
+            'border-orange-200 bg-orange-50 text-orange-700',
+
+        'delivered' =>
+            'border-emerald-200 bg-emerald-50 text-emerald-700',
+
+        'completed' =>
+            'border-emerald-200 bg-emerald-50 text-emerald-700',
+
+        'delivery_failed' =>
+            'border-red-200 bg-red-50 text-red-700',
+
+        'returned' =>
+            'border-rose-200 bg-rose-50 text-rose-700',
+
+        'cancelled' =>
+            'border-gray-200 bg-gray-100 text-gray-600',
+
+    ];
+
 @endphp
 
 
-<div class="min-h-screen bg-[#F8FAF8]">
+{{-- =========================================================
+    INTRO
+========================================================= --}}
 
-    {{-- =====================================================
-         SELLER HEADER
-    ====================================================== --}}
-    <div class="bg-white border-b border-gray-200">
+<div
+    class="mb-7
+           flex flex-col gap-4
+           lg:flex-row
+           lg:items-end
+           lg:justify-between"
+>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div>
 
-            <div class="h-16 flex items-center justify-between gap-4">
-
-                <div class="flex items-center gap-3 min-w-0">
-
-                    <div class="w-10 h-10 rounded-xl bg-[#DDF3EC] flex items-center justify-center shrink-0">
-
-                        <i
-                            data-lucide="store"
-                            class="w-5 h-5 text-[#1F6F5B]"
-                        ></i>
-
-                    </div>
-
-                    <div class="min-w-0">
-
-                        <p class="text-xs text-gray-400">
-                            SELLER CENTRE
-                        </p>
-
-                        <h1 class="text-sm sm:text-base font-semibold text-gray-900 truncate">
-                            Everyday Finds PH
-                        </h1>
-
-                    </div>
-
-                </div>
-
-
-                <a
-                    href="{{ route('buyer.home') }}"
-                    class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border border-gray-200 bg-white text-xs sm:text-sm font-medium text-gray-700 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition shrink-0"
-                >
-
-                    <i
-                        data-lucide="external-link"
-                        class="w-4 h-4"
-                    ></i>
-
-                    <span class="hidden sm:inline">
-                        View Store
-                    </span>
-
-                </a>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    {{-- =====================================================
-         MAIN CONTENT
-    ====================================================== --}}
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-
-
-        {{-- =================================================
-             BREADCRUMB
-        ================================================== --}}
-        <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mb-5">
+        <div
+            class="mb-2
+                   flex items-center gap-2
+                   text-[11px]
+                   font-medium
+                   text-[#8A9791]"
+        >
 
             <a
                 href="{{ route('seller.dashboard') }}"
-                class="hover:text-[#1F6F5B] transition"
+                class="transition hover:text-[#1F6F5B]"
             >
                 Dashboard
             </a>
 
             <i
                 data-lucide="chevron-right"
-                class="w-4 h-4 text-gray-300"
+                class="h-3 w-3"
             ></i>
 
-            <span class="text-gray-900 font-medium">
-                Reports & Analytics
+            <span class="text-[#52635B]">
+                Reports
             </span>
 
         </div>
 
 
+        <h2
+            class="text-2xl
+                   font-semibold
+                   tracking-[-0.04em]
+                   text-[#24312C]
+                   sm:text-[28px]"
+        >
+            Reports & Analytics
+        </h2>
 
-        {{-- =================================================
-             PAGE HEADER
-        ================================================== --}}
-        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+
+        <p
+            class="mt-1.5
+                   max-w-2xl
+                   text-sm
+                   leading-6
+                   text-[#728078]"
+        >
+            Monitor sales, orders, products,
+            and overall store performance.
+        </p>
+
+    </div>
+
+
+    <div
+        class="inline-flex h-10
+               items-center gap-2
+               self-start
+               rounded-xl
+               border border-[#DDE6E1]
+               bg-white
+               px-4
+               text-[11px]
+               font-semibold
+               text-[#68776F]
+               lg:self-auto"
+    >
+
+        <i
+            data-lucide="calendar-days"
+            class="h-4 w-4 text-[#1F6F5B]"
+        ></i>
+
+        Last 7 Days
+
+    </div>
+
+</div>
+
+
+{{-- =========================================================
+    MAIN PERFORMANCE CARDS
+========================================================= --}}
+
+<div
+    class="mb-6
+           grid grid-cols-2
+           gap-4
+           xl:grid-cols-4"
+>
+
+
+    {{-- SALES --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
+
+        <div
+            class="flex items-start
+                   justify-between gap-3"
+        >
 
             <div>
 
-                <p class="text-sm font-semibold text-[#1F6F5B]">
-                    BUSINESS PERFORMANCE
+                <p
+                    class="text-[9px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Total Sales
                 </p>
 
-                <h2 class="mt-1 text-2xl sm:text-3xl font-bold text-gray-900">
-                    Reports & Analytics
-                </h2>
-
-                <p class="mt-2 text-sm text-gray-500">
-                    Track your sales, orders, products, and overall shop performance.
+                <p
+                    class="mt-3
+                           text-xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]
+                           sm:text-2xl"
+                >
+                    ₱{{ number_format($totalSales, 2) }}
                 </p>
 
             </div>
 
 
-            {{-- DATE RANGE --}}
-            <div class="flex items-center gap-2">
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#DDF3EC]
+                       text-[#173F35]"
+            >
 
-                <div class="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs sm:text-sm text-gray-600">
-
-                    <i
-                        data-lucide="calendar-days"
-                        class="w-4 h-4 text-gray-400"
-                    ></i>
-
-                    Last 7 Days
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        {{-- =================================================
-             STAT CARDS
-        ================================================== --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-
-
-            {{-- TOTAL SALES --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-
-                <div class="flex items-start justify-between gap-3">
-
-                    <div>
-
-                        <p class="text-xs sm:text-sm text-gray-500">
-                            Total Sales
-                        </p>
-
-                        <p class="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
-                            ₱{{ number_format($totalSales, 2) }}
-                        </p>
-
-                        <p class="mt-1 text-[11px] sm:text-xs text-gray-400">
-                            Completed orders
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#DDF3EC] flex items-center justify-center shrink-0">
-
-                        <i
-                            data-lucide="banknote"
-                            class="w-5 h-5 text-[#1F6F5B]"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {{-- TOTAL ORDERS --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-
-                <div class="flex items-start justify-between gap-3">
-
-                    <div>
-
-                        <p class="text-xs sm:text-sm text-gray-500">
-                            Total Orders
-                        </p>
-
-                        <p class="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
-                            {{ $totalOrders }}
-                        </p>
-
-                        <p class="mt-1 text-[11px] sm:text-xs text-gray-400">
-                            All order statuses
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-
-                        <i
-                            data-lucide="shopping-bag"
-                            class="w-5 h-5 text-blue-600"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {{-- PRODUCTS SOLD --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-
-                <div class="flex items-start justify-between gap-3">
-
-                    <div>
-
-                        <p class="text-xs sm:text-sm text-gray-500">
-                            Products Sold
-                        </p>
-
-                        <p class="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
-                            {{ $productsSold }}
-                        </p>
-
-                        <p class="mt-1 text-[11px] sm:text-xs text-gray-400">
-                            Completed purchases
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-
-                        <i
-                            data-lucide="package-check"
-                            class="w-5 h-5 text-purple-600"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {{-- NET EARNINGS --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-
-                <div class="flex items-start justify-between gap-3">
-
-                    <div>
-
-                        <p class="text-xs sm:text-sm text-gray-500">
-                            Net Earnings
-                        </p>
-
-                        <p class="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
-                            ₱{{ number_format($netEarnings, 2) }}
-                        </p>
-
-                        <p class="mt-1 text-[11px] sm:text-xs text-gray-400">
-                            After 10% platform fee
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-
-                        <i
-                            data-lucide="wallet"
-                            class="w-5 h-5 text-amber-600"
-                        ></i>
-
-                    </div>
-
-                </div>
+                <i
+                    data-lucide="banknote"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
             </div>
 
         </div>
 
 
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[10px]
+                   text-[#7B8982]"
+        >
+            Completed and delivered orders
+        </p>
 
-        {{-- =================================================
-             LINE CHARTS
-        ================================================== --}}
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-6">
+    </div>
 
 
-            {{-- SALES OVERVIEW --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+    {{-- ORDERS --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
 
-                <div class="flex items-center justify-between mb-5">
+        <div
+            class="flex items-start
+                   justify-between gap-3"
+        >
 
-                    <div>
+            <div>
 
-                        <h3 class="text-base font-semibold text-gray-900">
-                            Sales Overview
-                        </h3>
+                <p
+                    class="text-[9px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Total Orders
+                </p>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Revenue performance for the last 7 days
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 rounded-lg bg-[#DDF3EC] flex items-center justify-center">
-
-                        <i
-                            data-lucide="trending-up"
-                            class="w-5 h-5 text-[#1F6F5B]"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-                <div class="relative h-64 sm:h-72">
-
-                    <canvas id="salesChart"></canvas>
-
-                </div>
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $totalOrders }}
+                </p>
 
             </div>
 
 
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#EEF5F1]
+                       text-[#1F6F5B]"
+            >
 
-            {{-- ORDERS OVERVIEW --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-
-                <div class="flex items-center justify-between mb-5">
-
-                    <div>
-
-                        <h3 class="text-base font-semibold text-gray-900">
-                            Orders Overview
-                        </h3>
-
-                        <p class="mt-1 text-xs text-gray-500">
-                            Number of orders received per day
-                        </p>
-
-                    </div>
-
-                    <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-
-                        <i
-                            data-lucide="chart-line"
-                            class="w-5 h-5 text-blue-600"
-                        ></i>
-
-                    </div>
-
-                </div>
-
-                <div class="relative h-64 sm:h-72">
-
-                    <canvas id="ordersChart"></canvas>
-
-                </div>
+                <i
+                    data-lucide="shopping-bag"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
             </div>
 
         </div>
 
 
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[10px]
+                   text-[#7B8982]"
+        >
+            {{ $toShip }} order(s) to process
+        </p>
 
-        {{-- =================================================
-             LOWER ANALYTICS
-        ================================================== --}}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-
-            {{-- =================================================
-                 TOP SELLING PRODUCTS
-            ================================================== --}}
-            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-
-                <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-
-                    <div>
-
-                        <h3 class="text-base font-semibold text-gray-900">
-                            Top Selling Products
-                        </h3>
-
-                        <p class="mt-1 text-xs text-gray-500">
-                            Your best performing products
-                        </p>
-
-                    </div>
-
-                    <a
-                        href="{{ route('seller.products') }}"
-                        class="text-xs sm:text-sm font-medium text-[#1F6F5B] hover:underline"
-                    >
-                        View Products
-                    </a>
-
-                </div>
+    </div>
 
 
-                @if($topProducts->count())
+    {{-- PRODUCTS SOLD --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
 
-                    <div class="divide-y divide-gray-100">
+        <div
+            class="flex items-start
+                   justify-between gap-3"
+        >
 
-                        @foreach($topProducts as $index => $product)
+            <div>
 
-                            <div class="px-4 sm:px-5 py-4 flex items-center gap-3 sm:gap-4">
+                <p
+                    class="text-[9px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Products Sold
+                </p>
 
-                                {{-- RANK --}}
-                                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-
-                                    <span class="text-xs sm:text-sm font-semibold text-gray-500">
-                                        {{ $index + 1 }}
-                                    </span>
-
-                                </div>
-
-
-                                {{-- PRODUCT --}}
-                                <div class="flex-1 min-w-0">
-
-                                    <p class="text-sm font-medium text-gray-900 truncate">
-                                        {{ $product['name'] }}
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-gray-400">
-                                        ₱{{ number_format($product['price'], 2) }}
-                                    </p>
-
-                                </div>
-
-
-                                {{-- SOLD --}}
-                                <div class="text-right shrink-0">
-
-                                    <p class="text-sm font-semibold text-gray-900">
-                                        {{ $product['sold'] }}
-                                    </p>
-
-                                    <p class="text-[11px] text-gray-400">
-                                        sold
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-                        @endforeach
-
-                    </div>
-
-                @else
-
-                    <div class="px-5 py-12 text-center">
-
-                        <div class="w-12 h-12 rounded-xl bg-gray-50 mx-auto flex items-center justify-center">
-
-                            <i
-                                data-lucide="package"
-                                class="w-6 h-6 text-gray-300"
-                            ></i>
-
-                        </div>
-
-                        <p class="mt-3 text-sm font-medium text-gray-700">
-                            No product data yet
-                        </p>
-
-                        <p class="mt-1 text-xs text-gray-400">
-                            Add products and start selling to see your analytics.
-                        </p>
-
-                    </div>
-
-                @endif
+                <p
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]"
+                >
+                    {{ $productsSold }}
+                </p>
 
             </div>
 
 
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-blue-50
+                       text-blue-700"
+            >
 
-            {{-- =================================================
-                 ORDER STATUS
-            ================================================== --}}
-            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-
-                <div class="px-4 sm:px-5 py-4 border-b border-gray-100">
-
-                    <h3 class="text-base font-semibold text-gray-900">
-                        Order Status
-                    </h3>
-
-                    <p class="mt-1 text-xs text-gray-500">
-                        Current order distribution
-                    </p>
-
-                </div>
-
-
-                <div class="p-4 sm:p-5 space-y-3">
-
-                    @foreach($statusCounts as $status => $count)
-
-                        @php
-
-                            $statusClass = match($status) {
-
-                                'Placed' => 'bg-gray-100 text-gray-600',
-
-                                'Confirmed' => 'bg-blue-50 text-blue-600',
-
-                                'Preparing' => 'bg-amber-50 text-amber-600',
-
-                                'Ready for Pickup' => 'bg-orange-50 text-orange-600',
-
-                                'Picked Up' => 'bg-indigo-50 text-indigo-600',
-
-                                'In Transit' => 'bg-purple-50 text-purple-600',
-
-                                'Out for Delivery' => 'bg-cyan-50 text-cyan-600',
-
-                                'Delivered' => 'bg-green-50 text-green-600',
-
-                                'Completed' => 'bg-[#DDF3EC] text-[#1F6F5B]',
-
-                                'Cancelled' => 'bg-red-50 text-red-600',
-
-                                default => 'bg-gray-100 text-gray-600'
-
-                            };
-
-                        @endphp
-
-                        <div class="flex items-center justify-between gap-3">
-
-                            <div class="flex items-center gap-2 min-w-0">
-
-                                <span class="w-2 h-2 rounded-full shrink-0 {{ str_contains($statusClass, 'bg-red') ? 'bg-red-500' : 'bg-[#1F6F5B]' }}"></span>
-
-                                <span class="text-xs sm:text-sm text-gray-600 truncate">
-                                    {{ $status }}
-                                </span>
-
-                            </div>
-
-                            <span class="text-sm font-semibold text-gray-900 shrink-0">
-                                {{ $count }}
-                            </span>
-
-                        </div>
-
-                    @endforeach
-
-                </div>
+                <i
+                    data-lucide="package-check"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
             </div>
 
         </div>
 
 
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[10px]
+                   text-[#7B8982]"
+        >
+            Units from completed orders
+        </p>
 
-        {{-- =================================================
-             RECENT SALES
-        ================================================== --}}
-        <div class="mt-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
+    </div>
 
-            <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+
+    {{-- NET EARNINGS --}}
+    <div
+        class="rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-5"
+    >
+
+        <div
+            class="flex items-start
+                   justify-between gap-3"
+        >
+
+            <div>
+
+                <p
+                    class="text-[9px]
+                           font-semibold
+                           uppercase
+                           tracking-[0.12em]
+                           text-[#839189]"
+                >
+                    Net Earnings
+                </p>
+
+                <p
+                    class="mt-3
+                           text-xl
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#24312C]
+                           sm:text-2xl"
+                >
+                    ₱{{ number_format($netEarnings, 2) }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-emerald-50
+                       text-emerald-700"
+            >
+
+                <i
+                    data-lucide="wallet-cards"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="mt-5
+                   border-t border-[#EEF2F0]
+                   pt-3
+                   text-[10px]
+                   text-[#7B8982]"
+        >
+            Existing prototype earnings calculation
+        </p>
+
+    </div>
+
+</div>
+
+
+{{-- =========================================================
+    SECONDARY METRICS
+========================================================= --}}
+
+<div
+    class="mb-6
+           grid grid-cols-1
+           gap-4
+           sm:grid-cols-2
+           xl:grid-cols-4"
+>
+
+
+    {{-- COMPLETION RATE --}}
+    <div
+        class="flex items-center gap-4
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-4"
+    >
+
+        <div
+            class="flex h-11 w-11
+                   shrink-0
+                   items-center justify-center
+                   rounded-xl
+                   bg-emerald-50
+                   text-emerald-700"
+        >
+            <i
+                data-lucide="circle-check-big"
+                class="h-5 w-5"
+            ></i>
+        </div>
+
+
+        <div>
+
+            <p
+                class="text-[10px]
+                       font-medium
+                       text-[#849089]"
+            >
+                Completion Rate
+            </p>
+
+            <p
+                class="mt-0.5
+                       text-lg
+                       font-semibold
+                       text-[#24312C]"
+            >
+                {{ $completionRate }}%
+            </p>
+
+        </div>
+
+    </div>
+
+
+    {{-- ALL ORDER VALUE --}}
+    <div
+        class="flex items-center gap-4
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-4"
+    >
+
+        <div
+            class="flex h-11 w-11
+                   shrink-0
+                   items-center justify-center
+                   rounded-xl
+                   bg-[#EEF5F1]
+                   text-[#173F35]"
+        >
+            <i
+                data-lucide="receipt-text"
+                class="h-5 w-5"
+            ></i>
+        </div>
+
+
+        <div class="min-w-0">
+
+            <p
+                class="text-[10px]
+                       font-medium
+                       text-[#849089]"
+            >
+                Gross Order Value
+            </p>
+
+            <p
+                class="mt-0.5
+                       truncate
+                       text-lg
+                       font-semibold
+                       text-[#24312C]"
+            >
+                ₱{{ number_format($allOrderSales, 2) }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    {{-- CANCELLED --}}
+    <div
+        class="flex items-center gap-4
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-4"
+    >
+
+        <div
+            class="flex h-11 w-11
+                   shrink-0
+                   items-center justify-center
+                   rounded-xl
+                   bg-gray-100
+                   text-gray-600"
+        >
+            <i
+                data-lucide="circle-x"
+                class="h-5 w-5"
+            ></i>
+        </div>
+
+
+        <div>
+
+            <p
+                class="text-[10px]
+                       font-medium
+                       text-[#849089]"
+            >
+                Cancelled Orders
+            </p>
+
+            <p
+                class="mt-0.5
+                       text-lg
+                       font-semibold
+                       text-[#24312C]"
+            >
+                {{ $cancelledOrders }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    {{-- DELIVERY FAILED --}}
+    <div
+        class="flex items-center gap-4
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white
+               p-4"
+    >
+
+        <div
+            class="flex h-11 w-11
+                   shrink-0
+                   items-center justify-center
+                   rounded-xl
+                   bg-red-50
+                   text-red-600"
+        >
+            <i
+                data-lucide="triangle-alert"
+                class="h-5 w-5"
+            ></i>
+        </div>
+
+
+        <div>
+
+            <p
+                class="text-[10px]
+                       font-medium
+                       text-[#849089]"
+            >
+                Delivery Failed
+            </p>
+
+            <p
+                class="mt-0.5
+                       text-lg
+                       font-semibold
+                       text-[#24312C]"
+            >
+                {{ $deliveryFailed }}
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{{-- =========================================================
+    CHARTS
+========================================================= --}}
+
+<div
+    class="mb-6
+           grid grid-cols-1
+           gap-6
+           xl:grid-cols-2"
+>
+
+
+    {{-- SALES CHART --}}
+    <section
+        class="overflow-hidden
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white"
+    >
+
+        <div
+            class="flex items-center
+                   justify-between gap-4
+                   border-b border-[#EDF1EF]
+                   px-5 py-4"
+        >
+
+            <div>
+
+                <h3
+                    class="text-sm
+                           font-semibold
+                           text-[#24312C]"
+                >
+                    Sales Performance
+                </h3>
+
+                <p
+                    class="mt-0.5
+                           text-[11px]
+                           text-[#7C8983]"
+                >
+                    Sales activity during the selected period
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-9 w-9
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#EEF5F1]
+                       text-[#1F6F5B]"
+            >
+                <i
+                    data-lucide="chart-no-axes-combined"
+                    class="h-4 w-4"
+                ></i>
+            </div>
+
+        </div>
+
+
+        <div class="p-5">
+
+            <div
+                class="mb-5
+                       flex items-end
+                       justify-between gap-4"
+            >
 
                 <div>
 
-                    <h3 class="text-base font-semibold text-gray-900">
-                        Recent Sales
-                    </h3>
+                    <p
+                        class="text-[10px]
+                               font-medium
+                               uppercase
+                               tracking-[0.1em]
+                               text-[#8D9A94]"
+                    >
+                        Completed Sales
+                    </p>
 
-                    <p class="mt-1 text-xs text-gray-500">
-                        Latest orders from your shop
+                    <p
+                        class="mt-1
+                               text-xl
+                               font-semibold
+                               tracking-[-0.03em]
+                               text-[#24312C]"
+                    >
+                        ₱{{ number_format($totalSales, 2) }}
                     </p>
 
                 </div>
 
+
+                <span
+                    class="inline-flex
+                           items-center gap-1
+                           rounded-full
+                           bg-[#DDF3EC]
+                           px-2.5 py-1
+                           text-[9px]
+                           font-semibold
+                           text-[#173F35]"
+                >
+
+                    <i
+                        data-lucide="calendar-range"
+                        class="h-3 w-3"
+                    ></i>
+
+                    7 days
+
+                </span>
+
+            </div>
+
+
+            <div class="h-[270px]">
+
+                <canvas id="salesChart"></canvas>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    {{-- ORDERS CHART --}}
+    <section
+        class="overflow-hidden
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white"
+    >
+
+        <div
+            class="flex items-center
+                   justify-between gap-4
+                   border-b border-[#EDF1EF]
+                   px-5 py-4"
+        >
+
+            <div>
+
+                <h3
+                    class="text-sm
+                           font-semibold
+                           text-[#24312C]"
+                >
+                    Order Activity
+                </h3>
+
+                <p
+                    class="mt-0.5
+                           text-[11px]
+                           text-[#7C8983]"
+                >
+                    Number of orders across the period
+                </p>
+
+            </div>
+
+
+            <div
+                class="flex h-9 w-9
+                       items-center justify-center
+                       rounded-xl
+                       bg-blue-50
+                       text-blue-700"
+            >
+                <i
+                    data-lucide="chart-line"
+                    class="h-4 w-4"
+                ></i>
+            </div>
+
+        </div>
+
+
+        <div class="p-5">
+
+            <div
+                class="mb-5
+                       flex items-end
+                       justify-between gap-4"
+            >
+
+                <div>
+
+                    <p
+                        class="text-[10px]
+                               font-medium
+                               uppercase
+                               tracking-[0.1em]
+                               text-[#8D9A94]"
+                    >
+                        Total Orders
+                    </p>
+
+                    <p
+                        class="mt-1
+                               text-xl
+                               font-semibold
+                               tracking-[-0.03em]
+                               text-[#24312C]"
+                    >
+                        {{ $totalOrders }}
+                    </p>
+
+                </div>
+
+
                 <a
                     href="{{ route('seller.orders') }}"
-                    class="text-xs sm:text-sm font-medium text-[#1F6F5B] hover:underline"
+                    class="inline-flex
+                           items-center gap-1
+                           text-[10px]
+                           font-semibold
+                           text-[#1F6F5B]
+                           transition
+                           hover:text-[#173F35]"
                 >
                     View Orders
+
+                    <i
+                        data-lucide="arrow-up-right"
+                        class="h-3.5 w-3.5"
+                    ></i>
                 </a>
 
             </div>
 
 
-            @if($recentOrders->count())
+            <div class="h-[270px]">
 
-                {{-- DESKTOP TABLE --}}
-                <div class="hidden md:block overflow-x-auto">
+                <canvas id="ordersChart"></canvas>
 
-                    <table class="w-full">
+            </div>
 
-                        <thead>
+        </div>
 
-                            <tr class="bg-gray-50 border-b border-gray-100">
+    </section>
 
-                                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500">
-                                    Order
-                                </th>
-
-                                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500">
-                                    Buyer
-                                </th>
-
-                                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500">
-                                    Status
-                                </th>
-
-                                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500">
-                                    Amount
-                                </th>
-
-                            </tr>
-
-                        </thead>
+</div>
 
 
-                        <tbody class="divide-y divide-gray-100">
+{{-- =========================================================
+    PRODUCT PERFORMANCE + ORDER DISTRIBUTION
+========================================================= --}}
 
-                            @foreach($recentOrders as $order)
-
-                                @php
-
-                                    $orderStatus = $order['status'] ?? 'placed';
-
-                                    $statusLabel = match($orderStatus) {
-
-                                        'placed' => 'Placed',
-                                        'confirmed' => 'Confirmed',
-                                        'preparing' => 'Preparing',
-                                        'ready_for_pickup' => 'Ready for Pickup',
-                                        'picked_up' => 'Picked Up',
-                                        'at_sorting_center' => 'At Sorting Center',
-                                        'sorted' => 'Sorted',
-                                        'assigned_to_rider' => 'Assigned to Rider',
-                                        'out_for_delivery' => 'Out for Delivery',
-                                        'delivered' => 'Delivered',
-                                        'completed' => 'Completed',
-                                        'delivery_failed' => 'Delivery Failed',
-                                        'returned' => 'Returned',
-                                        'cancelled' => 'Cancelled',
-
-                                        default => ucfirst(str_replace('_', ' ', $orderStatus))
-
-                                    };
-
-                                    $statusStyle = match($orderStatus) {
-
-                                        'completed',
-                                        'delivered' => 'bg-green-50 text-green-700',
-
-                                        'cancelled',
-                                        'delivery_failed',
-                                        'returned' => 'bg-red-50 text-red-700',
-
-                                        'ready_for_pickup',
-                                        'preparing' => 'bg-amber-50 text-amber-700',
-
-                                        default => 'bg-blue-50 text-blue-700'
-
-                                    };
-
-                                @endphp
+<div
+    class="mb-6
+           grid grid-cols-1
+           gap-6
+           xl:grid-cols-[1.25fr_.75fr]"
+>
 
 
-                                <tr class="hover:bg-gray-50 transition">
+    {{-- TOP PRODUCTS --}}
+    <section
+        class="overflow-hidden
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white"
+    >
 
-                                    <td class="px-5 py-4">
+        <div
+            class="flex items-center
+                   justify-between gap-4
+                   border-b border-[#EDF1EF]
+                   px-5 py-4"
+        >
 
-                                        <p class="text-sm font-medium text-gray-900">
-                                            #{{ $order['order_number'] ?? $order['id'] ?? 'N/A' }}
-                                        </p>
+            <div>
 
-                                        <p class="mt-1 text-xs text-gray-400">
-                                            {{ $order['created_at'] ?? '' }}
-                                        </p>
+                <h3
+                    class="text-sm
+                           font-semibold
+                           text-[#24312C]"
+                >
+                    Top Products
+                </h3>
 
-                                    </td>
+                <p
+                    class="mt-0.5
+                           text-[11px]
+                           text-[#7C8983]"
+                >
+                    Best-performing products by units sold
+                </p>
 
-
-                                    <td class="px-5 py-4 text-sm text-gray-600">
-                                        {{ $order['buyer_name'] ?? $order['customer_name'] ?? 'Buyer' }}
-                                    </td>
-
-
-                                    <td class="px-5 py-4">
-
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ $statusStyle }}">
-                                            {{ $statusLabel }}
-                                        </span>
-
-                                    </td>
+            </div>
 
 
-                                    <td class="px-5 py-4 text-right">
+            <a
+                href="{{ route('seller.products') }}"
+                class="inline-flex
+                       items-center gap-1
+                       text-[10px]
+                       font-semibold
+                       text-[#1F6F5B]
+                       transition
+                       hover:text-[#173F35]"
+            >
+                Products
 
-                                        <span class="text-sm font-semibold text-gray-900">
-                                            ₱{{ number_format((float) ($order['total'] ?? $order['grand_total'] ?? 0), 2) }}
-                                        </span>
+                <i
+                    data-lucide="arrow-up-right"
+                    class="h-3.5 w-3.5"
+                ></i>
+            </a>
 
-                                    </td>
+        </div>
 
-                                </tr>
 
-                            @endforeach
+        @if($topProducts->count())
 
-                        </tbody>
+            <div
+                class="divide-y
+                       divide-[#EDF1EF]"
+            >
 
-                    </table>
+                @foreach($topProducts as $index => $product)
 
+                    <div
+                        class="flex items-center gap-4
+                               px-5 py-4"
+                    >
+
+                        {{-- RANK --}}
+                        <div
+                            class="
+                                flex h-8 w-8
+                                shrink-0
+                                items-center justify-center
+                                rounded-xl
+                                text-[11px]
+                                font-semibold
+
+                                {{ $index === 0
+                                    ? 'bg-[#173F35] text-white'
+                                    : 'bg-[#F1F4F2] text-[#68776F]' }}
+                            "
+                        >
+                            {{ $index + 1 }}
+                        </div>
+
+
+                        {{-- IMAGE --}}
+                        <div
+                            class="flex h-11 w-11
+                                   shrink-0
+                                   items-center justify-center
+                                   overflow-hidden
+                                   rounded-xl
+                                   border border-[#E4EAE6]
+                                   bg-[#F1F4F2]"
+                        >
+
+                            @if(!empty($product['image']))
+
+                                <img
+                                    src="{{ $product['image'] }}"
+                                    alt="{{ $product['name'] }}"
+                                    class="h-full w-full object-cover"
+                                >
+
+                            @else
+
+                                <i
+                                    data-lucide="package"
+                                    class="h-4 w-4 text-[#8B9992]"
+                                ></i>
+
+                            @endif
+
+                        </div>
+
+
+                        {{-- NAME --}}
+                        <div class="min-w-0 flex-1">
+
+                            <p
+                                class="truncate
+                                       text-xs
+                                       font-semibold
+                                       text-[#34483F]"
+                            >
+                                {{ $product['name'] }}
+                            </p>
+
+
+                            <p
+                                class="mt-1
+                                       text-[10px]
+                                       text-[#8A9791]"
+                            >
+                                ₱{{ number_format(
+                                    $product['price'],
+                                    2
+                                ) }}
+                            </p>
+
+                        </div>
+
+
+                        {{-- SOLD --}}
+                        <div class="text-right">
+
+                            <p
+                                class="text-xs
+                                       font-semibold
+                                       text-[#24312C]"
+                            >
+                                {{ $product['sold'] }}
+                            </p>
+
+                            <p
+                                class="mt-0.5
+                                       text-[9px]
+                                       uppercase
+                                       tracking-[0.08em]
+                                       text-[#98A39E]"
+                            >
+                                sold
+                            </p>
+
+                        </div>
+
+
+                        {{-- STOCK --}}
+                        <div
+                            class="hidden
+                                   min-w-[90px]
+                                   text-right
+                                   sm:block"
+                        >
+
+                            @if($product['stock'] <= 0)
+
+                                <span
+                                    class="inline-flex
+                                           rounded-full
+                                           border border-red-200
+                                           bg-red-50
+                                           px-2 py-1
+                                           text-[9px]
+                                           font-semibold
+                                           text-red-700"
+                                >
+                                    Out of stock
+                                </span>
+
+                            @elseif($product['stock'] <= 10)
+
+                                <span
+                                    class="inline-flex
+                                           rounded-full
+                                           border border-amber-200
+                                           bg-amber-50
+                                           px-2 py-1
+                                           text-[9px]
+                                           font-semibold
+                                           text-amber-700"
+                                >
+                                    {{ $product['stock'] }} left
+                                </span>
+
+                            @else
+
+                                <span
+                                    class="inline-flex
+                                           rounded-full
+                                           border border-[#DFE7E2]
+                                           bg-[#F4F7F5]
+                                           px-2 py-1
+                                           text-[9px]
+                                           font-semibold
+                                           text-[#68776F]"
+                                >
+                                    {{ $product['stock'] }} stock
+                                </span>
+
+                            @endif
+
+                        </div>
+
+                    </div>
+
+                @endforeach
+
+            </div>
+
+
+        @else
+
+            <div
+                class="px-6 py-14
+                       text-center"
+            >
+
+                <div
+                    class="mx-auto
+                           flex h-12 w-12
+                           items-center justify-center
+                           rounded-2xl
+                           bg-[#EEF5F1]
+                           text-[#1F6F5B]"
+                >
+                    <i
+                        data-lucide="package-search"
+                        class="h-5 w-5"
+                    ></i>
                 </div>
 
 
-                {{-- MOBILE CARDS --}}
-                <div class="md:hidden divide-y divide-gray-100">
+                <p
+                    class="mt-4
+                           text-sm
+                           font-semibold
+                           text-[#34483F]"
+                >
+                    No product data yet
+                </p>
+
+
+                <p
+                    class="mt-1
+                           text-xs
+                           text-[#849089]"
+                >
+                    Product performance will appear here.
+                </p>
+
+            </div>
+
+        @endif
+
+    </section>
+
+
+    {{-- ORDER STATUS --}}
+    <section
+        class="overflow-hidden
+               rounded-2xl
+               border border-[#E1E8E4]
+               bg-white"
+    >
+
+        <div
+            class="border-b border-[#EDF1EF]
+                   px-5 py-4"
+        >
+
+            <h3
+                class="text-sm
+                       font-semibold
+                       text-[#24312C]"
+            >
+                Order Distribution
+            </h3>
+
+            <p
+                class="mt-0.5
+                       text-[11px]
+                       text-[#7C8983]"
+            >
+                Current fulfillment statuses
+            </p>
+
+        </div>
+
+
+        <div class="p-3">
+
+            @foreach($statusCounts as $status => $count)
+
+                @php
+
+                    $statusIcon = match($status) {
+
+                        'Placed' =>
+                            'clock-3',
+
+                        'Confirmed' =>
+                            'circle-check',
+
+                        'Preparing' =>
+                            'package-open',
+
+                        'Ready for Pickup' =>
+                            'package-check',
+
+                        'Picked Up' =>
+                            'truck',
+
+                        'In Transit' =>
+                            'route',
+
+                        'Out for Delivery' =>
+                            'bike',
+
+                        'Delivered' =>
+                            'map-pin-check',
+
+                        'Completed' =>
+                            'badge-check',
+
+                        'Cancelled' =>
+                            'circle-x',
+
+                        default =>
+                            'circle',
+
+                    };
+
+
+                    $iconClass = match($status) {
+
+                        'Placed' =>
+                            'bg-amber-50 text-amber-700',
+
+                        'Preparing' =>
+                            'bg-violet-50 text-violet-700',
+
+                        'Ready for Pickup' =>
+                            'bg-indigo-50 text-indigo-700',
+
+                        'Out for Delivery' =>
+                            'bg-orange-50 text-orange-700',
+
+                        'Delivered',
+                        'Completed' =>
+                            'bg-emerald-50 text-emerald-700',
+
+                        'Cancelled' =>
+                            'bg-red-50 text-red-600',
+
+                        default =>
+                            'bg-[#EEF5F1] text-[#1F6F5B]',
+
+                    };
+
+                @endphp
+
+
+                <div
+                    class="flex items-center
+                           justify-between gap-4
+                           rounded-xl
+                           px-3 py-2.5"
+                >
+
+                    <div
+                        class="flex min-w-0
+                               items-center gap-3"
+                    >
+
+                        <div
+                            class="
+                                flex h-8 w-8
+                                shrink-0
+                                items-center justify-center
+                                rounded-lg
+                                {{ $iconClass }}
+                            "
+                        >
+                            <i
+                                data-lucide="{{ $statusIcon }}"
+                                class="h-3.5 w-3.5"
+                            ></i>
+                        </div>
+
+
+                        <span
+                            class="truncate
+                                   text-[11px]
+                                   font-medium
+                                   text-[#617169]"
+                        >
+                            {{ $status }}
+                        </span>
+
+                    </div>
+
+
+                    <span
+                        class="text-xs
+                               font-semibold
+                               text-[#24312C]"
+                    >
+                        {{ $count }}
+                    </span>
+
+                </div>
+
+            @endforeach
+
+        </div>
+
+    </section>
+
+</div>
+
+
+{{-- =========================================================
+    RECENT SALES
+========================================================= --}}
+
+<section
+    class="overflow-hidden
+           rounded-2xl
+           border border-[#E1E8E4]
+           bg-white"
+>
+
+    <div
+        class="flex items-center
+               justify-between gap-4
+               border-b border-[#EDF1EF]
+               px-5 py-4"
+    >
+
+        <div>
+
+            <h3
+                class="text-sm
+                       font-semibold
+                       text-[#24312C]"
+            >
+                Recent Sales
+            </h3>
+
+            <p
+                class="mt-0.5
+                       text-[11px]
+                       text-[#7C8983]"
+            >
+                Latest transactions from your store
+            </p>
+
+        </div>
+
+
+        <a
+            href="{{ route('seller.orders') }}"
+            class="inline-flex
+                   items-center gap-1
+                   text-[10px]
+                   font-semibold
+                   text-[#1F6F5B]
+                   transition
+                   hover:text-[#173F35]"
+        >
+            View Orders
+
+            <i
+                data-lucide="arrow-right"
+                class="h-3.5 w-3.5"
+            ></i>
+        </a>
+
+    </div>
+
+
+    @if($recentOrders->count())
+
+
+        {{-- =================================================
+            DESKTOP
+        ================================================== --}}
+
+        <div class="hidden overflow-x-auto md:block">
+
+            <table class="w-full">
+
+                <thead>
+
+                    <tr
+                        class="border-b
+                               border-[#EDF1EF]
+                               bg-[#F7F9F8]"
+                    >
+
+                        <th class="px-5 py-3 text-left">
+                            Order
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Customer
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Date
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Status
+                        </th>
+
+                        <th class="px-5 py-3 text-right">
+                            Amount
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
 
                     @foreach($recentOrders as $order)
 
                         @php
 
-                            $orderStatus = $order['status'] ?? 'placed';
+                            $orderStatus =
+                                strtolower(
+                                    $order['status']
+                                    ?? 'placed'
+                                );
 
-                            $statusLabel = match($orderStatus) {
+                            $statusLabel =
+                                $orderStatusLabels[$orderStatus]
+                                ?? ucfirst(
+                                    str_replace(
+                                        '_',
+                                        ' ',
+                                        $orderStatus
+                                    )
+                                );
 
-                                'placed' => 'Placed',
-                                'confirmed' => 'Confirmed',
-                                'preparing' => 'Preparing',
-                                'ready_for_pickup' => 'Ready for Pickup',
-                                'picked_up' => 'Picked Up',
-                                'at_sorting_center' => 'At Sorting Center',
-                                'sorted' => 'Sorted',
-                                'assigned_to_rider' => 'Assigned to Rider',
-                                'out_for_delivery' => 'Out for Delivery',
-                                'delivered' => 'Delivered',
-                                'completed' => 'Completed',
-                                'delivery_failed' => 'Delivery Failed',
-                                'returned' => 'Returned',
-                                'cancelled' => 'Cancelled',
+                            $statusClass =
+                                $orderStatusClasses[$orderStatus]
+                                ?? 'border-gray-200 bg-gray-100 text-gray-600';
 
-                                default => ucfirst(str_replace('_', ' ', $orderStatus))
+                            $orderNumber =
+                                $order['order_number']
+                                ?? $order['id']
+                                ?? 'N/A';
 
-                            };
+                            $buyerName =
+                                $order['buyer_name']
+                                ?? $order['customer_name']
+                                ?? $order['shipping_address']['name']
+                                ?? 'Buyer';
+
+                            $amount =
+                                (float) (
+                                    $order['total']
+                                    ?? $order['grand_total']
+                                    ?? 0
+                                );
 
                         @endphp
 
-                        <div class="p-4">
 
-                            <div class="flex items-start justify-between gap-3">
+                        <tr
+                            class="border-b
+                                   border-[#F0F3F1]
+                                   transition
+                                   last:border-b-0
+                                   hover:bg-[#FAFCFB]"
+                        >
 
-                                <div class="min-w-0">
+                            <td class="px-5 py-4">
 
-                                    <p class="text-sm font-semibold text-gray-900">
-                                        #{{ $order['order_number'] ?? $order['id'] ?? 'N/A' }}
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-gray-400">
-                                        {{ $order['created_at'] ?? '' }}
-                                    </p>
-
-                                </div>
-
-                                <p class="text-sm font-semibold text-gray-900 shrink-0">
-                                    ₱{{ number_format((float) ($order['total'] ?? $order['grand_total'] ?? 0), 2) }}
+                                <p
+                                    class="text-xs
+                                           font-semibold
+                                           text-[#24312C]"
+                                >
+                                    #{{ $orderNumber }}
                                 </p>
 
-                            </div>
+                            </td>
 
 
-                            <div class="mt-3 flex items-center justify-between gap-3">
+                            <td
+                                class="px-5 py-4
+                                       text-xs
+                                       text-[#617169]"
+                            >
+                                {{ $buyerName }}
+                            </td>
 
-                                <span class="text-xs text-gray-500">
-                                    {{ $order['buyer_name'] ?? $order['customer_name'] ?? 'Buyer' }}
-                                </span>
 
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600">
+                            <td
+                                class="px-5 py-4
+                                       text-[11px]
+                                       text-[#7B8982]"
+                            >
+
+                                @if(!empty($order['created_at']))
+
+                                    {{ \Carbon\Carbon::parse(
+                                        $order['created_at']
+                                    )->format('M d, Y') }}
+
+                                @else
+
+                                    —
+
+                                @endif
+
+                            </td>
+
+
+                            <td class="px-5 py-4">
+
+                                <span
+                                    class="
+                                        inline-flex
+                                        rounded-full
+                                        border
+                                        px-2.5 py-1
+                                        text-[9px]
+                                        font-semibold
+                                        {{ $statusClass }}
+                                    "
+                                >
                                     {{ $statusLabel }}
                                 </span>
 
-                            </div>
+                            </td>
 
-                        </div>
+
+                            <td
+                                class="px-5 py-4
+                                       text-right
+                                       text-xs
+                                       font-semibold
+                                       text-[#24312C]"
+                            >
+                                ₱{{ number_format(
+                                    $amount,
+                                    2
+                                ) }}
+                            </td>
+
+                        </tr>
 
                     @endforeach
 
-                </div>
+                </tbody>
 
-            @else
-
-                <div class="px-5 py-12 text-center">
-
-                    <div class="w-12 h-12 rounded-xl bg-gray-50 mx-auto flex items-center justify-center">
-
-                        <i
-                            data-lucide="receipt"
-                            class="w-6 h-6 text-gray-300"
-                        ></i>
-
-                    </div>
-
-                    <p class="mt-3 text-sm font-medium text-gray-700">
-                        No sales yet
-                    </p>
-
-                    <p class="mt-1 text-xs text-gray-400">
-                        Your recent sales will appear here once customers place orders.
-                    </p>
-
-                </div>
-
-            @endif
+            </table>
 
         </div>
 
-    </main>
 
-</div>
+        {{-- =================================================
+            MOBILE
+        ================================================== --}}
+
+        <div
+            class="divide-y
+                   divide-[#EDF1EF]
+                   md:hidden"
+        >
+
+            @foreach($recentOrders as $order)
+
+                @php
+
+                    $orderStatus =
+                        strtolower(
+                            $order['status']
+                            ?? 'placed'
+                        );
+
+                    $statusLabel =
+                        $orderStatusLabels[$orderStatus]
+                        ?? ucfirst(
+                            str_replace(
+                                '_',
+                                ' ',
+                                $orderStatus
+                            )
+                        );
+
+                    $statusClass =
+                        $orderStatusClasses[$orderStatus]
+                        ?? 'border-gray-200 bg-gray-100 text-gray-600';
+
+                    $orderNumber =
+                        $order['order_number']
+                        ?? $order['id']
+                        ?? 'N/A';
+
+                    $buyerName =
+                        $order['buyer_name']
+                        ?? $order['customer_name']
+                        ?? $order['shipping_address']['name']
+                        ?? 'Buyer';
+
+                    $amount =
+                        (float) (
+                            $order['total']
+                            ?? $order['grand_total']
+                            ?? 0
+                        );
+
+                @endphp
 
 
+                <article class="p-4">
 
-{{-- =====================================================
-     CHART.JS
-====================================================== --}}
+                    <div
+                        class="flex
+                               items-start
+                               justify-between gap-4"
+                    >
+
+                        <div class="min-w-0">
+
+                            <p
+                                class="text-xs
+                                       font-semibold
+                                       text-[#24312C]"
+                            >
+                                #{{ $orderNumber }}
+                            </p>
+
+
+                            <p
+                                class="mt-1
+                                       truncate
+                                       text-[10px]
+                                       text-[#7C8983]"
+                            >
+                                {{ $buyerName }}
+                            </p>
+
+                        </div>
+
+
+                        <span
+                            class="
+                                inline-flex
+                                shrink-0
+                                rounded-full
+                                border
+                                px-2 py-1
+                                text-[9px]
+                                font-semibold
+                                {{ $statusClass }}
+                            "
+                        >
+                            {{ $statusLabel }}
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        class="mt-4
+                               flex items-center
+                               justify-between
+                               rounded-xl
+                               bg-[#F7F9F8]
+                               px-3 py-2.5"
+                    >
+
+                        <span
+                            class="text-[10px]
+                                   text-[#8A9791]"
+                        >
+
+                            @if(!empty($order['created_at']))
+
+                                {{ \Carbon\Carbon::parse(
+                                    $order['created_at']
+                                )->format('M d, Y') }}
+
+                            @else
+
+                                Order total
+
+                            @endif
+
+                        </span>
+
+
+                        <span
+                            class="text-xs
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            ₱{{ number_format(
+                                $amount,
+                                2
+                            ) }}
+                        </span>
+
+                    </div>
+
+                </article>
+
+            @endforeach
+
+        </div>
+
+
+    @else
+
+        <div
+            class="px-6 py-14
+                   text-center"
+        >
+
+            <div
+                class="mx-auto
+                       flex h-12 w-12
+                       items-center justify-center
+                       rounded-2xl
+                       bg-[#EEF5F1]
+                       text-[#1F6F5B]"
+            >
+
+                <i
+                    data-lucide="receipt"
+                    class="h-5 w-5"
+                ></i>
+
+            </div>
+
+
+            <p
+                class="mt-4
+                       text-sm
+                       font-semibold
+                       text-[#34483F]"
+            >
+                No sales yet
+            </p>
+
+
+            <p
+                class="mx-auto mt-1
+                       max-w-sm
+                       text-xs
+                       leading-5
+                       text-[#849089]"
+            >
+                Sales information will appear here
+                once customers begin placing orders.
+            </p>
+
+        </div>
+
+    @endif
+
+</section>
+
+
 @push('scripts')
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
 
-    const chartLabels = @json($chartLabels);
+        const chartLabels =
+            @json($chartLabels);
 
-    const salesData = @json($salesChart);
+        const salesData =
+            @json($salesChart);
 
-    const ordersData = @json($ordersChart);
+        const ordersData =
+            @json($ordersChart);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SALES LINE CHART
-    |--------------------------------------------------------------------------
-    */
+        /* =====================================================
+           CHART DEFAULTS
+        ====================================================== */
 
-    const salesCanvas = document.getElementById('salesChart');
+        Chart.defaults.font.family =
+            'Poppins, sans-serif';
 
-    if (salesCanvas) {
+        Chart.defaults.color =
+            '#839189';
 
-        new Chart(salesCanvas, {
 
-            type: 'line',
+        /* =====================================================
+           SALES CHART
+        ====================================================== */
 
-            data: {
+        const salesCanvas =
+            document.getElementById(
+                'salesChart'
+            );
 
-                labels: chartLabels,
 
-                datasets: [{
+        if (salesCanvas) {
 
-                    label: 'Sales',
+            new Chart(
+                salesCanvas,
+                {
 
-                    data: salesData,
+                    type: 'line',
 
-                    borderColor: '#1F6F5B',
+                    data: {
 
-                    backgroundColor: 'rgba(31, 111, 91, 0.08)',
+                        labels:
+                            chartLabels,
 
-                    borderWidth: 2.5,
+                        datasets: [
 
-                    pointRadius: 4,
+                            {
 
-                    pointHoverRadius: 6,
+                                label:
+                                    'Sales',
 
-                    pointBackgroundColor: '#1F6F5B',
+                                data:
+                                    salesData,
 
-                    pointBorderWidth: 0,
+                                borderColor:
+                                    '#1F6F5B',
 
-                    fill: true,
+                                backgroundColor:
+                                    'rgba(31, 111, 91, 0.07)',
 
-                    tension: 0.4
+                                borderWidth:
+                                    2.5,
 
-                }]
+                                pointRadius:
+                                    3,
 
-            },
+                                pointHoverRadius:
+                                    5,
 
-            options: {
+                                pointBackgroundColor:
+                                    '#173F35',
 
-                responsive: true,
+                                pointBorderColor:
+                                    '#FFFFFF',
 
-                maintainAspectRatio: false,
+                                pointBorderWidth:
+                                    2,
 
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
+                                fill:
+                                    true,
 
-                plugins: {
-
-                    legend: {
-                        display: false
-                    },
-
-                    tooltip: {
-
-                        backgroundColor: '#1F2937',
-
-                        padding: 10,
-
-                        callbacks: {
-
-                            label: function (context) {
-
-                                return ' ₱' + Number(context.raw).toLocaleString();
+                                tension:
+                                    0.38,
 
                             }
 
-                        }
-
-                    }
-
-                },
-
-                scales: {
-
-                    x: {
-
-                        grid: {
-                            display: false
-                        },
-
-                        ticks: {
-                            color: '#9CA3AF',
-                            font: {
-                                size: 11
-                            }
-                        }
+                        ]
 
                     },
 
-                    y: {
 
-                        beginAtZero: true,
+                    options: {
 
-                        grid: {
-                            color: '#F3F4F6'
+                        responsive:
+                            true,
+
+                        maintainAspectRatio:
+                            false,
+
+
+                        interaction: {
+
+                            intersect:
+                                false,
+
+                            mode:
+                                'index',
+
                         },
 
-                        ticks: {
 
-                            color: '#9CA3AF',
+                        plugins: {
 
-                            font: {
-                                size: 11
+                            legend: {
+                                display: false
                             },
 
-                            callback: function (value) {
 
-                                return '₱' + Number(value).toLocaleString();
+                            tooltip: {
+
+                                backgroundColor:
+                                    '#173F35',
+
+                                titleColor:
+                                    '#FFFFFF',
+
+                                bodyColor:
+                                    '#DDF3EC',
+
+                                padding:
+                                    12,
+
+                                cornerRadius:
+                                    10,
+
+                                displayColors:
+                                    false,
+
+
+                                callbacks: {
+
+                                    label:
+                                        function (context) {
+
+                                            return (
+                                                '₱' +
+                                                Number(
+                                                    context.raw
+                                                )
+                                                .toLocaleString()
+                                            );
+
+                                        }
+
+                                }
+
+                            }
+
+                        },
+
+
+                        scales: {
+
+                            x: {
+
+                                grid: {
+                                    display: false
+                                },
+
+                                border: {
+                                    display: false
+                                },
+
+                                ticks: {
+
+                                    color:
+                                        '#95A19B',
+
+                                    font: {
+                                        size: 10
+                                    }
+
+                                }
+
+                            },
+
+
+                            y: {
+
+                                beginAtZero:
+                                    true,
+
+                                border: {
+                                    display: false
+                                },
+
+                                grid: {
+
+                                    color:
+                                        '#EEF2F0',
+
+                                    drawTicks:
+                                        false
+
+                                },
+
+                                ticks: {
+
+                                    color:
+                                        '#95A19B',
+
+                                    padding:
+                                        10,
+
+                                    font: {
+                                        size: 10
+                                    },
+
+                                    callback:
+                                        function (value) {
+
+                                            return (
+                                                '₱' +
+                                                Number(value)
+                                                    .toLocaleString()
+                                            );
+
+                                        }
+
+                                }
 
                             }
 
@@ -1123,149 +2407,234 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                 }
+            );
 
-            }
-
-        });
-
-    }
+        }
 
 
+        /* =====================================================
+           ORDERS CHART
+        ====================================================== */
 
-    /*
-    |--------------------------------------------------------------------------
-    | ORDERS LINE CHART
-    |--------------------------------------------------------------------------
-    */
+        const ordersCanvas =
+            document.getElementById(
+                'ordersChart'
+            );
 
-    const ordersCanvas = document.getElementById('ordersChart');
 
-    if (ordersCanvas) {
+        if (ordersCanvas) {
 
-        new Chart(ordersCanvas, {
+            new Chart(
+                ordersCanvas,
+                {
 
-            type: 'line',
+                    type: 'line',
 
-            data: {
+                    data: {
 
-                labels: chartLabels,
+                        labels:
+                            chartLabels,
 
-                datasets: [{
+                        datasets: [
 
-                    label: 'Orders',
+                            {
 
-                    data: ordersData,
+                                label:
+                                    'Orders',
 
-                    borderColor: '#2563EB',
+                                data:
+                                    ordersData,
 
-                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                borderColor:
+                                    '#467A69',
 
-                    borderWidth: 2.5,
+                                backgroundColor:
+                                    'rgba(70, 122, 105, 0.06)',
 
-                    pointRadius: 4,
+                                borderWidth:
+                                    2.5,
 
-                    pointHoverRadius: 6,
+                                pointRadius:
+                                    3,
 
-                    pointBackgroundColor: '#2563EB',
+                                pointHoverRadius:
+                                    5,
 
-                    pointBorderWidth: 0,
+                                pointBackgroundColor:
+                                    '#467A69',
 
-                    fill: true,
+                                pointBorderColor:
+                                    '#FFFFFF',
 
-                    tension: 0.4
+                                pointBorderWidth:
+                                    2,
 
-                }]
+                                fill:
+                                    true,
 
-            },
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-
-                plugins: {
-
-                    legend: {
-                        display: false
-                    },
-
-                    tooltip: {
-
-                        backgroundColor: '#1F2937',
-
-                        padding: 10,
-
-                        callbacks: {
-
-                            label: function (context) {
-
-                                return ' ' + context.raw + ' orders';
+                                tension:
+                                    0.38,
 
                             }
 
-                        }
-
-                    }
-
-                },
-
-                scales: {
-
-                    x: {
-
-                        grid: {
-                            display: false
-                        },
-
-                        ticks: {
-
-                            color: '#9CA3AF',
-
-                            font: {
-                                size: 11
-                            }
-
-                        }
+                        ]
 
                     },
 
-                    y: {
 
-                        beginAtZero: true,
+                    options: {
 
-                        ticks: {
+                        responsive:
+                            true,
 
-                            precision: 0,
+                        maintainAspectRatio:
+                            false,
 
-                            color: '#9CA3AF',
 
-                            font: {
-                                size: 11
+                        interaction: {
+
+                            intersect:
+                                false,
+
+                            mode:
+                                'index',
+
+                        },
+
+
+                        plugins: {
+
+                            legend: {
+                                display: false
+                            },
+
+
+                            tooltip: {
+
+                                backgroundColor:
+                                    '#173F35',
+
+                                titleColor:
+                                    '#FFFFFF',
+
+                                bodyColor:
+                                    '#DDF3EC',
+
+                                padding:
+                                    12,
+
+                                cornerRadius:
+                                    10,
+
+                                displayColors:
+                                    false,
+
+
+                                callbacks: {
+
+                                    label:
+                                        function (context) {
+
+                                            return (
+                                                context.raw +
+                                                ' orders'
+                                            );
+
+                                        }
+
+                                }
+
                             }
 
                         },
 
-                        grid: {
-                            color: '#F3F4F6'
+
+                        scales: {
+
+                            x: {
+
+                                grid: {
+                                    display: false
+                                },
+
+                                border: {
+                                    display: false
+                                },
+
+                                ticks: {
+
+                                    color:
+                                        '#95A19B',
+
+                                    font: {
+                                        size: 10
+                                    }
+
+                                }
+
+                            },
+
+
+                            y: {
+
+                                beginAtZero:
+                                    true,
+
+                                border: {
+                                    display: false
+                                },
+
+                                grid: {
+
+                                    color:
+                                        '#EEF2F0',
+
+                                    drawTicks:
+                                        false
+
+                                },
+
+                                ticks: {
+
+                                    precision:
+                                        0,
+
+                                    color:
+                                        '#95A19B',
+
+                                    padding:
+                                        10,
+
+                                    font: {
+                                        size: 10
+                                    }
+
+                                }
+
+                            }
+
                         }
 
                     }
 
                 }
+            );
 
-            }
+        }
 
-        });
+
+        if (
+            typeof lucide !== 'undefined' &&
+            typeof lucide.createIcons ===
+                'function'
+        ) {
+
+            lucide.createIcons();
+
+        }
 
     }
-
-});
+);
 
 </script>
 
