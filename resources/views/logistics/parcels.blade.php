@@ -1,750 +1,2275 @@
 @extends('layouts.logistics')
 
+@section('title', 'Incoming Parcels')
+@section('page-heading', 'Incoming Parcels')
+
 @section('content')
 
-<div class="min-h-screen bg-[#F8FAF8]">
+@php
 
-    <!-- HEADER -->
-    <header class="border-b border-gray-200 bg-white">
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALIZE ORDERS
+    |--------------------------------------------------------------------------
+    */
 
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+    $allOrders =
+        collect($orders ?? []);
 
-            <!-- LOGO -->
+
+    /*
+    |--------------------------------------------------------------------------
+    | INCOMING PARCEL QUEUE
+    |--------------------------------------------------------------------------
+    |
+    | PICKED_UP
+    | Parcel is currently being transported by the pickup rider
+    | from Seller → Sorting Center.
+    |
+    | AT_SORTING_CENTER
+    | Parcel already arrived at the Sorting Center and is ready
+    | for Logistics sorting.
+    |
+    */
+
+    $incomingOrders =
+        $allOrders
+            ->filter(function ($order) {
+
+                return in_array(
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    ),
+                    [
+                        'picked_up',
+                        'at_sorting_center',
+                    ]
+                );
+
+            })
+            ->reverse();
+
+
+    $inTransitCount =
+        $incomingOrders
+            ->filter(function ($order) {
+
+                return strtolower(
+                    $order['status']
+                    ?? ''
+                ) === 'picked_up';
+
+            })
+            ->count();
+
+
+    $receivedCount =
+        $incomingOrders
+            ->filter(function ($order) {
+
+                return strtolower(
+                    $order['status']
+                    ?? ''
+                ) === 'at_sorting_center';
+
+            })
+            ->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADDRESS HELPER
+    |--------------------------------------------------------------------------
+    */
+
+    $formatAddress =
+        function ($order) {
+
+            $address =
+                $order['shipping_address']
+                ?? [];
+
+
+            if (!is_array($address)) {
+                $address = [];
+            }
+
+
+            $parts =
+                array_filter([
+                    $address['house_number']
+                        ?? null,
+
+                    $address['street']
+                        ?? null,
+
+                    $address['barangay']
+                        ?? null,
+
+                    $address['municipality']
+                        ?? null,
+
+                    $address['province']
+                        ?? null,
+
+                    $address['postal_code']
+                        ?? null,
+                ]);
+
+
+            if (!empty($parts)) {
+
+                return implode(
+                    ', ',
+                    $parts
+                );
+
+            }
+
+
+            return
+                $order['delivery_address']
+                ?? $order['address']
+                ?? $order['buyer_address']
+                ?? 'Delivery address unavailable.';
+
+        };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CUSTOMER HELPER
+    |--------------------------------------------------------------------------
+    */
+
+    $getCustomerName =
+        function ($order) {
+
+            return
+                $order['shipping_address']['name']
+                ?? $order['customer_name']
+                ?? $order['buyer_name']
+                ?? 'Customer';
+
+        };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PICKUP RIDER HELPER
+    |--------------------------------------------------------------------------
+    |
+    | pickup_rider_* is intentionally separate from rider_*.
+    |
+    | pickup rider:
+    | Seller → Sorting Center
+    |
+    | final rider:
+    | Sorting Center → Buyer
+    |
+    */
+
+    $getPickupRiderName =
+        function ($order) {
+
+            if (
+                !empty(
+                    $order['pickup_rider_name']
+                )
+            ) {
+
+                return
+                    $order['pickup_rider_name'];
+
+            }
+
+
+            $pickupRider =
+                $order['pickup_rider']
+                ?? [];
+
+
+            if (
+                is_array($pickupRider)
+            ) {
+
+                $name =
+                    trim(
+                        (
+                            $pickupRider['first_name']
+                            ?? ''
+                        )
+                        . ' ' .
+                        (
+                            $pickupRider['last_name']
+                            ?? ''
+                        )
+                    );
+
+
+                if ($name !== '') {
+
+                    return $name;
+
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | LEGACY FALLBACK
+            |--------------------------------------------------------------------------
+            */
+
+            $legacyRider =
+                $order['rider']
+                ?? [];
+
+
+            if (
+                is_array($legacyRider)
+            ) {
+
+                $name =
+                    trim(
+                        (
+                            $legacyRider['first_name']
+                            ?? ''
+                        )
+                        . ' ' .
+                        (
+                            $legacyRider['last_name']
+                            ?? ''
+                        )
+                    );
+
+
+                if ($name !== '') {
+
+                    return $name;
+
+                }
+
+            }
+
+
+            return 'Pickup Rider';
+
+        };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SELLER HELPER
+    |--------------------------------------------------------------------------
+    */
+
+    $getSellerName =
+        function ($order) {
+
+            return
+                $order['seller_name']
+                ?? $order['store_name']
+                ?? $order['shop_name']
+                ?? $order['business_name']
+                ?? 'Seller';
+
+        };
+
+@endphp
+
+
+{{-- =========================================================
+    ALERTS
+========================================================= --}}
+
+@if(session('success'))
+
+    <div
+        class="
+            mb-6
+            flex items-start gap-3
+            rounded-2xl
+            border border-emerald-200
+            bg-emerald-50
+            px-4 py-3.5
+        "
+    >
+
+        <div
+            class="
+                flex h-8 w-8
+                shrink-0
+                items-center justify-center
+                rounded-xl
+                bg-white
+            "
+        >
+
+            <i
+                data-lucide="check"
+                class="
+                    h-4 w-4
+                    text-emerald-600
+                "
+            ></i>
+
+        </div>
+
+
+        <div>
+
+            <p
+                class="
+                    text-xs
+                    font-semibold
+                    text-emerald-800
+                "
+            >
+                Parcel updated
+            </p>
+
+
+            <p
+                class="
+                    mt-0.5
+                    text-xs
+                    leading-5
+                    text-emerald-700
+                "
+            >
+                {{ session('success') }}
+            </p>
+
+        </div>
+
+    </div>
+
+@endif
+
+
+@if(session('error'))
+
+    <div
+        class="
+            mb-6
+            flex items-start gap-3
+            rounded-2xl
+            border border-red-200
+            bg-red-50
+            px-4 py-3.5
+        "
+    >
+
+        <div
+            class="
+                flex h-8 w-8
+                shrink-0
+                items-center justify-center
+                rounded-xl
+                bg-white
+            "
+        >
+
+            <i
+                data-lucide="triangle-alert"
+                class="
+                    h-4 w-4
+                    text-red-600
+                "
+            ></i>
+
+        </div>
+
+
+        <p
+            class="
+                pt-1
+                text-xs
+                leading-5
+                text-red-700
+            "
+        >
+            {{ session('error') }}
+        </p>
+
+    </div>
+
+@endif
+
+
+{{-- =========================================================
+    PAGE INTRO
+========================================================= --}}
+
+<div
+    class="
+        mb-7
+        flex flex-col gap-4
+        lg:flex-row
+        lg:items-end
+        lg:justify-between
+    "
+>
+
+    <div>
+
+        <div
+            class="
+                mb-2
+                flex items-center gap-2
+                text-[10px]
+                font-medium
+                text-[#8A9791]
+            "
+        >
+
             <a
                 href="{{ route('logistics.dashboard') }}"
-                class="flex items-center gap-3"
+                class="
+                    transition
+                    hover:text-[#1F6F5B]
+                "
             >
-
-                <img
-                    src="{{ asset('images/suki-logistics.jpg') }}"
-                    alt="SUKI SHOP Logistics"
-                    class="h-10 w-auto object-contain"
-                >
-
-                <div class="hidden sm:block">
-
-                    <p class="text-sm font-bold text-gray-900">
-                        SUKI SHOP Logistics
-                    </p>
-
-                    <p class="text-xs text-gray-500">
-                        Sorting Center
-                    </p>
-
-                </div>
-
+                Dashboard
             </a>
 
 
-            <!-- LOGISTICS USER -->
-            <div class="flex items-center gap-3">
-
-                <div class="hidden text-right sm:block">
-
-                    <p class="text-sm font-semibold text-gray-900">
-                        Logistics Center
-                    </p>
-
-                    <p class="text-xs text-gray-500">
-                        Management Portal
-                    </p>
-
-                </div>
+            <i
+                data-lucide="chevron-right"
+                class="h-3 w-3"
+            ></i>
 
 
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F4EE] text-[#1F6F5B]">
+            <span class="text-[#52635B]">
+                Incoming Parcels
+            </span>
 
-                    <i
-                        data-lucide="building-2"
-                        class="h-5 w-5"
-                    ></i>
+        </div>
 
-                </div>
+
+        <h2
+            class="
+                text-2xl
+                font-semibold
+                tracking-[-0.04em]
+                text-[#24312C]
+                sm:text-[28px]
+            "
+        >
+            Incoming Parcels
+        </h2>
+
+
+        <p
+            class="
+                mt-1.5
+                max-w-2xl
+                text-sm
+                leading-6
+                text-[#728078]
+            "
+        >
+            Track parcels traveling from sellers
+            to the Sorting Center and verify which
+            parcels are ready for destination sorting.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{{ route('logistics.sorting') }}"
+        class="
+            inline-flex h-10
+            items-center justify-center
+            gap-2
+            self-start
+            rounded-xl
+            bg-[#173F35]
+            px-4
+            text-[11px]
+            font-semibold
+            text-white
+            transition
+            hover:bg-[#1F6F5B]
+            lg:self-auto
+        "
+    >
+
+        <i
+            data-lucide="scan-line"
+            class="h-4 w-4"
+        ></i>
+
+        Open Parcel Sorting
+
+    </a>
+
+</div>
+
+
+{{-- =========================================================
+    RECEIVING FLOW
+========================================================= --}}
+
+<section
+    class="
+        mb-6
+        overflow-hidden
+        rounded-2xl
+        border border-[#D9E6DF]
+        bg-[#F1F8F4]
+    "
+>
+
+    <div
+        class="
+            flex flex-col gap-5
+            p-5
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+        "
+    >
+
+        <div
+            class="
+                flex items-start gap-4
+            "
+        >
+
+            <div
+                class="
+                    flex h-10 w-10
+                    shrink-0
+                    items-center justify-center
+                    rounded-xl
+                    bg-white
+                    text-[#1F6F5B]
+                "
+            >
+
+                <i
+                    data-lucide="package-check"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+
+            <div>
+
+                <p
+                    class="
+                        text-xs
+                        font-semibold
+                        text-[#294C42]
+                    "
+                >
+                    Sorting Center Receiving Flow
+                </p>
+
+
+                <p
+                    class="
+                        mt-1
+                        max-w-xl
+                        text-[10px]
+                        leading-5
+                        text-[#6B8178]
+                    "
+                >
+                    Pickup Rider brings the parcel
+                    to the Sorting Center. Once it
+                    arrives, Logistics can proceed
+                    with destination checking and
+                    parcel sorting.
+                </p>
 
             </div>
 
         </div>
 
-    </header>
+
+        <div
+            class="
+                flex flex-wrap
+                items-center gap-2
+            "
+        >
+
+            <span
+                class="
+                    rounded-full
+                    border border-[#D3E4DB]
+                    bg-white
+                    px-2.5 py-1
+                    text-[9px]
+                    font-semibold
+                    text-[#587067]
+                "
+            >
+                Rider Pickup
+            </span>
 
 
+            <i
+                data-lucide="arrow-right"
+                class="
+                    h-3 w-3
+                    text-[#90A39A]
+                "
+            ></i>
 
-    <div class="mx-auto flex max-w-7xl">
+
+            <span
+                class="
+                    rounded-full
+                    border border-[#D3E4DB]
+                    bg-white
+                    px-2.5 py-1
+                    text-[9px]
+                    font-semibold
+                    text-[#587067]
+                "
+            >
+                Sorting Center
+            </span>
 
 
-        <!-- SIDEBAR -->
-        <aside class="hidden min-h-screen w-64 border-r border-gray-200 bg-white lg:block">
+            <i
+                data-lucide="arrow-right"
+                class="
+                    h-3 w-3
+                    text-[#90A39A]
+                "
+            ></i>
 
-            <div class="p-5">
+
+            <span
+                class="
+                    rounded-full
+                    border border-[#D3E4DB]
+                    bg-white
+                    px-2.5 py-1
+                    text-[9px]
+                    font-semibold
+                    text-[#587067]
+                "
+            >
+                Read Address
+            </span>
 
 
-                <!-- DASHBOARD -->
-                <a
-                    href="{{ route('logistics.dashboard') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+            <i
+                data-lucide="arrow-right"
+                class="
+                    h-3 w-3
+                    text-[#90A39A]
+                "
+            ></i>
+
+
+            <span
+                class="
+                    rounded-full
+                    border border-[#D3E4DB]
+                    bg-white
+                    px-2.5 py-1
+                    text-[9px]
+                    font-semibold
+                    text-[#587067]
+                "
+            >
+                Sort
+            </span>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+{{-- =========================================================
+    SUMMARY
+========================================================= --}}
+
+<div
+    class="
+        mb-6
+        grid grid-cols-1
+        gap-4
+        sm:grid-cols-3
+    "
+>
+
+
+    {{-- QUEUE --}}
+    <div
+        class="
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.12em]
+                        text-[#839189]
+                    "
                 >
-
-                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
-
-                    Dashboard
-
-                </a>
+                    Incoming Queue
+                </p>
 
 
-                <!-- RIDER MANAGEMENT -->
-                <a
-                    href="{{ route('logistics.riders') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
                 >
-
-                    <i data-lucide="bike" class="h-5 w-5"></i>
-
-                    Rider Management
-
-                </a>
-
-
-                <!-- INCOMING PARCELS -->
-                <a
-                    href="{{ route('logistics.parcels') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl bg-[#E6F4EE] px-4 py-3 text-sm font-semibold text-[#1F6F5B]"
-                >
-
-                    <i data-lucide="package" class="h-5 w-5"></i>
-
-                    Incoming Parcels
-
-                </a>
-
-
-                <!-- PARCEL SORTING -->
-                <a
-                    href="{{ route('logistics.sorting') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-                >
-
-                    <i data-lucide="arrow-down-up" class="h-5 w-5"></i>
-
-                    Parcel Sorting
-
-                </a>
-
-
-                <!-- DELIVERY ASSIGNMENT -->
-                <a
-                    href="{{ route('logistics.assignments') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-                >
-
-                    <i data-lucide="map-pin" class="h-5 w-5"></i>
-
-                    Delivery Assignment
-
-                </a>
-
-
-                <!-- DELIVERY MONITORING -->
-                <a
-                    href="{{ route('logistics.monitoring') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-                >
-
-                    <i data-lucide="truck" class="h-5 w-5"></i>
-
-                    Delivery Monitoring
-
-                </a>
-
-
-                <div class="my-5 border-t border-gray-200"></div>
-
-
-                <!-- REPORTS -->
-                <a
-                    href="{{ route('logistics.reports') }}"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-                >
-
-                    <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
-
-                    Reports
-
-                </a>
-
-
-                <!-- SETTINGS -->
-                <a
-                    href="#"
-                    class="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-                >
-
-                    <i data-lucide="settings" class="h-5 w-5"></i>
-
-                    Account Settings
-
-                </a>
-
-            </div>
-
-        </aside>
-
-
-
-        <!-- MAIN CONTENT -->
-        <main class="min-w-0 flex-1 p-5 sm:p-8 lg:p-10">
-
-
-            <!-- PAGE HEADER -->
-            <div class="mb-8">
-
-                <div class="mb-2 flex items-center gap-2 text-sm text-[#1F6F5B]">
-
-                    <i data-lucide="package" class="h-4 w-4"></i>
-
-                    SUKI SHOP Logistics
-
-                </div>
-
-
-                <h1 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-
-                    Incoming Parcels
-
-                </h1>
-
-
-                <p class="mt-2 text-sm text-gray-500">
-
-                    Receive and verify parcels delivered to the sorting center.
-
+                    {{ $incomingOrders->count() }}
                 </p>
 
             </div>
 
 
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-[#EEF5F1]
+                    text-[#1F6F5B]
+                "
+            >
 
-            <!-- PROCESS INFO -->
-            <div class="mb-8 rounded-2xl border border-[#CFE9DD] bg-[#EEF8F3] p-5">
+                <i
+                    data-lucide="packages"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
-                <div class="flex gap-4">
+            </div>
 
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E6F4EE] text-[#1F6F5B]">
-
-                        <i data-lucide="scan-line" class="h-5 w-5"></i>
-
-                    </div>
-
-
-                    <div>
-
-                        <h2 class="font-semibold text-[#155244]">
-
-                            Parcel Receiving Process
-
-                        </h2>
+        </div>
 
 
-                        <p class="mt-1 text-sm leading-6 text-[#155244]">
+        <p
+            class="
+                mt-5
+                border-t border-[#EEF2F0]
+                pt-3
+                text-[10px]
+                text-[#7B8982]
+            "
+        >
+            Active incoming parcel records
+        </p>
 
-                            Verify the parcel received from the pickup rider before
-                            sending it to the parcel sorting process.
+    </div>
 
-                        </p>
 
-                    </div>
+    {{-- IN TRANSIT --}}
+    <div
+        class="
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+        "
+    >
 
-                </div>
+        <div
+            class="
+                flex items-start
+                justify-between
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.12em]
+                        text-[#839189]
+                    "
+                >
+                    En Route to Center
+                </p>
+
+
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $inTransitCount }}
+                </p>
 
             </div>
 
 
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-cyan-50
+                    text-cyan-700
+                "
+            >
 
-            <!-- STATS -->
-            <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <i
+                    data-lucide="bike"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
+            </div>
 
-                <!-- TOTAL -->
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                    <div class="flex items-center justify-between">
-
-                        <div>
-
-                            <p class="text-sm text-gray-500">
-                                Incoming Parcels
-                            </p>
-
-                            <p class="mt-2 text-2xl font-bold text-gray-900">
-
-                                {{ isset($orders) ? count($orders) : 0 }}
-
-                            </p>
-
-                        </div>
+        </div>
 
 
-                        <div class="rounded-xl bg-blue-50 p-3 text-blue-600">
+        <p
+            class="
+                mt-5
+                border-t border-[#EEF2F0]
+                pt-3
+                text-[10px]
+                text-[#7B8982]
+            "
+        >
+            Status: PICKED_UP
+        </p>
 
-                            <i data-lucide="package" class="h-6 w-6"></i>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- READY TO RECEIVE -->
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                    <div class="flex items-center justify-between">
-
-                        <div>
-
-                            <p class="text-sm text-gray-500">
-                                Ready to Receive
-                            </p>
-
-                            <p class="mt-2 text-2xl font-bold text-gray-900">
-
-                                {{ isset($orders)
-                                    ? collect($orders)
-                                        ->where('status', 'picked_up')
-                                        ->count()
-                                    : 0
-                                }}
-
-                            </p>
-
-                        </div>
+    </div>
 
 
-                        <div class="rounded-xl bg-yellow-50 p-3 text-yellow-600">
+    {{-- RECEIVED --}}
+    <div
+        class="
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+        "
+    >
 
-                            <i data-lucide="clock" class="h-6 w-6"></i>
+        <div
+            class="
+                flex items-start
+                justify-between
+            "
+        >
 
-                        </div>
+            <div>
 
-                    </div>
-
-                </div>
-
-
-
-                <!-- RECEIVED -->
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                    <div class="flex items-center justify-between">
-
-                        <div>
-
-                            <p class="text-sm text-gray-500">
-                                At Sorting Center
-                            </p>
-
-                            <p class="mt-2 text-2xl font-bold text-gray-900">
-
-                                {{ isset($orders)
-                                    ? collect($orders)
-                                        ->where('status', 'at_sorting_center')
-                                        ->count()
-                                    : 0
-                                }}
-
-                            </p>
-
-                        </div>
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.12em]
+                        text-[#839189]
+                    "
+                >
+                    Ready for Sorting
+                </p>
 
 
-                        <div class="rounded-xl bg-[#E6F4EE] p-3 text-[#1F6F5B]">
-
-                            <i data-lucide="circle-check" class="h-6 w-6"></i>
-
-                        </div>
-
-                    </div>
-
-                </div>
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $receivedCount }}
+                </p>
 
             </div>
 
 
-
-            <!-- PARCEL TABLE -->
-            <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-
-                <!-- TABLE HEADER -->
-                <div class="flex flex-col justify-between gap-4 border-b border-gray-200 p-5 sm:flex-row sm:items-center">
-
-                    <div>
-
-                        <h2 class="font-semibold text-gray-900">
-
-                            Parcel Receiving Queue
-
-                        </h2>
-
-
-                        <p class="mt-1 text-sm text-gray-500">
-
-                            Parcels picked up by riders will appear here.
-
-                        </p>
-
-                    </div>
-
-
-                    <!-- SEARCH -->
-                    <div class="relative">
-
-                        <i
-                            data-lucide="search"
-                            class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                        ></i>
-
-
-                        <input
-                            type="text"
-                            placeholder="Search parcel..."
-                            class="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 sm:w-64"
-                        >
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- TABLE -->
-                <div class="overflow-x-auto">
-
-                    <table class="w-full min-w-[850px] text-left">
-
-
-                        <thead class="border-b border-gray-200 bg-gray-50">
-
-                            <tr>
-
-                                <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Order
-                                </th>
-
-                                <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Customer
-                                </th>
-
-                                <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Delivery Address
-                                </th>
-
-                                <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Pickup Rider
-                                </th>
-
-                                <th class="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Status
-                                </th>
-
-                                <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    Action
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-
-
-                        <tbody class="divide-y divide-gray-100">
-
-
-                            @php
-
-                                $incomingOrders = isset($orders)
-
-                                    ? collect($orders)
-                                        ->filter(function ($order) {
-
-                                            return in_array(
-                                                $order['status'] ?? '',
-                                                [
-                                                    'picked_up',
-                                                    'at_sorting_center',
-                                                ]
-                                            );
-
-                                        })
-
-                                    : collect();
-
-                            @endphp
-
-
-
-                            @if($incomingOrders->count() > 0)
-
-
-                                @foreach($incomingOrders as $index => $order)
-
-
-                                    <tr class="transition hover:bg-gray-50">
-
-
-                                        <!-- ORDER -->
-                                        <td class="px-6 py-5">
-
-                                            <div>
-
-                                                <p class="text-sm font-semibold text-gray-900">
-
-                                                    #{{ $order['order_number'] ?? ($index + 1) }}
-
-                                                </p>
-
-
-                                                <p class="mt-1 text-xs text-gray-500">
-
-                                                    Parcel Order
-
-                                                </p>
-
-                                            </div>
-
-                                        </td>
-
-
-
-                                        <!-- CUSTOMER -->
-                                        <td class="px-6 py-5">
-
-                                            <p class="text-sm font-medium text-gray-800">
-
-                                                {{ $order['customer_name']
-                                                    ?? $order['buyer_name']
-                                                    ?? 'Customer'
-                                                }}
-
-                                            </p>
-
-                                        </td>
-
-
-
-                                        <!-- ADDRESS -->
-                                        <td class="px-6 py-5">
-
-                                            <p class="max-w-xs text-sm text-gray-600">
-
-                                                {{ $order['address']
-                                                    ?? $order['delivery_address']
-                                                    ?? 'Address not available'
-                                                }}
-
-                                            </p>
-
-                                        </td>
-
-
-
-                                        <!-- RIDER -->
-                                        <td class="px-6 py-5">
-
-                                            @if(isset($order['rider']))
-
-                                                <div class="flex items-center gap-2">
-
-                                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F4EE] text-xs font-semibold text-[#1F6F5B]">
-
-                                                        {{ strtoupper(
-                                                            substr(
-                                                                $order['rider']['first_name'] ?? 'R',
-                                                                0,
-                                                                1
-                                                            )
-                                                        ) }}
-
-                                                    </div>
-
-
-                                                    <div>
-
-                                                        <p class="text-sm text-gray-700">
-
-                                                            {{ $order['rider']['first_name'] ?? '' }}
-                                                            {{ $order['rider']['last_name'] ?? '' }}
-
-                                                        </p>
-
-
-                                                        <p class="text-xs text-gray-500">
-
-                                                            Pickup Rider
-
-                                                        </p>
-
-                                                    </div>
-
-                                                </div>
-
-
-                                            @else
-
-                                                <span class="text-sm text-gray-400">
-
-                                                    Not assigned
-
-                                                </span>
-
-                                            @endif
-
-                                        </td>
-
-
-
-                                        <!-- STATUS -->
-                                        <td class="px-6 py-5">
-
-
-                                            @if(($order['status'] ?? '') === 'picked_up')
-
-                                                <span class="inline-flex rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-
-                                                    Ready to Receive
-
-                                                </span>
-
-
-                                            @elseif(($order['status'] ?? '') === 'at_sorting_center')
-
-                                                <span class="inline-flex rounded-full bg-[#E6F4EE] px-3 py-1 text-xs font-semibold text-[#1F6F5B]">
-
-                                                    Received
-
-                                                </span>
-
-                                            @endif
-
-
-                                        </td>
-
-
-
-                                        <!-- ACTION -->
-                                        <td class="px-6 py-5 text-right">
-
-
-                                            @if(($order['status'] ?? '') === 'picked_up')
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route('logistics.parcel.receive', $index) }}"
-                                                >
-
-                                                    @csrf
-
-
-                                                    <button
-                                                        type="submit"
-                                                        class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#155244]"
-                                                    >
-
-                                                        Receive Parcel
-
-                                                    </button>
-
-                                                </form>
-
-
-                                            @else
-
-
-                                                <a
-                                                    href="{{ route('logistics.sorting') }}"
-                                                    class="inline-flex rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
-                                                >
-
-                                                    Proceed to Sorting
-
-                                                </a>
-
-
-                                            @endif
-
-
-                                        </td>
-
-
-                                    </tr>
-
-
-                                @endforeach
-
-
-
-                            @else
-
-
-                                <!-- EMPTY STATE -->
-                                <tr>
-
-                                    <td
-                                        colspan="6"
-                                        class="px-6 py-16 text-center"
-                                    >
-
-                                        <div class="mx-auto flex max-w-sm flex-col items-center">
-
-
-                                            <div class="mb-4 rounded-2xl bg-[#E6F4EE] p-4 text-[#1F6F5B]">
-
-                                                <i
-                                                    data-lucide="package-open"
-                                                    class="h-8 w-8"
-                                                ></i>
-
-                                            </div>
-
-
-                                            <h3 class="font-semibold text-gray-900">
-
-                                                No incoming parcels yet
-
-                                            </h3>
-
-
-                                            <p class="mt-2 text-sm leading-6 text-gray-500">
-
-                                                Parcels picked up by SUKI SHOP Riders will
-                                                automatically appear here for receiving
-                                                and verification.
-
-                                            </p>
-
-                                        </div>
-
-                                    </td>
-
-                                </tr>
-
-
-                            @endif
-
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </section>
-
-
-        </main>
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-emerald-50
+                    text-emerald-700
+                "
+            >
+
+                <i
+                    data-lucide="warehouse"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="
+                mt-5
+                border-t border-[#EEF2F0]
+                pt-3
+                text-[10px]
+                text-[#7B8982]
+            "
+        >
+            Status: AT_SORTING_CENTER
+        </p>
 
     </div>
 
 </div>
+
+
+{{-- =========================================================
+    PARCEL QUEUE
+========================================================= --}}
+
+<section
+    class="
+        overflow-hidden
+        rounded-2xl
+        border border-[#E1E8E4]
+        bg-white
+    "
+>
+
+
+    {{-- HEADER --}}
+    <div
+        class="
+            flex flex-col gap-4
+            border-b border-[#EDF1EF]
+            px-5 py-5
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+        "
+    >
+
+        <div>
+
+            <h3
+                class="
+                    text-sm
+                    font-semibold
+                    text-[#24312C]
+                "
+            >
+                Parcel Receiving Queue
+            </h3>
+
+
+            <p
+                class="
+                    mt-0.5
+                    text-[10px]
+                    text-[#7C8983]
+                "
+            >
+                Parcels currently traveling to or
+                already received by the Sorting Center.
+            </p>
+
+        </div>
+
+
+        <div
+            class="
+                grid gap-2
+                sm:grid-cols-[230px_160px]
+            "
+        >
+
+            {{-- SEARCH --}}
+            <div class="relative">
+
+                <i
+                    data-lucide="search"
+                    class="
+                        pointer-events-none
+                        absolute left-3 top-1/2
+                        h-3.5 w-3.5
+                        -translate-y-1/2
+                        text-[#91A099]
+                    "
+                ></i>
+
+
+                <input
+                    id="parcelSearch"
+                    type="text"
+                    placeholder="Search parcel..."
+                    class="
+                        h-9 w-full
+                        rounded-xl
+                        border border-[#DDE6E1]
+                        bg-white
+                        pl-9 pr-3
+                        text-[10px]
+                        text-[#34483F]
+                        placeholder:text-[#9AA69F]
+                        focus:border-[#1F6F5B]
+                        focus:ring-4
+                        focus:ring-[#DDF3EC]/60
+                    "
+                >
+
+            </div>
+
+
+            {{-- STATUS --}}
+            <select
+                id="parcelStatusFilter"
+                class="
+                    h-9
+                    rounded-xl
+                    border border-[#DDE6E1]
+                    bg-white
+                    px-3
+                    text-[10px]
+                    font-medium
+                    text-[#52635B]
+                    focus:border-[#1F6F5B]
+                    focus:ring-4
+                    focus:ring-[#DDF3EC]/60
+                "
+            >
+
+                <option value="all">
+                    All Parcels
+                </option>
+
+                <option value="picked_up">
+                    En Route
+                </option>
+
+                <option value="at_sorting_center">
+                    Received
+                </option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+
+    @if($incomingOrders->count())
+
+
+        {{-- =================================================
+            DESKTOP TABLE
+        ================================================== --}}
+
+        <div
+            class="
+                hidden
+                overflow-x-auto
+                lg:block
+            "
+        >
+
+            <table class="w-full">
+
+                <thead>
+
+                    <tr
+                        class="
+                            border-b border-[#EDF1EF]
+                            bg-[#F7F9F8]
+                        "
+                    >
+
+                        <th class="px-5 py-3 text-left">
+                            Parcel
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Seller
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Destination
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Pickup Rider
+                        </th>
+
+                        <th class="px-5 py-3 text-left">
+                            Status
+                        </th>
+
+                        <th class="px-5 py-3 text-right">
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @foreach(
+                        $incomingOrders
+                        as $orderId => $order
+                    )
+
+                        @php
+
+                            $resolvedOrderId =
+                                $order['id']
+                                ?? $orderId;
+
+
+                            $displayOrderNumber =
+                                $order['order_number']
+                                ?? $resolvedOrderId;
+
+
+                            $status =
+                                strtolower(
+                                    $order['status']
+                                    ?? ''
+                                );
+
+
+                            $customerName =
+                                $getCustomerName(
+                                    $order
+                                );
+
+
+                            $sellerName =
+                                $getSellerName(
+                                    $order
+                                );
+
+
+                            $pickupRiderName =
+                                $getPickupRiderName(
+                                    $order
+                                );
+
+
+                            $address =
+                                $formatAddress(
+                                    $order
+                                );
+
+
+                            $searchValue =
+                                strtolower(
+                                    $displayOrderNumber
+                                    . ' '
+                                    . $customerName
+                                    . ' '
+                                    . $sellerName
+                                    . ' '
+                                    . $pickupRiderName
+                                    . ' '
+                                    . $address
+                                );
+
+                        @endphp
+
+
+                        <tr
+                            class="
+                                parcel-row
+                                border-b border-[#F0F3F1]
+                                transition
+                                last:border-b-0
+                                hover:bg-[#FAFCFB]
+                            "
+                            data-search="{{ $searchValue }}"
+                            data-status="{{ $status }}"
+                        >
+
+                            {{-- PARCEL --}}
+                            <td class="px-5 py-4">
+
+                                <div
+                                    class="
+                                        flex items-center gap-3
+                                    "
+                                >
+
+                                    <div
+                                        class="
+                                            flex h-9 w-9
+                                            shrink-0
+                                            items-center justify-center
+                                            rounded-xl
+                                            bg-[#EEF5F1]
+                                            text-[#1F6F5B]
+                                        "
+                                    >
+
+                                        <i
+                                            data-lucide="package"
+                                            class="h-4 w-4"
+                                        ></i>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <p
+                                            class="
+                                                text-[11px]
+                                                font-semibold
+                                                text-[#34483F]
+                                            "
+                                        >
+                                            #{{ $displayOrderNumber }}
+                                        </p>
+
+
+                                        <p
+                                            class="
+                                                mt-0.5
+                                                text-[9px]
+                                                text-[#98A39D]
+                                            "
+                                        >
+                                            {{ $customerName }}
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- SELLER --}}
+                            <td class="px-5 py-4">
+
+                                <div
+                                    class="
+                                        flex items-center gap-2
+                                    "
+                                >
+
+                                    <i
+                                        data-lucide="store"
+                                        class="
+                                            h-3.5 w-3.5
+                                            text-[#1F6F5B]
+                                        "
+                                    ></i>
+
+
+                                    <span
+                                        class="
+                                            max-w-[170px]
+                                            truncate
+                                            text-[10px]
+                                            font-medium
+                                            text-[#52635B]
+                                        "
+                                    >
+                                        {{ $sellerName }}
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- DESTINATION --}}
+                            <td class="px-5 py-4">
+
+                                <div
+                                    class="
+                                        flex max-w-[270px]
+                                        items-start gap-2
+                                    "
+                                >
+
+                                    <i
+                                        data-lucide="map-pin"
+                                        class="
+                                            mt-0.5
+                                            h-3.5 w-3.5
+                                            shrink-0
+                                            text-[#1F6F5B]
+                                        "
+                                    ></i>
+
+
+                                    <p
+                                        class="
+                                            text-[10px]
+                                            leading-5
+                                            text-[#74827B]
+                                        "
+                                    >
+                                        {{ $address }}
+                                    </p>
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- PICKUP RIDER --}}
+                            <td class="px-5 py-4">
+
+                                <div
+                                    class="
+                                        flex items-center gap-2.5
+                                    "
+                                >
+
+                                    <div
+                                        class="
+                                            flex h-8 w-8
+                                            shrink-0
+                                            items-center justify-center
+                                            rounded-full
+                                            bg-[#DDF3EC]
+                                            text-[10px]
+                                            font-semibold
+                                            text-[#173F35]
+                                        "
+                                    >
+                                        {{ strtoupper(
+                                            substr(
+                                                $pickupRiderName,
+                                                0,
+                                                1
+                                            )
+                                        ) }}
+                                    </div>
+
+
+                                    <div>
+
+                                        <p
+                                            class="
+                                                max-w-[150px]
+                                                truncate
+                                                text-[10px]
+                                                font-semibold
+                                                text-[#52635B]
+                                            "
+                                        >
+                                            {{ $pickupRiderName }}
+                                        </p>
+
+
+                                        <p
+                                            class="
+                                                mt-0.5
+                                                text-[8px]
+                                                text-[#98A39D]
+                                            "
+                                        >
+                                            Seller → Sorting Center
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- STATUS --}}
+                            <td class="px-5 py-4">
+
+                                @if(
+                                    $status ===
+                                    'picked_up'
+                                )
+
+                                    <span
+                                        class="
+                                            inline-flex
+                                            items-center gap-1.5
+                                            rounded-full
+                                            border border-cyan-200
+                                            bg-cyan-50
+                                            px-2.5 py-1
+                                            text-[9px]
+                                            font-semibold
+                                            text-cyan-700
+                                        "
+                                    >
+
+                                        <i
+                                            data-lucide="bike"
+                                            class="h-3 w-3"
+                                        ></i>
+
+                                        En Route
+
+                                    </span>
+
+
+                                @elseif(
+                                    $status ===
+                                    'at_sorting_center'
+                                )
+
+                                    <span
+                                        class="
+                                            inline-flex
+                                            items-center gap-1.5
+                                            rounded-full
+                                            border border-emerald-200
+                                            bg-emerald-50
+                                            px-2.5 py-1
+                                            text-[9px]
+                                            font-semibold
+                                            text-emerald-700
+                                        "
+                                    >
+
+                                        <i
+                                            data-lucide="warehouse"
+                                            class="h-3 w-3"
+                                        ></i>
+
+                                        At Sorting Center
+
+                                    </span>
+
+                                @endif
+
+                            </td>
+
+
+                            {{-- ACTION --}}
+                            <td
+                                class="
+                                    px-5 py-4
+                                    text-right
+                                "
+                            >
+
+                                @if(
+                                    $status ===
+                                    'at_sorting_center'
+                                )
+
+                                    <a
+                                        href="{{ route('logistics.sorting') }}"
+                                        class="
+                                            inline-flex h-9
+                                            items-center justify-center
+                                            gap-2
+                                            rounded-xl
+                                            bg-[#173F35]
+                                            px-3
+                                            text-[9px]
+                                            font-semibold
+                                            text-white
+                                            transition
+                                            hover:bg-[#1F6F5B]
+                                        "
+                                    >
+
+                                        Sort Parcel
+
+                                        <i
+                                            data-lucide="arrow-right"
+                                            class="h-3 w-3"
+                                        ></i>
+
+                                    </a>
+
+
+                                @else
+
+                                    <span
+                                        class="
+                                            inline-flex h-9
+                                            items-center justify-center
+                                            gap-2
+                                            rounded-xl
+                                            border border-[#E2E8E4]
+                                            bg-[#F7F9F8]
+                                            px-3
+                                            text-[9px]
+                                            font-medium
+                                            text-[#87948E]
+                                        "
+                                    >
+
+                                        <i
+                                            data-lucide="clock-3"
+                                            class="h-3 w-3"
+                                        ></i>
+
+                                        Awaiting Arrival
+
+                                    </span>
+
+                                @endif
+
+                            </td>
+
+                        </tr>
+
+                    @endforeach
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        {{-- =================================================
+            MOBILE / TABLET CARDS
+        ================================================== --}}
+
+        <div
+            class="
+                divide-y divide-[#EDF1EF]
+                lg:hidden
+            "
+        >
+
+            @foreach(
+                $incomingOrders
+                as $orderId => $order
+            )
+
+                @php
+
+                    $resolvedOrderId =
+                        $order['id']
+                        ?? $orderId;
+
+
+                    $displayOrderNumber =
+                        $order['order_number']
+                        ?? $resolvedOrderId;
+
+
+                    $status =
+                        strtolower(
+                            $order['status']
+                            ?? ''
+                        );
+
+
+                    $customerName =
+                        $getCustomerName(
+                            $order
+                        );
+
+
+                    $sellerName =
+                        $getSellerName(
+                            $order
+                        );
+
+
+                    $pickupRiderName =
+                        $getPickupRiderName(
+                            $order
+                        );
+
+
+                    $address =
+                        $formatAddress(
+                            $order
+                        );
+
+
+                    $searchValue =
+                        strtolower(
+                            $displayOrderNumber
+                            . ' '
+                            . $customerName
+                            . ' '
+                            . $sellerName
+                            . ' '
+                            . $pickupRiderName
+                            . ' '
+                            . $address
+                        );
+
+                @endphp
+
+
+                <article
+                    class="
+                        parcel-card
+                        p-4
+                        sm:p-5
+                    "
+                    data-search="{{ $searchValue }}"
+                    data-status="{{ $status }}"
+                >
+
+                    <div
+                        class="
+                            flex
+                            items-start
+                            justify-between
+                            gap-4
+                        "
+                    >
+
+                        <div
+                            class="
+                                flex min-w-0
+                                items-center gap-3
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex h-10 w-10
+                                    shrink-0
+                                    items-center justify-center
+                                    rounded-xl
+                                    bg-[#EEF5F1]
+                                    text-[#1F6F5B]
+                                "
+                            >
+
+                                <i
+                                    data-lucide="package"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </div>
+
+
+                            <div class="min-w-0">
+
+                                <p
+                                    class="
+                                        text-xs
+                                        font-semibold
+                                        text-[#34483F]
+                                    "
+                                >
+                                    Parcel #{{ $displayOrderNumber }}
+                                </p>
+
+
+                                <p
+                                    class="
+                                        mt-1 truncate
+                                        text-[10px]
+                                        text-[#7C8983]
+                                    "
+                                >
+                                    {{ $customerName }}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        @if(
+                            $status ===
+                            'picked_up'
+                        )
+
+                            <span
+                                class="
+                                    inline-flex
+                                    shrink-0
+                                    items-center gap-1
+                                    rounded-full
+                                    border border-cyan-200
+                                    bg-cyan-50
+                                    px-2 py-1
+                                    text-[8px]
+                                    font-semibold
+                                    text-cyan-700
+                                "
+                            >
+                                En Route
+                            </span>
+
+
+                        @else
+
+                            <span
+                                class="
+                                    inline-flex
+                                    shrink-0
+                                    items-center gap-1
+                                    rounded-full
+                                    border border-emerald-200
+                                    bg-emerald-50
+                                    px-2 py-1
+                                    text-[8px]
+                                    font-semibold
+                                    text-emerald-700
+                                "
+                            >
+                                Received
+                            </span>
+
+                        @endif
+
+                    </div>
+
+
+                    {{-- INFO --}}
+                    <div
+                        class="
+                            mt-4
+                            grid gap-2
+                            sm:grid-cols-2
+                        "
+                    >
+
+                        <div
+                            class="
+                                rounded-xl
+                                bg-[#F7F9F8]
+                                p-3
+                            "
+                        >
+
+                            <p
+                                class="
+                                    text-[8px]
+                                    uppercase
+                                    tracking-[0.08em]
+                                    text-[#98A39D]
+                                "
+                            >
+                                Seller
+                            </p>
+
+
+                            <p
+                                class="
+                                    mt-1
+                                    text-[10px]
+                                    font-semibold
+                                    text-[#52635B]
+                                "
+                            >
+                                {{ $sellerName }}
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="
+                                rounded-xl
+                                bg-[#F7F9F8]
+                                p-3
+                            "
+                        >
+
+                            <p
+                                class="
+                                    text-[8px]
+                                    uppercase
+                                    tracking-[0.08em]
+                                    text-[#98A39D]
+                                "
+                            >
+                                Pickup Rider
+                            </p>
+
+
+                            <p
+                                class="
+                                    mt-1
+                                    text-[10px]
+                                    font-semibold
+                                    text-[#52635B]
+                                "
+                            >
+                                {{ $pickupRiderName }}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- ADDRESS --}}
+                    <div
+                        class="
+                            mt-3
+                            rounded-xl
+                            border border-[#EDF1EF]
+                            p-3
+                        "
+                    >
+
+                        <div
+                            class="
+                                flex items-start gap-2
+                            "
+                        >
+
+                            <i
+                                data-lucide="map-pin"
+                                class="
+                                    mt-0.5
+                                    h-3.5 w-3.5
+                                    shrink-0
+                                    text-[#1F6F5B]
+                                "
+                            ></i>
+
+
+                            <p
+                                class="
+                                    text-[10px]
+                                    leading-5
+                                    text-[#65756D]
+                                "
+                            >
+                                {{ $address }}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- ACTION --}}
+                    <div class="mt-4">
+
+                        @if(
+                            $status ===
+                            'at_sorting_center'
+                        )
+
+                            <a
+                                href="{{ route('logistics.sorting') }}"
+                                class="
+                                    inline-flex h-10
+                                    w-full
+                                    items-center justify-center
+                                    gap-2
+                                    rounded-xl
+                                    bg-[#173F35]
+                                    text-[10px]
+                                    font-semibold
+                                    text-white
+                                    transition
+                                    hover:bg-[#1F6F5B]
+                                "
+                            >
+
+                                <i
+                                    data-lucide="scan-line"
+                                    class="h-4 w-4"
+                                ></i>
+
+                                Proceed to Parcel Sorting
+
+                            </a>
+
+
+                        @else
+
+                            <div
+                                class="
+                                    flex h-10
+                                    items-center justify-center
+                                    gap-2
+                                    rounded-xl
+                                    border border-[#E2E8E4]
+                                    bg-[#F7F9F8]
+                                    text-[10px]
+                                    font-medium
+                                    text-[#87948E]
+                                "
+                            >
+
+                                <i
+                                    data-lucide="clock-3"
+                                    class="h-4 w-4"
+                                ></i>
+
+                                Waiting for Rider Arrival
+
+                            </div>
+
+                        @endif
+
+                    </div>
+
+                </article>
+
+            @endforeach
+
+        </div>
+
+
+        {{-- FILTER EMPTY --}}
+        <div
+            id="noParcelResults"
+            class="
+                hidden
+                px-6 py-14
+                text-center
+            "
+        >
+
+            <div
+                class="
+                    mx-auto
+                    flex h-12 w-12
+                    items-center justify-center
+                    rounded-2xl
+                    bg-[#F1F4F2]
+                    text-[#87958E]
+                "
+            >
+
+                <i
+                    data-lucide="search-x"
+                    class="h-5 w-5"
+                ></i>
+
+            </div>
+
+
+            <p
+                class="
+                    mt-4
+                    text-sm
+                    font-semibold
+                    text-[#34483F]
+                "
+            >
+                No matching parcels
+            </p>
+
+
+            <p
+                class="
+                    mt-1
+                    text-xs
+                    text-[#849089]
+                "
+            >
+                Try another parcel, rider,
+                seller, or status.
+            </p>
+
+        </div>
+
+
+    @else
+
+        {{-- EMPTY --}}
+        <div
+            class="
+                px-6 py-16
+                text-center
+            "
+        >
+
+            <div
+                class="
+                    mx-auto
+                    flex h-14 w-14
+                    items-center justify-center
+                    rounded-2xl
+                    bg-[#EEF5F1]
+                    text-[#1F6F5B]
+                "
+            >
+
+                <i
+                    data-lucide="package-open"
+                    class="h-6 w-6"
+                ></i>
+
+            </div>
+
+
+            <h3
+                class="
+                    mt-4
+                    text-sm
+                    font-semibold
+                    text-[#34483F]
+                "
+            >
+                No incoming parcels
+            </h3>
+
+
+            <p
+                class="
+                    mx-auto mt-1
+                    max-w-md
+                    text-xs
+                    leading-5
+                    text-[#849089]
+                "
+            >
+                Parcels will automatically appear
+                here after a pickup rider collects
+                them from a seller.
+            </p>
+
+        </div>
+
+    @endif
+
+</section>
+
+
+@push('scripts')
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+
+        const search =
+            document.getElementById(
+                'parcelSearch'
+            );
+
+
+        const status =
+            document.getElementById(
+                'parcelStatusFilter'
+            );
+
+
+        const rows =
+            Array.from(
+                document.querySelectorAll(
+                    '.parcel-row'
+                )
+            );
+
+
+        const cards =
+            Array.from(
+                document.querySelectorAll(
+                    '.parcel-card'
+                )
+            );
+
+
+        const noResults =
+            document.getElementById(
+                'noParcelResults'
+            );
+
+
+        function itemMatches(
+            item,
+            searchValue,
+            statusValue
+        ) {
+
+            const searchable =
+                (
+                    item.dataset.search
+                    || ''
+                )
+                .toLowerCase();
+
+
+            const itemStatus =
+                item.dataset.status
+                || '';
+
+
+            const searchMatches =
+                searchValue === ''
+                ||
+                searchable.includes(
+                    searchValue
+                );
+
+
+            const statusMatches =
+                statusValue === 'all'
+                ||
+                itemStatus ===
+                    statusValue;
+
+
+            return (
+                searchMatches
+                &&
+                statusMatches
+            );
+
+        }
+
+
+        function filterParcels() {
+
+            const searchValue =
+                (
+                    search?.value
+                    || ''
+                )
+                .trim()
+                .toLowerCase();
+
+
+            const statusValue =
+                status?.value
+                || 'all';
+
+
+            let visibleRows = 0;
+            let visibleCards = 0;
+
+
+            rows.forEach(
+                function (row) {
+
+                    const visible =
+                        itemMatches(
+                            row,
+                            searchValue,
+                            statusValue
+                        );
+
+
+                    row.classList.toggle(
+                        'hidden',
+                        !visible
+                    );
+
+
+                    if (visible) {
+                        visibleRows++;
+                    }
+
+                }
+            );
+
+
+            cards.forEach(
+                function (card) {
+
+                    const visible =
+                        itemMatches(
+                            card,
+                            searchValue,
+                            statusValue
+                        );
+
+
+                    card.classList.toggle(
+                        'hidden',
+                        !visible
+                    );
+
+
+                    if (visible) {
+                        visibleCards++;
+                    }
+
+                }
+            );
+
+
+            const hasData =
+                rows.length > 0
+                ||
+                cards.length > 0;
+
+
+            const hasVisible =
+                visibleRows > 0
+                ||
+                visibleCards > 0;
+
+
+            noResults?.classList.toggle(
+                'hidden',
+                !hasData
+                ||
+                hasVisible
+            );
+
+        }
+
+
+        search?.addEventListener(
+            'input',
+            filterParcels
+        );
+
+
+        status?.addEventListener(
+            'change',
+            filterParcels
+        );
+
+
+        if (
+            typeof lucide !== 'undefined'
+            &&
+            typeof lucide.createIcons ===
+                'function'
+        ) {
+
+            lucide.createIcons();
+
+        }
+
+    }
+);
+
+</script>
+
+@endpush
 
 @endsection
