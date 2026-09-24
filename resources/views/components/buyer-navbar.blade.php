@@ -1,265 +1,435 @@
-{{-- TOP SELLER BAR --}}
-<div class="bg-[#1F6F5B] text-white">
-    <div class="max-w-7xl mx-auto px-4">
-        <div class="h-9 flex items-center justify-end">
-
-            <div class="flex items-center text-xs sm:text-sm">
-
-                {{-- SELLER CENTRE --}}
-                <a
-                    href="{{ route('seller.dashboard') }}"
-                    class="hover:text-white/80 transition"
-                >
-                    Seller Centre
-                </a>
-
-                <span class="mx-2 text-white/60">|</span>
-
-                {{-- START SELLING --}}
-                <a
-                    href="{{ route('seller.register') }}"
-                    class="hover:text-white/80 transition"
-                >
-                    Start Selling
-                </a>
-
-            </div>
-
-        </div>
-    </div>
-</div>
-
-
-{{-- MAIN NAVBAR --}}
-<nav class="sticky top-0 z-50 bg-white border-b border-gray-200">
-
-    {{-- TOP NAVIGATION --}}
-    <div class="max-w-7xl mx-auto px-4">
-
-        <div class="h-16 flex items-center gap-6">
-
-            {{-- LOGO --}}
-            <a href="{{ route('buyer.home') }}" class="shrink-0 flex items-center">
-
-                <div class="w-24 h-12 flex items-center justify-center">
-                    <img
-                        src="{{ asset('images/suki-logo.png') }}"
-                        alt="SUKI SHOP"
-                        class="w-full h-full object-contain"
-                    >
-                </div>
-
-            </a>
-
-
-            {{-- SEARCH --}}
-            <div class="flex-1 max-w-2xl">
-
-                <form action="{{ route('buyer.shop') }}" method="GET">
-
-                    <div class="relative">
-
-                        <input
-                            type="text"
-                            name="search"
-                            value="{{ request('search') }}"
-                            placeholder="Search products, brands, and more..."
-                            class="w-full h-11 pl-4 pr-12 rounded-lg
-                                   border border-gray-300
-                                   focus:outline-none
-                                   focus:ring-2 focus:ring-[#1F6F5B]/20
-                                   focus:border-[#1F6F5B]
-                                   text-sm"
-                        >
-
-                        <button
-                            type="submit"
-                            class="absolute right-1 top-1
-                                   w-9 h-9
-                                   rounded-md
-                                   bg-[#1F6F5B]
-                                   text-white
-                                   flex items-center justify-center
-                                   hover:bg-[#155244]
-                                   transition"
-                        >
-                            <i data-lucide="search" class="w-5 h-5"></i>
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-
-            {{-- RIGHT ACTIONS --}}
-            <div class="flex items-center gap-5">
-
-               {{-- CART --}}
 @php
+
     $cartCount = 0;
 
     if (
         auth()->check() &&
         auth()->user()->role === 'buyer'
     ) {
-        $cartCount = auth()
-            ->user()
-            ->cartItems()
-            ->count();
+
+        try {
+
+            $cartCount = auth()
+                ->user()
+                ->cartItems()
+                ->count();
+
+        } catch (\Throwable $e) {
+
+            $cartCount = 0;
+
+        }
+
     }
+
 @endphp
 
-<a
-    href="{{ auth()->check() ? route('buyer.cart') : route('login') }}"
-    class="relative text-gray-600 hover:text-[#1F6F5B] transition"
-    title="Shopping Cart"
+
+{{-- =========================================================
+   TOP BAR
+========================================================= --}}
+
+<div class="hidden bg-[#173F35] text-white md:block">
+
+    <div
+        class="mx-auto flex h-8 max-w-[1500px]
+               items-center justify-between
+               px-6 lg:px-10"
+    >
+
+        <p class="text-[10px] font-medium tracking-[0.04em] text-white/70">
+            Good people. Better communities.
+        </p>
+
+
+        <div
+            class="flex items-center gap-6
+                   text-[10px] font-medium
+                   text-white/70"
+        >
+
+            <a
+                href="{{ route('landing') }}#how-it-works"
+                class="transition hover:text-white"
+            >
+                How It Works
+            </a>
+
+            <a
+                href="{{ route('seller.dashboard') }}"
+                class="transition hover:text-white"
+            >
+                Seller Centre
+            </a>
+
+            <a
+                href="{{ route('rider.apply') }}"
+                class="transition hover:text-white"
+            >
+                Become a Rider
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{{-- =========================================================
+   MAIN NAVBAR
+========================================================= --}}
+
+<header
+    class="sticky top-0 z-50
+           border-b border-[#173F35]/10
+           bg-[#F8FAF8]/95
+           backdrop-blur-xl"
 >
 
-    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+    <div class="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-10">
 
-    @if($cartCount > 0)
-        <span
-            class="absolute -top-2 -right-2
-                   min-w-5 h-5 px-1
-                   rounded-full
-                   bg-[#F59E0B]
-                   text-white
-                   text-[10px]
-                   font-semibold
-                   flex items-center justify-center"
-        >
-            {{ $cartCount > 99 ? '99+' : $cartCount }}
-        </span>
-    @endif
+        <div class="flex h-[74px] items-center gap-4 lg:gap-7">
 
-</a>
 
-                {{-- AUTHENTICATED BUYER --}}
+            {{-- LOGO --}}
+            <a
+                href="{{ route('buyer.home') }}"
+                class="flex shrink-0 items-center gap-3"
+            >
+
+                <img
+                    src="{{ asset('images/suki-logo.png') }}"
+                    alt="SUKI SHOP"
+                    class="h-10 w-10 object-contain sm:h-11 sm:w-11"
+                >
+
+
+                <div class="hidden leading-none sm:block">
+
+                    <span
+                        class="block text-[17px] font-bold
+                               tracking-[-0.04em]
+                               text-[#173F35]"
+                    >
+                        SUKI SHOP
+                    </span>
+
+                    <span
+                        class="mt-1 block
+                               text-[8px] font-medium
+                               uppercase tracking-[0.16em]
+                               text-[#1F6F5B]/60"
+                    >
+                        Connected Marketplace
+                    </span>
+
+                </div>
+
+            </a>
+
+
+            {{-- SEARCH --}}
+            <form
+                action="{{ route('buyer.shop') }}"
+                method="GET"
+                class="min-w-0 flex-1 lg:max-w-2xl"
+            >
+
+                <div class="relative">
+
+                    <i
+                        data-lucide="search"
+                        class="pointer-events-none
+                               absolute left-4 top-1/2
+                               h-4 w-4
+                               -translate-y-1/2
+                               text-[#789087]"
+                    ></i>
+
+
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        placeholder="Search products and stores"
+                        class="h-11 w-full
+                               rounded-xl
+                               border border-[#DDE6E1]
+                               bg-white
+                               pl-11 pr-12
+                               text-sm text-[#24312C]
+                               placeholder:text-[#94A39C]
+                               focus:border-[#1F6F5B]
+                               focus:ring-4
+                               focus:ring-[#DDF3EC]/70"
+                    >
+
+
+                    <button
+                        type="submit"
+                        aria-label="Search"
+                        class="absolute right-1.5 top-1.5
+                               flex h-8 w-8
+                               items-center justify-center
+                               rounded-lg
+                               bg-[#173F35]
+                               text-white
+                               transition
+                               hover:bg-[#1F6F5B]"
+                    >
+
+                        <i
+                            data-lucide="arrow-right"
+                            class="h-4 w-4"
+                        ></i>
+
+                    </button>
+
+                </div>
+
+            </form>
+
+
+            {{-- RIGHT ACTIONS --}}
+            <div class="flex items-center gap-1 sm:gap-2">
+
+
+                {{-- CART --}}
+                <a
+                    href="{{ auth()->check() ? route('buyer.cart') : route('login') }}"
+                    title="Cart"
+                    class="relative
+                           flex h-10 w-10
+                           items-center justify-center
+                           rounded-xl
+                           text-[#52635B]
+                           transition
+                           hover:bg-[#EEF5F1]
+                           hover:text-[#173F35]"
+                >
+
+                    <i
+                        data-lucide="shopping-bag"
+                        class="h-5 w-5"
+                    ></i>
+
+
+                    @if($cartCount > 0)
+
+                        <span
+                            class="absolute
+                                   -right-0.5 -top-0.5
+                                   flex min-w-[18px]
+                                   h-[18px]
+                                   items-center justify-center
+                                   rounded-full
+                                   bg-[#173F35]
+                                   px-1
+                                   text-[9px]
+                                   font-bold
+                                   text-white"
+                        >
+                            {{ $cartCount > 99 ? '99+' : $cartCount }}
+                        </span>
+
+                    @endif
+
+                </a>
+
+
                 @if(session('buyer_logged_in'))
 
-                    {{-- NOTIFICATIONS --}}
+
+                    {{-- WISHLIST --}}
                     <a
-                        href="#"
-                        class="text-gray-600 hover:text-[#1F6F5B] transition"
-                        title="Notifications"
+                        href="{{ route('buyer.wishlist') }}"
+                        title="Wishlist"
+                        class="hidden h-10 w-10
+                               items-center justify-center
+                               rounded-xl
+                               text-[#52635B]
+                               transition
+                               hover:bg-[#EEF5F1]
+                               hover:text-[#173F35]
+                               sm:flex"
                     >
-                        <i data-lucide="bell" class="w-6 h-6"></i>
+
+                        <i
+                            data-lucide="heart"
+                            class="h-5 w-5"
+                        ></i>
+
                     </a>
 
 
                     {{-- ACCOUNT --}}
-                    <div class="relative group">
+                    <div class="group relative">
 
                         <a
                             href="{{ route('buyer.account') }}"
-                            class="flex items-center gap-2
-                                   text-gray-700
-                                   hover:text-[#1F6F5B]
-                                   transition"
-                            title="My Account"
+                            class="flex h-10
+                                   items-center gap-2
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-2.5
+                                   text-[#34483F]
+                                   transition
+                                   hover:border-[#BFD2C9]
+                                   hover:bg-[#FAFCFB]
+                                   sm:px-3"
                         >
 
-                            <div
-                                class="w-9 h-9 rounded-full
+                            <span
+                                class="flex h-7 w-7
+                                       items-center justify-center
+                                       rounded-lg
                                        bg-[#DDF3EC]
-                                       flex items-center justify-center"
+                                       text-[#173F35]"
                             >
+
                                 <i
                                     data-lucide="user"
-                                    class="w-5 h-5 text-[#1F6F5B]"
+                                    class="h-4 w-4"
                                 ></i>
-                            </div>
 
-                            <span class="hidden lg:block text-sm font-medium">
+                            </span>
+
+
+                            <span
+                                class="hidden
+                                       text-xs font-semibold
+                                       lg:inline"
+                            >
                                 Account
                             </span>
 
+
                             <i
                                 data-lucide="chevron-down"
-                                class="hidden lg:block w-4 h-4 text-gray-400"
+                                class="hidden
+                                       h-3.5 w-3.5
+                                       text-[#8A9992]
+                                       lg:block"
                             ></i>
 
                         </a>
 
 
-                        {{-- ACCOUNT DROPDOWN --}}
+                        {{-- DROPDOWN --}}
                         <div
-                            class="absolute right-0 top-full pt-3
-                                   invisible opacity-0 translate-y-1
-                                   group-hover:visible group-hover:opacity-100
-                                   group-hover:translate-y-0
-                                   transition-all duration-200"
+                            class="invisible
+                                   absolute right-0 top-full
+                                   pt-2
+                                   opacity-0
+                                   transition
+                                   group-hover:visible
+                                   group-hover:opacity-100"
                         >
 
                             <div
-                                class="w-56 bg-white
-                                       border border-gray-200
-                                       rounded-xl
-                                       shadow-lg
-                                       overflow-hidden"
+                                class="w-56
+                                       overflow-hidden
+                                       rounded-2xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       p-2
+                                       shadow-[0_18px_50px_rgba(23,63,53,.12)]"
                             >
 
-                                {{-- PROFILE --}}
                                 <a
                                     href="{{ route('buyer.account') }}"
-                                    class="flex items-center gap-3 px-4 py-3
-                                           text-sm text-gray-700
-                                           hover:bg-[#F8FAF8]
-                                           hover:text-[#1F6F5B]"
+                                    class="flex items-center gap-3
+                                           rounded-xl
+                                           px-3 py-2.5
+                                           text-sm text-[#52635B]
+                                           hover:bg-[#F3F7F5]
+                                           hover:text-[#173F35]"
                                 >
-                                    <i data-lucide="user-circle" class="w-4 h-4"></i>
+
+                                    <i
+                                        data-lucide="user-round"
+                                        class="h-4 w-4"
+                                    ></i>
+
                                     My Account
+
                                 </a>
 
 
-                                {{-- ORDERS --}}
                                 <a
                                     href="{{ route('buyer.my-orders') }}"
-                                    class="flex items-center gap-3 px-4 py-3
-                                           text-sm text-gray-700
-                                           hover:bg-[#F8FAF8]
-                                           hover:text-[#1F6F5B]"
+                                    class="flex items-center gap-3
+                                           rounded-xl
+                                           px-3 py-2.5
+                                           text-sm text-[#52635B]
+                                           hover:bg-[#F3F7F5]
+                                           hover:text-[#173F35]"
                                 >
-                                    <i data-lucide="package" class="w-4 h-4"></i>
+
+                                    <i
+                                        data-lucide="package"
+                                        class="h-4 w-4"
+                                    ></i>
+
                                     My Orders
+
                                 </a>
 
 
-                                {{-- WISHLIST --}}
                                 <a
                                     href="{{ route('buyer.wishlist') }}"
-                                    class="flex items-center gap-3 px-4 py-3
-                                           text-sm text-gray-700
-                                           hover:bg-[#F8FAF8]
-                                           hover:text-[#1F6F5B]"
+                                    class="flex items-center gap-3
+                                           rounded-xl
+                                           px-3 py-2.5
+                                           text-sm text-[#52635B]
+                                           hover:bg-[#F3F7F5]
+                                           hover:text-[#173F35]"
                                 >
-                                    <i data-lucide="heart" class="w-4 h-4"></i>
-                                    My Wishlist
+
+                                    <i
+                                        data-lucide="heart"
+                                        class="h-4 w-4"
+                                    ></i>
+
+                                    Wishlist
+
                                 </a>
 
 
-                                <div class="border-t border-gray-100"></div>
+                                <div
+                                    class="my-1
+                                           border-t border-[#EDF1EF]"
+                                ></div>
 
 
-                                {{-- LOGOUT --}}
                                 <form
                                     action="{{ route('logout') }}"
                                     method="POST"
                                 >
+
                                     @csrf
 
                                     <button
                                         type="submit"
-                                        class="w-full flex items-center gap-3 px-4 py-3
-                                               text-sm text-gray-600
+                                        class="flex w-full
+                                               items-center gap-3
+                                               rounded-xl
+                                               px-3 py-2.5
+                                               text-left
+                                               text-sm text-[#66736D]
                                                hover:bg-red-50
-                                               hover:text-red-600
-                                               text-left"
+                                               hover:text-red-600"
                                     >
-                                        <i data-lucide="log-out" class="w-4 h-4"></i>
+
+                                        <i
+                                            data-lucide="log-out"
+                                            class="h-4 w-4"
+                                        ></i>
+
                                         Log Out
+
                                     </button>
 
                                 </form>
@@ -271,37 +441,39 @@
                     </div>
 
 
-                {{-- GUEST --}}
                 @else
 
-                    {{-- LOGIN --}}
+
                     <a
                         href="{{ route('login') }}"
-                        class="hidden sm:flex items-center gap-2
-                               text-sm font-medium
-                               text-gray-600
-                               hover:text-[#1F6F5B]
-                               transition"
+                        class="hidden
+                               rounded-xl
+                               px-3 py-2
+                               text-xs font-semibold
+                               text-[#52635B]
+                               transition
+                               hover:text-[#173F35]
+                               sm:inline-flex"
                     >
-                        <i data-lucide="log-in" class="w-4 h-4"></i>
                         Log In
                     </a>
 
 
-                    {{-- SIGN UP --}}
                     <a
                         href="{{ route('register') }}"
-                        class="hidden sm:flex items-center
-                               px-4 py-2
-                               rounded-lg
-                               bg-[#1F6F5B]
+                        class="hidden
+                               rounded-xl
+                               bg-[#173F35]
+                               px-4 py-2.5
+                               text-xs font-semibold
                                text-white
-                               text-sm font-medium
-                               hover:bg-[#155244]
-                               transition"
+                               transition
+                               hover:bg-[#1F6F5B]
+                               sm:inline-flex"
                     >
-                        Sign Up
+                        Create account
                     </a>
+
 
                 @endif
 
@@ -310,85 +482,97 @@
         </div>
 
 
-        {{-- SECONDARY NAVIGATION --}}
-        <div class="h-11 flex items-center gap-7 border-t border-gray-100">
+        {{-- =====================================================
+           SECONDARY NAVIGATION
+        ====================================================== --}}
 
-            {{-- HOME --}}
+        <nav
+            class="flex h-11
+                   items-center gap-5
+                   overflow-x-auto
+                   border-t border-[#173F35]/10
+                   text-[12px] font-medium
+                   sm:gap-7"
+        >
+
             <a
                 href="{{ route('buyer.home') }}"
-                class="h-full flex items-center text-sm font-medium
-                       {{ request()->routeIs('buyer.home')
-                            ? 'text-[#1F6F5B] border-b-2 border-[#1F6F5B]'
-                            : 'text-gray-600 hover:text-[#1F6F5B]' }}
-                       transition"
+                class="whitespace-nowrap transition
+                {{ request()->routeIs('buyer.home')
+                    ? 'text-[#173F35]'
+                    : 'text-[#6E7D76] hover:text-[#173F35]' }}"
             >
                 Home
             </a>
 
 
-            {{-- CATEGORIES --}}
             <a
                 href="{{ route('buyer.shop') }}"
-                class="text-sm
-                       {{ request()->routeIs('buyer.shop')
-                            ? 'text-[#1F6F5B] font-medium'
-                            : 'text-gray-600' }}
-                       hover:text-[#1F6F5B] transition"
+                class="whitespace-nowrap transition
+                {{ request()->routeIs('buyer.shop') || request()->routeIs('buyer.product*')
+                    ? 'text-[#173F35]'
+                    : 'text-[#6E7D76] hover:text-[#173F35]' }}"
             >
-                Categories
+                Shop
             </a>
 
 
-            {{-- FLASH DEALS --}}
-            <a
-                href="{{ route('buyer.shop') }}#flash-deals"
-                class="text-sm text-gray-600
-                       hover:text-[#1F6F5B] transition"
-            >
-                Flash Deals
-            </a>
-
-
-            {{-- NEW ARRIVALS --}}
             <a
                 href="{{ route('buyer.shop') }}?sort=newest"
-                class="text-sm text-gray-600
-                       hover:text-[#1F6F5B] transition"
+                class="whitespace-nowrap
+                       text-[#6E7D76]
+                       transition
+                       hover:text-[#173F35]"
             >
-                New Arrivals
+                New arrivals
             </a>
 
 
-            {{-- BEST SELLERS --}}
             <a
                 href="{{ route('buyer.shop') }}?sort=best-selling"
-                class="text-sm text-gray-600
-                       hover:text-[#1F6F5B] transition"
+                class="whitespace-nowrap
+                       text-[#6E7D76]
+                       transition
+                       hover:text-[#173F35]"
             >
-                Best Sellers
+                Best sellers
             </a>
 
 
-            <div class="flex-1"></div>
+            @if(session('buyer_logged_in'))
+
+                <a
+                    href="{{ route('buyer.my-orders') }}"
+                    class="whitespace-nowrap
+                           text-[#6E7D76]
+                           transition
+                           hover:text-[#173F35]"
+                >
+                    My orders
+                </a>
+
+            @endif
 
 
-            {{-- HELP CENTER --}}
-            <a
-                href="#"
-                class="flex items-center gap-2 text-sm
-                       text-gray-600
-                       hover:text-[#1F6F5B]
-                       transition"
+            <span
+                class="ml-auto hidden
+                       items-center gap-2
+                       whitespace-nowrap
+                       text-[#8B9992]
+                       lg:flex"
             >
 
-                <i data-lucide="help-circle" class="w-4 h-4"></i>
+                <i
+                    data-lucide="shield-check"
+                    class="h-4 w-4"
+                ></i>
 
-                Help Center
+                Secure marketplace experience
 
-            </a>
+            </span>
 
-        </div>
+        </nav>
 
     </div>
 
-</nav>
+</header>
