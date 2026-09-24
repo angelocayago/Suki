@@ -1,4 +1,6 @@
-@extends('layouts.app')
+@extends('layouts.auth')
+
+@section('title', 'Create Seller Account - SUKI SHOP')
 
 @section('content')
 
