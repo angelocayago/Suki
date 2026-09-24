@@ -3557,11 +3557,13 @@ Route::get('/rider/deliveries', function () {
             );
     }
 
+
     $orders = session('orders', []);
 
     if (!is_array($orders)) {
         $orders = [];
     }
+
 
     $riderOrders = collect($orders)
         ->filter(function ($order) {
@@ -3586,6 +3588,7 @@ Route::get('/rider/deliveries', function () {
         ->reverse()
         ->toArray();
 
+
     return view('rider.deliveries', [
         'orders' => $riderOrders,
     ]);
@@ -3597,26 +3600,188 @@ Route::get('/rider/deliveries', function () {
 // RIDER ACCEPT PICKUP
 // =====================================================
 //
-// READY_FOR_PICKUP stays READY_FOR_PICKUP.
+// ERP FLOW:
 //
-// Accepting the pickup does NOT create a new ERP status.
-// We only save which pickup rider accepted it.
-//
-// ERP Flow:
 // READY_FOR_PICKUP
 //      ↓
 // Accept Pickup
 //      ↓
 // Go to Seller
 //      ↓
-// Pick Up + Scan/Confirm
+// Pick Up Parcel
+//      ↓
+// Scan / Confirm Parcel
 //      ↓
 // PICKED_UP
+//
+// Accepting does NOT create another ERP status.
+// The order stays READY_FOR_PICKUP until pickup is confirmed.
 // =====================================================
 
-Route::post('/rider/orders/{order}/accept-pickup', function (
-    $orderId
-) {
+Route::post(
+    '/rider/orders/{order}/accept-pickup',
+    function ($orderId) {
+
+        if (!session('rider_logged_in')) {
+
+            return redirect()
+                ->route('rider.login')
+                ->with(
+                    'error',
+                    'Please log in as a SUKI Rider first.'
+                );
+        }
+
+
+        $orders = session('orders', []);
+
+        if (!is_array($orders)) {
+            $orders = [];
+        }
+
+
+        if (!isset($orders[$orderId])) {
+
+            return back()->with(
+                'error',
+                'Order not found.'
+            );
+        }
+
+
+        if (
+            ($orders[$orderId]['status'] ?? '')
+            !== 'ready_for_pickup'
+        ) {
+
+            return back()->with(
+                'error',
+                'This parcel is no longer available for pickup.'
+            );
+        }
+
+
+        $riders = session(
+            'rider_applications',
+            []
+        );
+
+
+        $riderIndex = session(
+            'logged_in_rider_index'
+        );
+
+
+        if (
+            $riderIndex === null ||
+            !isset($riders[$riderIndex])
+        ) {
+
+            return redirect()
+                ->route('rider.login')
+                ->with(
+                    'error',
+                    'Your rider session could not be verified.'
+                );
+        }
+
+
+        $existingPickupRider =
+            $orders[$orderId]['pickup_rider_index']
+            ?? null;
+
+
+        if (
+            $existingPickupRider !== null &&
+            (string) $existingPickupRider !==
+            (string) $riderIndex
+        ) {
+
+            return back()->with(
+                'error',
+                'Another rider has already accepted this pickup.'
+            );
+        }
+
+
+        $rider =
+            $riders[$riderIndex];
+
+
+        $riderName = trim(
+            ($rider['first_name'] ?? '') . ' ' .
+            ($rider['last_name'] ?? '')
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PICKUP RIDER
+        |--------------------------------------------------------------------------
+        |
+        | pickup_rider_index:
+        | Rider who collects from Seller → Sorting Center.
+        |
+        | rider_index:
+        | Final delivery rider assigned later by Logistics.
+        |
+        */
+
+        $orders[$orderId]['pickup_rider_index'] =
+            $riderIndex;
+
+
+        $orders[$orderId]['pickup_rider_name'] =
+            $riderName;
+
+
+        $orders[$orderId]['pickup_rider'] = [
+
+            'first_name' =>
+                $rider['first_name'] ?? '',
+
+            'last_name' =>
+                $rider['last_name'] ?? '',
+
+            'phone' =>
+                $rider['phone'] ?? '',
+
+            'vehicle_type' =>
+                $rider['vehicle_type'] ?? '',
+
+            'plate_number' =>
+                $rider['plate_number'] ?? '',
+        ];
+
+
+        $orders[$orderId]['pickup_accepted_at'] =
+            now()->format('Y-m-d H:i:s');
+
+
+        $orders[$orderId]['updated_at'] =
+            now()->format('Y-m-d H:i:s');
+
+
+        session()->put(
+            'orders',
+            $orders
+        );
+
+
+        return back()->with(
+            'success',
+            'Pickup accepted. Proceed to the seller, collect the parcel, then scan or confirm the parcel pickup.'
+        );
+
+    }
+)->name('rider.pickup.accept');
+
+
+// =====================================================
+// RIDER EARNINGS
+// =====================================================
+
+Route::get('/rider/earnings', function () {
 
     if (!session('rider_logged_in')) {
 
@@ -3629,38 +3794,11 @@ Route::post('/rider/orders/{order}/accept-pickup', function (
     }
 
 
-    $orders = session('orders', []);
-
-    if (!is_array($orders)) {
-        $orders = [];
-    }
-
-
-    if (!isset($orders[$orderId])) {
-
-        return back()->with(
-            'error',
-            'Order not found.'
-        );
-    }
-
-
-    if (
-        ($orders[$orderId]['status'] ?? '')
-        !== 'ready_for_pickup'
-    ) {
-
-        return back()->with(
-            'error',
-            'This parcel is no longer available for pickup.'
-        );
-    }
-
-
     $riders = session(
         'rider_applications',
         []
     );
+
 
     $riderIndex = session(
         'logged_in_rider_index'
@@ -3681,416 +3819,422 @@ Route::post('/rider/orders/{order}/accept-pickup', function (
     }
 
 
-    $existingPickupRider =
-        $orders[$orderId]['pickup_rider_index']
-        ?? null;
-
-
-    if (
-        $existingPickupRider !== null &&
-        (string) $existingPickupRider !==
-            (string) $riderIndex
-    ) {
-
-        return back()->with(
-            'error',
-            'Another rider has already accepted this pickup.'
-        );
-    }
-
-
-    $rider = $riders[$riderIndex];
-
-    $riderName = trim(
-        ($rider['first_name'] ?? '') . ' ' .
-        ($rider['last_name'] ?? '')
+    $orders = session(
+        'orders',
+        []
     );
+
+
+    if (!is_array($orders)) {
+        $orders = [];
+    }
 
 
     /*
     |--------------------------------------------------------------------------
-    | PICKUP RIDER
+    | ONLY THIS RIDER'S DELIVERIES
+    |--------------------------------------------------------------------------
+    */
+
+    $completedOrders =
+        collect($orders)
+            ->filter(
+                function ($order)
+                use ($riderIndex) {
+
+                    $assignedRider =
+                        $order['rider_index']
+                        ?? null;
+
+
+                    $belongsToRider =
+                        $assignedRider !== null &&
+                        (string) $assignedRider ===
+                        (string) $riderIndex;
+
+
+                    $isCompleted =
+                        in_array(
+                            $order['status'] ?? '',
+                            [
+                                'delivered',
+                                'completed',
+                            ]
+                        );
+
+
+                    return
+                        $belongsToRider &&
+                        $isCompleted;
+
+                }
+            )
+            ->reverse();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PROTOTYPE DELIVERY FEE
     |--------------------------------------------------------------------------
     |
-    | Separate from rider_index/rider_name.
-    |
-    | rider_index is reserved for the FINAL delivery rider assigned
-    | by Logistics after sorting.
+    | ₱50 muna per successful delivery.
+    | Later puwede itong palitan ng actual delivery-area pricing.
     |
     */
 
-    $orders[$orderId]['pickup_rider_index'] =
-        $riderIndex;
-
-    $orders[$orderId]['pickup_rider_name'] =
-        $riderName;
-
-    $orders[$orderId]['pickup_rider'] = [
-
-        'first_name' =>
-            $rider['first_name'] ?? '',
-
-        'last_name' =>
-            $rider['last_name'] ?? '',
-
-        'phone' =>
-            $rider['phone'] ?? '',
-
-        'vehicle_type' =>
-            $rider['vehicle_type'] ?? '',
-
-        'plate_number' =>
-            $rider['plate_number'] ?? '',
-    ];
+    $deliveryFee =
+        50;
 
 
-    $orders[$orderId]['pickup_accepted_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    $orders[$orderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
+    $totalDeliveries =
+        $completedOrders->count();
 
 
-    session()->put(
+    $totalEarnings =
+        $totalDeliveries *
+        $deliveryFee;
+
+
+    return view(
+        'rider.earnings',
+        [
+
+            'orders' =>
+                $completedOrders,
+
+            'totalDeliveries' =>
+                $totalDeliveries,
+
+            'totalEarnings' =>
+                $totalEarnings,
+
+            'deliveryFee' =>
+                $deliveryFee,
+        ]
+    );
+
+})->name('rider.earnings');
+
+// =====================================================
+// RIDER DELIVERY HISTORY
+// =====================================================
+
+Route::get('/rider/history', function () {
+
+    if (!session('rider_logged_in')) {
+
+        return redirect()
+            ->route('rider.login')
+            ->with(
+                'error',
+                'Please log in as a SUKI Rider first.'
+            );
+    }
+
+
+    $riders = session(
+        'rider_applications',
+        []
+    );
+
+
+    $riderIndex = session(
+        'logged_in_rider_index'
+    );
+
+
+    if (
+        $riderIndex === null ||
+        !isset($riders[$riderIndex])
+    ) {
+
+        return redirect()
+            ->route('rider.login')
+            ->with(
+                'error',
+                'Your rider session could not be verified.'
+            );
+    }
+
+
+    $orders = session(
         'orders',
-        $orders
+        []
     );
 
 
-    return back()->with(
-        'success',
-        'Pickup accepted. Proceed to the seller, collect the parcel, then scan or confirm the parcel pickup.'
+    if (!is_array($orders)) {
+        $orders = [];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | THIS RIDER'S DELIVERY HISTORY ONLY
+    |--------------------------------------------------------------------------
+    |
+    | rider_index is the FINAL delivery rider assigned by Logistics.
+    |
+    | Pickup Rider assignments are intentionally not included here because
+    | this page is the Delivery History required by the Rider module.
+    |
+    */
+
+    $historyOrders =
+        collect($orders)
+            ->filter(
+                function ($order)
+                use ($riderIndex) {
+
+                    $assignedRider =
+                        $order['rider_index']
+                        ?? null;
+
+
+                    if (
+                        $assignedRider === null ||
+                        (string) $assignedRider !==
+                        (string) $riderIndex
+                    ) {
+
+                        return false;
+                    }
+
+
+                    return in_array(
+                        strtolower(
+                            $order['status']
+                            ?? ''
+                        ),
+                        [
+                            'delivered',
+                            'completed',
+                            'delivery_failed',
+                            'returned',
+                        ]
+                    );
+
+                }
+            )
+            ->reverse();
+
+
+    return view(
+        'rider.history',
+        [
+            'orders' =>
+                $historyOrders,
+        ]
     );
 
-})->name('rider.pickup.accept');
-
+})->name('rider.history');
 
 // =====================================================
 // RIDER ORDER STATUS ACTIONS
 // =====================================================
 //
-// PICKUP FLOW
+// PICKUP FLOW:
 //
 // READY_FOR_PICKUP
 //      ↓
-// [Accept Pickup - metadata only]
+// Accept Pickup
 //      ↓
 // PICKED_UP
 //      ↓
 // AT_SORTING_CENTER
 //
-// DELIVERY FLOW
 //
+// DELIVERY FLOW:
+//
+// AT_SORTING_CENTER
+//      ↓
+// Logistics sorts parcel
+//      ↓
 // SORTED
 //      ↓
-// Logistics assigns rider
+// Logistics assigns delivery rider
 //      ↓
 // ASSIGNED_TO_RIDER
 //      ↓
 // OUT_FOR_DELIVERY
 //      ↓
 // DELIVERED
-// OR
+//
+// OR:
+//
+// OUT_FOR_DELIVERY
+//      ↓
 // DELIVERY_FAILED
 //
+//
 // IMPORTANT:
+//
 // Rider does NOT set COMPLETED.
-// Buyer confirmation changes DELIVERED → COMPLETED.
+//
+// DELIVERED
+//      ↓
+// Buyer confirms receipt
+//      ↓
+// COMPLETED
+//
 // =====================================================
 
-Route::post('/rider/orders/{order}/status', function (
-    Request $request,
-    $orderId
-) {
-
-    if (!session('rider_logged_in')) {
-
-        return redirect()
-            ->route('rider.login')
-            ->with(
-                'error',
-                'Please log in as a SUKI Rider first.'
-            );
-    }
-
-
-    $orders = session('orders', []);
-
-    if (!is_array($orders)) {
-        $orders = [];
-    }
-
-
-    if (!isset($orders[$orderId])) {
-
-        return back()->with(
-            'error',
-            'Order not found.'
-        );
-    }
-
-
-    $riders = session(
-        'rider_applications',
-        []
-    );
-
-    $riderIndex = session(
-        'logged_in_rider_index'
-    );
-
-
-    if (
-        $riderIndex === null ||
-        !isset($riders[$riderIndex])
+Route::post(
+    '/rider/orders/{order}/status',
+    function (
+        Request $request,
+        $orderId
     ) {
 
-        return redirect()
-            ->route('rider.login')
-            ->with(
-                'error',
-                'Your rider session could not be verified.'
+        if (!session('rider_logged_in')) {
+
+            return redirect()
+                ->route('rider.login')
+                ->with(
+                    'error',
+                    'Please log in as a SUKI Rider first.'
+                );
+        }
+
+
+        $orders =
+            session(
+                'orders',
+                []
             );
-    }
 
 
-    $rider = $riders[$riderIndex];
-
-    $riderName = trim(
-        ($rider['first_name'] ?? '') . ' ' .
-        ($rider['last_name'] ?? '')
-    );
+        if (!is_array($orders)) {
+            $orders = [];
+        }
 
 
-    $currentStatus =
-        $orders[$orderId]['status']
-        ?? 'placed';
+        if (!isset($orders[$orderId])) {
 
-    $requestedStatus =
-        $request->input('status');
+            return back()->with(
+                'error',
+                'Order not found.'
+            );
+        }
 
 
-    // =====================================================
-    // PICKUP RIDER OWNERSHIP
-    // =====================================================
+        $riders =
+            session(
+                'rider_applications',
+                []
+            );
 
-    $pickupRiderIndex =
-        $orders[$orderId]['pickup_rider_index']
-        ?? null;
 
-    $isPickupRider =
-        $pickupRiderIndex !== null &&
-        (string) $pickupRiderIndex ===
+        $riderIndex =
+            session(
+                'logged_in_rider_index'
+            );
+
+
+        if (
+            $riderIndex === null ||
+            !isset($riders[$riderIndex])
+        ) {
+
+            return redirect()
+                ->route('rider.login')
+                ->with(
+                    'error',
+                    'Your rider session could not be verified.'
+                );
+        }
+
+
+        $currentStatus =
+            strtolower(
+                $orders[$orderId]['status']
+                ?? 'placed'
+            );
+
+
+        $requestedStatus =
+            strtolower(
+                $request->input(
+                    'status',
+                    ''
+                )
+            );
+
+
+        // =====================================================
+        // PICKUP RIDER OWNERSHIP
+        // =====================================================
+
+        $pickupRiderIndex =
+            $orders[$orderId]['pickup_rider_index']
+            ?? null;
+
+
+        $isPickupRider =
+            $pickupRiderIndex !== null &&
+            (string) $pickupRiderIndex ===
             (string) $riderIndex;
 
 
-    // =====================================================
-    // DELIVERY RIDER OWNERSHIP
-    // =====================================================
+        // =====================================================
+        // DELIVERY RIDER OWNERSHIP
+        // =====================================================
 
-    $deliveryRiderIndex =
-        $orders[$orderId]['rider_index']
-        ?? null;
+        $deliveryRiderIndex =
+            $orders[$orderId]['rider_index']
+            ?? null;
 
-    $isDeliveryRider =
-        $deliveryRiderIndex !== null &&
-        (string) $deliveryRiderIndex ===
+
+        $isDeliveryRider =
+            $deliveryRiderIndex !== null &&
+            (string) $deliveryRiderIndex ===
             (string) $riderIndex;
 
 
-    // =====================================================
-    // READY FOR PICKUP → PICKED UP
-    // =====================================================
-
-    if ($currentStatus === 'ready_for_pickup') {
-
-        if (!$isPickupRider) {
-
-            return back()->with(
-                'error',
-                'You must accept this pickup before confirming the parcel collection.'
-            );
-        }
-
-
-        if ($requestedStatus !== 'picked_up') {
-
-            return back()->with(
-                'error',
-                'Invalid pickup status transition.'
-            );
-        }
-
-
-        $orders[$orderId]['status'] =
-            'picked_up';
-
-        $orders[$orderId]['picked_up_at'] =
-            now()->format('Y-m-d H:i:s');
-
-        $orders[$orderId]['updated_at'] =
-            now()->format('Y-m-d H:i:s');
-
-
-        session()->put(
-            'orders',
-            $orders
-        );
-
-
-        return back()->with(
-            'success',
-            'Parcel pickup confirmed. Deliver the parcel to the Sorting Center.'
-        );
-    }
-
-
-    // =====================================================
-    // PICKED UP → AT SORTING CENTER
-    // =====================================================
-
-    if ($currentStatus === 'picked_up') {
-
-        if (!$isPickupRider) {
-
-            return back()->with(
-                'error',
-                'This pickup belongs to another rider.'
-            );
-        }
-
+        // =====================================================
+        // READY FOR PICKUP → PICKED UP
+        // =====================================================
 
         if (
-            $requestedStatus !==
-            'at_sorting_center'
+            $currentStatus ===
+            'ready_for_pickup'
         ) {
 
-            return back()->with(
-                'error',
-                'Invalid pickup status transition.'
-            );
-        }
+            if (!$isPickupRider) {
+
+                return back()->with(
+                    'error',
+                    'You must accept this pickup before confirming the parcel collection.'
+                );
+            }
 
 
-        $orders[$orderId]['status'] =
-            'at_sorting_center';
+            if (
+                $requestedStatus !==
+                'picked_up'
+            ) {
 
-        $orders[$orderId]['at_sorting_center_at'] =
-            now()->format('Y-m-d H:i:s');
+                return back()->with(
+                    'error',
+                    'Invalid pickup status transition.'
+                );
+            }
 
-        $orders[$orderId]['updated_at'] =
-            now()->format('Y-m-d H:i:s');
-
-
-        session()->put(
-            'orders',
-            $orders
-        );
-
-
-        return back()->with(
-            'success',
-            'Parcel successfully handed over to the Sorting Center.'
-        );
-    }
-
-
-    // =====================================================
-    // ASSIGNED TO RIDER → OUT FOR DELIVERY
-    // =====================================================
-
-    if ($currentStatus === 'assigned_to_rider') {
-
-        if (!$isDeliveryRider) {
-
-            return back()->with(
-                'error',
-                'This delivery assignment belongs to another rider.'
-            );
-        }
-
-
-        if (
-            $requestedStatus !==
-            'out_for_delivery'
-        ) {
-
-            return back()->with(
-                'error',
-                'Invalid delivery status transition.'
-            );
-        }
-
-
-        $orders[$orderId]['status'] =
-            'out_for_delivery';
-
-        $orders[$orderId]['out_for_delivery_at'] =
-            now()->format('Y-m-d H:i:s');
-
-        $orders[$orderId]['updated_at'] =
-            now()->format('Y-m-d H:i:s');
-
-
-        session()->put(
-            'orders',
-            $orders
-        );
-
-
-        return back()->with(
-            'success',
-            'Parcel picked up from the Sorting Center and marked as Out for Delivery.'
-        );
-    }
-
-
-    // =====================================================
-    // OUT FOR DELIVERY → DELIVERED / DELIVERY FAILED
-    // =====================================================
-
-    if ($currentStatus === 'out_for_delivery') {
-
-        if (!$isDeliveryRider) {
-
-            return back()->with(
-                'error',
-                'This delivery assignment belongs to another rider.'
-            );
-        }
-
-
-        if (
-            !in_array(
-                $requestedStatus,
-                [
-                    'delivered',
-                    'delivery_failed',
-                ]
-            )
-        ) {
-
-            return back()->with(
-                'error',
-                'Invalid delivery status transition.'
-            );
-        }
-
-
-        // -------------------------------------------------
-        // SUCCESSFUL DELIVERY
-        // -------------------------------------------------
-
-        if ($requestedStatus === 'delivered') {
 
             $orders[$orderId]['status'] =
-                'delivered';
+                'picked_up';
 
-            $orders[$orderId]['delivered_at'] =
-                now()->format('Y-m-d H:i:s');
+
+            $orders[$orderId]['picked_up_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
 
             $orders[$orderId]['updated_at'] =
-                now()->format('Y-m-d H:i:s');
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
 
 
             session()->put(
@@ -4101,61 +4245,262 @@ Route::post('/rider/orders/{order}/status', function (
 
             return back()->with(
                 'success',
-                'Parcel marked as Delivered. Waiting for the buyer to confirm receipt.'
+                'Parcel pickup confirmed. Deliver the parcel to the Sorting Center.'
             );
         }
 
 
-        // -------------------------------------------------
-        // FAILED DELIVERY
-        // -------------------------------------------------
+        // =====================================================
+        // PICKED UP → AT SORTING CENTER
+        // =====================================================
 
-        $request->validate([
-            'failure_reason' =>
-                'required|string|max:500',
-        ]);
+        if (
+            $currentStatus ===
+            'picked_up'
+        ) {
+
+            if (!$isPickupRider) {
+
+                return back()->with(
+                    'error',
+                    'This pickup belongs to another rider.'
+                );
+            }
 
 
-        $orders[$orderId]['status'] =
-            'delivery_failed';
+            if (
+                $requestedStatus !==
+                'at_sorting_center'
+            ) {
 
-        $orders[$orderId]['delivery_failure_reason'] =
-            trim(
-                $request->input(
-                    'failure_reason'
-                )
+                return back()->with(
+                    'error',
+                    'Invalid pickup status transition.'
+                );
+            }
+
+
+            $orders[$orderId]['status'] =
+                'at_sorting_center';
+
+
+            $orders[$orderId]['at_sorting_center_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            $orders[$orderId]['updated_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            session()->put(
+                'orders',
+                $orders
             );
 
-        $orders[$orderId]['delivery_failed_at'] =
-            now()->format('Y-m-d H:i:s');
 
-        $orders[$orderId]['updated_at'] =
-            now()->format('Y-m-d H:i:s');
+            return back()->with(
+                'success',
+                'Parcel successfully handed over to the Sorting Center.'
+            );
+        }
 
 
-        session()->put(
-            'orders',
-            $orders
-        );
+        // =====================================================
+        // ASSIGNED TO RIDER → OUT FOR DELIVERY
+        // =====================================================
 
+        if (
+            $currentStatus ===
+            'assigned_to_rider'
+        ) {
+
+            if (!$isDeliveryRider) {
+
+                return back()->with(
+                    'error',
+                    'This delivery assignment belongs to another rider.'
+                );
+            }
+
+
+            if (
+                $requestedStatus !==
+                'out_for_delivery'
+            ) {
+
+                return back()->with(
+                    'error',
+                    'Invalid delivery status transition.'
+                );
+            }
+
+
+            $orders[$orderId]['status'] =
+                'out_for_delivery';
+
+
+            $orders[$orderId]['out_for_delivery_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            $orders[$orderId]['updated_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            session()->put(
+                'orders',
+                $orders
+            );
+
+
+            return back()->with(
+                'success',
+                'Parcel picked up from the Sorting Center and marked as Out for Delivery.'
+            );
+        }
+
+
+        // =====================================================
+        // OUT FOR DELIVERY
+        // =====================================================
+
+        if (
+            $currentStatus ===
+            'out_for_delivery'
+        ) {
+
+            if (!$isDeliveryRider) {
+
+                return back()->with(
+                    'error',
+                    'This delivery assignment belongs to another rider.'
+                );
+            }
+
+
+            if (
+                !in_array(
+                    $requestedStatus,
+                    [
+                        'delivered',
+                        'delivery_failed',
+                    ]
+                )
+            ) {
+
+                return back()->with(
+                    'error',
+                    'Invalid delivery status transition.'
+                );
+            }
+
+
+            // =================================================
+            // SUCCESSFUL DELIVERY
+            // =================================================
+
+            if (
+                $requestedStatus ===
+                'delivered'
+            ) {
+
+                $orders[$orderId]['status'] =
+                    'delivered';
+
+
+                $orders[$orderId]['delivered_at'] =
+                    now()->format(
+                        'Y-m-d H:i:s'
+                    );
+
+
+                $orders[$orderId]['updated_at'] =
+                    now()->format(
+                        'Y-m-d H:i:s'
+                    );
+
+
+                session()->put(
+                    'orders',
+                    $orders
+                );
+
+
+                return back()->with(
+                    'success',
+                    'Parcel marked as Delivered. Waiting for the buyer to confirm receipt.'
+                );
+            }
+
+
+            // =================================================
+            // FAILED DELIVERY
+            // =================================================
+
+            $request->validate([
+
+                'failure_reason' =>
+                    'required|string|max:500',
+
+            ]);
+
+
+            $orders[$orderId]['status'] =
+                'delivery_failed';
+
+
+            $orders[$orderId]['delivery_failure_reason'] =
+                trim(
+                    $request->input(
+                        'failure_reason'
+                    )
+                );
+
+
+            $orders[$orderId]['delivery_failed_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            $orders[$orderId]['updated_at'] =
+                now()->format(
+                    'Y-m-d H:i:s'
+                );
+
+
+            session()->put(
+                'orders',
+                $orders
+            );
+
+
+            return back()->with(
+                'success',
+                'Delivery failure recorded. Logistics can now review the parcel for rescheduling or return.'
+            );
+        }
+
+
+        // =====================================================
+        // NO RIDER ACTION
+        // =====================================================
 
         return back()->with(
-            'success',
-            'Delivery failure recorded. Logistics can now review the parcel for rescheduling or return.'
+            'error',
+            'This order cannot be updated by the rider at its current status.'
         );
+
     }
-
-
-    // =====================================================
-    // NO RIDER ACTION
-    // =====================================================
-
-    return back()->with(
-        'error',
-        'This order cannot be updated by the rider at its current status.'
-    );
-
-})->name('rider.order.status');
+)->name('rider.order.status');
 
 // =====================================================
 // SUKI LOGISTICS DASHBOARD
