@@ -1,62 +1,214 @@
-@extends('layouts.app')
+@extends('layouts.seller')
+
+@section('title', 'Edit Product')
+@section('page-title', 'Edit Product')
 
 @section('content')
 
 @php
+
     $productId = request()->route('product');
 
-    $products = session('seller_products', []);
+    $variationNames = old(
+        'variation_name',
+        $product['variation_names'] ?? ['']
+    );
 
-    $product = $products[$productId] ?? null;
+    $variationValues = old(
+        'variation_value',
+        $product['variation_values'] ?? ['']
+    );
 
-    if (!$product) {
-        abort(404);
+    if (!is_array($variationNames) || empty($variationNames)) {
+        $variationNames = [''];
     }
+
+    if (!is_array($variationValues)) {
+        $variationValues = [''];
+    }
+
+    $selectedShipping = old(
+        'shipping_options',
+        $product['shipping_options'] ?? []
+    );
+
+    if (!is_array($selectedShipping)) {
+        $selectedShipping = [];
+    }
+
 @endphp
 
 
-<div class="min-h-screen bg-[#F8FAF8]">
+{{-- =========================================================
+    INTRO
+========================================================= --}}
 
-    {{-- SELLER HEADER --}}
-    <div class="bg-white border-b border-gray-200">
+<div
+    class="mb-7
+           flex flex-col gap-4
+           sm:flex-row
+           sm:items-end
+           sm:justify-between"
+>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div>
 
-            <div class="h-20 flex items-center justify-between">
+        {{-- BREADCRUMB --}}
+        <div
+            class="mb-2
+                   flex items-center gap-2
+                   text-[11px]
+                   font-medium
+                   text-[#8A9791]"
+        >
 
-                <div class="flex items-center gap-4">
+            <a
+                href="{{ route('seller.dashboard') }}"
+                class="transition hover:text-[#1F6F5B]"
+            >
+                Dashboard
+            </a>
 
-                    <div class="w-11 h-11 rounded-xl bg-[#EEF8F3] flex items-center justify-center">
-                        <i data-lucide="store" class="w-5 h-5 text-[#1F6F5B]"></i>
-                    </div>
+            <i
+                data-lucide="chevron-right"
+                class="h-3 w-3"
+            ></i>
 
-                    <div>
-                        <p class="text-xs text-gray-500">
-                            Seller Centre
-                        </p>
+            <a
+                href="{{ route('seller.products') }}"
+                class="transition hover:text-[#1F6F5B]"
+            >
+                Products
+            </a>
 
-                        <h1 class="text-lg font-semibold text-gray-900">
-                            Everyday Finds PH
-                        </h1>
-                    </div>
+            <i
+                data-lucide="chevron-right"
+                class="h-3 w-3"
+            ></i>
 
-                </div>
+            <span class="text-[#52635B]">
+                Edit Product
+            </span>
+
+        </div>
 
 
-                <a
-                    href="{{ route('seller.products') }}"
-                    class="flex items-center gap-2
-                           px-4 py-2 rounded-lg
-                           border border-gray-200
-                           text-sm font-medium text-gray-600
-                           hover:bg-gray-50 transition"
+        <h2
+            class="text-2xl
+                   font-semibold
+                   tracking-[-0.04em]
+                   text-[#24312C]
+                   sm:text-[28px]"
+        >
+            Edit Product
+        </h2>
+
+
+        <p
+            class="mt-1.5
+                   max-w-2xl
+                   text-sm
+                   leading-6
+                   text-[#728078]"
+        >
+            Update product information, pricing,
+            inventory, and listing availability.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{{ route('seller.products') }}"
+        class="inline-flex h-10
+               items-center justify-center gap-2
+               self-start
+               rounded-xl
+               border border-[#DDE6E1]
+               bg-white
+               px-4
+               text-xs
+               font-semibold
+               text-[#52635B]
+               transition
+               hover:border-[#BFD2C9]
+               hover:bg-[#F5F8F6]
+               hover:text-[#173F35]
+               sm:self-auto"
+    >
+
+        <i
+            data-lucide="arrow-left"
+            class="h-4 w-4"
+        ></i>
+
+        Back to Products
+
+    </a>
+
+</div>
+
+
+{{-- =========================================================
+    VALIDATION
+========================================================= --}}
+
+@if($errors->any())
+
+    <div
+        class="mb-6
+               rounded-2xl
+               border border-red-200
+               bg-red-50
+               p-4"
+    >
+
+        <div class="flex items-start gap-3">
+
+            <div
+                class="flex h-9 w-9
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-white"
+            >
+
+                <i
+                    data-lucide="triangle-alert"
+                    class="h-4 w-4 text-red-600"
+                ></i>
+
+            </div>
+
+
+            <div>
+
+                <p
+                    class="text-xs
+                           font-semibold
+                           text-red-800"
                 >
-                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Please review the form
+                </p>
 
-                    <span class="hidden sm:inline">
-                        Back to Products
-                    </span>
-                </a>
+
+                <ul
+                    class="mt-2
+                           space-y-1
+                           text-xs
+                           leading-5
+                           text-red-700"
+                >
+
+                    @foreach($errors->all() as $error)
+
+                        <li>
+                            {{ $error }}
+                        </li>
+
+                    @endforeach
+
+                </ul>
 
             </div>
 
@@ -64,252 +216,424 @@
 
     </div>
 
-
-    {{-- MAIN --}}
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+@endif
 
 
-        {{-- BREADCRUMB --}}
-        <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+{{-- =========================================================
+    FORM
+========================================================= --}}
 
-            <a
-                href="{{ route('seller.dashboard') }}"
-                class="hover:text-[#1F6F5B]"
+<form
+    action="{{ route('seller.products.update', $productId) }}"
+    method="POST"
+    id="editProductForm"
+>
+
+    @csrf
+    @method('PUT')
+
+
+    <div
+        class="grid grid-cols-1
+               gap-6
+               xl:grid-cols-[minmax(0,1fr)_320px]"
+    >
+
+
+        {{-- =====================================================
+            LEFT SIDE
+        ====================================================== --}}
+
+        <div class="space-y-6">
+
+
+            {{-- =================================================
+                CURRENT PRODUCT
+            ================================================== --}}
+
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#DDE6E1]
+                       bg-[#173F35]
+                       text-white"
             >
-                Dashboard
-            </a>
 
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                <div
+                    class="flex flex-col gap-5
+                           p-5
+                           sm:flex-row
+                           sm:items-center"
+                >
 
-            <a
-                href="{{ route('seller.products') }}"
-                class="hover:text-[#1F6F5B]"
-            >
-                Products
-            </a>
+                    {{-- PRODUCT IMAGE --}}
+                    <div
+                        class="flex h-20 w-20
+                               shrink-0
+                               items-center justify-center
+                               overflow-hidden
+                               rounded-2xl
+                               border border-white/10
+                               bg-white/10"
+                    >
 
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        @if(!empty($product['image']))
 
-            <span>
-                Edit Product
-            </span>
+                            <img
+                                src="{{ $product['image'] }}"
+                                alt="{{ $product['name'] ?? 'Product' }}"
+                                class="h-full w-full object-cover"
+                            >
 
-        </div>
+                        @else
 
+                            <i
+                                data-lucide="package"
+                                class="h-7 w-7 text-white/60"
+                            ></i>
 
-        {{-- TITLE --}}
-        <div class="mb-6">
+                        @endif
 
-            <h2 class="text-2xl font-semibold text-gray-900">
-                Edit Product
-            </h2>
-
-            <p class="mt-1 text-sm text-gray-500">
-                Update your product information, pricing, and inventory.
-            </p>
-
-        </div>
-
-
-        {{-- SUCCESS --}}
-        @if(session('success'))
-
-            <div class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4">
-
-                <div class="flex items-center gap-3">
-
-                    <i
-                        data-lucide="check-circle"
-                        class="w-5 h-5 text-green-600"
-                    ></i>
-
-                    <p class="text-sm font-medium text-green-800">
-                        {{ session('success') }}
-                    </p>
-
-                </div>
-
-            </div>
-
-        @endif
+                    </div>
 
 
-        {{-- ERRORS --}}
-        @if($errors->any())
+                    {{-- DETAILS --}}
+                    <div class="min-w-0 flex-1">
 
-            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-
-                <div class="flex items-start gap-3">
-
-                    <i
-                        data-lucide="alert-circle"
-                        class="w-5 h-5 text-red-600"
-                    ></i>
-
-                    <div>
-
-                        <p class="text-sm font-semibold text-red-800">
-                            Please check the following:
+                        <p
+                            class="text-[9px]
+                                   font-semibold
+                                   uppercase
+                                   tracking-[0.16em]
+                                   text-white/45"
+                        >
+                            Current Listing
                         </p>
 
-                        <ul class="mt-2 space-y-1 text-xs text-red-700">
 
-                            @foreach($errors->all() as $error)
+                        <h3
+                            class="mt-1
+                                   truncate
+                                   text-lg
+                                   font-semibold
+                                   tracking-[-0.03em]"
+                        >
+                            {{ $product['name'] ?? 'Product' }}
+                        </h3>
 
-                                <li>
-                                    • {{ $error }}
-                                </li>
 
-                            @endforeach
+                        <div
+                            class="mt-3
+                                   flex flex-wrap
+                                   items-center gap-2"
+                        >
 
-                        </ul>
+                            <span
+                                class="rounded-full
+                                       bg-white/10
+                                       px-2.5 py-1
+                                       text-[10px]
+                                       font-medium
+                                       text-white/70"
+                            >
+                                {{ $product['category'] ?? 'Uncategorized' }}
+                            </span>
+
+
+                            @if(!empty($product['sku']))
+
+                                <span
+                                    class="rounded-full
+                                           bg-white/10
+                                           px-2.5 py-1
+                                           text-[10px]
+                                           font-medium
+                                           text-white/70"
+                                >
+                                    SKU:
+                                    {{ $product['sku'] }}
+                                </span>
+
+                            @endif
+
+
+                            <span
+                                class="
+                                    rounded-full
+                                    px-2.5 py-1
+                                    text-[10px]
+                                    font-semibold
+
+                                    {{ ($product['status'] ?? 'active') === 'active'
+                                        ? 'bg-[#DDF3EC] text-[#173F35]'
+                                        : 'bg-white/10 text-white/65' }}
+                                "
+                            >
+                                {{ ucfirst($product['status'] ?? 'active') }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- PRICE --}}
+                    <div class="sm:text-right">
+
+                        <p
+                            class="text-[9px]
+                                   font-semibold
+                                   uppercase
+                                   tracking-[0.12em]
+                                   text-white/40"
+                        >
+                            Current Price
+                        </p>
+
+                        <p
+                            class="mt-1
+                                   text-xl
+                                   font-semibold
+                                   tracking-[-0.03em]"
+                        >
+                            ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
+                        </p>
 
                     </div>
 
                 </div>
 
-            </div>
-
-        @endif
+            </section>
 
 
-        {{-- FORM --}}
-        <form
-            action="{{ route('seller.products.update', $productId) }}"
-            method="POST"
-            id="editProductForm"
-        >
+            {{-- =================================================
+                BASIC INFORMATION
+            ================================================== --}}
 
-            @csrf
-            @method('PUT')
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#E1E8E4]
+                       bg-white"
+            >
+
+                <div
+                    class="flex items-center gap-3
+                           border-b border-[#EDF1EF]
+                           px-5 py-4"
+                >
+
+                    <div
+                        class="flex h-9 w-9
+                               items-center justify-center
+                               rounded-xl
+                               bg-[#EEF5F1]
+                               text-[#173F35]"
+                    >
+
+                        <i
+                            data-lucide="file-pen-line"
+                            class="h-4 w-4"
+                        ></i>
+
+                    </div>
 
 
-            {{-- BASIC INFORMATION --}}
-            <div class="bg-white border border-gray-200 rounded-xl mb-6">
+                    <div>
 
-                <div class="px-5 py-4 border-b border-gray-100">
+                        <h3
+                            class="text-sm
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            Basic Information
+                        </h3>
 
-                    <h3 class="text-sm font-semibold text-gray-900">
-                        Basic Information
-                    </h3>
+                        <p
+                            class="mt-0.5
+                                   text-[11px]
+                                   text-[#7C8983]"
+                        >
+                            Update the information customers see.
+                        </p>
 
-                    <p class="mt-0.5 text-xs text-gray-500">
-                        Update the main details of your product.
-                    </p>
+                    </div>
 
                 </div>
 
 
-                <div class="p-5 space-y-5">
+                <div class="space-y-5 p-5">
 
 
-                    {{-- PRODUCT NAME --}}
+                    {{-- NAME --}}
                     <div>
 
                         <label
                             for="name"
-                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
                         >
                             Product Name
-                            <span class="text-red-500">*</span>
+
+                            <span class="text-red-500">
+                                *
+                            </span>
                         </label>
+
 
                         <input
                             type="text"
                             id="name"
                             name="name"
                             value="{{ old('name', $product['name'] ?? '') }}"
-                            required
                             maxlength="150"
-                            class="w-full h-11 px-4 rounded-lg
-                                   border border-gray-300
+                            required
+                            placeholder="Enter product name"
+                            class="h-11 w-full
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-4
                                    text-sm
-                                   focus:outline-none
-                                   focus:ring-2
-                                   focus:ring-[#1F6F5B]/20
-                                   focus:border-[#1F6F5B]"
+                                   text-[#34483F]
+                                   placeholder:text-[#9AA69F]
+                                   focus:border-[#1F6F5B]
+                                   focus:ring-4
+                                   focus:ring-[#DDF3EC]/70"
                         >
 
                     </div>
 
 
                     {{-- CATEGORY / BRAND --}}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div
+                        class="grid grid-cols-1
+                               gap-5
+                               md:grid-cols-2"
+                    >
 
 
+                        {{-- CATEGORY --}}
                         <div>
 
                             <label
                                 for="category"
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                                class="mb-2
+                                       block
+                                       text-xs
+                                       font-semibold
+                                       text-[#34483F]"
                             >
                                 Category
-                                <span class="text-red-500">*</span>
+
+                                <span class="text-red-500">
+                                    *
+                                </span>
                             </label>
 
-                            <select
-                                id="category"
-                                name="category"
-                                required
-                                class="w-full h-11 px-3 rounded-lg
-                                       border border-gray-300
-                                       bg-white text-sm
-                                       focus:outline-none
-                                       focus:ring-2
-                                       focus:ring-[#1F6F5B]/20
-                                       focus:border-[#1F6F5B]"
-                            >
 
-                                @foreach([
-                                    'Electronics',
-                                    'Fashion',
-                                    'Beauty',
-                                    'Home & Living',
-                                    'Groceries',
-                                    'Health',
-                                    'Sports',
-                                    'Toys & Hobbies',
-                                    'Automotive',
-                                    'Pet Supplies',
-                                    'Books & Stationery',
-                                    'Others'
-                                ] as $category)
+                            <div class="relative">
 
-                                    <option
-                                        value="{{ $category }}"
-                                        {{ old('category', $product['category'] ?? '') === $category ? 'selected' : '' }}
-                                    >
-                                        {{ $category }}
-                                    </option>
+                                <select
+                                    id="category"
+                                    name="category"
+                                    required
+                                    class="h-11 w-full
+                                           appearance-none
+                                           rounded-xl
+                                           border border-[#DDE6E1]
+                                           bg-white
+                                           px-4 pr-10
+                                           text-sm
+                                           text-[#52635B]
+                                           focus:border-[#1F6F5B]
+                                           focus:ring-4
+                                           focus:ring-[#DDF3EC]/70"
+                                >
 
-                                @endforeach
+                                    @foreach([
+                                        'Electronics',
+                                        'Fashion',
+                                        'Beauty',
+                                        'Home & Living',
+                                        'Groceries',
+                                        'Health',
+                                        'Sports',
+                                        'Toys & Hobbies',
+                                        'Automotive',
+                                        'Pet Supplies',
+                                        'Books & Stationery',
+                                        'Others'
+                                    ] as $category)
 
-                            </select>
+                                        <option
+                                            value="{{ $category }}"
+                                            {{ old(
+                                                'category',
+                                                $product['category'] ?? ''
+                                            ) === $category ? 'selected' : '' }}
+                                        >
+                                            {{ $category }}
+                                        </option>
+
+                                    @endforeach
+
+                                </select>
+
+
+                                <i
+                                    data-lucide="chevron-down"
+                                    class="pointer-events-none
+                                           absolute
+                                           right-3.5 top-1/2
+                                           h-4 w-4
+                                           -translate-y-1/2
+                                           text-[#8A9791]"
+                                ></i>
+
+                            </div>
 
                         </div>
 
 
+                        {{-- BRAND --}}
                         <div>
 
                             <label
                                 for="brand"
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                                class="mb-2
+                                       block
+                                       text-xs
+                                       font-semibold
+                                       text-[#34483F]"
                             >
                                 Brand
                             </label>
+
 
                             <input
                                 type="text"
                                 id="brand"
                                 name="brand"
-                                value="{{ old('brand', $product['brand'] ?? '') }}"
-                                class="w-full h-11 px-4 rounded-lg
-                                       border border-gray-300
+                                value="{{ old(
+                                    'brand',
+                                    $product['brand'] ?? ''
+                                ) }}"
+                                placeholder="Enter brand name"
+                                class="h-11 w-full
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       px-4
                                        text-sm
-                                       focus:outline-none
-                                       focus:ring-2
-                                       focus:ring-[#1F6F5B]/20
-                                       focus:border-[#1F6F5B]"
+                                       text-[#34483F]
+                                       placeholder:text-[#9AA69F]
+                                       focus:border-[#1F6F5B]
+                                       focus:ring-4
+                                       focus:ring-[#DDF3EC]/70"
                             >
 
                         </div>
@@ -320,288 +644,891 @@
                     {{-- DESCRIPTION --}}
                     <div>
 
-                        <label
-                            for="description"
-                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        <div
+                            class="mb-2
+                                   flex items-center
+                                   justify-between gap-4"
                         >
-                            Product Description
-                            <span class="text-red-500">*</span>
-                        </label>
 
-                        <textarea
-                            id="description"
-                            name="description"
-                            rows="6"
-                            required
-                            maxlength="3000"
-                            class="w-full px-4 py-3 rounded-lg
-                                   border border-gray-300
-                                   text-sm resize-none
-                                   focus:outline-none
-                                   focus:ring-2
-                                   focus:ring-[#1F6F5B]/20
-                                   focus:border-[#1F6F5B]"
-                        >{{ old('description', $product['description'] ?? '') }}</textarea>
+                            <label
+                                for="description"
+                                class="text-xs
+                                       font-semibold
+                                       text-[#34483F]"
+                            >
+                                Product Description
 
-                        <div class="mt-1 text-right">
+                                <span class="text-red-500">
+                                    *
+                                </span>
+                            </label>
+
 
                             <span
                                 id="descriptionCount"
-                                class="text-xs text-gray-400"
+                                class="text-[10px]
+                                       font-medium
+                                       text-[#97A39D]"
                             >
                                 0 / 3000
                             </span>
 
                         </div>
 
+
+                        <textarea
+                            id="description"
+                            name="description"
+                            rows="7"
+                            maxlength="3000"
+                            required
+                            placeholder="Describe your product..."
+                            class="w-full
+                                   resize-none
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-4 py-3
+                                   text-sm
+                                   leading-6
+                                   text-[#34483F]
+                                   placeholder:text-[#9AA69F]
+                                   focus:border-[#1F6F5B]
+                                   focus:ring-4
+                                   focus:ring-[#DDF3EC]/70"
+                        >{{ old(
+                            'description',
+                            $product['description'] ?? ''
+                        ) }}</textarea>
+
                     </div>
 
                 </div>
 
-            </div>
+            </section>
 
 
-            {{-- PRICE & INVENTORY --}}
-            <div class="bg-white border border-gray-200 rounded-xl mb-6">
+            {{-- =================================================
+                PRICE & INVENTORY
+            ================================================== --}}
 
-                <div class="px-5 py-4 border-b border-gray-100">
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#E1E8E4]
+                       bg-white"
+            >
 
-                    <h3 class="text-sm font-semibold text-gray-900">
-                        Price & Inventory
-                    </h3>
+                <div
+                    class="flex items-center gap-3
+                           border-b border-[#EDF1EF]
+                           px-5 py-4"
+                >
+
+                    <div
+                        class="flex h-9 w-9
+                               items-center justify-center
+                               rounded-xl
+                               bg-[#EEF5F1]
+                               text-[#173F35]"
+                    >
+
+                        <i
+                            data-lucide="badge-dollar-sign"
+                            class="h-4 w-4"
+                        ></i>
+
+                    </div>
+
+
+                    <div>
+
+                        <h3
+                            class="text-sm
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            Pricing & Inventory
+                        </h3>
+
+                        <p
+                            class="mt-0.5
+                                   text-[11px]
+                                   text-[#7C8983]"
+                        >
+                            Update price, stock, and SKU.
+                        </p>
+
+                    </div>
 
                 </div>
 
 
-                <div class="p-5">
+                <div
+                    class="grid grid-cols-1
+                           gap-5
+                           p-5
+                           md:grid-cols-3"
+                >
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+                    {{-- PRICE --}}
+                    <div>
+
+                        <label
+                            for="price"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Price
+
+                            <span class="text-red-500">
+                                *
+                            </span>
+                        </label>
 
 
-                        {{-- PRICE --}}
-                        <div>
+                        <div class="relative">
 
-                            <label
-                                for="price"
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            <span
+                                class="absolute
+                                       left-4 top-1/2
+                                       -translate-y-1/2
+                                       text-sm
+                                       font-medium
+                                       text-[#728078]"
                             >
-                                Price
-                                <span class="text-red-500">*</span>
-                            </label>
+                                ₱
+                            </span>
 
-                            <div class="relative">
-
-                                <span
-                                    class="absolute left-3 top-1/2
-                                           -translate-y-1/2
-                                           text-sm text-gray-500"
-                                >
-                                    ₱
-                                </span>
-
-                                <input
-                                    type="number"
-                                    id="price"
-                                    name="price"
-                                    value="{{ old('price', $product['price'] ?? 0) }}"
-                                    min="0"
-                                    step="0.01"
-                                    required
-                                    class="w-full h-11 pl-8 pr-4 rounded-lg
-                                           border border-gray-300
-                                           text-sm
-                                           focus:outline-none
-                                           focus:ring-2
-                                           focus:ring-[#1F6F5B]/20
-                                           focus:border-[#1F6F5B]"
-                                >
-
-                            </div>
-
-                        </div>
-
-
-                        {{-- STOCK --}}
-                        <div>
-
-                            <label
-                                for="stock"
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
-                            >
-                                Stock
-                                <span class="text-red-500">*</span>
-                            </label>
 
                             <input
                                 type="number"
-                                id="stock"
-                                name="stock"
-                                value="{{ old('stock', $product['stock'] ?? 0) }}"
+                                id="price"
+                                name="price"
+                                value="{{ old(
+                                    'price',
+                                    $product['price'] ?? 0
+                                ) }}"
                                 min="0"
+                                step="0.01"
                                 required
-                                class="w-full h-11 px-4 rounded-lg
-                                       border border-gray-300
+                                class="h-11 w-full
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       pl-9 pr-4
                                        text-sm
-                                       focus:outline-none
-                                       focus:ring-2
-                                       focus:ring-[#1F6F5B]/20
-                                       focus:border-[#1F6F5B]"
-                            >
-
-                        </div>
-
-
-                        {{-- SKU --}}
-                        <div>
-
-                            <label
-                                for="sku"
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
-                            >
-                                SKU
-                            </label>
-
-                            <input
-                                type="text"
-                                id="sku"
-                                name="sku"
-                                value="{{ old('sku', $product['sku'] ?? '') }}"
-                                maxlength="50"
-                                class="w-full h-11 px-4 rounded-lg
-                                       border border-gray-300
-                                       text-sm
-                                       focus:outline-none
-                                       focus:ring-2
-                                       focus:ring-[#1F6F5B]/20
-                                       focus:border-[#1F6F5B]"
+                                       text-[#34483F]
+                                       focus:border-[#1F6F5B]
+                                       focus:ring-4
+                                       focus:ring-[#DDF3EC]/70"
                             >
 
                         </div>
 
                     </div>
 
+
+                    {{-- STOCK --}}
+                    <div>
+
+                        <label
+                            for="stock"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Stock
+
+                            <span class="text-red-500">
+                                *
+                            </span>
+                        </label>
+
+
+                        <input
+                            type="number"
+                            id="stock"
+                            name="stock"
+                            value="{{ old(
+                                'stock',
+                                $product['stock'] ?? 0
+                            ) }}"
+                            min="0"
+                            required
+                            class="h-11 w-full
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-4
+                                   text-sm
+                                   text-[#34483F]
+                                   focus:border-[#1F6F5B]
+                                   focus:ring-4
+                                   focus:ring-[#DDF3EC]/70"
+                        >
+
+                    </div>
+
+
+                    {{-- SKU --}}
+                    <div>
+
+                        <label
+                            for="sku"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            SKU
+                        </label>
+
+
+                        <input
+                            type="text"
+                            id="sku"
+                            name="sku"
+                            value="{{ old(
+                                'sku',
+                                $product['sku'] ?? ''
+                            ) }}"
+                            maxlength="50"
+                            placeholder="e.g. SKU-0001"
+                            class="h-11 w-full
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-4
+                                   text-sm
+                                   text-[#34483F]
+                                   placeholder:text-[#9AA69F]
+                                   focus:border-[#1F6F5B]
+                                   focus:ring-4
+                                   focus:ring-[#DDF3EC]/70"
+                        >
+
+                    </div>
+
                 </div>
 
-            </div>
+            </section>
 
 
-            {{-- SHIPPING --}}
-            <div class="bg-white border border-gray-200 rounded-xl mb-6">
+            {{-- =================================================
+                VARIATIONS
+            ================================================== --}}
 
-                <div class="px-5 py-4 border-b border-gray-100">
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#E1E8E4]
+                       bg-white"
+            >
 
-                    <h3 class="text-sm font-semibold text-gray-900">
-                        Shipping Information
-                    </h3>
+                <div
+                    class="flex items-center
+                           justify-between gap-4
+                           border-b border-[#EDF1EF]
+                           px-5 py-4"
+                >
+
+                    <div class="flex items-center gap-3">
+
+                        <div
+                            class="flex h-9 w-9
+                                   items-center justify-center
+                                   rounded-xl
+                                   bg-[#EEF5F1]
+                                   text-[#173F35]"
+                        >
+
+                            <i
+                                data-lucide="list-tree"
+                                class="h-4 w-4"
+                            ></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h3
+                                class="text-sm
+                                       font-semibold
+                                       text-[#24312C]"
+                            >
+                                Product Variations
+                            </h3>
+
+                            <p
+                                class="mt-0.5
+                                       text-[11px]
+                                       text-[#7C8983]"
+                            >
+                                Manage size, color, or other options.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="addVariation"
+                        class="inline-flex h-9
+                               shrink-0
+                               items-center gap-2
+                               rounded-xl
+                               border border-[#DDE6E1]
+                               bg-white
+                               px-3
+                               text-[10px]
+                               font-semibold
+                               text-[#52635B]
+                               transition
+                               hover:bg-[#F5F8F6]
+                               hover:text-[#173F35]"
+                    >
+
+                        <i
+                            data-lucide="plus"
+                            class="h-3.5 w-3.5"
+                        ></i>
+
+                        Add
+
+                    </button>
 
                 </div>
 
 
                 <div class="p-5">
 
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div
+                        id="variationList"
+                        class="space-y-3"
+                    >
 
+                        @foreach($variationNames as $index => $variationName)
 
-                        <div>
-
-                            <label
-                                for="weight"
-                                class="block text-xs font-medium text-gray-600 mb-1.5"
+                            <div
+                                class="variation-row
+                                       grid grid-cols-1
+                                       gap-3
+                                       sm:grid-cols-[1fr_1fr_auto]"
                             >
-                                Weight (kg)
-                            </label>
+
+                                <input
+                                    type="text"
+                                    name="variation_name[]"
+                                    value="{{ $variationName }}"
+                                    placeholder="Variation name (e.g. Color)"
+                                    class="h-10 w-full
+                                           rounded-xl
+                                           border border-[#DDE6E1]
+                                           bg-white
+                                           px-3
+                                           text-xs
+                                           text-[#34483F]
+                                           placeholder:text-[#9AA69F]
+                                           focus:border-[#1F6F5B]
+                                           focus:ring-4
+                                           focus:ring-[#DDF3EC]/70"
+                                >
+
+
+                                <input
+                                    type="text"
+                                    name="variation_value[]"
+                                    value="{{ $variationValues[$index] ?? '' }}"
+                                    placeholder="Value (e.g. Black)"
+                                    class="h-10 w-full
+                                           rounded-xl
+                                           border border-[#DDE6E1]
+                                           bg-white
+                                           px-3
+                                           text-xs
+                                           text-[#34483F]
+                                           placeholder:text-[#9AA69F]
+                                           focus:border-[#1F6F5B]
+                                           focus:ring-4
+                                           focus:ring-[#DDF3EC]/70"
+                                >
+
+
+                                <button
+                                    type="button"
+                                    title="Remove variation"
+                                    class="remove-variation
+                                           flex h-10
+                                           items-center justify-center
+                                           rounded-xl
+                                           border border-[#E1E8E4]
+                                           bg-white
+                                           px-3
+                                           text-[#89968F]
+                                           transition
+                                           hover:border-red-200
+                                           hover:bg-red-50
+                                           hover:text-red-600"
+                                >
+
+                                    <i
+                                        data-lucide="trash-2"
+                                        class="h-4 w-4"
+                                    ></i>
+
+                                </button>
+
+                            </div>
+
+                        @endforeach
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            {{-- =================================================
+                SHIPPING
+            ================================================== --}}
+
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#E1E8E4]
+                       bg-white"
+            >
+
+                <div
+                    class="flex items-center gap-3
+                           border-b border-[#EDF1EF]
+                           px-5 py-4"
+                >
+
+                    <div
+                        class="flex h-9 w-9
+                               items-center justify-center
+                               rounded-xl
+                               bg-[#EEF5F1]
+                               text-[#173F35]"
+                    >
+
+                        <i
+                            data-lucide="truck"
+                            class="h-4 w-4"
+                        ></i>
+
+                    </div>
+
+
+                    <div>
+
+                        <h3
+                            class="text-sm
+                                   font-semibold
+                                   text-[#24312C]"
+                        >
+                            Shipping Information
+                        </h3>
+
+                        <p
+                            class="mt-0.5
+                                   text-[11px]
+                                   text-[#7C8983]"
+                        >
+                            Update package dimensions and fulfillment options.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="space-y-6 p-5">
+
+
+                    {{-- WEIGHT --}}
+                    <div>
+
+                        <label
+                            for="weight"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Package Weight
+                        </label>
+
+
+                        <div class="relative sm:max-w-sm">
 
                             <input
                                 type="number"
                                 id="weight"
                                 name="weight"
-                                value="{{ old('weight', $product['weight'] ?? '') }}"
+                                value="{{ old(
+                                    'weight',
+                                    $product['weight'] ?? ''
+                                ) }}"
                                 min="0"
                                 step="0.01"
-                                class="w-full h-10 px-3 rounded-lg
-                                       border border-gray-300
+                                placeholder="0"
+                                class="h-11 w-full
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       px-4 pr-14
                                        text-sm
-                                       focus:outline-none
-                                       focus:border-[#1F6F5B]"
+                                       text-[#34483F]
+                                       placeholder:text-[#9AA69F]
+                                       focus:border-[#1F6F5B]
+                                       focus:ring-4
+                                       focus:ring-[#DDF3EC]/70"
                             >
+
+
+                            <span
+                                class="absolute
+                                       right-4 top-1/2
+                                       -translate-y-1/2
+                                       text-xs
+                                       text-[#8A9791]"
+                            >
+                                kg
+                            </span>
 
                         </div>
 
+                    </div>
 
-                        <div>
 
-                            <label
-                                for="length"
-                                class="block text-xs font-medium text-gray-600 mb-1.5"
-                            >
-                                Length (cm)
-                            </label>
+                    {{-- DIMENSIONS --}}
+                    <div>
 
-                            <input
-                                type="number"
-                                id="length"
-                                name="length"
-                                value="{{ old('length', $product['length'] ?? '') }}"
-                                min="0"
-                                step="0.01"
-                                class="w-full h-10 px-3 rounded-lg
-                                       border border-gray-300
-                                       text-sm
-                                       focus:outline-none
-                                       focus:border-[#1F6F5B]"
-                            >
+                        <p
+                            class="mb-3
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Package Dimensions
+                        </p>
+
+
+                        <div
+                            class="grid grid-cols-1
+                                   gap-4
+                                   sm:grid-cols-3"
+                        >
+
+
+                            {{-- LENGTH --}}
+                            <div>
+
+                                <label
+                                    for="length"
+                                    class="mb-1.5
+                                           block
+                                           text-[10px]
+                                           font-medium
+                                           text-[#849089]"
+                                >
+                                    Length
+                                </label>
+
+
+                                <div class="relative">
+
+                                    <input
+                                        type="number"
+                                        id="length"
+                                        name="length"
+                                        value="{{ old(
+                                            'length',
+                                            $product['length'] ?? ''
+                                        ) }}"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0"
+                                        class="h-10 w-full
+                                               rounded-xl
+                                               border border-[#DDE6E1]
+                                               bg-white
+                                               px-3 pr-12
+                                               text-xs
+                                               text-[#34483F]
+                                               focus:border-[#1F6F5B]
+                                               focus:ring-4
+                                               focus:ring-[#DDF3EC]/70"
+                                    >
+
+                                    <span
+                                        class="absolute
+                                               right-3 top-1/2
+                                               -translate-y-1/2
+                                               text-[10px]
+                                               text-[#8A9791]"
+                                    >
+                                        cm
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            {{-- WIDTH --}}
+                            <div>
+
+                                <label
+                                    for="width"
+                                    class="mb-1.5
+                                           block
+                                           text-[10px]
+                                           font-medium
+                                           text-[#849089]"
+                                >
+                                    Width
+                                </label>
+
+
+                                <div class="relative">
+
+                                    <input
+                                        type="number"
+                                        id="width"
+                                        name="width"
+                                        value="{{ old(
+                                            'width',
+                                            $product['width'] ?? ''
+                                        ) }}"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0"
+                                        class="h-10 w-full
+                                               rounded-xl
+                                               border border-[#DDE6E1]
+                                               bg-white
+                                               px-3 pr-12
+                                               text-xs
+                                               text-[#34483F]
+                                               focus:border-[#1F6F5B]
+                                               focus:ring-4
+                                               focus:ring-[#DDF3EC]/70"
+                                    >
+
+                                    <span
+                                        class="absolute
+                                               right-3 top-1/2
+                                               -translate-y-1/2
+                                               text-[10px]
+                                               text-[#8A9791]"
+                                    >
+                                        cm
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            {{-- HEIGHT --}}
+                            <div>
+
+                                <label
+                                    for="height"
+                                    class="mb-1.5
+                                           block
+                                           text-[10px]
+                                           font-medium
+                                           text-[#849089]"
+                                >
+                                    Height
+                                </label>
+
+
+                                <div class="relative">
+
+                                    <input
+                                        type="number"
+                                        id="height"
+                                        name="height"
+                                        value="{{ old(
+                                            'height',
+                                            $product['height'] ?? ''
+                                        ) }}"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0"
+                                        class="h-10 w-full
+                                               rounded-xl
+                                               border border-[#DDE6E1]
+                                               bg-white
+                                               px-3 pr-12
+                                               text-xs
+                                               text-[#34483F]
+                                               focus:border-[#1F6F5B]
+                                               focus:ring-4
+                                               focus:ring-[#DDF3EC]/70"
+                                    >
+
+                                    <span
+                                        class="absolute
+                                               right-3 top-1/2
+                                               -translate-y-1/2
+                                               text-[10px]
+                                               text-[#8A9791]"
+                                    >
+                                        cm
+                                    </span>
+
+                                </div>
+
+                            </div>
 
                         </div>
 
+                    </div>
 
-                        <div>
 
+                    {{-- DELIVERY OPTIONS --}}
+                    <div>
+
+                        <p
+                            class="mb-3
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Shipping Options
+                        </p>
+
+
+                        <div
+                            class="grid grid-cols-1
+                                   gap-3
+                                   md:grid-cols-2"
+                        >
+
+
+                            {{-- RIDER --}}
                             <label
-                                for="width"
-                                class="block text-xs font-medium text-gray-600 mb-1.5"
+                                class="flex cursor-pointer
+                                       items-start gap-3
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-[#FAFCFB]
+                                       p-4
+                                       transition
+                                       hover:border-[#BFD2C9]"
                             >
-                                Width (cm)
+
+                                <input
+                                    type="checkbox"
+                                    name="shipping_options[]"
+                                    value="suki_rider"
+                                    {{ in_array(
+                                        'suki_rider',
+                                        $selectedShipping
+                                    ) ? 'checked' : '' }}
+                                    class="mt-0.5
+                                           h-4 w-4
+                                           rounded
+                                           border-[#C5D1CB]
+                                           text-[#1F6F5B]
+                                           focus:ring-[#1F6F5B]"
+                                >
+
+
+                                <div>
+
+                                    <p
+                                        class="text-xs
+                                               font-semibold
+                                               text-[#34483F]"
+                                    >
+                                        SUKI Rider
+                                    </p>
+
+                                    <p
+                                        class="mt-1
+                                               text-[10px]
+                                               leading-5
+                                               text-[#849089]"
+                                    >
+                                        Fulfilled through the SUKI rider network.
+                                    </p>
+
+                                </div>
+
                             </label>
 
-                            <input
-                                type="number"
-                                id="width"
-                                name="width"
-                                value="{{ old('width', $product['width'] ?? '') }}"
-                                min="0"
-                                step="0.01"
-                                class="w-full h-10 px-3 rounded-lg
-                                       border border-gray-300
-                                       text-sm
-                                       focus:outline-none
-                                       focus:border-[#1F6F5B]"
-                            >
 
-                        </div>
-
-
-                        <div>
-
+                            {{-- LOGISTICS --}}
                             <label
-                                for="height"
-                                class="block text-xs font-medium text-gray-600 mb-1.5"
+                                class="flex cursor-pointer
+                                       items-start gap-3
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-[#FAFCFB]
+                                       p-4
+                                       transition
+                                       hover:border-[#BFD2C9]"
                             >
-                                Height (cm)
-                            </label>
 
-                            <input
-                                type="number"
-                                id="height"
-                                name="height"
-                                value="{{ old('height', $product['height'] ?? '') }}"
-                                min="0"
-                                step="0.01"
-                                class="w-full h-10 px-3 rounded-lg
-                                       border border-gray-300
-                                       text-sm
-                                       focus:outline-none
-                                       focus:border-[#1F6F5B]"
-                            >
+                                <input
+                                    type="checkbox"
+                                    name="shipping_options[]"
+                                    value="logistics_partner"
+                                    {{ in_array(
+                                        'logistics_partner',
+                                        $selectedShipping
+                                    ) ? 'checked' : '' }}
+                                    class="mt-0.5
+                                           h-4 w-4
+                                           rounded
+                                           border-[#C5D1CB]
+                                           text-[#1F6F5B]
+                                           focus:ring-[#1F6F5B]"
+                                >
+
+
+                                <div>
+
+                                    <p
+                                        class="text-xs
+                                               font-semibold
+                                               text-[#34483F]"
+                                    >
+                                        Logistics Partner
+                                    </p>
+
+                                    <p
+                                        class="mt-1
+                                               text-[10px]
+                                               leading-5
+                                               text-[#849089]"
+                                    >
+                                        Fulfilled through supported logistics partners.
+                                    </p>
+
+                                </div>
+
+                            </label>
 
                         </div>
 
@@ -609,177 +1536,581 @@
 
                 </div>
 
-            </div>
+            </section>
+
+        </div>
 
 
-            {{-- STATUS --}}
-            <div class="bg-white border border-gray-200 rounded-xl mb-6">
+        {{-- =====================================================
+            RIGHT SIDE
+        ====================================================== --}}
 
-                <div class="px-5 py-4 border-b border-gray-100">
+        <aside>
 
-                    <h3 class="text-sm font-semibold text-gray-900">
-                        Listing Status
+            <section
+                class="overflow-hidden
+                       rounded-2xl
+                       border border-[#E1E8E4]
+                       bg-white
+                       xl:sticky
+                       xl:top-[98px]"
+            >
+
+                <div
+                    class="border-b border-[#EDF1EF]
+                           px-5 py-4"
+                >
+
+                    <h3
+                        class="text-sm
+                               font-semibold
+                               text-[#24312C]"
+                    >
+                        Listing Settings
                     </h3>
 
-                </div>
-
-
-                <div class="p-5">
-
-                    <select
-                        id="status"
-                        name="status"
-                        class="w-full sm:max-w-sm h-11 px-3 rounded-lg
-                               border border-gray-300
-                               bg-white text-sm
-                               focus:outline-none
-                               focus:ring-2
-                               focus:ring-[#1F6F5B]/20
-                               focus:border-[#1F6F5B]"
+                    <p
+                        class="mt-0.5
+                               text-[11px]
+                               text-[#7C8983]"
                     >
-
-                        <option
-                            value="active"
-                            {{ old('status', $product['status'] ?? 'active') === 'active' ? 'selected' : '' }}
-                        >
-                            Active
-                        </option>
-
-                        <option
-                            value="inactive"
-                            {{ old('status', $product['status'] ?? '') === 'inactive' ? 'selected' : '' }}
-                        >
-                            Inactive
-                        </option>
-
-                    </select>
+                        Manage visibility and save updates.
+                    </p>
 
                 </div>
 
-            </div>
+
+                <div class="space-y-5 p-5">
 
 
-            {{-- ACTIONS --}}
-            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+                    {{-- STATUS --}}
+                    <div>
 
-                <a
-                    href="{{ route('seller.products') }}"
-                    class="px-5 py-2.5 rounded-lg
-                           border border-gray-200
-                           bg-white
-                           text-sm font-medium
-                           text-gray-600
-                           text-center
-                           hover:bg-gray-50"
-                >
-                    Cancel
-                </a>
+                        <label
+                            for="status"
+                            class="mb-2
+                                   block
+                                   text-xs
+                                   font-semibold
+                                   text-[#34483F]"
+                        >
+                            Product Status
+                        </label>
 
 
-                <button
-                    type="submit"
-                    class="px-5 py-2.5 rounded-lg
-                           bg-[#1F6F5B]
-                           text-white
-                           text-sm font-medium
-                           hover:bg-[#155244]
-                           flex items-center justify-center gap-2"
-                >
+                        <div class="relative">
 
-                    <i data-lucide="save" class="w-4 h-4"></i>
+                            <select
+                                id="status"
+                                name="status"
+                                required
+                                class="h-11 w-full
+                                       appearance-none
+                                       rounded-xl
+                                       border border-[#DDE6E1]
+                                       bg-white
+                                       px-4 pr-10
+                                       text-sm
+                                       text-[#52635B]
+                                       focus:border-[#1F6F5B]
+                                       focus:ring-4
+                                       focus:ring-[#DDF3EC]/70"
+                            >
 
-                    Save Changes
+                                <option
+                                    value="active"
+                                    {{ old(
+                                        'status',
+                                        $product['status'] ?? 'active'
+                                    ) === 'active'
+                                        ? 'selected'
+                                        : '' }}
+                                >
+                                    Active
+                                </option>
 
-                </button>
 
-            </div>
+                                <option
+                                    value="inactive"
+                                    {{ old(
+                                        'status',
+                                        $product['status'] ?? ''
+                                    ) === 'inactive'
+                                        ? 'selected'
+                                        : '' }}
+                                >
+                                    Inactive
+                                </option>
 
-        </form>
+                            </select>
+
+
+                            <i
+                                data-lucide="chevron-down"
+                                class="pointer-events-none
+                                       absolute
+                                       right-3.5 top-1/2
+                                       h-4 w-4
+                                       -translate-y-1/2
+                                       text-[#8A9791]"
+                            ></i>
+
+                        </div>
+
+
+                        <p
+                            class="mt-2
+                                   text-[10px]
+                                   leading-5
+                                   text-[#8A9791]"
+                        >
+                            Active products remain visible to buyers.
+                        </p>
+
+                    </div>
+
+
+                    <div class="border-t border-[#EDF1EF]"></div>
+
+
+                    {{-- PRODUCT INFO --}}
+                    <div>
+
+                        <p
+                            class="text-[10px]
+                                   font-semibold
+                                   uppercase
+                                   tracking-[0.12em]
+                                   text-[#839189]"
+                        >
+                            Listing Information
+                        </p>
+
+
+                        <div class="mt-4 space-y-3">
+
+
+                            <div
+                                class="flex items-center
+                                       justify-between gap-4"
+                            >
+
+                                <span
+                                    class="text-[10px]
+                                           text-[#849089]"
+                                >
+                                    Current stock
+                                </span>
+
+                                <span
+                                    class="text-xs
+                                           font-semibold
+                                           text-[#34483F]"
+                                >
+                                    {{ $product['stock'] ?? 0 }}
+                                </span>
+
+                            </div>
+
+
+                            <div
+                                class="flex items-center
+                                       justify-between gap-4"
+                            >
+
+                                <span
+                                    class="text-[10px]
+                                           text-[#849089]"
+                                >
+                                    Category
+                                </span>
+
+                                <span
+                                    class="max-w-[150px]
+                                           truncate
+                                           text-xs
+                                           font-semibold
+                                           text-[#34483F]"
+                                >
+                                    {{ $product['category'] ?? '—' }}
+                                </span>
+
+                            </div>
+
+
+                            @if(!empty($product['updated_at']))
+
+                                <div
+                                    class="flex items-center
+                                           justify-between gap-4"
+                                >
+
+                                    <span
+                                        class="text-[10px]
+                                               text-[#849089]"
+                                    >
+                                        Last updated
+                                    </span>
+
+                                    <span
+                                        class="text-right
+                                               text-[10px]
+                                               font-medium
+                                               text-[#52635B]"
+                                    >
+                                        {{ \Carbon\Carbon::parse(
+                                            $product['updated_at']
+                                        )->format('M d, Y') }}
+                                    </span>
+
+                                </div>
+
+                            @endif
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="border-t border-[#EDF1EF]"></div>
+
+
+                    {{-- ACTIONS --}}
+                    <div class="space-y-2">
+
+                        <button
+                            type="submit"
+                            id="saveProductButton"
+                            class="inline-flex h-11
+                                   w-full
+                                   items-center
+                                   justify-center gap-2
+                                   rounded-xl
+                                   bg-[#173F35]
+                                   px-4
+                                   text-xs
+                                   font-semibold
+                                   text-white
+                                   transition
+                                   hover:bg-[#1F6F5B]
+                                   disabled:cursor-not-allowed
+                                   disabled:opacity-60"
+                        >
+
+                            <i
+                                data-lucide="save"
+                                class="h-4 w-4"
+                            ></i>
+
+                            Save Changes
+
+                        </button>
+
+
+                        <a
+                            href="{{ route('seller.products') }}"
+                            class="inline-flex h-10
+                                   w-full
+                                   items-center
+                                   justify-center
+                                   rounded-xl
+                                   border border-[#DDE6E1]
+                                   bg-white
+                                   px-4
+                                   text-xs
+                                   font-semibold
+                                   text-[#52635B]
+                                   transition
+                                   hover:bg-[#F5F8F6]
+                                   hover:text-[#173F35]"
+                        >
+                            Cancel
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </aside>
 
     </div>
 
-</div>
+</form>
 
 
 @push('scripts')
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function () {
-
-    const description =
-        document.getElementById('description');
-
-    const counter =
-        document.getElementById('descriptionCount');
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
 
 
-    function updateCounter() {
+        /* =====================================================
+           DESCRIPTION COUNTER
+        ====================================================== */
 
-        if (!description || !counter) {
-            return;
+        const description =
+            document.getElementById('description');
+
+        const descriptionCount =
+            document.getElementById(
+                'descriptionCount'
+            );
+
+
+        function updateDescriptionCount() {
+
+            if (
+                !description ||
+                !descriptionCount
+            ) {
+                return;
+            }
+
+            descriptionCount.textContent =
+                `${description.value.length} / 3000`;
+
         }
 
-        counter.textContent =
-            `${description.value.length} / 3000`;
 
-    }
-
-
-    if (description) {
-
-        description.addEventListener(
+        description?.addEventListener(
             'input',
-            updateCounter
+            updateDescriptionCount
         );
 
-        updateCounter();
-
-    }
+        updateDescriptionCount();
 
 
-    const form =
-        document.getElementById('editProductForm');
+        /* =====================================================
+           VARIATIONS
+        ====================================================== */
+
+        const variationList =
+            document.getElementById(
+                'variationList'
+            );
+
+        const addVariation =
+            document.getElementById(
+                'addVariation'
+            );
 
 
-    if (form) {
+        function refreshIcons() {
 
-        form.addEventListener(
-            'submit',
-            function () {
+            if (
+                typeof lucide !== 'undefined' &&
+                typeof lucide.createIcons ===
+                    'function'
+            ) {
+
+                lucide.createIcons();
+
+            }
+
+        }
+
+
+        function createVariationRow() {
+
+            if (!variationList) {
+                return;
+            }
+
+
+            const row =
+                document.createElement('div');
+
+
+            row.className =
+                'variation-row grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]';
+
+
+            row.innerHTML = `
+
+                <input
+                    type="text"
+                    name="variation_name[]"
+                    placeholder="Variation name (e.g. Size)"
+                    class="h-10 w-full rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white px-3
+                           text-xs text-[#34483F]
+                           placeholder:text-[#9AA69F]
+                           focus:border-[#1F6F5B]
+                           focus:ring-4
+                           focus:ring-[#DDF3EC]/70"
+                >
+
+                <input
+                    type="text"
+                    name="variation_value[]"
+                    placeholder="Value (e.g. Medium)"
+                    class="h-10 w-full rounded-xl
+                           border border-[#DDE6E1]
+                           bg-white px-3
+                           text-xs text-[#34483F]
+                           placeholder:text-[#9AA69F]
+                           focus:border-[#1F6F5B]
+                           focus:ring-4
+                           focus:ring-[#DDF3EC]/70"
+                >
+
+                <button
+                    type="button"
+                    title="Remove variation"
+                    class="remove-variation
+                           flex h-10
+                           items-center
+                           justify-center
+                           rounded-xl
+                           border border-[#E1E8E4]
+                           bg-white px-3
+                           text-[#89968F]
+                           transition
+                           hover:border-red-200
+                           hover:bg-red-50
+                           hover:text-red-600"
+                >
+
+                    <i
+                        data-lucide="trash-2"
+                        class="h-4 w-4"
+                    ></i>
+
+                </button>
+
+            `;
+
+
+            variationList.appendChild(row);
+
+            refreshIcons();
+
+        }
+
+
+        addVariation?.addEventListener(
+            'click',
+            createVariationRow
+        );
+
+
+        variationList?.addEventListener(
+            'click',
+            function (event) {
 
                 const button =
-                    form.querySelector(
-                        'button[type="submit"]'
+                    event.target.closest(
+                        '.remove-variation'
                     );
+
 
                 if (!button) {
                     return;
                 }
 
-                button.disabled = true;
 
-                button.classList.add(
-                    'opacity-70',
-                    'cursor-not-allowed'
-                );
+                const rows =
+                    variationList.querySelectorAll(
+                        '.variation-row'
+                    );
+
+
+                if (rows.length <= 1) {
+
+                    rows[0]
+                        .querySelectorAll('input')
+                        .forEach(
+                            function (input) {
+
+                                input.value = '';
+
+                            }
+                        );
+
+                    return;
+
+                }
+
+
+                button
+                    .closest('.variation-row')
+                    ?.remove();
 
             }
         );
 
+
+        /* =====================================================
+           SUBMIT PROTECTION
+        ====================================================== */
+
+        const form =
+            document.getElementById(
+                'editProductForm'
+            );
+
+        const saveButton =
+            document.getElementById(
+                'saveProductButton'
+            );
+
+
+        form?.addEventListener(
+            'submit',
+            function () {
+
+                if (!saveButton) {
+                    return;
+                }
+
+
+                saveButton.disabled = true;
+
+
+                saveButton.innerHTML = `
+
+                    <svg
+                        class="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                    >
+
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        ></circle>
+
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4
+                               4 0 00-4 4H4z"
+                        ></path>
+
+                    </svg>
+
+                    Saving Changes
+
+                `;
+
+            }
+        );
+
+
+        refreshIcons();
+
     }
-
-
-    if (
-        typeof lucide !== 'undefined' &&
-        typeof lucide.createIcons === 'function'
-    ) {
-
-        lucide.createIcons();
-
-    }
-
-});
+);
 
 </script>
 
