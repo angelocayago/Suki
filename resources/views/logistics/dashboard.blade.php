@@ -1,786 +1,3035 @@
 @extends('layouts.logistics')
 
+@section('title', 'Dashboard')
+@section('page-heading', 'Logistics Dashboard')
+
 @section('content')
 
-<div class="min-h-screen bg-[#F8FAF8]">
+@php
 
-    <!-- HEADER -->
-    <header class="border-b border-gray-200 bg-white">
+    /*
+    |--------------------------------------------------------------------------
+    | ORDERS
+    |--------------------------------------------------------------------------
+    |
+    | Current Logistics implementation still reads the shared session orders.
+    | No fake dashboard numbers are used here.
+    |
+    */
 
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-
-            <!-- BRAND -->
-            <a href="{{ route('logistics.dashboard') }}" class="flex items-center gap-3">
-
-                <img
-                    src="{{ asset('images/logistics-logo.png') }}"
-                    alt="SUKI SHOP"
-                    class="h-10 w-auto object-contain sm:h-11"
-                >
-
-                <div class="hidden border-l border-gray-200 pl-3 sm:block">
-
-                    <p class="text-sm font-semibold text-gray-900">
-                        SUKI SHOP Logistics
-                    </p>
-
-                    <p class="text-xs text-gray-500">
-                        Sorting Center Portal
-                    </p>
-
-                </div>
-
-            </a>
+    $orders =
+        collect(
+            session('orders', [])
+        );
 
 
-            <!-- RIGHT -->
-            <div class="flex items-center gap-4">
+    /*
+    |--------------------------------------------------------------------------
+    | RIDER APPLICATIONS
+    |--------------------------------------------------------------------------
+    */
 
-                <!-- NOTIFICATION -->
-                <button
-                    class="relative rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-[#1F6F5B]"
-                >
-
-                    <i data-lucide="bell" class="h-5 w-5"></i>
-
-                    <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500"></span>
-
-                </button>
-
-
-                <!-- PROFILE -->
-                <div class="flex items-center gap-3">
-
-                    <div class="hidden text-right sm:block">
-
-                        <p class="text-sm font-semibold text-gray-900">
-                            Logistics Center
-                        </p>
-
-                        <p class="text-xs text-gray-500">
-                            SUKI SHOP Partner
-                        </p>
-
-                    </div>
+    $riders =
+        collect(
+            session(
+                'rider_applications',
+                []
+            )
+        )
+        ->filter(
+            fn ($rider) =>
+                is_array($rider)
+        );
 
 
-                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[#1F6F5B] text-sm font-semibold text-white">
+    /*
+    |--------------------------------------------------------------------------
+    | PARCEL PIPELINE
+    |--------------------------------------------------------------------------
+    */
 
-                        SL
+    $atSortingCenter =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'at_sorting_center'
+            )
+            ->count();
 
-                    </div>
 
-                </div>
+    $sorted =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'sorted'
+            )
+            ->count();
 
-            </div>
+
+    $assigned =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'assigned_to_rider'
+            )
+            ->count();
+
+
+    $outForDelivery =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'out_for_delivery'
+            )
+            ->count();
+
+
+    $delivered =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'delivered'
+            )
+            ->count();
+
+
+    $failed =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    strtolower(
+                        $order['status']
+                        ?? ''
+                    )
+                    === 'delivery_failed'
+            )
+            ->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RIDERS
+    |--------------------------------------------------------------------------
+    */
+
+    $pendingRiders =
+        $riders
+            ->filter(
+                fn ($rider) =>
+                    strtolower(
+                        $rider['status']
+                        ?? ''
+                    )
+                    === 'pending'
+            )
+            ->count();
+
+
+    $approvedRiders =
+        $riders
+            ->filter(
+                fn ($rider) =>
+                    strtolower(
+                        $rider['status']
+                        ?? ''
+                    )
+                    === 'approved'
+            )
+            ->count();
+
+
+    $disapprovedRiders =
+        $riders
+            ->filter(
+                fn ($rider) =>
+                    strtolower(
+                        $rider['status']
+                        ?? ''
+                    )
+                    === 'disapproved'
+            )
+            ->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RIDERS CURRENTLY ON DELIVERY
+    |--------------------------------------------------------------------------
+    */
+
+    $busyRiderIndexes =
+        $orders
+            ->filter(
+                fn ($order) =>
+                    in_array(
+                        strtolower(
+                            $order['status']
+                            ?? ''
+                        ),
+                        [
+                            'assigned_to_rider',
+                            'out_for_delivery',
+                        ]
+                    )
+            )
+            ->pluck('rider_index')
+            ->filter(
+                fn ($index) =>
+                    $index !== null
+            )
+            ->unique();
+
+
+    $busyRiders =
+        $busyRiderIndexes
+            ->count();
+
+
+    $availableRiders =
+        max(
+            0,
+            $approvedRiders
+            - $busyRiders
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RECENT LOGISTICS PARCELS
+    |--------------------------------------------------------------------------
+    */
+
+    $recentOrders =
+        $orders
+            ->filter(
+                function ($order) {
+
+                    return in_array(
+                        strtolower(
+                            $order['status']
+                            ?? ''
+                        ),
+                        [
+                            'at_sorting_center',
+                            'sorted',
+                            'assigned_to_rider',
+                            'out_for_delivery',
+                            'delivered',
+                            'delivery_failed',
+                            'returned',
+                        ]
+                    );
+
+                }
+            )
+            ->reverse()
+            ->take(6);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS DESIGN
+    |--------------------------------------------------------------------------
+    */
+
+    $statusConfig = [
+
+        'at_sorting_center' => [
+            'label' =>
+                'At Sorting Center',
+
+            'class' =>
+                'border-sky-200 bg-sky-50 text-sky-700',
+
+            'icon' =>
+                'warehouse',
+        ],
+
+
+        'sorted' => [
+            'label' =>
+                'Sorted',
+
+            'class' =>
+                'border-amber-200 bg-amber-50 text-amber-700',
+
+            'icon' =>
+                'scan-line',
+        ],
+
+
+        'assigned_to_rider' => [
+            'label' =>
+                'Assigned to Rider',
+
+            'class' =>
+                'border-violet-200 bg-violet-50 text-violet-700',
+
+            'icon' =>
+                'user-check',
+        ],
+
+
+        'out_for_delivery' => [
+            'label' =>
+                'Out for Delivery',
+
+            'class' =>
+                'border-orange-200 bg-orange-50 text-orange-700',
+
+            'icon' =>
+                'bike',
+        ],
+
+
+        'delivered' => [
+            'label' =>
+                'Delivered',
+
+            'class' =>
+                'border-emerald-200 bg-emerald-50 text-emerald-700',
+
+            'icon' =>
+                'map-pin-check',
+        ],
+
+
+        'delivery_failed' => [
+            'label' =>
+                'Delivery Failed',
+
+            'class' =>
+                'border-red-200 bg-red-50 text-red-700',
+
+            'icon' =>
+                'triangle-alert',
+        ],
+
+
+        'returned' => [
+            'label' =>
+                'Returned',
+
+            'class' =>
+                'border-rose-200 bg-rose-50 text-rose-700',
+
+            'icon' =>
+                'rotate-ccw',
+        ],
+
+    ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADDRESS HELPER
+    |--------------------------------------------------------------------------
+    */
+
+    $formatAddress =
+        function ($order) {
+
+            $address =
+                $order['shipping_address']
+                ?? [];
+
+
+            if (!is_array($address)) {
+                $address = [];
+            }
+
+
+            $parts =
+                array_filter([
+                    $address['barangay']
+                        ?? null,
+
+                    $address['municipality']
+                        ?? null,
+
+                    $address['province']
+                        ?? null,
+                ]);
+
+
+            if (!empty($parts)) {
+
+                return implode(
+                    ', ',
+                    $parts
+                );
+            }
+
+
+            return
+                $order['address']
+                ?? 'Destination unavailable';
+
+        };
+
+@endphp
+
+
+{{-- =========================================================
+    ALERTS
+========================================================= --}}
+
+@if(session('success'))
+
+    <div
+        class="
+            mb-6
+            flex items-start gap-3
+            rounded-2xl
+            border border-emerald-200
+            bg-emerald-50
+            px-4 py-3.5
+        "
+    >
+
+        <div
+            class="
+                flex h-8 w-8
+                shrink-0
+                items-center justify-center
+                rounded-xl
+                bg-white
+            "
+        >
+
+            <i
+                data-lucide="check"
+                class="
+                    h-4 w-4
+                    text-emerald-600
+                "
+            ></i>
 
         </div>
 
-    </header>
+
+        <div>
+
+            <p
+                class="
+                    text-xs
+                    font-semibold
+                    text-emerald-800
+                "
+            >
+                Operation updated
+            </p>
 
 
+            <p
+                class="
+                    mt-0.5
+                    text-xs
+                    leading-5
+                    text-emerald-700
+                "
+            >
+                {{ session('success') }}
+            </p>
 
-    <!-- MAIN -->
-    <main class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+        </div>
+
+    </div>
+
+@endif
 
 
-        <!-- PAGE HEADER -->
-        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+@if(session('error'))
+
+    <div
+        class="
+            mb-6
+            flex items-start gap-3
+            rounded-2xl
+            border border-red-200
+            bg-red-50
+            px-4 py-3.5
+        "
+    >
+
+        <div
+            class="
+                flex h-8 w-8
+                shrink-0
+                items-center justify-center
+                rounded-xl
+                bg-white
+            "
+        >
+
+            <i
+                data-lucide="triangle-alert"
+                class="
+                    h-4 w-4
+                    text-red-600
+                "
+            ></i>
+
+        </div>
+
+
+        <p
+            class="
+                pt-1
+                text-xs
+                leading-5
+                text-red-700
+            "
+        >
+            {{ session('error') }}
+        </p>
+
+    </div>
+
+@endif
+
+
+{{-- =========================================================
+    PAGE INTRO
+========================================================= --}}
+
+<div
+    class="
+        mb-7
+        flex flex-col gap-4
+        lg:flex-row
+        lg:items-end
+        lg:justify-between
+    "
+>
+
+    <div>
+
+        <p
+            class="
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.13em]
+                text-[#1F6F5B]
+            "
+        >
+            Sorting Center Operations
+        </p>
+
+
+        <h2
+            class="
+                mt-1
+                text-2xl
+                font-semibold
+                tracking-[-0.04em]
+                text-[#24312C]
+                sm:text-[28px]
+            "
+        >
+            Operations Overview
+        </h2>
+
+
+        <p
+            class="
+                mt-1.5
+                max-w-2xl
+                text-sm
+                leading-6
+                text-[#728078]
+            "
+        >
+            Monitor incoming parcels, sorting,
+            rider assignments, and active deliveries
+            from one workspace.
+        </p>
+
+    </div>
+
+
+    <div
+        class="
+            flex flex-col gap-2
+            sm:flex-row
+            lg:justify-end
+        "
+    >
+
+        <a
+            href="{{ route('logistics.parcels') }}"
+            class="
+                inline-flex h-10
+                items-center justify-center
+                gap-2
+                rounded-xl
+                border border-[#DDE6E1]
+                bg-white
+                px-4
+                text-[11px]
+                font-semibold
+                text-[#52635B]
+                transition
+                hover:bg-[#F3F7F5]
+            "
+        >
+
+            <i
+                data-lucide="package-check"
+                class="h-4 w-4"
+            ></i>
+
+            Incoming Parcels
+
+        </a>
+
+
+        <a
+            href="{{ route('logistics.assignments') }}"
+            class="
+                inline-flex h-10
+                items-center justify-center
+                gap-2
+                rounded-xl
+                bg-[#173F35]
+                px-4
+                text-[11px]
+                font-semibold
+                text-white
+                transition
+                hover:bg-[#1F6F5B]
+            "
+        >
+
+            <i
+                data-lucide="map-pinned"
+                class="h-4 w-4"
+            ></i>
+
+            Assign Deliveries
+
+        </a>
+
+    </div>
+
+</div>
+
+
+{{-- =========================================================
+    OPERATIONS ALERT
+========================================================= --}}
+
+@if(
+    $failed > 0 ||
+    $pendingRiders > 0 ||
+    $sorted > 0
+)
+
+    <div
+        class="
+            mb-6
+            grid gap-3
+            md:grid-cols-3
+        "
+    >
+
+        @if($sorted > 0)
+
+            <a
+                href="{{ route('logistics.assignments') }}"
+                class="
+                    group
+                    flex items-start gap-3
+                    rounded-2xl
+                    border border-amber-200
+                    bg-amber-50
+                    p-4
+                    transition
+                    hover:border-amber-300
+                "
+            >
+
+                <div
+                    class="
+                        flex h-9 w-9
+                        shrink-0
+                        items-center justify-center
+                        rounded-xl
+                        bg-white
+                        text-amber-700
+                    "
+                >
+
+                    <i
+                        data-lucide="user-plus"
+                        class="h-4 w-4"
+                    ></i>
+
+                </div>
+
+
+                <div class="min-w-0 flex-1">
+
+                    <p
+                        class="
+                            text-[10px]
+                            font-semibold
+                            text-amber-800
+                        "
+                    >
+                        Rider assignment needed
+                    </p>
+
+
+                    <p
+                        class="
+                            mt-1
+                            text-[9px]
+                            leading-5
+                            text-amber-700
+                        "
+                    >
+                        {{ $sorted }}
+                        sorted parcel{{ $sorted === 1 ? '' : 's' }}
+                        waiting for a delivery rider.
+                    </p>
+
+                </div>
+
+
+                <i
+                    data-lucide="arrow-right"
+                    class="
+                        mt-1 h-4 w-4
+                        text-amber-600
+                        transition
+                        group-hover:translate-x-1
+                    "
+                ></i>
+
+            </a>
+
+        @endif
+
+
+        @if($pendingRiders > 0)
+
+            <a
+                href="{{ route('logistics.riders') }}"
+                class="
+                    group
+                    flex items-start gap-3
+                    rounded-2xl
+                    border border-violet-200
+                    bg-violet-50
+                    p-4
+                    transition
+                    hover:border-violet-300
+                "
+            >
+
+                <div
+                    class="
+                        flex h-9 w-9
+                        shrink-0
+                        items-center justify-center
+                        rounded-xl
+                        bg-white
+                        text-violet-700
+                    "
+                >
+
+                    <i
+                        data-lucide="bike"
+                        class="h-4 w-4"
+                    ></i>
+
+                </div>
+
+
+                <div class="min-w-0 flex-1">
+
+                    <p
+                        class="
+                            text-[10px]
+                            font-semibold
+                            text-violet-800
+                        "
+                    >
+                        Rider applications
+                    </p>
+
+
+                    <p
+                        class="
+                            mt-1
+                            text-[9px]
+                            leading-5
+                            text-violet-700
+                        "
+                    >
+                        {{ $pendingRiders }}
+                        application{{ $pendingRiders === 1 ? '' : 's' }}
+                        awaiting Logistics review.
+                    </p>
+
+                </div>
+
+
+                <i
+                    data-lucide="arrow-right"
+                    class="
+                        mt-1 h-4 w-4
+                        text-violet-600
+                        transition
+                        group-hover:translate-x-1
+                    "
+                ></i>
+
+            </a>
+
+        @endif
+
+
+        @if($failed > 0)
+
+            <a
+                href="{{ route('logistics.monitoring') }}"
+                class="
+                    group
+                    flex items-start gap-3
+                    rounded-2xl
+                    border border-red-200
+                    bg-red-50
+                    p-4
+                    transition
+                    hover:border-red-300
+                "
+            >
+
+                <div
+                    class="
+                        flex h-9 w-9
+                        shrink-0
+                        items-center justify-center
+                        rounded-xl
+                        bg-white
+                        text-red-600
+                    "
+                >
+
+                    <i
+                        data-lucide="triangle-alert"
+                        class="h-4 w-4"
+                    ></i>
+
+                </div>
+
+
+                <div class="min-w-0 flex-1">
+
+                    <p
+                        class="
+                            text-[10px]
+                            font-semibold
+                            text-red-800
+                        "
+                    >
+                        Failed deliveries
+                    </p>
+
+
+                    <p
+                        class="
+                            mt-1
+                            text-[9px]
+                            leading-5
+                            text-red-700
+                        "
+                    >
+                        {{ $failed }}
+                        delivery{{ $failed === 1 ? '' : 'ies' }}
+                        require Logistics review.
+                    </p>
+
+                </div>
+
+
+                <i
+                    data-lucide="arrow-right"
+                    class="
+                        mt-1 h-4 w-4
+                        text-red-600
+                        transition
+                        group-hover:translate-x-1
+                    "
+                ></i>
+
+            </a>
+
+        @endif
+
+    </div>
+
+@endif
+
+
+{{-- =========================================================
+    MAIN STATISTICS
+========================================================= --}}
+
+<div
+    class="
+        mb-6
+        grid grid-cols-2
+        gap-4
+        xl:grid-cols-5
+    "
+>
+
+
+    {{-- AT SORTING CENTER --}}
+    <a
+        href="{{ route('logistics.parcels') }}"
+        class="
+            group
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+            transition
+            hover:border-[#C9D9D1]
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between gap-3
+            "
+        >
 
             <div>
 
-                <div class="mb-2 inline-flex items-center gap-2 rounded-full bg-[#E6F4EE] px-3 py-1.5 text-xs font-semibold text-[#1F6F5B]">
-
-                    <i data-lucide="warehouse" class="h-4 w-4"></i>
-
-                    Logistics Management System
-
-                </div>
-
-
-                <h1 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-
-                    Logistics Dashboard
-
-                </h1>
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.11em]
+                        text-[#839189]
+                    "
+                >
+                    At Sorting Center
+                </p>
 
 
-                <p class="mt-2 text-sm text-gray-600">
-
-                    Monitor parcels, manage rider applications, and oversee
-                    sorting and delivery operations.
-
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $atSortingCenter }}
                 </p>
 
             </div>
 
 
-            <!-- QUICK ACTION -->
-            <a
-                href="#quick-actions"
-                class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#155244]"
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-sky-50
+                    text-sky-700
+                "
             >
 
-                <i data-lucide="zap" class="h-4 w-4"></i>
+                <i
+                    data-lucide="warehouse"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
-                Quick Actions
-
-            </a>
+            </div>
 
         </div>
 
 
-
-        <!-- STATS -->
-        <section class="grid grid-cols-2 gap-4 lg:grid-cols-5">
-
-
-            <!-- INCOMING -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                <div class="flex items-start justify-between">
-
-                    <div>
-
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            Incoming Parcels
-                        </p>
-
-                        <p class="mt-2 text-2xl font-bold text-gray-900">
-                            0
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-blue-50 p-2.5 text-blue-600">
-
-                        <i data-lucide="package" class="h-5 w-5"></i>
-
-                    </div>
-
-                </div>
-
-
-                <p class="mt-3 text-xs text-gray-500">
-                    Parcels received today
-                </p>
-
-            </div>
-
-
-
-            <!-- FOR SORTING -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                <div class="flex items-start justify-between">
-
-                    <div>
-
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            For Sorting
-                        </p>
-
-                        <p class="mt-2 text-2xl font-bold text-gray-900">
-                            0
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-amber-50 p-2.5 text-amber-600">
-
-                        <i data-lucide="scan-line" class="h-5 w-5"></i>
-
-                    </div>
-
-                </div>
-
-
-                <p class="mt-3 text-xs text-gray-500">
-                    Waiting for destination sorting
-                </p>
-
-            </div>
-
-
-
-            <!-- ASSIGN RIDER -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                <div class="flex items-start justify-between">
-
-                    <div>
-
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            Assign Rider
-                        </p>
-
-                        <p class="mt-2 text-2xl font-bold text-gray-900">
-                            0
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-purple-50 p-2.5 text-purple-600">
-
-                        <i data-lucide="user-round-check" class="h-5 w-5"></i>
-
-                    </div>
-
-                </div>
-
-
-                <p class="mt-3 text-xs text-gray-500">
-                    Parcels waiting for rider
-                </p>
-
-            </div>
-
-
-
-            <!-- OUT FOR DELIVERY -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-                <div class="flex items-start justify-between">
-
-                    <div>
-
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            Out for Delivery
-                        </p>
-
-                        <p class="mt-2 text-2xl font-bold text-gray-900">
-                            0
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-[#E6F4EE] p-2.5 text-[#1F6F5B]">
-
-                        <i data-lucide="truck" class="h-5 w-5"></i>
-
-                    </div>
-
-                </div>
-
-
-                <p class="mt-3 text-xs text-gray-500">
-                    Currently being delivered
-                </p>
-
-            </div>
-
-
-
-            <!-- PENDING RIDERS -->
-            <div class="col-span-2 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-1">
-
-                <div class="flex items-start justify-between">
-
-                    <div>
-
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            Rider Applications
-                        </p>
-
-                        <p class="mt-2 text-2xl font-bold text-gray-900">
-                            0
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-red-50 p-2.5 text-red-500">
-
-                        <i data-lucide="bike" class="h-5 w-5"></i>
-
-                    </div>
-
-                </div>
-
-
-                <p class="mt-3 text-xs text-gray-500">
-                    Pending approval
-                </p>
-
-            </div>
-
-
-        </section>
-
-
-
-        <!-- QUICK ACTIONS -->
-        <section id="quick-actions" class="mt-8">
-
-            <div class="mb-4">
-
-                <h2 class="text-lg font-semibold text-gray-900">
-
-                    Quick Actions
-
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500">
-
-                    Manage the most important logistics operations.
-
-                </p>
-
-            </div>
-
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-
-                <!-- RIDER MANAGEMENT -->
-                <a
-                    href="#"
-                    class="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#1F6F5B]/30 hover:shadow-md"
+        <div
+            class="
+                mt-5
+                flex items-center
+                justify-between
+                border-t
+                border-[#EEF2F0]
+                pt-3
+            "
+        >
+
+            <span
+                class="
+                    text-[9px]
+                    text-[#87948E]
+                "
+            >
+                Waiting for sorting
+            </span>
+
+
+            <i
+                data-lucide="arrow-up-right"
+                class="
+                    h-3.5 w-3.5
+                    text-[#A2ADA7]
+                    transition
+                    group-hover:text-[#1F6F5B]
+                "
+            ></i>
+
+        </div>
+
+    </a>
+
+
+    {{-- SORTED --}}
+    <a
+        href="{{ route('logistics.assignments') }}"
+        class="
+            group
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+            transition
+            hover:border-[#C9D9D1]
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between gap-3
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.11em]
+                        text-[#839189]
+                    "
                 >
-
-                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E6F4EE] text-[#1F6F5B]">
-
-                        <i data-lucide="users-round" class="h-5 w-5"></i>
-
-                    </div>
+                    Ready to Assign
+                </p>
 
 
-                    <h3 class="mt-4 font-semibold text-gray-900">
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $sorted }}
+                </p>
 
-                        Rider Management
+            </div>
 
+
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-amber-50
+                    text-amber-700
+                "
+            >
+
+                <i
+                    data-lucide="map-pinned"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="
+                mt-5
+                border-t
+                border-[#EEF2F0]
+                pt-3
+                text-[9px]
+                text-[#87948E]
+            "
+        >
+            Sorted by destination
+        </p>
+
+    </a>
+
+
+    {{-- ASSIGNED --}}
+    <a
+        href="{{ route('logistics.shipments') }}"
+        class="
+            group
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+            transition
+            hover:border-[#C9D9D1]
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between gap-3
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.11em]
+                        text-[#839189]
+                    "
+                >
+                    Rider Assigned
+                </p>
+
+
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $assigned }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-violet-50
+                    text-violet-700
+                "
+            >
+
+                <i
+                    data-lucide="user-check"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="
+                mt-5
+                border-t
+                border-[#EEF2F0]
+                pt-3
+                text-[9px]
+                text-[#87948E]
+            "
+        >
+            Waiting for rider pickup
+        </p>
+
+    </a>
+
+
+    {{-- OUT FOR DELIVERY --}}
+    <a
+        href="{{ route('logistics.monitoring') }}"
+        class="
+            group
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+            transition
+            hover:border-[#C9D9D1]
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between gap-3
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.11em]
+                        text-[#839189]
+                    "
+                >
+                    Out for Delivery
+                </p>
+
+
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $outForDelivery }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-orange-50
+                    text-orange-700
+                "
+            >
+
+                <i
+                    data-lucide="bike"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="
+                mt-5
+                border-t
+                border-[#EEF2F0]
+                pt-3
+                text-[9px]
+                text-[#87948E]
+            "
+        >
+            Currently with riders
+        </p>
+
+    </a>
+
+
+    {{-- RIDER APPLICATIONS --}}
+    <a
+        href="{{ route('logistics.riders') }}"
+        class="
+            group
+            col-span-2
+            rounded-2xl
+            border border-[#E1E8E4]
+            bg-white
+            p-5
+            transition
+            hover:border-[#C9D9D1]
+            xl:col-span-1
+        "
+    >
+
+        <div
+            class="
+                flex items-start
+                justify-between gap-3
+            "
+        >
+
+            <div>
+
+                <p
+                    class="
+                        text-[9px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.11em]
+                        text-[#839189]
+                    "
+                >
+                    Rider Applications
+                </p>
+
+
+                <p
+                    class="
+                        mt-3
+                        text-2xl
+                        font-semibold
+                        tracking-[-0.04em]
+                        text-[#24312C]
+                    "
+                >
+                    {{ $pendingRiders }}
+                </p>
+
+            </div>
+
+
+            <div
+                class="
+                    flex h-10 w-10
+                    items-center justify-center
+                    rounded-xl
+                    bg-[#DDF3EC]
+                    text-[#173F35]
+                "
+            >
+
+                <i
+                    data-lucide="bike"
+                    class="h-[18px] w-[18px]"
+                ></i>
+
+            </div>
+
+        </div>
+
+
+        <p
+            class="
+                mt-5
+                border-t
+                border-[#EEF2F0]
+                pt-3
+                text-[9px]
+                text-[#87948E]
+            "
+        >
+            Awaiting review
+        </p>
+
+    </a>
+
+</div>
+
+
+{{-- =========================================================
+    WORKSPACE
+========================================================= --}}
+
+<div
+    class="
+        grid gap-6
+        xl:grid-cols-[1.45fr_.8fr]
+    "
+>
+
+
+    {{-- =====================================================
+        LEFT COLUMN
+    ====================================================== --}}
+
+    <div class="space-y-6">
+
+
+        {{-- =================================================
+            OPERATIONS FLOW
+        ================================================== --}}
+
+        <section
+            class="
+                overflow-hidden
+                rounded-2xl
+                border border-[#E1E8E4]
+                bg-white
+            "
+        >
+
+            <div
+                class="
+                    flex items-center
+                    justify-between gap-4
+                    border-b
+                    border-[#EDF1EF]
+                    px-5 py-4
+                "
+            >
+
+                <div>
+
+                    <h3
+                        class="
+                            text-sm
+                            font-semibold
+                            text-[#24312C]
+                        "
+                    >
+                        Sorting Center Workflow
                     </h3>
 
 
-                    <p class="mt-1 text-sm leading-5 text-gray-500">
-
-                        Review, approve, and manage SUKI SHOP Rider applications.
-
+                    <p
+                        class="
+                            mt-0.5
+                            text-[10px]
+                            text-[#7C8983]
+                        "
+                    >
+                        Current parcel fulfillment sequence.
                     </p>
-
-
-                    <div class="mt-4 flex items-center gap-1 text-sm font-medium text-[#1F6F5B]">
-
-                        Manage Riders
-
-                        <i data-lucide="arrow-right" class="h-4 w-4 transition group-hover:translate-x-1"></i>
-
-                    </div>
-
-                </a>
-
-
-
-                <!-- PARCELS -->
-                <a
-                    href="#"
-                    class="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#1F6F5B]/30 hover:shadow-md"
-                >
-
-                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-
-                        <i data-lucide="package-check" class="h-5 w-5"></i>
-
-                    </div>
-
-
-                    <h3 class="mt-4 font-semibold text-gray-900">
-
-                        Incoming Parcels
-
-                    </h3>
-
-
-                    <p class="mt-1 text-sm leading-5 text-gray-500">
-
-                        Receive and verify parcels from pickup riders.
-
-                    </p>
-
-
-                    <div class="mt-4 flex items-center gap-1 text-sm font-medium text-[#1F6F5B]">
-
-                        View Parcels
-
-                        <i data-lucide="arrow-right" class="h-4 w-4 transition group-hover:translate-x-1"></i>
-
-                    </div>
-
-                </a>
-
-
-
-                <!-- SORTING -->
-                <a
-                    href="#"
-                    class="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#1F6F5B]/30 hover:shadow-md"
-                >
-
-                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-
-                        <i data-lucide="arrow-down-up" class="h-5 w-5"></i>
-
-                    </div>
-
-
-                    <h3 class="mt-4 font-semibold text-gray-900">
-
-                        Sort Parcels
-
-                    </h3>
-
-
-                    <p class="mt-1 text-sm leading-5 text-gray-500">
-
-                        Sort incoming parcels according to destination area.
-
-                    </p>
-
-
-                    <div class="mt-4 flex items-center gap-1 text-sm font-medium text-[#1F6F5B]">
-
-                        Start Sorting
-
-                        <i data-lucide="arrow-right" class="h-4 w-4 transition group-hover:translate-x-1"></i>
-
-                    </div>
-
-                </a>
-
-
-
-                <!-- DELIVERY ASSIGNMENT -->
-                <a
-                    href="#"
-                    class="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#1F6F5B]/30 hover:shadow-md"
-                >
-
-                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-
-                        <i data-lucide="map-pin-check" class="h-5 w-5"></i>
-
-                    </div>
-
-
-                    <h3 class="mt-4 font-semibold text-gray-900">
-
-                        Assign Deliveries
-
-                    </h3>
-
-
-                    <p class="mt-1 text-sm leading-5 text-gray-500">
-
-                        Assign sorted parcels to riders based on delivery area.
-
-                    </p>
-
-
-                    <div class="mt-4 flex items-center gap-1 text-sm font-medium text-[#1F6F5B]">
-
-                        Assign Rider
-
-                        <i data-lucide="arrow-right" class="h-4 w-4 transition group-hover:translate-x-1"></i>
-
-                    </div>
-
-                </a>
-
-
-            </div>
-
-        </section>
-
-
-
-        <!-- OPERATIONS OVERVIEW -->
-        <section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-
-            <!-- DELIVERY FLOW -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-
-                <div class="flex items-center justify-between">
-
-                    <div>
-
-                        <h2 class="font-semibold text-gray-900">
-
-                            Parcel Operations Flow
-
-                        </h2>
-
-                        <p class="mt-1 text-sm text-gray-500">
-
-                            Standard SUKI SHOP sorting and delivery workflow.
-
-                        </p>
-
-                    </div>
-
-
-                    <div class="rounded-xl bg-[#E6F4EE] p-2 text-[#1F6F5B]">
-
-                        <i data-lucide="workflow" class="h-5 w-5"></i>
-
-                    </div>
 
                 </div>
 
 
+                <div
+                    class="
+                        flex h-9 w-9
+                        items-center justify-center
+                        rounded-xl
+                        bg-[#EEF5F1]
+                        text-[#1F6F5B]
+                    "
+                >
 
-                <div class="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <i
+                        data-lucide="workflow"
+                        class="h-4 w-4"
+                    ></i>
+
+                </div>
+
+            </div>
 
 
-                    <div class="rounded-xl bg-gray-50 p-4">
+            <div class="p-5">
 
-                        <div class="text-xs font-semibold text-[#1F6F5B]">
-                            STEP 1
+                <div
+                    class="
+                        grid gap-3
+                        sm:grid-cols-2
+                        xl:grid-cols-4
+                    "
+                >
+
+                    {{-- RECEIVE --}}
+                    <a
+                        href="{{ route('logistics.parcels') }}"
+                        class="
+                            group
+                            rounded-2xl
+                            border border-[#E7ECE9]
+                            bg-[#FAFCFB]
+                            p-4
+                            transition
+                            hover:border-[#BCD4C8]
+                            hover:bg-[#F4F9F6]
+                        "
+                    >
+
+                        <div
+                            class="
+                                flex items-center
+                                justify-between
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex h-9 w-9
+                                    items-center justify-center
+                                    rounded-xl
+                                    bg-sky-50
+                                    text-sky-700
+                                "
+                            >
+
+                                <i
+                                    data-lucide="package-check"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </div>
+
+
+                            <span
+                                class="
+                                    text-[9px]
+                                    font-semibold
+                                    text-[#99A59F]
+                                "
+                            >
+                                01
+                            </span>
+
                         </div>
 
-                        <p class="mt-2 text-sm font-semibold text-gray-900">
+
+                        <p
+                            class="
+                                mt-4
+                                text-[11px]
+                                font-semibold
+                                text-[#34483F]
+                            "
+                        >
                             Receive Parcel
                         </p>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Confirm parcel arrival.
+
+                        <p
+                            class="
+                                mt-1
+                                text-[9px]
+                                leading-5
+                                text-[#849089]
+                            "
+                        >
+                            Verify parcel arrival
+                            from the pickup rider.
                         </p>
 
-                    </div>
+                    </a>
 
 
-                    <div class="rounded-xl bg-gray-50 p-4">
+                    {{-- SORT --}}
+                    <a
+                        href="{{ route('logistics.sorting') }}"
+                        class="
+                            group
+                            rounded-2xl
+                            border border-[#E7ECE9]
+                            bg-[#FAFCFB]
+                            p-4
+                            transition
+                            hover:border-[#BCD4C8]
+                            hover:bg-[#F4F9F6]
+                        "
+                    >
 
-                        <div class="text-xs font-semibold text-[#1F6F5B]">
-                            STEP 2
+                        <div
+                            class="
+                                flex items-center
+                                justify-between
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex h-9 w-9
+                                    items-center justify-center
+                                    rounded-xl
+                                    bg-amber-50
+                                    text-amber-700
+                                "
+                            >
+
+                                <i
+                                    data-lucide="scan-line"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </div>
+
+
+                            <span
+                                class="
+                                    text-[9px]
+                                    font-semibold
+                                    text-[#99A59F]
+                                "
+                            >
+                                02
+                            </span>
+
                         </div>
 
-                        <p class="mt-2 text-sm font-semibold text-gray-900">
+
+                        <p
+                            class="
+                                mt-4
+                                text-[11px]
+                                font-semibold
+                                text-[#34483F]
+                            "
+                        >
                             Sort by Area
                         </p>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Identify destination area.
+
+                        <p
+                            class="
+                                mt-1
+                                text-[9px]
+                                leading-5
+                                text-[#849089]
+                            "
+                        >
+                            Read destination and
+                            determine delivery area.
                         </p>
 
-                    </div>
+                    </a>
 
 
-                    <div class="rounded-xl bg-gray-50 p-4">
+                    {{-- ASSIGN --}}
+                    <a
+                        href="{{ route('logistics.assignments') }}"
+                        class="
+                            group
+                            rounded-2xl
+                            border border-[#E7ECE9]
+                            bg-[#FAFCFB]
+                            p-4
+                            transition
+                            hover:border-[#BCD4C8]
+                            hover:bg-[#F4F9F6]
+                        "
+                    >
 
-                        <div class="text-xs font-semibold text-[#1F6F5B]">
-                            STEP 3
+                        <div
+                            class="
+                                flex items-center
+                                justify-between
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex h-9 w-9
+                                    items-center justify-center
+                                    rounded-xl
+                                    bg-violet-50
+                                    text-violet-700
+                                "
+                            >
+
+                                <i
+                                    data-lucide="user-round-check"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </div>
+
+
+                            <span
+                                class="
+                                    text-[9px]
+                                    font-semibold
+                                    text-[#99A59F]
+                                "
+                            >
+                                03
+                            </span>
+
                         </div>
 
-                        <p class="mt-2 text-sm font-semibold text-gray-900">
+
+                        <p
+                            class="
+                                mt-4
+                                text-[11px]
+                                font-semibold
+                                text-[#34483F]
+                            "
+                        >
                             Assign Rider
                         </p>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Match parcel to rider area.
+
+                        <p
+                            class="
+                                mt-1
+                                text-[9px]
+                                leading-5
+                                text-[#849089]
+                            "
+                        >
+                            Match parcel with an
+                            approved rider for the area.
                         </p>
 
-                    </div>
+                    </a>
 
 
-                    <div class="rounded-xl bg-gray-50 p-4">
+                    {{-- MONITOR --}}
+                    <a
+                        href="{{ route('logistics.monitoring') }}"
+                        class="
+                            group
+                            rounded-2xl
+                            border border-[#E7ECE9]
+                            bg-[#FAFCFB]
+                            p-4
+                            transition
+                            hover:border-[#BCD4C8]
+                            hover:bg-[#F4F9F6]
+                        "
+                    >
 
-                        <div class="text-xs font-semibold text-[#1F6F5B]">
-                            STEP 4
+                        <div
+                            class="
+                                flex items-center
+                                justify-between
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex h-9 w-9
+                                    items-center justify-center
+                                    rounded-xl
+                                    bg-emerald-50
+                                    text-emerald-700
+                                "
+                            >
+
+                                <i
+                                    data-lucide="route"
+                                    class="h-4 w-4"
+                                ></i>
+
+                            </div>
+
+
+                            <span
+                                class="
+                                    text-[9px]
+                                    font-semibold
+                                    text-[#99A59F]
+                                "
+                            >
+                                04
+                            </span>
+
                         </div>
 
-                        <p class="mt-2 text-sm font-semibold text-gray-900">
+
+                        <p
+                            class="
+                                mt-4
+                                text-[11px]
+                                font-semibold
+                                text-[#34483F]
+                            "
+                        >
                             Monitor Delivery
                         </p>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Track parcel delivery.
+
+                        <p
+                            class="
+                                mt-1
+                                text-[9px]
+                                leading-5
+                                text-[#849089]
+                            "
+                        >
+                            Track delivery status
+                            and failed attempts.
                         </p>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        {{-- =================================================
+            RECENT PARCEL ACTIVITY
+        ================================================== --}}
+
+        <section
+            class="
+                overflow-hidden
+                rounded-2xl
+                border border-[#E1E8E4]
+                bg-white
+            "
+        >
+
+            <div
+                class="
+                    flex items-center
+                    justify-between gap-4
+                    border-b
+                    border-[#EDF1EF]
+                    px-5 py-4
+                "
+            >
+
+                <div>
+
+                    <h3
+                        class="
+                            text-sm
+                            font-semibold
+                            text-[#24312C]
+                        "
+                    >
+                        Recent Parcel Activity
+                    </h3>
+
+
+                    <p
+                        class="
+                            mt-0.5
+                            text-[10px]
+                            text-[#7C8983]
+                        "
+                    >
+                        Latest parcels inside the
+                        Logistics fulfillment flow.
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="{{ route('logistics.shipments') }}"
+                    class="
+                        inline-flex
+                        items-center gap-1.5
+                        text-[10px]
+                        font-semibold
+                        text-[#1F6F5B]
+                        transition
+                        hover:text-[#155244]
+                    "
+                >
+                    View all
+
+                    <i
+                        data-lucide="arrow-right"
+                        class="h-3.5 w-3.5"
+                    ></i>
+                </a>
+
+            </div>
+
+
+            @forelse(
+                $recentOrders
+                as $orderId => $order
+            )
+
+                @php
+
+                    $resolvedOrderId =
+                        $order['id']
+                        ?? $orderId;
+
+
+                    $status =
+                        strtolower(
+                            $order['status']
+                            ?? ''
+                        );
+
+
+                    $statusData =
+                        $statusConfig[$status]
+                        ?? [
+                            'label' =>
+                                ucwords(
+                                    str_replace(
+                                        '_',
+                                        ' ',
+                                        $status
+                                    )
+                                ),
+
+                            'class' =>
+                                'border-gray-200 bg-gray-50 text-gray-600',
+
+                            'icon' =>
+                                'package',
+                        ];
+
+
+                    $destination =
+                        $formatAddress(
+                            $order
+                        );
+
+
+                    $area =
+                        $order['assigned_area']
+                        ?? $order['area']
+                        ?? null;
+
+
+                    $riderName =
+                        $order['rider_name']
+                        ?? null;
+
+                @endphp
+
+
+                <div
+                    class="
+                        flex flex-col gap-4
+                        border-b
+                        border-[#EDF1EF]
+                        px-5 py-4
+                        last:border-b-0
+                        sm:flex-row
+                        sm:items-center
+                    "
+                >
+
+                    <div
+                        class="
+                            flex h-10 w-10
+                            shrink-0
+                            items-center justify-center
+                            rounded-xl
+                            bg-[#EEF5F1]
+                            text-[#1F6F5B]
+                        "
+                    >
+
+                        <i
+                            data-lucide="package"
+                            class="h-4 w-4"
+                        ></i>
 
                     </div>
 
+
+                    <div class="min-w-0 flex-1">
+
+                        <div
+                            class="
+                                flex flex-wrap
+                                items-center gap-2
+                            "
+                        >
+
+                            <p
+                                class="
+                                    text-[11px]
+                                    font-semibold
+                                    text-[#34483F]
+                                "
+                            >
+                                Order #{{ $resolvedOrderId }}
+                            </p>
+
+
+                            <span
+                                class="
+                                    inline-flex
+                                    items-center gap-1
+                                    rounded-full
+                                    border
+                                    px-2 py-0.5
+                                    text-[8px]
+                                    font-semibold
+                                    {{ $statusData['class'] }}
+                                "
+                            >
+
+                                <i
+                                    data-lucide="{{ $statusData['icon'] }}"
+                                    class="h-2.5 w-2.5"
+                                ></i>
+
+                                {{ $statusData['label'] }}
+
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            class="
+                                mt-2
+                                flex flex-wrap
+                                gap-x-4 gap-y-1
+                                text-[9px]
+                                text-[#85928C]
+                            "
+                        >
+
+                            <span
+                                class="
+                                    flex items-center gap-1.5
+                                "
+                            >
+
+                                <i
+                                    data-lucide="map-pin"
+                                    class="h-3 w-3"
+                                ></i>
+
+                                {{ $destination }}
+
+                            </span>
+
+
+                            @if($area)
+
+                                <span
+                                    class="
+                                        flex items-center gap-1.5
+                                    "
+                                >
+
+                                    <i
+                                        data-lucide="map"
+                                        class="h-3 w-3"
+                                    ></i>
+
+                                    {{ $area }}
+
+                                </span>
+
+                            @endif
+
+
+                            @if($riderName)
+
+                                <span
+                                    class="
+                                        flex items-center gap-1.5
+                                    "
+                                >
+
+                                    <i
+                                        data-lucide="bike"
+                                        class="h-3 w-3"
+                                    ></i>
+
+                                    {{ $riderName }}
+
+                                </span>
+
+                            @endif
+
+                        </div>
+
+                    </div>
+
+
+                    <a
+                        href="{{ route('logistics.shipments') }}"
+                        class="
+                            inline-flex h-9
+                            items-center justify-center
+                            gap-2
+                            rounded-xl
+                            border
+                            border-[#DDE6E1]
+                            bg-white
+                            px-3
+                            text-[9px]
+                            font-semibold
+                            text-[#52635B]
+                            transition
+                            hover:bg-[#F3F7F5]
+                        "
+                    >
+
+                        View Shipment
+
+                        <i
+                            data-lucide="arrow-up-right"
+                            class="h-3 w-3"
+                        ></i>
+
+                    </a>
+
+                </div>
+
+
+            @empty
+
+                <div
+                    class="
+                        px-6 py-14
+                        text-center
+                    "
+                >
+
+                    <div
+                        class="
+                            mx-auto
+                            flex h-12 w-12
+                            items-center justify-center
+                            rounded-2xl
+                            bg-[#EEF5F1]
+                            text-[#1F6F5B]
+                        "
+                    >
+
+                        <i
+                            data-lucide="package-search"
+                            class="h-5 w-5"
+                        ></i>
+
+                    </div>
+
+
+                    <p
+                        class="
+                            mt-4
+                            text-sm
+                            font-semibold
+                            text-[#34483F]
+                        "
+                    >
+                        No logistics activity yet
+                    </p>
+
+
+                    <p
+                        class="
+                            mx-auto mt-1
+                            max-w-sm
+                            text-xs
+                            leading-5
+                            text-[#849089]
+                        "
+                    >
+                        Parcels will appear here after
+                        pickup riders deliver them to
+                        the Sorting Center.
+                    </p>
+
+                </div>
+
+            @endforelse
+
+        </section>
+
+    </div>
+
+
+    {{-- =====================================================
+        RIGHT COLUMN
+    ====================================================== --}}
+
+    <div class="space-y-6">
+
+
+        {{-- =================================================
+            RIDER CAPACITY
+        ================================================== --}}
+
+        <section
+            class="
+                rounded-2xl
+                border border-[#E1E8E4]
+                bg-white
+                p-5
+            "
+        >
+
+            <div
+                class="
+                    flex items-center
+                    justify-between
+                "
+            >
+
+                <div>
+
+                    <h3
+                        class="
+                            text-sm
+                            font-semibold
+                            text-[#24312C]
+                        "
+                    >
+                        Rider Capacity
+                    </h3>
+
+
+                    <p
+                        class="
+                            mt-0.5
+                            text-[10px]
+                            text-[#7C8983]
+                        "
+                    >
+                        Current approved rider pool.
+                    </p>
+
+                </div>
+
+
+                <div
+                    class="
+                        flex h-9 w-9
+                        items-center justify-center
+                        rounded-xl
+                        bg-[#EEF5F1]
+                        text-[#1F6F5B]
+                    "
+                >
+
+                    <i
+                        data-lucide="bike"
+                        class="h-4 w-4"
+                    ></i>
 
                 </div>
 
             </div>
 
 
+            <div class="mt-5 space-y-4">
 
-            <!-- RIDER STATUS -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 
-                <div class="flex items-center justify-between">
+                {{-- APPROVED --}}
+                <div>
 
-                    <div>
+                    <div
+                        class="
+                            mb-2
+                            flex items-center
+                            justify-between
+                        "
+                    >
 
-                        <h2 class="font-semibold text-gray-900">
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
+                            Approved Riders
+                        </span>
 
-                            Rider Status
 
-                        </h2>
-
-                        <p class="mt-1 text-sm text-gray-500">
-
-                            Current rider overview.
-
-                        </p>
+                        <span
+                            class="
+                                text-xs
+                                font-semibold
+                                text-[#34483F]
+                            "
+                        >
+                            {{ $approvedRiders }}
+                        </span>
 
                     </div>
 
 
-                    <i data-lucide="bike" class="h-5 w-5 text-[#1F6F5B]"></i>
+                    <div
+                        class="
+                            h-1.5
+                            overflow-hidden
+                            rounded-full
+                            bg-[#EEF2F0]
+                        "
+                    >
+
+                        <div
+                            class="
+                                h-full
+                                rounded-full
+                                bg-[#1F6F5B]
+                            "
+                            style="
+                                width:
+                                {{
+                                    $approvedRiders > 0
+                                        ? '100'
+                                        : '0'
+                                }}%
+                            "
+                        ></div>
+
+                    </div>
 
                 </div>
 
 
+                {{-- AVAILABLE --}}
+                <div>
 
-                <div class="mt-6 space-y-4">
+                    <div
+                        class="
+                            mb-2
+                            flex items-center
+                            justify-between
+                        "
+                    >
 
-
-                    <div class="flex items-center justify-between">
-
-                        <span class="text-sm text-gray-600">
-
-                            Active Riders
-
-                        </span>
-
-                        <span class="font-semibold text-gray-900">
-
-                            0
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="flex items-center justify-between">
-
-                        <span class="text-sm text-gray-600">
-
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
                             Available
-
                         </span>
 
-                        <span class="font-semibold text-gray-900">
 
-                            0
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="flex items-center justify-between">
-
-                        <span class="text-sm text-gray-600">
-
-                            On Delivery
-
-                        </span>
-
-                        <span class="font-semibold text-gray-900">
-
-                            0
-
+                        <span
+                            class="
+                                text-xs
+                                font-semibold
+                                text-emerald-700
+                            "
+                        >
+                            {{ $availableRiders }}
                         </span>
 
                     </div>
 
 
-                    <div class="flex items-center justify-between">
+                    <div
+                        class="
+                            h-1.5
+                            overflow-hidden
+                            rounded-full
+                            bg-[#EEF2F0]
+                        "
+                    >
 
-                        <span class="text-sm text-gray-600">
+                        <div
+                            class="
+                                h-full
+                                rounded-full
+                                bg-emerald-500
+                            "
+                            style="
+                                width:
+                                {{
+                                    $approvedRiders > 0
+                                        ? min(
+                                            100,
+                                            round(
+                                                (
+                                                    $availableRiders
+                                                    / $approvedRiders
+                                                ) * 100
+                                            )
+                                        )
+                                        : 0
+                                }}%
+                            "
+                        ></div>
 
-                            Pending Applications
+                    </div>
 
+                </div>
+
+
+                {{-- BUSY --}}
+                <div>
+
+                    <div
+                        class="
+                            mb-2
+                            flex items-center
+                            justify-between
+                        "
+                    >
+
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
+                            Assigned / On Delivery
                         </span>
 
-                        <span class="font-semibold text-red-500">
 
-                            0
-
+                        <span
+                            class="
+                                text-xs
+                                font-semibold
+                                text-orange-700
+                            "
+                        >
+                            {{ $busyRiders }}
                         </span>
 
                     </div>
 
+
+                    <div
+                        class="
+                            h-1.5
+                            overflow-hidden
+                            rounded-full
+                            bg-[#EEF2F0]
+                        "
+                    >
+
+                        <div
+                            class="
+                                h-full
+                                rounded-full
+                                bg-orange-500
+                            "
+                            style="
+                                width:
+                                {{
+                                    $approvedRiders > 0
+                                        ? min(
+                                            100,
+                                            round(
+                                                (
+                                                    $busyRiders
+                                                    / $approvedRiders
+                                                ) * 100
+                                            )
+                                        )
+                                        : 0
+                                }}%
+                            "
+                        ></div>
+
+                    </div>
 
                 </div>
 
             </div>
 
+
+            <div
+                class="
+                    mt-5
+                    grid grid-cols-2
+                    gap-2
+                "
+            >
+
+                <a
+                    href="{{ route('logistics.riders') }}"
+                    class="
+                        inline-flex h-9
+                        items-center justify-center
+                        gap-2
+                        rounded-xl
+                        border
+                        border-[#DDE6E1]
+                        text-[9px]
+                        font-semibold
+                        text-[#52635B]
+                        transition
+                        hover:bg-[#F5F8F6]
+                    "
+                >
+                    Manage Riders
+                </a>
+
+
+                <a
+                    href="{{ route('logistics.assignments') }}"
+                    class="
+                        inline-flex h-9
+                        items-center justify-center
+                        gap-2
+                        rounded-xl
+                        bg-[#173F35]
+                        text-[9px]
+                        font-semibold
+                        text-white
+                        transition
+                        hover:bg-[#1F6F5B]
+                    "
+                >
+                    Assign Rider
+                </a>
+
+            </div>
 
         </section>
 
 
+        {{-- =================================================
+            DELIVERY HEALTH
+        ================================================== --}}
 
-        <!-- RECENT ACTIVITY -->
-        <section class="mt-8 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section
+            class="
+                rounded-2xl
+                border border-[#E1E8E4]
+                bg-white
+                p-5
+            "
+        >
 
-            <div class="border-b border-gray-100 px-6 py-5">
+            <div
+                class="
+                    flex items-center
+                    justify-between
+                "
+            >
 
-                <div class="flex items-center justify-between">
+                <div>
 
-                    <div>
+                    <h3
+                        class="
+                            text-sm
+                            font-semibold
+                            text-[#24312C]
+                        "
+                    >
+                        Delivery Overview
+                    </h3>
 
-                        <h2 class="font-semibold text-gray-900">
 
-                            Recent Activity
+                    <p
+                        class="
+                            mt-0.5
+                            text-[10px]
+                            text-[#7C8983]
+                        "
+                    >
+                        Current final-mile status.
+                    </p>
 
-                        </h2>
+                </div>
 
-                        <p class="mt-1 text-sm text-gray-500">
 
-                            Latest logistics and parcel activity.
+                <i
+                    data-lucide="activity"
+                    class="
+                        h-[18px] w-[18px]
+                        text-[#1F6F5B]
+                    "
+                ></i>
 
-                        </p>
+            </div>
+
+
+            <div class="mt-5 space-y-2.5">
+
+
+                <div
+                    class="
+                        flex items-center
+                        justify-between
+                        rounded-xl
+                        bg-[#F7F9F8]
+                        px-3.5 py-3
+                    "
+                >
+
+                    <div
+                        class="
+                            flex items-center gap-2.5
+                        "
+                    >
+
+                        <span
+                            class="
+                                h-2 w-2
+                                rounded-full
+                                bg-violet-500
+                            "
+                        ></span>
+
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
+                            Assigned
+                        </span>
 
                     </div>
 
 
-                    <i data-lucide="history" class="h-5 w-5 text-gray-400"></i>
+                    <span
+                        class="
+                            text-xs
+                            font-semibold
+                            text-[#34483F]
+                        "
+                    >
+                        {{ $assigned }}
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="
+                        flex items-center
+                        justify-between
+                        rounded-xl
+                        bg-[#F7F9F8]
+                        px-3.5 py-3
+                    "
+                >
+
+                    <div
+                        class="
+                            flex items-center gap-2.5
+                        "
+                    >
+
+                        <span
+                            class="
+                                h-2 w-2
+                                rounded-full
+                                bg-orange-500
+                            "
+                        ></span>
+
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
+                            Out for Delivery
+                        </span>
+
+                    </div>
+
+
+                    <span
+                        class="
+                            text-xs
+                            font-semibold
+                            text-[#34483F]
+                        "
+                    >
+                        {{ $outForDelivery }}
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="
+                        flex items-center
+                        justify-between
+                        rounded-xl
+                        bg-[#F7F9F8]
+                        px-3.5 py-3
+                    "
+                >
+
+                    <div
+                        class="
+                            flex items-center gap-2.5
+                        "
+                    >
+
+                        <span
+                            class="
+                                h-2 w-2
+                                rounded-full
+                                bg-emerald-500
+                            "
+                        ></span>
+
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                text-[#65756D]
+                            "
+                        >
+                            Delivered
+                        </span>
+
+                    </div>
+
+
+                    <span
+                        class="
+                            text-xs
+                            font-semibold
+                            text-[#34483F]
+                        "
+                    >
+                        {{ $delivered }}
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="
+                        flex items-center
+                        justify-between
+                        rounded-xl
+                        {{ $failed > 0
+                            ? 'bg-red-50'
+                            : 'bg-[#F7F9F8]'
+                        }}
+                        px-3.5 py-3
+                    "
+                >
+
+                    <div
+                        class="
+                            flex items-center gap-2.5
+                        "
+                    >
+
+                        <span
+                            class="
+                                h-2 w-2
+                                rounded-full
+                                {{ $failed > 0
+                                    ? 'bg-red-500'
+                                    : 'bg-[#AAB4AF]'
+                                }}
+                            "
+                        ></span>
+
+                        <span
+                            class="
+                                text-[10px]
+                                font-medium
+                                {{ $failed > 0
+                                    ? 'text-red-700'
+                                    : 'text-[#65756D]'
+                                }}
+                            "
+                        >
+                            Delivery Failed
+                        </span>
+
+                    </div>
+
+
+                    <span
+                        class="
+                            text-xs
+                            font-semibold
+                            {{ $failed > 0
+                                ? 'text-red-700'
+                                : 'text-[#34483F]'
+                            }}
+                        "
+                    >
+                        {{ $failed }}
+                    </span>
 
                 </div>
 
             </div>
 
 
+            <a
+                href="{{ route('logistics.monitoring') }}"
+                class="
+                    mt-4
+                    inline-flex h-9
+                    w-full
+                    items-center justify-center
+                    gap-2
+                    rounded-xl
+                    border
+                    border-[#DDE6E1]
+                    text-[9px]
+                    font-semibold
+                    text-[#52635B]
+                    transition
+                    hover:bg-[#F5F8F6]
+                "
+            >
 
-            <!-- EMPTY STATE -->
-            <div class="flex flex-col items-center justify-center px-6 py-14 text-center">
+                Open Delivery Monitoring
 
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                <i
+                    data-lucide="arrow-right"
+                    class="h-3.5 w-3.5"
+                ></i>
 
-                    <i data-lucide="clipboard-list" class="h-7 w-7"></i>
-
-                </div>
-
-
-                <h3 class="mt-4 font-semibold text-gray-900">
-
-                    No recent activity yet
-
-                </h3>
-
-
-                <p class="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-
-                    Parcel movements, rider approvals, and logistics activities
-                    will appear here.
-
-                </p>
-
-            </div>
+            </a>
 
         </section>
 
 
-    </main>
+        {{-- =================================================
+            RIDER APPLICATION SUMMARY
+        ================================================== --}}
+
+        <section
+            class="
+                rounded-2xl
+                border border-[#E1E8E4]
+                bg-white
+                p-5
+            "
+        >
+
+            <div
+                class="
+                    flex items-center
+                    justify-between
+                "
+            >
+
+                <div>
+
+                    <h3
+                        class="
+                            text-sm
+                            font-semibold
+                            text-[#24312C]
+                        "
+                    >
+                        Rider Applications
+                    </h3>
+
+
+                    <p
+                        class="
+                            mt-0.5
+                            text-[10px]
+                            text-[#7C8983]
+                        "
+                    >
+                        Logistics approval responsibility.
+                    </p>
+
+                </div>
+
+
+                @if($pendingRiders > 0)
+
+                    <span
+                        class="
+                            rounded-full
+                            bg-amber-50
+                            px-2.5 py-1
+                            text-[9px]
+                            font-semibold
+                            text-amber-700
+                        "
+                    >
+                        {{ $pendingRiders }} pending
+                    </span>
+
+                @endif
+
+            </div>
+
+
+            <div
+                class="
+                    mt-5
+                    grid grid-cols-3
+                    divide-x
+                    divide-[#EDF1EF]
+                    rounded-xl
+                    border
+                    border-[#EDF1EF]
+                    bg-[#FAFCFB]
+                    py-3
+                "
+            >
+
+                <div class="text-center">
+
+                    <p
+                        class="
+                            text-lg
+                            font-semibold
+                            text-amber-700
+                        "
+                    >
+                        {{ $pendingRiders }}
+                    </p>
+
+                    <p
+                        class="
+                            mt-1
+                            text-[8px]
+                            uppercase
+                            tracking-[0.08em]
+                            text-[#98A39D]
+                        "
+                    >
+                        Pending
+                    </p>
+
+                </div>
+
+
+                <div class="text-center">
+
+                    <p
+                        class="
+                            text-lg
+                            font-semibold
+                            text-emerald-700
+                        "
+                    >
+                        {{ $approvedRiders }}
+                    </p>
+
+                    <p
+                        class="
+                            mt-1
+                            text-[8px]
+                            uppercase
+                            tracking-[0.08em]
+                            text-[#98A39D]
+                        "
+                    >
+                        Approved
+                    </p>
+
+                </div>
+
+
+                <div class="text-center">
+
+                    <p
+                        class="
+                            text-lg
+                            font-semibold
+                            text-red-600
+                        "
+                    >
+                        {{ $disapprovedRiders }}
+                    </p>
+
+                    <p
+                        class="
+                            mt-1
+                            text-[8px]
+                            uppercase
+                            tracking-[0.08em]
+                            text-[#98A39D]
+                        "
+                    >
+                        Declined
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <a
+                href="{{ route('logistics.riders') }}"
+                class="
+                    mt-4
+                    inline-flex h-9
+                    w-full
+                    items-center justify-center
+                    gap-2
+                    rounded-xl
+                    bg-[#173F35]
+                    text-[9px]
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-[#1F6F5B]
+                "
+            >
+
+                Review Rider Applications
+
+                <i
+                    data-lucide="arrow-right"
+                    class="h-3.5 w-3.5"
+                ></i>
+
+            </a>
+
+        </section>
+
+    </div>
 
 </div>
+
+
+@push('scripts')
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+
+        if (
+            typeof lucide !==
+                'undefined'
+            &&
+            typeof lucide.createIcons ===
+                'function'
+        ) {
+
+            lucide.createIcons();
+
+        }
+
+    }
+);
+
+</script>
+
+@endpush
 
 @endsection
