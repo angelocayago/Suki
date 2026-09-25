@@ -11,7 +11,7 @@
 
     <meta
         name="description"
-        content="SUKI SHOP is a connected marketplace where buyers discover products, sellers grow their businesses, and riders and logistics partners move every order from seller to doorstep."
+        content="SUKI SHOP is a connected marketplace for buyers, sellers, riders, and logistics partners."
     >
 
     <title>SUKI SHOP — Shop. Sell. Deliver. Together.</title>
@@ -54,8 +54,8 @@
             visibility: hidden;
             transform: scale(1.025);
             transition:
-                opacity 800ms ease,
-                visibility 800ms ease,
+                opacity 850ms ease,
+                visibility 850ms ease,
                 transform 6500ms ease;
         }
 
@@ -79,7 +79,7 @@
         }
 
         .hero-thumb {
-            opacity: .48;
+            opacity: .45;
             transition:
                 opacity 250ms ease,
                 transform 250ms ease,
@@ -89,7 +89,7 @@
         .hero-thumb.is-active {
             opacity: 1;
             transform: translateY(-3px);
-            border-color: rgba(255, 255, 255, .9);
+            border-color: rgba(255, 255, 255, .92);
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -100,24 +100,26 @@
             }
         }
     </style>
+
 </head>
 
 
-<body class="bg-[#F8FAF8] text-[#173F35] antialiased">
+<body class="m-0 w-full overflow-x-hidden bg-[#F8FAF8] text-[#173F35] antialiased">
 
 
 @php
 
     $heroSlides = [
+
         [
             'eyebrow' => 'SHOP • SELL • DELIVER • TOGETHER',
             'title' => 'A marketplace made',
             'highlight' => 'for everyday connections.',
             'description' => 'Discover products from marketplace sellers while SUKI SHOP connects ordering, fulfillment, and delivery in one experience.',
-            'primary' => 'Explore Marketplace',
-            'image' => 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=2000&q=90',
-            'label' => 'Marketplace',
+            'button' => 'Explore Marketplace',
             'type' => 'buyer',
+            'label' => 'Marketplace',
+            'image' => 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=2200&q=90',
         ],
 
         [
@@ -125,128 +127,149 @@
             'title' => 'Turn local products into',
             'highlight' => 'bigger opportunities.',
             'description' => 'Build your presence, manage products, receive orders, prepare parcels, and grow through a connected marketplace.',
-            'primary' => 'Start Selling',
-            'image' => 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=2000&q=90',
-            'label' => 'For Sellers',
+            'button' => 'Start Selling',
             'type' => 'seller',
+            'label' => 'For Sellers',
+            'image' => 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=2200&q=90',
         ],
 
         [
             'eyebrow' => 'CONNECTED FULFILLMENT',
-            'title' => 'Move orders',
-            'highlight' => 'from seller to doorstep.',
-            'description' => 'Riders and logistics partners work together through pickup, sorting, assignment, and final delivery.',
-            'primary' => 'See How It Works',
-            'image' => 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=90',
-            'label' => 'Delivery Network',
+            'title' => 'From seller pickup',
+            'highlight' => 'to buyer delivery.',
+            'description' => 'Riders and logistics partners work together through pickup, sorting, delivery assignment, and final delivery.',
+            'button' => 'See How It Works',
             'type' => 'delivery',
+            'label' => 'Delivery Network',
+            'image' => 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2200&q=90',
         ],
 
         [
-            'eyebrow' => 'BECOME PART OF THE NETWORK',
-            'title' => 'Deliver more than',
+            'eyebrow' => 'FOR RIDERS & COURIERS',
+            'title' => 'Move more than',
             'highlight' => 'just parcels.',
-            'description' => 'Become part of the rider network that helps move customer orders through the SUKI SHOP ecosystem.',
-            'primary' => 'Apply as Rider',
-            'image' => 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=2000&q=90',
-            'label' => 'For Riders',
+            'description' => 'Become part of the rider network that connects sellers, sorting centers, and customers throughout the order journey.',
+            'button' => 'Apply as Rider',
             'type' => 'rider',
+            'label' => 'For Riders',
+            'image' => asset('images/suki-rider.jpg'),
         ],
+
     ];
 
 
     $categories = [
+
         [
             'name' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1000&q=88',
         ],
+
         [
             'name' => 'Beauty',
-            'image' => 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=1000&q=88',
         ],
+
         [
             'name' => 'Home & Living',
-            'image' => 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1000&q=88',
         ],
+
         [
             'name' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1000&q=88',
         ],
+
         [
             'name' => 'Food',
-            'image' => 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=88',
         ],
+
         [
             'name' => 'Sports',
-            'image' => 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=900&q=88',
+            'image' => 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1000&q=88',
         ],
+
     ];
 
 
-    $publicJourney = [
+    $orderJourney = [
+
         [
             'number' => '01',
             'title' => 'Discover',
             'description' => 'Browse products from marketplace sellers.',
         ],
+
         [
             'number' => '02',
             'title' => 'Order',
-            'description' => 'Choose products and complete checkout.',
+            'description' => 'Choose products and complete the checkout process.',
         ],
+
         [
             'number' => '03',
             'title' => 'Seller Prepares',
             'description' => 'The seller confirms, packs, and prepares the parcel.',
         ],
+
         [
             'number' => '04',
             'title' => 'Pickup',
             'description' => 'A rider collects the parcel from the seller.',
         ],
+
         [
             'number' => '05',
             'title' => 'Sort & Assign',
-            'description' => 'Logistics sorts by destination and assigns a rider.',
+            'description' => 'Logistics sorts the parcel and assigns a delivery rider.',
         ],
+
         [
             'number' => '06',
             'title' => 'Deliver',
             'description' => 'The assigned rider brings the order to the buyer.',
         ],
+
         [
             'number' => '07',
             'title' => 'Receive',
             'description' => 'The buyer receives and confirms the order.',
         ],
+
     ];
 
 @endphp
 
 
 {{-- ========================================================= --}}
-{{-- ANNOUNCEMENT BAR --}}
+{{-- ANNOUNCEMENT --}}
 {{-- ========================================================= --}}
 
-<div class="hidden bg-[#173F35] text-white md:block">
+<div class="hidden w-full bg-[#173F35] text-white md:block">
 
-    <div class="mx-auto flex h-8 max-w-[1500px] items-center justify-between px-8">
+    <div
+        class="mx-auto flex h-8 w-full max-w-[1800px]
+               items-center justify-between
+               px-8 xl:px-12"
+    >
 
-        <p class="text-[10px] font-medium tracking-[0.04em] text-white/70">
+        <p class="text-[10px] font-medium tracking-[0.04em] text-white/65">
             Good people. Better communities.
         </p>
 
+
         <div class="flex items-center gap-6 text-[10px] font-medium text-white/65">
 
-            <a href="#how-it-works" class="hover:text-white">
+            <a href="#how-it-works" class="transition hover:text-white">
                 How It Works
             </a>
 
-            <a href="{{ route('seller.register') }}" class="hover:text-white">
+            <a href="{{ route('seller.register') }}" class="transition hover:text-white">
                 Become a Seller
             </a>
 
-            <a href="{{ route('rider.apply') }}" class="hover:text-white">
+            <a href="{{ route('rider.apply') }}" class="transition hover:text-white">
                 Become a Rider
             </a>
 
@@ -261,11 +284,23 @@
 {{-- NAVIGATION --}}
 {{-- ========================================================= --}}
 
-<header class="sticky top-0 z-50 border-b border-[#173F35]/8 bg-[#F8FAF8]/95 backdrop-blur-xl">
+<header
+    class="sticky top-0 z-50
+           w-full
+           border-b border-[#173F35]/8
+           bg-[#F8FAF8]/95
+           backdrop-blur-xl"
+>
 
-    <div class="mx-auto flex h-[76px] max-w-[1500px] items-center px-5 sm:px-8 lg:px-10">
+    <div
+        class="mx-auto flex h-[76px]
+               w-full max-w-[1800px]
+               items-center
+               px-5 sm:px-8
+               lg:px-10 xl:px-12"
+    >
 
-        {{-- LOGO --}}
+        {{-- BRAND --}}
         <a
             href="{{ route('landing') }}"
             class="flex shrink-0 items-center gap-3"
@@ -279,11 +314,22 @@
 
             <div class="leading-none">
 
-                <span class="block text-[18px] font-bold tracking-[-0.04em] text-[#173F35]">
+                <span
+                    class="block text-[18px]
+                           font-bold
+                           tracking-[-0.04em]
+                           text-[#173F35]"
+                >
                     SUKI SHOP
                 </span>
 
-                <span class="mt-1 block text-[8px] font-medium uppercase tracking-[0.16em] text-[#1F6F5B]/60">
+                <span
+                    class="mt-1 block
+                           text-[8px]
+                           font-medium uppercase
+                           tracking-[0.16em]
+                           text-[#1F6F5B]/60"
+                >
                     Connected Marketplace
                 </span>
 
@@ -295,38 +341,54 @@
         {{-- DESKTOP NAV --}}
         <nav class="ml-12 hidden items-center gap-7 xl:flex">
 
-            <a href="#about" class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+            <a href="#about"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
                 About
             </a>
 
-            <a href="#categories" class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+            <a href="#categories"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
                 Categories
             </a>
 
-            <a href="#for-buyers" class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+            <a href="#for-buyers"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
                 For Buyers
             </a>
 
-            <a href="#for-sellers" class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+            <a href="#for-sellers"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
                 For Sellers
             </a>
 
-            <a href="#how-it-works" class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+            <a href="#for-riders"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
+                For Riders
+            </a>
+
+            <a href="#how-it-works"
+               class="text-[12px] font-medium text-[#173F35]/62 hover:text-[#1F6F5B]">
                 How It Works
             </a>
 
         </nav>
 
 
-        {{-- ACTIONS --}}
         <div class="ml-auto flex items-center gap-3">
 
             <a
                 href="{{ route('buyer.shop') }}"
-                class="hidden h-10 items-center gap-2 rounded-full border border-[#173F35]/10 bg-white px-4 text-[11px] font-medium text-[#173F35]/60 hover:border-[#1F6F5B]/30 hover:text-[#1F6F5B] lg:inline-flex"
+                class="hidden h-10 items-center gap-2
+                       rounded-full
+                       border border-[#173F35]/10
+                       bg-white px-4
+                       text-[11px] font-medium
+                       text-[#173F35]/60
+                       transition
+                       hover:border-[#1F6F5B]/30
+                       hover:text-[#1F6F5B]
+                       lg:inline-flex"
             >
-                <i data-lucide="search" class="h-4 w-4"></i>
-
                 Explore Marketplace
             </a>
 
@@ -335,7 +397,16 @@
 
                 <a
                     href="{{ route('buyer.home') }}"
-                    class="inline-flex h-10 items-center rounded-full bg-[#173F35] px-5 text-[12px] font-semibold text-white hover:bg-[#1F6F5B]"
+                    class="inline-flex h-10
+                           items-center
+                           rounded-full
+                           bg-[#173F35]
+                           px-5
+                           text-[12px]
+                           font-semibold
+                           text-white
+                           transition
+                           hover:bg-[#1F6F5B]"
                 >
                     Open Marketplace
                 </a>
@@ -344,14 +415,29 @@
 
                 <a
                     href="{{ route('login') }}"
-                    class="hidden px-3 py-2 text-[12px] font-semibold text-[#173F35]/70 hover:text-[#1F6F5B] sm:block"
+                    class="hidden px-3 py-2
+                           text-[12px]
+                           font-semibold
+                           text-[#173F35]/70
+                           hover:text-[#1F6F5B]
+                           sm:block"
                 >
                     Log in
                 </a>
 
+
                 <a
                     href="#join"
-                    class="inline-flex h-10 items-center rounded-full bg-[#173F35] px-5 text-[12px] font-semibold text-white hover:bg-[#1F6F5B]"
+                    class="inline-flex h-10
+                           items-center
+                           rounded-full
+                           bg-[#173F35]
+                           px-5
+                           text-[12px]
+                           font-semibold
+                           text-white
+                           transition
+                           hover:bg-[#1F6F5B]"
                 >
                     Get Started
                 </a>
@@ -362,8 +448,14 @@
             <button
                 id="landingMenuButton"
                 type="button"
-                class="grid h-10 w-10 place-items-center rounded-full border border-[#173F35]/10 bg-white text-[#173F35] xl:hidden"
-                aria-label="Open navigation"
+                class="grid h-10 w-10
+                       place-items-center
+                       rounded-full
+                       border border-[#173F35]/10
+                       bg-white
+                       text-[#173F35]
+                       xl:hidden"
+                aria-label="Open menu"
             >
                 <i data-lucide="menu" class="h-5 w-5"></i>
             </button>
@@ -373,31 +465,38 @@
     </div>
 
 
-    {{-- MOBILE NAV --}}
     <div
         id="landingMobileMenu"
-        class="hidden border-t border-[#173F35]/8 bg-[#F8FAF8] px-5 py-5 xl:hidden"
+        class="hidden w-full
+               border-t border-[#173F35]/8
+               bg-[#F8FAF8]
+               px-5 py-5
+               xl:hidden"
     >
 
         <nav class="flex flex-col">
 
-            <a href="#about" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-white">
+            <a href="#about" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
                 About
             </a>
 
-            <a href="#categories" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-white">
+            <a href="#categories" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
                 Categories
             </a>
 
-            <a href="#for-buyers" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-white">
+            <a href="#for-buyers" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
                 For Buyers
             </a>
 
-            <a href="#for-sellers" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-white">
+            <a href="#for-sellers" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
                 For Sellers
             </a>
 
-            <a href="#how-it-works" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-white">
+            <a href="#for-riders" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
+                For Riders
+            </a>
+
+            <a href="#how-it-works" class="rounded-xl px-3 py-3 text-sm font-medium hover:bg-white">
                 How It Works
             </a>
 
@@ -408,58 +507,108 @@
 </header>
 
 
-<main>
+<main class="w-full">
 
 
 {{-- ========================================================= --}}
-{{-- FULL-BLEED HERO --}}
+{{-- FULL WIDTH HERO --}}
 {{-- ========================================================= --}}
 
 <section
     id="heroCarousel"
-    class="relative min-h-[650px] overflow-hidden bg-[#102D26] lg:h-[calc(100svh-108px)] lg:min-h-[680px] lg:max-h-[850px]"
+    class="relative w-full
+           min-h-[650px]
+           overflow-hidden
+           bg-[#102D26]
+           lg:h-[calc(100svh-108px)]
+           lg:min-h-[690px]
+           lg:max-h-[900px]"
 >
 
     @foreach($heroSlides as $index => $slide)
 
         <article
-            class="hero-slide absolute inset-0 {{ $index === 0 ? 'is-active' : '' }}"
+            class="hero-slide absolute inset-0
+                   {{ $index === 0 ? 'is-active' : '' }}"
             data-slide="{{ $index }}"
         >
 
             <img
                 src="{{ $slide['image'] }}"
                 alt="{{ $slide['label'] }}"
-                class="absolute inset-0 h-full w-full object-cover"
+                class="absolute inset-0
+                       h-full w-full
+                       object-cover"
             >
 
 
-            <div class="absolute inset-0 bg-gradient-to-r from-[#071A15]/95 via-[#102D26]/72 to-transparent"></div>
+            <div
+                class="absolute inset-0
+                       bg-gradient-to-r
+                       from-[#071A15]/96
+                       via-[#102D26]/70
+                       to-transparent"
+            ></div>
 
-            <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/5"></div>
+
+            <div
+                class="absolute inset-0
+                       bg-gradient-to-t
+                       from-black/35
+                       via-transparent
+                       to-black/5"
+            ></div>
 
 
-            <div class="hero-copy relative z-10 mx-auto flex h-full max-w-[1500px] items-center px-5 py-20 sm:px-8 lg:px-12">
+            <div
+                class="hero-copy relative z-10
+                       mx-auto flex h-full
+                       w-full max-w-[1800px]
+                       items-center
+                       px-6 py-20
+                       sm:px-10
+                       lg:px-16
+                       xl:px-20"
+            >
 
-                <div class="max-w-[760px] text-white">
+                <div class="max-w-[780px] text-white">
 
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#A9DDCB] sm:text-[11px]">
+                    <p
+                        class="text-[10px]
+                               font-semibold uppercase
+                               tracking-[0.22em]
+                               text-[#A9DDCB]
+                               sm:text-[11px]"
+                    >
                         {{ $slide['eyebrow'] }}
                     </p>
 
 
-                    <h1 class="mt-5 text-[42px] font-semibold leading-[1.02] tracking-[-0.055em] sm:text-[58px] lg:text-[72px] xl:text-[82px]">
-
+                    <h1
+                        class="mt-5
+                               text-[42px]
+                               font-semibold
+                               leading-[1.02]
+                               tracking-[-0.055em]
+                               sm:text-[60px]
+                               lg:text-[74px]
+                               xl:text-[84px]"
+                    >
                         {{ $slide['title'] }}
 
                         <span class="block text-[#DDF3EC]">
                             {{ $slide['highlight'] }}
                         </span>
-
                     </h1>
 
 
-                    <p class="mt-6 max-w-[610px] text-[14px] leading-7 text-white/72 sm:text-[16px]">
+                    <p
+                        class="mt-6 max-w-[620px]
+                               text-[14px]
+                               leading-7
+                               text-white/70
+                               sm:text-[16px]"
+                    >
                         {{ $slide['description'] }}
                     </p>
 
@@ -470,9 +619,17 @@
 
                             <a
                                 href="{{ route('seller.register') }}"
-                                class="inline-flex h-12 items-center gap-2 rounded-full bg-[#1F6F5B] px-6 text-[13px] font-semibold text-white hover:bg-[#27836D]"
+                                class="inline-flex h-12
+                                       items-center gap-2
+                                       rounded-full
+                                       bg-[#1F6F5B]
+                                       px-6
+                                       text-[13px]
+                                       font-semibold
+                                       text-white
+                                       hover:bg-[#27836D]"
                             >
-                                {{ $slide['primary'] }}
+                                {{ $slide['button'] }}
 
                                 <i data-lucide="arrow-right" class="h-4 w-4"></i>
                             </a>
@@ -481,9 +638,17 @@
 
                             <a
                                 href="{{ route('rider.apply') }}"
-                                class="inline-flex h-12 items-center gap-2 rounded-full bg-[#1F6F5B] px-6 text-[13px] font-semibold text-white hover:bg-[#27836D]"
+                                class="inline-flex h-12
+                                       items-center gap-2
+                                       rounded-full
+                                       bg-[#1F6F5B]
+                                       px-6
+                                       text-[13px]
+                                       font-semibold
+                                       text-white
+                                       hover:bg-[#27836D]"
                             >
-                                {{ $slide['primary'] }}
+                                {{ $slide['button'] }}
 
                                 <i data-lucide="arrow-right" class="h-4 w-4"></i>
                             </a>
@@ -492,9 +657,17 @@
 
                             <a
                                 href="#how-it-works"
-                                class="inline-flex h-12 items-center gap-2 rounded-full bg-[#1F6F5B] px-6 text-[13px] font-semibold text-white hover:bg-[#27836D]"
+                                class="inline-flex h-12
+                                       items-center gap-2
+                                       rounded-full
+                                       bg-[#1F6F5B]
+                                       px-6
+                                       text-[13px]
+                                       font-semibold
+                                       text-white
+                                       hover:bg-[#27836D]"
                             >
-                                {{ $slide['primary'] }}
+                                {{ $slide['button'] }}
 
                                 <i data-lucide="arrow-right" class="h-4 w-4"></i>
                             </a>
@@ -503,9 +676,17 @@
 
                             <a
                                 href="{{ route('buyer.shop') }}"
-                                class="inline-flex h-12 items-center gap-2 rounded-full bg-[#1F6F5B] px-6 text-[13px] font-semibold text-white hover:bg-[#27836D]"
+                                class="inline-flex h-12
+                                       items-center gap-2
+                                       rounded-full
+                                       bg-[#1F6F5B]
+                                       px-6
+                                       text-[13px]
+                                       font-semibold
+                                       text-white
+                                       hover:bg-[#27836D]"
                             >
-                                {{ $slide['primary'] }}
+                                {{ $slide['button'] }}
 
                                 <i data-lucide="arrow-right" class="h-4 w-4"></i>
                             </a>
@@ -515,7 +696,17 @@
 
                         <a
                             href="#about"
-                            class="inline-flex h-12 items-center rounded-full border border-white/20 bg-white/8 px-6 text-[13px] font-semibold text-white backdrop-blur-md hover:bg-white/15"
+                            class="inline-flex h-12
+                                   items-center
+                                   rounded-full
+                                   border border-white/20
+                                   bg-white/10
+                                   px-6
+                                   text-[13px]
+                                   font-semibold
+                                   text-white
+                                   backdrop-blur-md
+                                   hover:bg-white/15"
                         >
                             Learn More
                         </a>
@@ -535,7 +726,17 @@
     <button
         id="heroPrev"
         type="button"
-        class="absolute left-5 top-1/2 z-30 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/15 text-white backdrop-blur-md hover:bg-black/30 sm:grid"
+        class="absolute left-5 top-1/2 z-30
+               hidden h-12 w-12
+               -translate-y-1/2
+               place-items-center
+               rounded-full
+               border border-white/20
+               bg-black/15
+               text-white
+               backdrop-blur-md
+               hover:bg-black/30
+               sm:grid"
         aria-label="Previous slide"
     >
         <i data-lucide="chevron-left" class="h-5 w-5"></i>
@@ -545,33 +746,66 @@
     <button
         id="heroNext"
         type="button"
-        class="absolute right-5 top-1/2 z-30 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/15 text-white backdrop-blur-md hover:bg-black/30 sm:grid"
+        class="absolute right-5 top-1/2 z-30
+               hidden h-12 w-12
+               -translate-y-1/2
+               place-items-center
+               rounded-full
+               border border-white/20
+               bg-black/15
+               text-white
+               backdrop-blur-md
+               hover:bg-black/30
+               sm:grid"
         aria-label="Next slide"
     >
         <i data-lucide="chevron-right" class="h-5 w-5"></i>
     </button>
 
 
-    {{-- THUMBNAILS --}}
-    <div class="absolute bottom-7 left-1/2 z-30 hidden w-[min(760px,74vw)] -translate-x-1/2 gap-2 lg:flex">
+    {{-- DESKTOP THUMBNAILS --}}
+    <div
+        class="absolute bottom-7 left-1/2 z-30
+               hidden w-[min(800px,72vw)]
+               -translate-x-1/2
+               gap-2 lg:flex"
+    >
 
         @foreach($heroSlides as $index => $slide)
 
             <button
                 type="button"
-                class="hero-thumb relative h-[70px] flex-1 overflow-hidden rounded-xl border-2 border-transparent bg-black {{ $index === 0 ? 'is-active' : '' }}"
+                class="hero-thumb relative
+                       h-[74px] flex-1
+                       overflow-hidden
+                       rounded-xl
+                       border-2 border-transparent
+                       bg-black
+                       {{ $index === 0 ? 'is-active' : '' }}"
                 data-hero-target="{{ $index }}"
             >
 
                 <img
                     src="{{ $slide['image'] }}"
                     alt=""
-                    class="absolute inset-0 h-full w-full object-cover opacity-70"
+                    class="absolute inset-0
+                           h-full w-full
+                           object-cover opacity-70"
                 >
 
-                <div class="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent"></div>
+                <div
+                    class="absolute inset-0
+                           bg-gradient-to-t
+                           from-black/80
+                           to-transparent"
+                ></div>
 
-                <span class="absolute bottom-2 left-3 text-[9px] font-semibold text-white">
+                <span
+                    class="absolute bottom-2 left-3
+                           text-[9px]
+                           font-semibold
+                           text-white"
+                >
                     {{ $slide['label'] }}
                 </span>
 
@@ -583,14 +817,23 @@
 
 
     {{-- MOBILE DOTS --}}
-    <div class="absolute bottom-7 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 lg:hidden">
+    <div
+        class="absolute bottom-7 left-1/2 z-30
+               flex -translate-x-1/2
+               items-center gap-2
+               lg:hidden"
+    >
 
         @foreach($heroSlides as $index => $slide)
 
             <button
                 type="button"
-                class="hero-dot h-2 rounded-full {{ $index === 0 ? 'w-7 bg-white' : 'w-2 bg-white/40' }}"
                 data-hero-target="{{ $index }}"
+                class="hero-dot h-2 rounded-full
+                       {{ $index === 0
+                            ? 'w-7 bg-white'
+                            : 'w-2 bg-white/40'
+                       }}"
             ></button>
 
         @endforeach
@@ -601,7 +844,15 @@
     <button
         id="heroPause"
         type="button"
-        class="absolute bottom-7 right-6 z-30 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/20 text-white backdrop-blur-md hover:bg-black/35"
+        class="absolute bottom-7 right-6 z-30
+               grid h-10 w-10
+               place-items-center
+               rounded-full
+               border border-white/20
+               bg-black/20
+               text-white
+               backdrop-blur-md
+               hover:bg-black/35"
         aria-label="Pause carousel"
     >
         <i data-lucide="pause" class="h-4 w-4"></i>
@@ -611,41 +862,87 @@
 
 
 {{-- ========================================================= --}}
-{{-- WHAT IS SUKI SHOP --}}
+{{-- ABOUT — FULL WIDTH BACKGROUND --}}
 {{-- ========================================================= --}}
 
 <section
     id="about"
-    class="mx-auto max-w-[1320px] px-5 py-20 sm:px-8 lg:py-28"
+    class="w-full bg-[#F8FAF8]"
 >
 
-    <div class="grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+    <div
+        class="mx-auto grid w-full
+               max-w-[1600px]
+               items-center gap-14
+               px-5 py-20
+               sm:px-8
+               lg:grid-cols-[0.8fr_1.2fr]
+               lg:gap-20
+               lg:px-12
+               lg:py-28"
+    >
 
         <div>
 
-            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
+            <p
+                class="text-[10px]
+                       font-semibold uppercase
+                       tracking-[0.2em]
+                       text-[#1F6F5B]"
+            >
                 What is SUKI SHOP?
             </p>
 
 
-            <h2 class="mt-4 text-[36px] font-semibold leading-[1.1] tracking-[-0.045em] text-[#173F35] sm:text-[48px]">
+            <h2
+                class="mt-4
+                       text-[36px]
+                       font-semibold
+                       leading-[1.1]
+                       tracking-[-0.045em]
+                       text-[#173F35]
+                       sm:text-[48px]"
+            >
                 A marketplace built around people.
             </h2>
 
 
-            <p class="mt-6 text-[14px] leading-7 text-[#173F35]/58 sm:text-[15px]">
-                SUKI SHOP brings buyers and sellers together through one digital marketplace while connecting the people responsible for moving every order.
+            <p
+                class="mt-6
+                       text-[14px]
+                       leading-7
+                       text-[#173F35]/58
+                       sm:text-[15px]"
+            >
+                SUKI SHOP connects buyers and sellers
+                through one marketplace while connecting
+                the people responsible for moving every
+                order.
             </p>
 
 
-            <p class="mt-4 text-[14px] leading-7 text-[#173F35]/58 sm:text-[15px]">
-                From discovering products to final delivery, the platform is designed around one connected transaction.
+            <p
+                class="mt-4
+                       text-[14px]
+                       leading-7
+                       text-[#173F35]/58
+                       sm:text-[15px]"
+            >
+                Product discovery, order management,
+                pickup, sorting, delivery assignment, and
+                final delivery become part of one
+                connected transaction.
             </p>
 
 
             <a
                 href="#how-it-works"
-                class="mt-7 inline-flex items-center gap-2 text-[13px] font-semibold text-[#1F6F5B]"
+                class="mt-7
+                       inline-flex items-center
+                       gap-2
+                       text-[13px]
+                       font-semibold
+                       text-[#1F6F5B]"
             >
                 See how it works
 
@@ -655,25 +952,53 @@
         </div>
 
 
-        {{-- EDITORIAL IMAGE --}}
-        <div class="relative min-h-[480px] overflow-hidden rounded-[28px] sm:min-h-[580px]">
+        <div
+            class="relative min-h-[500px]
+                   overflow-hidden
+                   rounded-[28px]
+                   sm:min-h-[620px]"
+        >
 
             <img
-                src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1500&q=88"
-                alt="SUKI SHOP marketplace experience"
-                class="absolute inset-0 h-full w-full object-cover"
+                src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=90"
+                alt="SUKI SHOP marketplace"
+                class="absolute inset-0
+                       h-full w-full
+                       object-cover"
             >
 
-            <div class="absolute inset-0 bg-gradient-to-t from-[#071A15]/65 via-transparent to-transparent"></div>
+            <div
+                class="absolute inset-0
+                       bg-gradient-to-t
+                       from-[#071A15]/65
+                       via-transparent
+                       to-transparent"
+            ></div>
 
 
-            <div class="absolute bottom-0 left-0 max-w-[520px] p-7 text-white sm:p-10">
+            <div
+                class="absolute bottom-0 left-0
+                       max-w-[540px]
+                       p-7 text-white
+                       sm:p-10"
+            >
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#BFE7D9]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.18em]
+                           text-[#BFE7D9]"
+                >
                     One connected experience
                 </p>
 
-                <h3 class="mt-3 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+                <h3
+                    class="mt-3
+                           text-2xl
+                           font-semibold
+                           tracking-[-0.03em]
+                           sm:text-3xl"
+                >
                     Discover. Order. Deliver.
                 </h3>
 
@@ -687,25 +1012,49 @@
 
 
 {{-- ========================================================= --}}
-{{-- CATEGORY DISCOVERY --}}
+{{-- CATEGORIES — FULL WHITE BAND --}}
 {{-- ========================================================= --}}
 
 <section
     id="categories"
-    class="bg-white py-20 lg:py-24"
+    class="w-full bg-white"
 >
 
-    <div class="mx-auto max-w-[1500px] px-5 sm:px-8 lg:px-10">
+    <div
+        class="mx-auto w-full
+               max-w-[1700px]
+               px-5 py-20
+               sm:px-8
+               lg:px-12
+               lg:py-24"
+    >
 
-        <div class="mb-8 flex items-end justify-between gap-5">
+        <div
+            class="mb-8 flex
+                   items-end
+                   justify-between
+                   gap-5"
+        >
 
             <div>
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.2em]
+                           text-[#1F6F5B]"
+                >
                     Explore SUKI SHOP
                 </p>
 
-                <h2 class="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-[#173F35] sm:text-[42px]">
+                <h2
+                    class="mt-3
+                           text-[32px]
+                           font-semibold
+                           tracking-[-0.04em]
+                           text-[#173F35]
+                           sm:text-[42px]"
+                >
                     Shop by category.
                 </h2>
 
@@ -714,7 +1063,12 @@
 
             <a
                 href="{{ route('buyer.shop') }}"
-                class="hidden items-center gap-2 text-[12px] font-semibold text-[#1F6F5B] sm:inline-flex"
+                class="hidden items-center
+                       gap-2
+                       text-[12px]
+                       font-semibold
+                       text-[#1F6F5B]
+                       sm:inline-flex"
             >
                 View all products
 
@@ -724,39 +1078,60 @@
         </div>
 
 
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div
+            class="grid grid-cols-2
+                   gap-3
+                   md:grid-cols-3
+                   xl:grid-cols-6"
+        >
 
             @foreach($categories as $category)
 
                 <a
                     href="{{ route('buyer.shop') }}"
-                    class="group relative overflow-hidden rounded-[18px]"
+                    class="group relative
+                           overflow-hidden"
                 >
 
-                    <div class="aspect-[0.9] overflow-hidden bg-[#EAF2ED]">
+                    <div
+                        class="aspect-[0.88]
+                               overflow-hidden
+                               bg-[#EAF2ED]"
+                    >
 
                         <img
                             src="{{ $category['image'] }}"
                             alt="{{ $category['name'] }}"
-                            class="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                            class="h-full w-full
+                                   object-cover
+                                   transition duration-700
+                                   group-hover:scale-105"
                         >
 
                     </div>
 
 
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#071A15]/70 via-transparent to-transparent"></div>
+                    <div
+                        class="absolute inset-0
+                               bg-gradient-to-t
+                               from-[#071A15]/75
+                               via-transparent
+                               to-transparent"
+                    ></div>
 
 
-                    <div class="absolute inset-x-0 bottom-0 flex items-center justify-between p-4">
+                    <div
+                        class="absolute inset-x-0 bottom-0
+                               p-5"
+                    >
 
-                        <span class="text-[12px] font-semibold text-white">
+                        <span
+                            class="text-[13px]
+                                   font-semibold
+                                   text-white"
+                        >
                             {{ $category['name'] }}
                         </span>
-
-                        <i
-                            data-lucide="arrow-up-right"
-                            class="h-4 w-4 text-white"
-                        ></i>
 
                     </div>
 
@@ -772,60 +1147,107 @@
 
 
 {{-- ========================================================= --}}
-{{-- BUYER EDITORIAL --}}
+{{-- BUYER — FULL WIDTH EDITORIAL --}}
 {{-- ========================================================= --}}
 
 <section
     id="for-buyers"
-    class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 lg:px-10 lg:py-28"
+    class="w-full bg-[#E8F4EF]"
 >
 
-    <div class="grid overflow-hidden rounded-[30px] bg-[#E8F4EF] lg:grid-cols-2">
+    <div
+        class="grid w-full
+               lg:grid-cols-2"
+    >
 
-        {{-- IMAGE --}}
-        <div class="relative min-h-[460px] overflow-hidden lg:min-h-[650px]">
+        <div
+            class="relative min-h-[500px]
+                   overflow-hidden
+                   lg:min-h-[720px]"
+        >
 
             <img
-                src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90"
-                alt="Buyer shopping experience"
-                class="absolute inset-0 h-full w-full object-cover"
+                src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1600&q=90"
+                alt="SUKI SHOP buyer"
+                class="absolute inset-0
+                       h-full w-full
+                       object-cover"
             >
 
         </div>
 
 
-        {{-- CONTENT --}}
-        <div class="flex items-center px-7 py-14 sm:px-10 lg:px-14">
+        <div
+            class="flex items-center
+                   px-7 py-16
+                   sm:px-10
+                   lg:px-16
+                   xl:px-20"
+        >
 
-            <div class="max-w-[560px]">
+            <div class="max-w-[600px]">
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.2em]
+                           text-[#1F6F5B]"
+                >
                     For Buyers
                 </p>
 
 
-                <h2 class="mt-4 text-[36px] font-semibold leading-[1.1] tracking-[-0.045em] text-[#173F35] sm:text-[48px]">
+                <h2
+                    class="mt-4
+                           text-[36px]
+                           font-semibold
+                           leading-[1.08]
+                           tracking-[-0.045em]
+                           text-[#173F35]
+                           sm:text-[50px]"
+                >
                     Discover products from marketplace sellers.
                 </h2>
 
 
-                <p class="mt-6 text-[14px] leading-7 text-[#173F35]/58">
-                    Browse categories, view product details, manage your cart, place orders, and follow the delivery journey until your order reaches you.
+                <p
+                    class="mt-6
+                           text-[14px]
+                           leading-7
+                           text-[#173F35]/58"
+                >
+                    Browse products, compare your options,
+                    manage your cart, place orders, and
+                    follow the delivery journey until your
+                    order reaches you.
                 </p>
 
 
-                <div class="mt-8 grid grid-cols-2 gap-x-6 gap-y-5">
+                <div
+                    class="mt-9 grid
+                           grid-cols-2
+                           gap-x-7 gap-y-5"
+                >
 
                     @foreach([
-                        'Browse marketplace products',
-                        'Manage cart and wishlist',
+                        'Browse products',
+                        'Manage cart & wishlist',
                         'Checkout and place orders',
                         'Track order progress',
                     ] as $item)
 
-                        <div class="border-t border-[#173F35]/12 pt-3">
+                        <div
+                            class="border-t
+                                   border-[#173F35]/12
+                                   pt-3"
+                        >
 
-                            <p class="text-[11px] font-medium leading-5 text-[#173F35]/70">
+                            <p
+                                class="text-[11px]
+                                       font-medium
+                                       leading-5
+                                       text-[#173F35]/65"
+                            >
                                 {{ $item }}
                             </p>
 
@@ -838,7 +1260,16 @@
 
                 <a
                     href="{{ route('buyer.shop') }}"
-                    class="mt-9 inline-flex h-11 items-center gap-2 rounded-full bg-[#173F35] px-5 text-[12px] font-semibold text-white hover:bg-[#1F6F5B]"
+                    class="mt-9
+                           inline-flex h-11
+                           items-center gap-2
+                           rounded-full
+                           bg-[#173F35]
+                           px-5
+                           text-[12px]
+                           font-semibold
+                           text-white
+                           hover:bg-[#1F6F5B]"
                 >
                     Explore Marketplace
 
@@ -855,48 +1286,89 @@
 
 
 {{-- ========================================================= --}}
-{{-- SELLER EDITORIAL --}}
+{{-- SELLER — FULL WIDTH DARK SECTION --}}
 {{-- ========================================================= --}}
 
 <section
     id="for-sellers"
-    class="bg-[#173F35] text-white"
+    class="w-full bg-[#173F35] text-white"
 >
 
-    <div class="mx-auto grid max-w-[1500px] lg:grid-cols-2">
+    <div
+        class="grid w-full
+               lg:grid-cols-2"
+    >
 
-        {{-- CONTENT --}}
-        <div class="flex items-center px-5 py-16 sm:px-8 lg:px-14 lg:py-24">
+        <div
+            class="flex items-center
+                   px-7 py-16
+                   sm:px-10
+                   lg:px-16
+                   xl:px-20"
+        >
 
-            <div class="max-w-[580px]">
+            <div class="max-w-[610px]">
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8FD0BA]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.2em]
+                           text-[#8FD0BA]"
+                >
                     For Sellers
                 </p>
 
 
-                <h2 class="mt-4 text-[36px] font-semibold leading-[1.08] tracking-[-0.045em] sm:text-[50px]">
+                <h2
+                    class="mt-4
+                           text-[36px]
+                           font-semibold
+                           leading-[1.08]
+                           tracking-[-0.045em]
+                           sm:text-[50px]"
+                >
                     Grow your business through SUKI SHOP.
                 </h2>
 
 
-                <p class="mt-6 text-[14px] leading-7 text-white/58">
-                    Build your marketplace presence, manage inventory, receive customer orders, prepare parcels, and hand them over for fulfillment.
+                <p
+                    class="mt-6
+                           text-[14px]
+                           leading-7
+                           text-white/58"
+                >
+                    Build your marketplace presence,
+                    manage products and inventory, receive
+                    orders, prepare parcels, and coordinate
+                    rider pickup.
                 </p>
 
 
-                <div class="mt-8 grid grid-cols-2 gap-x-7 gap-y-5">
+                <div
+                    class="mt-9 grid
+                           grid-cols-2
+                           gap-x-7 gap-y-5"
+                >
 
                     @foreach([
-                        'List and manage products',
+                        'Manage product listings',
                         'Monitor inventory',
                         'Receive customer orders',
                         'Prepare parcels for pickup',
                     ] as $item)
 
-                        <div class="border-t border-white/12 pt-3">
+                        <div
+                            class="border-t
+                                   border-white/12
+                                   pt-3"
+                        >
 
-                            <p class="text-[11px] font-medium leading-5 text-white/68">
+                            <p
+                                class="text-[11px]
+                                       font-medium
+                                       leading-5
+                                       text-white/68"
+                            >
                                 {{ $item }}
                             </p>
 
@@ -909,7 +1381,16 @@
 
                 <a
                     href="{{ route('seller.register') }}"
-                    class="mt-9 inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[12px] font-semibold text-[#173F35] hover:bg-[#DDF3EC]"
+                    class="mt-9
+                           inline-flex h-11
+                           items-center gap-2
+                           rounded-full
+                           bg-white
+                           px-5
+                           text-[12px]
+                           font-semibold
+                           text-[#173F35]
+                           hover:bg-[#DDF3EC]"
                 >
                     Start Selling
 
@@ -921,16 +1402,19 @@
         </div>
 
 
-        {{-- IMAGE --}}
-        <div class="relative min-h-[500px] overflow-hidden lg:min-h-[680px]">
+        <div
+            class="relative min-h-[500px]
+                   overflow-hidden
+                   lg:min-h-[720px]"
+        >
 
             <img
-                src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1500&q=90"
-                alt="Seller managing marketplace orders"
-                class="absolute inset-0 h-full w-full object-cover"
+                src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1600&q=90"
+                alt="SUKI SHOP seller"
+                class="absolute inset-0
+                       h-full w-full
+                       object-cover"
             >
-
-            <div class="absolute inset-0 bg-gradient-to-r from-[#173F35]/15 to-transparent"></div>
 
         </div>
 
@@ -938,31 +1422,22 @@
 
 </section>
 
+
 {{-- ========================================================= --}}
-{{-- RIDER / COURIER EDITORIAL --}}
+{{-- RIDER — FULL WIDTH --}}
 {{-- ========================================================= --}}
 
 <section
     id="for-riders"
-    class="mx-auto max-w-[1500px]
-           px-5 py-20
-           sm:px-8
-           lg:px-10
-           lg:py-28"
+    class="w-full bg-[#F4F7F5]"
 >
 
-    <div
-        class="grid overflow-hidden
-               rounded-[30px]
-               bg-[#F0F6F3]
-               lg:grid-cols-2"
-    >
+    <div class="grid w-full lg:grid-cols-2">
 
-        {{-- IMAGE --}}
         <div
             class="relative min-h-[500px]
                    overflow-hidden
-                   lg:min-h-[660px]"
+                   lg:min-h-[700px]"
         >
 
             <img
@@ -973,26 +1448,18 @@
                        object-cover"
             >
 
-            <div
-                class="absolute inset-0
-                       bg-gradient-to-t
-                       from-[#071A15]/30
-                       via-transparent
-                       to-transparent"
-            ></div>
-
         </div>
 
 
-        {{-- CONTENT --}}
         <div
             class="flex items-center
-                   px-7 py-14
+                   px-7 py-16
                    sm:px-10
-                   lg:px-14"
+                   lg:px-16
+                   xl:px-20"
         >
 
-            <div class="max-w-[570px]">
+            <div class="max-w-[600px]">
 
                 <p
                     class="text-[10px]
@@ -1011,7 +1478,7 @@
                            leading-[1.08]
                            tracking-[-0.045em]
                            text-[#173F35]
-                           sm:text-[48px]"
+                           sm:text-[50px]"
                 >
                     Keep every order moving forward.
                 </h2>
@@ -1023,17 +1490,15 @@
                            leading-7
                            text-[#173F35]/58"
                 >
-                    Riders connect sellers, sorting centers,
-                    and customers. Pickup riders collect
-                    parcels from sellers, while assigned
-                    delivery riders complete the final
-                    delivery to the buyer.
+                    Riders connect sellers, sorting
+                    centers, and customers through pickup
+                    and final delivery assignments.
                 </p>
 
 
                 <div
-                    class="mt-9
-                           grid grid-cols-2
+                    class="mt-9 grid
+                           grid-cols-2
                            gap-x-7 gap-y-5"
                 >
 
@@ -1079,15 +1544,11 @@
                            text-[12px]
                            font-semibold
                            text-white
-                           transition
                            hover:bg-[#1F6F5B]"
                 >
                     Apply as Rider
 
-                    <i
-                        data-lucide="arrow-right"
-                        class="h-4 w-4"
-                    ></i>
+                    <i data-lucide="arrow-right" class="h-4 w-4"></i>
                 </a>
 
             </div>
@@ -1100,66 +1561,204 @@
 
 
 {{-- ========================================================= --}}
-{{-- SIMPLIFIED PUBLIC ORDER JOURNEY --}}
+{{-- SIMPLE ORDER JOURNEY --}}
 {{-- ========================================================= --}}
 
 <section
     id="how-it-works"
-    class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 lg:px-10 lg:py-28"
+    class="w-full bg-white"
 >
 
-    <div class="grid gap-7 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
+    <div
+        class="mx-auto w-full
+               max-w-[1700px]
+               px-5 py-20
+               sm:px-8
+               lg:px-12
+               lg:py-28"
+    >
 
-        <div>
+        <div
+            class="grid gap-7
+                   lg:grid-cols-[0.8fr_1.2fr]
+                   lg:items-end"
+        >
 
-            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
-                How SUKI SHOP works
+            <div>
+
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.2em]
+                           text-[#1F6F5B]"
+                >
+                    How SUKI SHOP works
+                </p>
+
+
+                <h2
+                    class="mt-3
+                           max-w-[620px]
+                           text-[36px]
+                           font-semibold
+                           leading-[1.1]
+                           tracking-[-0.045em]
+                           text-[#173F35]
+                           sm:text-[48px]"
+                >
+                    One order.
+                    One connected journey.
+                </h2>
+
+            </div>
+
+
+            <p
+                class="max-w-[620px]
+                       text-[13px]
+                       leading-7
+                       text-[#173F35]/50
+                       lg:justify-self-end"
+            >
+                Behind every customer order is a coordinated
+                process involving the seller, pickup rider,
+                logistics team, delivery rider, and buyer.
             </p>
-
-
-            <h2 class="mt-3 max-w-[580px] text-[36px] font-semibold leading-[1.1] tracking-[-0.045em] text-[#173F35] sm:text-[48px]">
-                From discovery to doorstep.
-            </h2>
 
         </div>
 
 
-        <p class="max-w-[620px] text-[13px] leading-7 text-[#173F35]/50 lg:justify-self-end">
-            Customers see a simple shopping experience while SUKI SHOP connects sellers, pickup riders, logistics, and delivery riders behind each order.
-        </p>
+        {{-- DESKTOP --}}
+        <div
+            class="relative mt-16
+                   hidden md:block"
+        >
 
-    </div>
-
-
-    {{-- DESKTOP TIMELINE --}}
-    <div class="relative mt-16 hidden md:block">
-
-        <div class="absolute left-[6%] right-[6%] top-5 h-px bg-[#173F35]/13"></div>
-
-
-        <div class="relative grid grid-cols-7 gap-5">
-
-            @foreach($publicJourney as $step)
-
-                <article>
-
-                    <div class="flex justify-center">
-
-                        <span class="grid h-10 w-10 place-items-center rounded-full border border-[#1F6F5B]/25 bg-[#F8FAF8] text-[10px] font-semibold text-[#1F6F5B]">
-                            {{ $step['number'] }}
-                        </span>
-
-                    </div>
+            <div
+                class="absolute left-[6%]
+                       right-[6%] top-5
+                       h-px
+                       bg-[#173F35]/13"
+            ></div>
 
 
-                    <div class="mt-6 text-center">
+            <div
+                class="relative grid
+                       grid-cols-7 gap-5"
+            >
 
-                        <h3 class="text-[12px] font-semibold text-[#173F35]">
+                @foreach($orderJourney as $step)
+
+                    <article>
+
+                        <div class="flex justify-center">
+
+                            <span
+                                class="grid h-10 w-10
+                                       place-items-center
+                                       rounded-full
+                                       border border-[#1F6F5B]/30
+                                       bg-white
+                                       text-[10px]
+                                       font-semibold
+                                       text-[#1F6F5B]"
+                            >
+                                {{ $step['number'] }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="mt-6 text-center">
+
+                            <h3
+                                class="text-[12px]
+                                       font-semibold
+                                       text-[#173F35]"
+                            >
+                                {{ $step['title'] }}
+                            </h3>
+
+
+                            <p
+                                class="mx-auto mt-3
+                                       max-w-[155px]
+                                       text-[10px]
+                                       leading-5
+                                       text-[#173F35]/42"
+                            >
+                                {{ $step['description'] }}
+                            </p>
+
+                        </div>
+
+                    </article>
+
+                @endforeach
+
+            </div>
+
+        </div>
+
+
+        {{-- MOBILE --}}
+        <div
+            class="relative mt-12
+                   md:hidden"
+        >
+
+            <div
+                class="absolute bottom-5
+                       left-[18px] top-5
+                       w-px
+                       bg-[#173F35]/12"
+            ></div>
+
+
+            @foreach($orderJourney as $step)
+
+                <article
+                    class="relative grid
+                           grid-cols-[38px_1fr]
+                           gap-4 py-4"
+                >
+
+                    <span
+                        class="relative z-10
+                               grid h-9 w-9
+                               place-items-center
+                               rounded-full
+                               border border-[#1F6F5B]/25
+                               bg-white
+                               text-[9px]
+                               font-semibold
+                               text-[#1F6F5B]"
+                    >
+                        {{ $step['number'] }}
+                    </span>
+
+
+                    <div
+                        class="border-b
+                               border-[#173F35]/8
+                               pb-5"
+                    >
+
+                        <h3
+                            class="text-[13px]
+                                   font-semibold
+                                   text-[#173F35]"
+                        >
                             {{ $step['title'] }}
                         </h3>
 
 
-                        <p class="mx-auto mt-3 max-w-[150px] text-[10px] leading-5 text-[#173F35]/42">
+                        <p
+                            class="mt-2
+                                   text-[11px]
+                                   leading-5
+                                   text-[#173F35]/45"
+                        >
                             {{ $step['description'] }}
                         </p>
 
@@ -1173,110 +1772,143 @@
 
     </div>
 
-
-    {{-- MOBILE --}}
-    <div class="relative mt-12 md:hidden">
-
-        <div class="absolute bottom-5 left-[18px] top-5 w-px bg-[#173F35]/12"></div>
-
-
-        @foreach($publicJourney as $step)
-
-            <article class="relative grid grid-cols-[38px_1fr] gap-4 py-4">
-
-                <span class="relative z-10 grid h-9 w-9 place-items-center rounded-full border border-[#1F6F5B]/25 bg-[#F8FAF8] text-[9px] font-semibold text-[#1F6F5B]">
-                    {{ $step['number'] }}
-                </span>
-
-
-                <div class="border-b border-[#173F35]/8 pb-5">
-
-                    <h3 class="text-[13px] font-semibold text-[#173F35]">
-                        {{ $step['title'] }}
-                    </h3>
-
-
-                    <p class="mt-2 text-[11px] leading-5 text-[#173F35]/45">
-                        {{ $step['description'] }}
-                    </p>
-
-                </div>
-
-            </article>
-
-        @endforeach
-
-    </div>
-
 </section>
 
 
 {{-- ========================================================= --}}
-{{-- LOGISTICS --}}
+{{-- LOGISTICS — FULL WIDTH --}}
 {{-- ========================================================= --}}
 
 <section
     id="logistics"
-    class="bg-[#E8F4EF]"
+    class="w-full bg-[#E8F4EF]"
 >
 
-    <div class="mx-auto grid max-w-[1500px] lg:grid-cols-2">
+    <div class="grid w-full lg:grid-cols-2">
 
-        {{-- IMAGE --}}
-        <div class="relative min-h-[500px] overflow-hidden lg:min-h-[680px]">
+        <div
+            class="relative min-h-[520px]
+                   overflow-hidden
+                   lg:min-h-[720px]"
+        >
 
             <img
-                src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1500&q=90"
-                alt="SUKI SHOP sorting center"
-                class="absolute inset-0 h-full w-full object-cover"
+                src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1700&q=90"
+                alt="SUKI SHOP logistics"
+                class="absolute inset-0
+                       h-full w-full
+                       object-cover"
             >
 
         </div>
 
 
-        {{-- CONTENT --}}
-        <div class="flex items-center px-6 py-16 sm:px-9 lg:px-14">
+        <div
+            class="flex items-center
+                   px-7 py-16
+                   sm:px-10
+                   lg:px-16
+                   xl:px-20"
+        >
 
-            <div class="max-w-[590px]">
+            <div class="max-w-[620px]">
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
-                    Connected fulfillment
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.2em]
+                           text-[#1F6F5B]"
+                >
+                    Logistics & Sorting Center
                 </p>
 
 
-                <h2 class="mt-4 text-[36px] font-semibold leading-[1.08] tracking-[-0.045em] text-[#173F35] sm:text-[48px]">
-                    Sorting makes delivery more organized.
+                <h2
+                    class="mt-4
+                           text-[36px]
+                           font-semibold
+                           leading-[1.08]
+                           tracking-[-0.045em]
+                           text-[#173F35]
+                           sm:text-[50px]"
+                >
+                    Sort by destination.
+                    Assign by delivery area.
                 </h2>
 
 
-                <p class="mt-6 text-[14px] leading-7 text-[#173F35]/56">
-                    After pickup, parcels move through the sorting center. Logistics identifies the delivery destination, organizes parcels by area, and assigns the appropriate rider.
+                <p
+                    class="mt-6
+                           text-[14px]
+                           leading-7
+                           text-[#173F35]/56"
+                >
+                    After pickup, parcels arrive at the
+                    sorting center. Logistics identifies
+                    each destination, groups parcels by
+                    delivery area, and assigns the
+                    appropriate rider.
                 </p>
 
 
-                <div class="mt-8 space-y-0">
+                <div class="mt-8">
 
                     @foreach([
-                        ['01', 'Receive & Scan', 'Incoming parcels arrive at the sorting center.'],
-                        ['02', 'Determine Area', 'The delivery address identifies the destination area.'],
-                        ['03', 'Sort Parcel', 'Parcels are grouped according to destination.'],
-                        ['04', 'Assign Rider', 'The appropriate rider receives the delivery assignment.'],
+                        [
+                            '01',
+                            'Receive & Scan',
+                            'Incoming parcels arrive at the sorting center.'
+                        ],
+                        [
+                            '02',
+                            'Determine Delivery Area',
+                            'The address identifies the parcel destination.'
+                        ],
+                        [
+                            '03',
+                            'Sort Parcel',
+                            'Parcels are grouped according to destination.'
+                        ],
+                        [
+                            '04',
+                            'Assign Rider',
+                            'The appropriate rider receives the delivery assignment.'
+                        ],
                     ] as $item)
 
-                        <div class="grid grid-cols-[42px_1fr] gap-4 border-t border-[#173F35]/10 py-4">
+                        <div
+                            class="grid grid-cols-[42px_1fr]
+                                   gap-4
+                                   border-t
+                                   border-[#173F35]/10
+                                   py-5"
+                        >
 
-                            <span class="text-[10px] font-semibold text-[#1F6F5B]">
+                            <span
+                                class="text-[10px]
+                                       font-semibold
+                                       text-[#1F6F5B]"
+                            >
                                 {{ $item[0] }}
                             </span>
 
 
                             <div>
 
-                                <p class="text-[12px] font-semibold text-[#173F35]">
+                                <p
+                                    class="text-[12px]
+                                           font-semibold
+                                           text-[#173F35]"
+                                >
                                     {{ $item[1] }}
                                 </p>
 
-                                <p class="mt-1 text-[11px] leading-5 text-[#173F35]/45">
+                                <p
+                                    class="mt-1
+                                           text-[11px]
+                                           leading-5
+                                           text-[#173F35]/45"
+                                >
                                     {{ $item[2] }}
                                 </p>
 
@@ -1296,150 +1928,143 @@
 
 </section>
 
+
 {{-- ========================================================= --}}
-{{-- PLATFORM ADMINISTRATION --}}
+{{-- ADMIN / PLATFORM MANAGEMENT --}}
 {{-- ========================================================= --}}
 
 <section
     id="platform-management"
-    class="bg-white"
+    class="w-full bg-[#F8FAF8]"
 >
 
     <div
-        class="mx-auto max-w-[1320px]
+        class="mx-auto grid w-full
+               max-w-[1600px]
+               gap-14
                px-5 py-20
                sm:px-8
+               lg:grid-cols-[0.78fr_1.22fr]
+               lg:gap-20
+               lg:px-12
                lg:py-28"
     >
 
-        <div
-            class="grid gap-14
-                   lg:grid-cols-[0.85fr_1.15fr]
-                   lg:gap-20"
-        >
+        <div>
 
-            {{-- INTRO --}}
-            <div>
-
-                <p
-                    class="text-[10px]
-                           font-semibold uppercase
-                           tracking-[0.2em]
-                           text-[#1F6F5B]"
-                >
-                    Platform Management
-                </p>
-
-
-                <h2
-                    class="mt-4
-                           text-[36px]
-                           font-semibold
-                           leading-[1.08]
-                           tracking-[-0.045em]
-                           text-[#173F35]
-                           sm:text-[48px]"
-                >
-                    Managed behind the marketplace.
-                </h2>
-
-
-                <p
-                    class="mt-6
-                           text-[14px]
-                           leading-7
-                           text-[#173F35]/55"
-                >
-                    SUKI SHOP includes administrative
-                    controls that support account review,
-                    marketplace compliance, complaints,
-                    platform commissions, reporting, and
-                    system-wide operations.
-                </p>
-
-            </div>
-
-
-            {{-- ADMIN CAPABILITIES --}}
-            <div
-                class="grid
-                       sm:grid-cols-2"
+            <p
+                class="text-[10px]
+                       font-semibold uppercase
+                       tracking-[0.2em]
+                       text-[#1F6F5B]"
             >
+                Platform Management
+            </p>
 
-                @foreach([
-                    [
-                        '01',
-                        'Registration Review',
-                        'Review buyer, seller, and logistics applications before account approval.'
-                    ],
-                    [
-                        '02',
-                        'Account Management',
-                        'Manage user profiles and account status across the marketplace.'
-                    ],
-                    [
-                        '03',
-                        'Seller Compliance',
-                        'Review marketplace listings and seller compliance with platform policies.'
-                    ],
-                    [
-                        '04',
-                        'Complaints & Disputes',
-                        'Review concerns involving buyers, sellers, riders, and marketplace transactions.'
-                    ],
-                    [
-                        '05',
-                        'Commission Management',
-                        'Support platform commission monitoring and transaction reporting.'
-                    ],
-                    [
-                        '06',
-                        'Reports & Platform Settings',
-                        'Support reporting, announcements, policies, and marketplace operations.'
-                    ],
-                ] as $admin)
 
-                    <article
-                        class="border-t
-                               border-[#173F35]/10
-                               py-6
-                               sm:px-5"
+            <h2
+                class="mt-4
+                       text-[36px]
+                       font-semibold
+                       leading-[1.08]
+                       tracking-[-0.045em]
+                       text-[#173F35]
+                       sm:text-[48px]"
+            >
+                Managed behind the marketplace.
+            </h2>
+
+
+            <p
+                class="mt-6
+                       text-[14px]
+                       leading-7
+                       text-[#173F35]/55"
+            >
+                SUKI SHOP includes administrative controls
+                designed to support registration review,
+                account management, seller compliance,
+                complaints, commissions, reports, and
+                platform operations.
+            </p>
+
+        </div>
+
+
+        <div class="grid sm:grid-cols-2">
+
+            @foreach([
+                [
+                    '01',
+                    'Registration Review',
+                    'Review buyer, seller, and logistics applications before approval.'
+                ],
+                [
+                    '02',
+                    'Account Management',
+                    'Manage user profiles and account status across the marketplace.'
+                ],
+                [
+                    '03',
+                    'Seller Compliance',
+                    'Review seller activity and marketplace product compliance.'
+                ],
+                [
+                    '04',
+                    'Complaints & Disputes',
+                    'Review concerns involving marketplace transactions and users.'
+                ],
+                [
+                    '05',
+                    'Commission Management',
+                    'Support platform commission monitoring and reporting.'
+                ],
+                [
+                    '06',
+                    'Reports & Settings',
+                    'Support reports, announcements, policies, and platform operations.'
+                ],
+            ] as $admin)
+
+                <article
+                    class="border-t
+                           border-[#173F35]/10
+                           py-6
+                           sm:px-6"
+                >
+
+                    <span
+                        class="text-[9px]
+                               font-semibold
+                               tracking-[0.12em]
+                               text-[#1F6F5B]"
                     >
-
-                        <span
-                            class="text-[9px]
-                                   font-semibold
-                                   tracking-[0.12em]
-                                   text-[#1F6F5B]"
-                        >
-                            {{ $admin[0] }}
-                        </span>
+                        {{ $admin[0] }}
+                    </span>
 
 
-                        <h3
-                            class="mt-3
-                                   text-[13px]
-                                   font-semibold
-                                   text-[#173F35]"
-                        >
-                            {{ $admin[1] }}
-                        </h3>
+                    <h3
+                        class="mt-3
+                               text-[13px]
+                               font-semibold
+                               text-[#173F35]"
+                    >
+                        {{ $admin[1] }}
+                    </h3>
 
 
-                        <p
-                            class="mt-2
-                                   text-[11px]
-                                   leading-6
-                                   text-[#173F35]/45"
-                        >
-                            {{ $admin[2] }}
-                        </p>
+                    <p
+                        class="mt-2
+                               text-[11px]
+                               leading-6
+                               text-[#173F35]/45"
+                    >
+                        {{ $admin[2] }}
+                    </p>
 
-                    </article>
+                </article>
 
-                @endforeach
-
-            </div>
+            @endforeach
 
         </div>
 
@@ -1447,62 +2072,114 @@
 
 </section>
 
+
 {{-- ========================================================= --}}
-{{-- MARKETPLACE TRUST --}}
+{{-- MARKETPLACE STANDARDS --}}
 {{-- ========================================================= --}}
 
-<section class="bg-white py-20 lg:py-24">
+<section
+    class="w-full bg-white"
+>
 
-    <div class="mx-auto max-w-[1320px] px-5 sm:px-8">
+    <div
+        class="mx-auto w-full
+               max-w-[1500px]
+               px-5 py-20
+               sm:px-8
+               lg:px-12
+               lg:py-24"
+    >
 
-        <div class="mx-auto max-w-[720px] text-center">
+        <div
+            class="mx-auto
+                   max-w-[760px]
+                   text-center"
+        >
 
-            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1F6F5B]">
-                Marketplace standards
+            <p
+                class="text-[10px]
+                       font-semibold uppercase
+                       tracking-[0.2em]
+                       text-[#1F6F5B]"
+            >
+                Marketplace Standards
             </p>
 
 
-            <h2 class="mt-3 text-[34px] font-semibold tracking-[-0.04em] text-[#173F35] sm:text-[44px]">
+            <h2
+                class="mt-3
+                       text-[34px]
+                       font-semibold
+                       tracking-[-0.04em]
+                       text-[#173F35]
+                       sm:text-[44px]"
+            >
                 Designed for a more accountable marketplace.
             </h2>
 
 
-            <p class="mt-5 text-[13px] leading-7 text-[#173F35]/48">
-                SUKI SHOP is structured around account review, seller compliance, rider applications, managed logistics operations, and visible order progress.
+            <p
+                class="mt-5
+                       text-[13px]
+                       leading-7
+                       text-[#173F35]/48"
+            >
+                The platform is structured around account
+                review, marketplace compliance, rider
+                applications, logistics coordination, and
+                visible order progress.
             </p>
 
         </div>
 
 
-        <div class="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+            class="mt-14 grid
+                   gap-x-9 gap-y-10
+                   sm:grid-cols-2
+                   lg:grid-cols-4"
+        >
 
             @foreach([
                 [
-                    'Application review',
+                    'Application Review',
                     'Marketplace registrations can move through an approval process before platform access.'
                 ],
                 [
-                    'Seller compliance',
+                    'Seller Compliance',
                     'Seller activity and listed products can be reviewed against marketplace policies.'
                 ],
                 [
-                    'Rider verification',
+                    'Rider Verification',
                     'Courier applications include vehicle and identification requirements for logistics review.'
                 ],
                 [
-                    'Order visibility',
+                    'Order Visibility',
                     'Orders move through clear fulfillment stages from placement to completion.'
                 ],
             ] as $feature)
 
-                <article class="border-t border-[#173F35]/12 pt-5">
+                <article
+                    class="border-t
+                           border-[#173F35]/12
+                           pt-5"
+                >
 
-                    <h3 class="text-[13px] font-semibold text-[#173F35]">
+                    <h3
+                        class="text-[13px]
+                               font-semibold
+                               text-[#173F35]"
+                    >
                         {{ $feature[0] }}
                     </h3>
 
 
-                    <p class="mt-3 text-[11px] leading-6 text-[#173F35]/45">
+                    <p
+                        class="mt-3
+                               text-[11px]
+                               leading-6
+                               text-[#173F35]/45"
+                    >
                         {{ $feature[1] }}
                     </p>
 
@@ -1523,59 +2200,113 @@
 
 <section
     id="join"
-    class="mx-auto max-w-[1500px] px-5 py-20 sm:px-8 lg:px-10 lg:py-24"
+    class="w-full bg-[#DDEFE8]"
 >
 
-    <div class="overflow-hidden rounded-[30px] bg-[#173F35] px-7 py-12 text-white sm:px-10 lg:px-14 lg:py-16">
+    <div
+        class="mx-auto grid w-full
+               max-w-[1700px]
+               items-end gap-10
+               px-6 py-16
+               sm:px-10
+               lg:grid-cols-[1fr_auto]
+               lg:px-16
+               lg:py-20"
+    >
 
-        <div class="grid items-end gap-10 lg:grid-cols-[1fr_auto]">
+        <div class="max-w-[760px]">
 
-            <div class="max-w-[720px]">
-
-                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8FD0BA]">
-                    Be part of SUKI SHOP
-                </p>
-
-
-                <h2 class="mt-4 text-[36px] font-semibold leading-[1.1] tracking-[-0.045em] sm:text-[48px]">
-                    One marketplace.
-                    Different ways to take part.
-                </h2>
-
-
-                <p class="mt-5 max-w-[620px] text-[13px] leading-7 text-white/55">
-                    Shop as a buyer, build your business as a seller, or become part of the connected delivery network.
-                </p>
-
-            </div>
-
-
-            <div class="flex flex-wrap gap-3 lg:max-w-[470px] lg:justify-end">
-
-                <a
-                    href="{{ route('register') }}"
-                    class="inline-flex h-11 items-center rounded-full bg-white px-5 text-[12px] font-semibold text-[#173F35]"
-                >
-                    Join as Buyer
-                </a>
+            <p
+                class="text-[10px]
+                       font-semibold uppercase
+                       tracking-[0.2em]
+                       text-[#1F6F5B]"
+            >
+                Be part of SUKI SHOP
+            </p>
 
 
-                <a
-                    href="{{ route('seller.register') }}"
-                    class="inline-flex h-11 items-center rounded-full border border-white/15 bg-white/8 px-5 text-[12px] font-semibold text-white"
-                >
-                    Start Selling
-                </a>
+            <h2
+                class="mt-4
+                       text-[36px]
+                       font-semibold
+                       leading-[1.08]
+                       tracking-[-0.045em]
+                       text-[#173F35]
+                       sm:text-[50px]"
+            >
+                One marketplace.
+                Different ways to take part.
+            </h2>
 
 
-                <a
-                    href="{{ route('rider.apply') }}"
-                    class="inline-flex h-11 items-center rounded-full border border-white/15 bg-white/8 px-5 text-[12px] font-semibold text-white"
-                >
-                    Apply as Rider
-                </a>
+            <p
+                class="mt-5
+                       max-w-[620px]
+                       text-[13px]
+                       leading-7
+                       text-[#173F35]/55"
+            >
+                Shop as a buyer, build your business as a
+                seller, or become part of the connected
+                rider network.
+            </p>
 
-            </div>
+        </div>
+
+
+        <div
+            class="flex flex-wrap
+                   gap-3
+                   lg:max-w-[470px]
+                   lg:justify-end"
+        >
+
+            <a
+                href="{{ route('register') }}"
+                class="inline-flex h-11
+                       items-center
+                       rounded-full
+                       bg-[#173F35]
+                       px-5
+                       text-[12px]
+                       font-semibold
+                       text-white"
+            >
+                Join as Buyer
+            </a>
+
+
+            <a
+                href="{{ route('seller.register') }}"
+                class="inline-flex h-11
+                       items-center
+                       rounded-full
+                       border border-[#173F35]/12
+                       bg-white
+                       px-5
+                       text-[12px]
+                       font-semibold
+                       text-[#173F35]"
+            >
+                Start Selling
+            </a>
+
+
+            <a
+                href="{{ route('rider.apply') }}"
+                class="inline-flex h-11
+                       items-center
+                       rounded-full
+                       border border-[#173F35]/12
+                       bg-white
+                       px-5
+                       text-[12px]
+                       font-semibold
+                       text-[#173F35]"
+            >
+                Apply as Rider
+            </a>
 
         </div>
 
@@ -1583,18 +2314,29 @@
 
 </section>
 
+
 </main>
 
 
 {{-- ========================================================= --}}
-{{-- FOOTER --}}
+{{-- FOOTER — FULL WIDTH --}}
 {{-- ========================================================= --}}
 
-<footer class="border-t border-[#173F35]/8 bg-white">
+<footer class="w-full bg-[#173F35] text-white">
 
-    <div class="mx-auto max-w-[1500px] px-5 sm:px-8 lg:px-10">
+    <div
+        class="mx-auto w-full
+               max-w-[1700px]
+               px-5
+               sm:px-8
+               lg:px-12"
+    >
 
-        <div class="grid gap-10 py-12 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div
+            class="grid gap-10
+                   py-14
+                   md:grid-cols-[1.5fr_1fr_1fr_1fr]"
+        >
 
             <div>
 
@@ -1608,11 +2350,16 @@
 
                     <div>
 
-                        <p class="text-[16px] font-bold text-[#173F35]">
+                        <p class="text-[16px] font-bold">
                             SUKI SHOP
                         </p>
 
-                        <p class="text-[8px] uppercase tracking-[0.15em] text-[#1F6F5B]/60">
+                        <p
+                            class="text-[8px]
+                                   uppercase
+                                   tracking-[0.15em]
+                                   text-[#8FD0BA]"
+                        >
                             Connected Marketplace
                         </p>
 
@@ -1621,8 +2368,17 @@
                 </div>
 
 
-                <p class="mt-5 max-w-[380px] text-[11px] leading-6 text-[#173F35]/42">
-                    A marketplace connecting shopping, selling, fulfillment, and delivery through one organized platform.
+                <p
+                    class="mt-5
+                           max-w-[390px]
+                           text-[11px]
+                           leading-6
+                           text-white/45"
+                >
+                    A marketplace connecting buyers,
+                    sellers, riders, and logistics through
+                    one organized ecommerce and fulfillment
+                    experience.
                 </p>
 
             </div>
@@ -1630,21 +2386,41 @@
 
             <div>
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#173F35]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.12em]
+                           text-white/85"
+                >
                     Marketplace
                 </p>
 
                 <div class="mt-5 space-y-3">
 
-                    <a href="{{ route('buyer.shop') }}" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="{{ route('buyer.shop') }}"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Shop
                     </a>
 
-                    <a href="{{ route('seller.register') }}" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="{{ route('seller.register') }}"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Become a Seller
                     </a>
 
-                    <a href="{{ route('rider.apply') }}" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="{{ route('rider.apply') }}"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Become a Rider
                     </a>
 
@@ -1655,21 +2431,41 @@
 
             <div>
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#173F35]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.12em]
+                           text-white/85"
+                >
                     Platform
                 </p>
 
                 <div class="mt-5 space-y-3">
 
-                    <a href="#about" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="#about"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         About
                     </a>
 
-                    <a href="#how-it-works" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="#how-it-works"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         How It Works
                     </a>
 
-                    <a href="#logistics" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="#logistics"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Logistics
                     </a>
 
@@ -1680,17 +2476,32 @@
 
             <div>
 
-                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#173F35]">
+                <p
+                    class="text-[10px]
+                           font-semibold uppercase
+                           tracking-[0.12em]
+                           text-white/85"
+                >
                     Account
                 </p>
 
                 <div class="mt-5 space-y-3">
 
-                    <a href="{{ route('login') }}" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="{{ route('login') }}"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Log In
                     </a>
 
-                    <a href="{{ route('register') }}" class="block text-[11px] text-[#173F35]/45 hover:text-[#1F6F5B]">
+                    <a
+                        href="{{ route('register') }}"
+                        class="block text-[11px]
+                               text-white/45
+                               hover:text-white"
+                    >
                         Create Account
                     </a>
 
@@ -1701,14 +2512,20 @@
         </div>
 
 
-        <div class="flex flex-col gap-3 border-t border-[#173F35]/8 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-3
+                   border-t border-white/8
+                   py-5
+                   sm:flex-row
+                   sm:items-center
+                   sm:justify-between"
+        >
 
-            <p class="text-[9px] text-[#173F35]/30">
+            <p class="text-[9px] text-white/30">
                 © {{ date('Y') }} SUKI SHOP. All rights reserved.
             </p>
 
-
-            <p class="text-[9px] text-[#173F35]/30">
+            <p class="text-[9px] text-white/30">
                 Shop • Sell • Deliver • Together
             </p>
 
@@ -1736,7 +2553,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // ---------------------------------------------------------
-    // MOBILE NAV
+    // MOBILE MENU
     // ---------------------------------------------------------
 
     const menuButton =
@@ -1800,10 +2617,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const previousButton =
         document.getElementById('heroPrev');
 
-
     const nextButton =
         document.getElementById('heroNext');
-
 
     const pauseButton =
         document.getElementById('heroPause');
@@ -1817,7 +2632,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let touchStartX = 0;
 
-    const autoplayDelay = 6000;
+    const autoplayDelay = 5500;
 
 
     function renderSlide() {
@@ -1841,7 +2656,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     Number(
                         thumb.dataset.heroTarget
                     );
-
 
                 thumb.classList.toggle(
                     'is-active',
@@ -1899,27 +2713,18 @@ document.addEventListener('DOMContentLoaded', function () {
             (index + slides.length)
             % slides.length;
 
-
         renderSlide();
 
     }
 
 
     function nextSlide() {
-
-        goToSlide(
-            currentIndex + 1
-        );
-
+        goToSlide(currentIndex + 1);
     }
 
 
     function previousSlide() {
-
-        goToSlide(
-            currentIndex - 1
-        );
-
+        goToSlide(currentIndex - 1);
     }
 
 
@@ -1927,9 +2732,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (autoplayTimer) {
 
-            clearInterval(
-                autoplayTimer
-            );
+            clearInterval(autoplayTimer);
 
             autoplayTimer = null;
 
@@ -1942,11 +2745,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         stopAutoplay();
 
-
         if (!isPlaying) {
             return;
         }
-
 
         autoplayTimer =
             setInterval(
@@ -1969,7 +2770,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             control.dataset.heroTarget
                         )
                     );
-
 
                     startAutoplay();
 
@@ -2020,7 +2820,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 isPlaying = !isPlaying;
 
-
                 pauseButton.innerHTML = `
                     <i
                         data-lucide="${isPlaying ? 'pause' : 'play'}"
@@ -2028,22 +2827,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     ></i>
                 `;
 
-
-                if (
-                    typeof lucide !== 'undefined'
-                ) {
+                if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
 
-
                 if (isPlaying) {
-
                     startAutoplay();
-
                 } else {
-
                     stopAutoplay();
-
                 }
 
             }
@@ -2080,21 +2871,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 touchEndX - touchStartX;
 
 
-            if (
-                Math.abs(distance) < 50
-            ) {
+            if (Math.abs(distance) < 50) {
                 return;
             }
 
 
             if (distance < 0) {
-
                 nextSlide();
-
             } else {
-
                 previousSlide();
-
             }
 
 
@@ -2112,13 +2897,9 @@ document.addEventListener('DOMContentLoaded', function () {
         function () {
 
             if (document.hidden) {
-
                 stopAutoplay();
-
             } else {
-
                 startAutoplay();
-
             }
 
         }
