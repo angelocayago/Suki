@@ -2724,14 +2724,29 @@ Route::get('/seller/register', function () {
 Route::post('/seller/register', function (Request $request) {
 
     $request->validate([
-        'shop_name' => 'required|string|max:150',
-        'seller_name' => 'required|string|max:150',
-        'phone' => 'required|string|max:30',
-        'email' => 'required|email|max:255',
-        'address' => 'required|string|max:255',
-        'password' => 'required|string|min:8|confirmed',
-        'terms' => 'required',
-    ]);
+    'shop_name' => 'required|string|max:150',
+    'first_name' => 'required|string|max:100',
+    'last_name' => 'required|string|max:100',
+    'middle_initial' => 'nullable|string|max:5',
+    'sex' => 'required',
+    'birthday' => 'required|date',
+    'phone' => 'required|string|max:30',
+    'email' => 'required|email|max:255',
+
+    'province' => 'required|string|max:100',
+    'municipality' => 'required|string|max:100',
+    'barangay' => 'required|string|max:100',
+    'address' => 'required|string|max:255',
+
+    'business_name' => 'required|string|max:150',
+    'business_category' => 'required|string|max:150',
+
+    'valid_id' => 'required|file',
+    'business_permit' => 'required|file',
+
+    'password' => 'required|string|min:8|confirmed',
+    'terms' => 'required',
+]);
 
     session()->put('seller_profile', [
         'shop_name' => $request->shop_name,
