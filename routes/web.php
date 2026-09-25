@@ -5576,22 +5576,7 @@ auth()->login($user);
 
 $request->session()->regenerate();
 
-
-    if (!$loggedIn) {
-
-        return back()
-            ->withErrors([
-                'login' =>
-                    'Invalid email/phone number or password.',
-            ])
-            ->onlyInput('login');
-    }
-
-
-    $request->session()->regenerate();
-
-    $user = auth()->user();
-
+$user = auth()->user();
 
     // =====================================================
     // SUSPENDED ACCOUNT CHECK
