@@ -276,77 +276,150 @@
 
 
                     {{-- ==========================================
-                         SELLER INFORMATION
-                    =========================================== --}}
-                    <div>
+     PERSONAL INFORMATION
+========================================== --}}
+<div>
 
-                        <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                            Seller Information
-                        </h3>
-
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <h3 class="text-sm font-semibold text-gray-900 mb-4">
+        Personal Information
+    </h3>
 
 
-                            {{-- SELLER NAME --}}
-                            <div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Seller Name
-                                </label>
 
-                                <div class="relative">
+        {{-- FIRST NAME --}}
+        <div>
 
-                                    <i
-                                        data-lucide="user"
-                                        class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                    ></i>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                First Name
+            </label>
 
-                                    <input
-                                        type="text"
-                                        name="seller_name"
-                                        value="{{ old('seller_name') }}"
-                                        required
-                                        placeholder="Full name"
-                                        class="w-full rounded-xl border border-gray-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                                    >
+            <input
+                type="text"
+                name="first_name"
+                value="{{ old('first_name') }}"
+                required
+                placeholder="Enter first name"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
 
-                                </div>
-
-                            </div>
+        </div>
 
 
 
-                            {{-- PHONE --}}
-                            <div>
+        {{-- LAST NAME --}}
+        <div>
 
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Phone Number
-                                </label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+            </label>
 
-                                <div class="relative">
+            <input
+                type="text"
+                name="last_name"
+                value="{{ old('last_name') }}"
+                required
+                placeholder="Enter last name"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
 
-                                    <i
-                                        data-lucide="phone"
-                                        class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                    ></i>
+        </div>
 
-                                    <input
-                                        type="text"
-                                        name="phone"
-                                        value="{{ old('phone') }}"
-                                        required
-                                        placeholder="09XXXXXXXXX"
-                                        class="w-full rounded-xl border border-gray-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                                    >
 
-                                </div>
 
-                            </div>
+        {{-- MIDDLE INITIAL --}}
+        <div>
 
-                        </div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Middle Initial
+            </label>
 
-                    </div>
+            <input
+                type="text"
+                name="middle_initial"
+                value="{{ old('middle_initial') }}"
+                placeholder="M.I."
+                maxlength="5"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+
+        {{-- SEX --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Sex
+            </label>
+
+            <select
+                name="sex"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+                <option value="">
+                    Select sex
+                </option>
+
+                <option value="Male">
+                    Male
+                </option>
+
+                <option value="Female">
+                    Female
+                </option>
+
+            </select>
+
+        </div>
+
+
+
+        {{-- BIRTHDAY --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Birthday
+            </label>
+
+            <input
+                type="date"
+                name="birthday"
+                value="{{ old('birthday') }}"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+
+        {{-- PHONE --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+            </label>
+
+            <input
+                type="text"
+                name="phone"
+                value="{{ old('phone') }}"
+                required
+                placeholder="09XXXXXXXXX"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+    </div>
+
+</div>
 
 
 
