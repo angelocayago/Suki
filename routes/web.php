@@ -5519,12 +5519,62 @@ Route::post('/login', function (Request $request) {
         : 'phone';
 
 
-    // Authenticate by credentials first.
-    // The account role is checked only after authentication succeeds.
-    $loggedIn = auth()->attempt([
-        $loginField => $validated['login'],
-        'password' => $validated['password'],
-    ]);
+  $user = User::where(
+    $loginField,
+    $validated['login']
+)->first();
+
+
+if (!$user) {
+
+    return back()
+        ->withErrors([
+            'login' =>
+                'Invalid email/phone number or password.',
+        ])
+        ->onlyInput('login');
+}
+
+
+if (!\Illuminate\Support\Facades\Hash::check(
+    $validated['password'],
+    $user->password
+)) {
+
+    return back()
+        ->withErrors([
+            'login' =>
+                'Invalid email/phone number or password.',
+        ])
+        ->onlyInput('login');
+}
+
+
+if ($user->is_suspended ?? false) {
+
+    return back()
+        ->withErrors([
+            'login' =>
+                'This account has been suspended.',
+        ])
+        ->onlyInput('login');
+}
+
+
+if ($user->status !== 'active') {
+
+    return back()
+        ->withErrors([
+            'login' =>
+                'Your account is still pending administrator approval.',
+        ])
+        ->onlyInput('login');
+}
+
+
+auth()->login($user);
+
+$request->session()->regenerate();
 
 
     if (!$loggedIn) {
