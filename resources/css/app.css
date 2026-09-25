@@ -1,0 +1,303 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ================================================================
+   SUKI SHOP UI SYSTEM
+   Based on the clean visual language of the landing page
+================================================================ */
+
+:root {
+    --suki-ink: #173F35;
+    --suki-brand: #1F6F5B;
+    --suki-brand-dark: #155244;
+    --suki-mint: #DDF3EC;
+    --suki-canvas: #F8FAF8;
+    --suki-panel: #FFFFFF;
+    --suki-line: #E3EAE6;
+    --suki-muted: #66736D;
+    --suki-soft: #EEF5F1;
+
+    --suki-shadow:
+        0 10px 30px rgba(23, 63, 53, .055);
+
+    --suki-shadow-hover:
+        0 18px 46px rgba(23, 63, 53, .085);
+}
+
+html {
+    background: var(--suki-canvas);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+}
+
+::selection {
+    background: var(--suki-mint);
+    color: var(--suki-ink);
+}
+
+.suki-buyer-app,
+.suki-dashboard-shell {
+    background: var(--suki-canvas);
+    color: #24312C;
+}
+
+.suki-dashboard-shell {
+    min-height: 100vh;
+}
+
+.suki-dashboard-shell main,
+.suki-buyer-app main {
+    background: transparent;
+}
+
+/* ================================================================
+   PANELS
+================================================================ */
+
+.suki-dashboard-shell .bg-white,
+.suki-buyer-app main .bg-white {
+    border-color: var(--suki-line);
+}
+
+.suki-dashboard-shell .shadow-sm,
+.suki-buyer-app main .shadow-sm {
+    box-shadow: var(--suki-shadow) !important;
+}
+
+.suki-dashboard-shell .shadow-lg,
+.suki-buyer-app main .shadow-lg {
+    box-shadow:
+        0 20px 55px rgba(23, 63, 53, .12) !important;
+}
+
+/* ================================================================
+   FORMS
+================================================================ */
+
+.suki-dashboard-shell input,
+.suki-dashboard-shell select,
+.suki-dashboard-shell textarea,
+.suki-buyer-app main input,
+.suki-buyer-app main select,
+.suki-buyer-app main textarea {
+    accent-color: var(--suki-brand);
+}
+
+.suki-dashboard-shell input:focus,
+.suki-dashboard-shell select:focus,
+.suki-dashboard-shell textarea:focus,
+.suki-buyer-app main input:focus,
+.suki-buyer-app main select:focus,
+.suki-buyer-app main textarea:focus {
+    outline: none;
+}
+
+/* ================================================================
+   DASHBOARD CARDS
+================================================================ */
+
+.suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
+.suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"] {
+    border-color: var(--suki-line) !important;
+    box-shadow: var(--suki-shadow);
+}
+
+.suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"]:hover,
+.suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"]:hover {
+    box-shadow: var(--suki-shadow-hover);
+}
+
+/* ================================================================
+   TABLES
+================================================================ */
+
+.suki-dashboard-shell table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.suki-dashboard-shell thead {
+    background: #F4F7F5;
+}
+
+.suki-dashboard-shell th {
+    color: #66736D;
+    font-size: 11px;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.suki-dashboard-shell tbody tr {
+    transition: background-color .18s ease;
+}
+
+.suki-dashboard-shell tbody tr:hover {
+    background: #FAFCFB;
+}
+
+/* ================================================================
+   SELLER / LOGISTICS SHARED CONTENT
+================================================================ */
+
+.suki-seller-content .min-h-screen > .bg-white.border-b:first-child {
+    display: none;
+}
+
+.suki-logistics-content .min-h-screen > header:first-child {
+    display: none;
+}
+
+.suki-seller-content > .min-h-screen,
+.suki-logistics-content > .min-h-screen {
+    min-height: auto;
+    background: transparent !important;
+}
+
+.suki-seller-content > .min-h-screen > [class*="max-w-7xl"],
+.suki-logistics-content > .min-h-screen > main,
+.suki-logistics-content > .min-h-screen > [class*="max-w-7xl"] {
+    padding-top: 1.75rem;
+}
+
+/* ================================================================
+   BUYER
+================================================================ */
+
+.suki-buyer-app main section,
+.suki-buyer-app main [class*="max-w-7xl"],
+.suki-buyer-app main [class*="max-w-6xl"] {
+    scroll-margin-top: 9rem;
+}
+
+/* ================================================================
+   LEGACY COLOR NORMALIZATION
+================================================================ */
+
+.suki-dashboard-shell main .text-gray-900,
+.suki-buyer-app main .text-gray-900 {
+    color: #24312C !important;
+}
+
+.suki-dashboard-shell main .text-gray-800,
+.suki-buyer-app main .text-gray-800 {
+    color: #34483F !important;
+}
+
+.suki-dashboard-shell main .text-gray-700,
+.suki-buyer-app main .text-gray-700 {
+    color: #52635B !important;
+}
+
+.suki-dashboard-shell main .text-gray-600,
+.suki-dashboard-shell main .text-gray-500,
+.suki-buyer-app main .text-gray-600,
+.suki-buyer-app main .text-gray-500 {
+    color: #728078 !important;
+}
+
+.suki-dashboard-shell main .border-gray-200,
+.suki-dashboard-shell main .border-gray-100,
+.suki-buyer-app main .border-gray-200,
+.suki-buyer-app main .border-gray-100 {
+    border-color: #E3EAE6 !important;
+}
+
+.suki-dashboard-shell main .bg-gray-50,
+.suki-buyer-app main .bg-gray-50 {
+    background-color: #F4F7F5 !important;
+}
+
+.suki-dashboard-shell main .bg-gray-100,
+.suki-buyer-app main .bg-gray-100 {
+    background-color: #EEF3F0 !important;
+}
+
+.suki-dashboard-shell main .rounded-3xl,
+.suki-buyer-app main .rounded-3xl {
+    border-radius: 18px !important;
+}
+
+.suki-dashboard-shell main h1,
+.suki-dashboard-shell main h2,
+.suki-dashboard-shell main h3 {
+    letter-spacing: -0.025em;
+}
+
+.suki-dashboard-shell main button,
+.suki-dashboard-shell main a,
+.suki-buyer-app main button,
+.suki-buyer-app main a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ================================================================
+   SCROLLBAR
+================================================================ */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #B9C9C1 transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #C6D3CD;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+}
+
+/* ================================================================
+   PORTAL HELPERS
+================================================================ */
+
+.suki-portal-sidebar {
+    width: 264px;
+}
+
+.suki-portal-main {
+    min-width: 0;
+    flex: 1;
+}
+
+@media (max-width: 1023px) {
+
+    .suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
+    .suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"] {
+        box-shadow:
+            0 6px 22px rgba(23, 63, 53, .045);
+    }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+
+}
