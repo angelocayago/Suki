@@ -453,34 +453,116 @@
                     </div>
 
 
+{{-- ==========================================
+     ADDRESS INFORMATION
+========================================== --}}
+<div>
 
-                    {{-- ==========================================
-                         ADDRESS
-                    =========================================== --}}
-                    <div>
+    <h3 class="text-sm font-semibold text-gray-900 mb-4">
+        Address Information
+    </h3>
 
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Business / Pickup Address
-                        </label>
 
-                        <div class="relative">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                            <i
-                                data-lucide="map-pin"
-                                class="absolute left-4 top-4 w-5 h-5 text-gray-400"
-                            ></i>
 
-                            <textarea
-                                name="address"
-                                rows="3"
-                                required
-                                placeholder="Enter your complete business or pickup address"
-                                class="w-full rounded-xl border border-gray-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition resize-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                            >{{ old('address') }}</textarea>
+        {{-- PROVINCE --}}
+        <div>
 
-                        </div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Province
+            </label>
 
-                    </div>
+            <select
+                name="province"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+                <option value="">
+                    Select Province
+                </option>
+
+                <option value="Laguna">
+                    Laguna
+                </option>
+
+                <option value="Batangas">
+                    Batangas
+                </option>
+
+                <option value="Cavite">
+                    Cavite
+                </option>
+
+            </select>
+
+        </div>
+
+
+
+        {{-- MUNICIPALITY --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Municipality
+            </label>
+
+            <input
+                type="text"
+                name="municipality"
+                value="{{ old('municipality') }}"
+                required
+                placeholder="Enter municipality"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+
+        {{-- BARANGAY --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Barangay
+            </label>
+
+            <input
+                type="text"
+                name="barangay"
+                value="{{ old('barangay') }}"
+                required
+                placeholder="Enter barangay"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+
+        {{-- STREET --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Street / House Number
+            </label>
+
+            <input
+                type="text"
+                name="address"
+                value="{{ old('address') }}"
+                required
+                placeholder="Street, house number, etc."
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
+
+
+    </div>
+
+</div>
 
 
 
