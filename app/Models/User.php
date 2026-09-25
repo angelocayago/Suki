@@ -26,11 +26,15 @@ class User extends Authenticatable
         'role',
         'first_name',
         'last_name',
+        'middle_initial',
+        'sex',
+        'birthday',
         'name',
         'email',
         'phone',
         'status',
         'is_suspended',
+        'government_id',
         'password',
     ];
 
@@ -49,6 +53,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'birthday' => 'date',
             'password' => 'hashed',
             'is_suspended' => 'boolean',
         ];
@@ -76,8 +81,8 @@ class User extends Authenticatable
 
         // New role system may not exist yet in production.
         if (
-            ! Schema::hasTable('roles') ||
-            ! Schema::hasTable('role_user')
+            !Schema::hasTable('roles') ||
+            !Schema::hasTable('role_user')
         ) {
             return false;
         }
