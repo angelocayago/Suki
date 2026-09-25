@@ -5790,8 +5790,11 @@ Route::post('/register', function (Request $request) {
         }
     );
 
-    return redirect()
-        ->route('login')
+
+
+
+return redirect()
+    ->route('login')
         ->with(
             'success',
             'Your buyer application has been submitted. Please wait for administrator approval before logging in.'
