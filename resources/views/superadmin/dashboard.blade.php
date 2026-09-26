@@ -2,12 +2,15 @@
 
 
 @section('title')
+
 Dashboard
+
 @endsection
 
 
 
 @section('content')
+
 
 
 @php
@@ -31,21 +34,31 @@ $greeting =
 
 
 
+
+
 <!-- HEADER -->
 
-<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
+
+<div class="mb-8">
 
 
-<div>
+<h1
+class="
+text-3xl
+font-bold
+text-[#173F35]
+">
 
-<h1 class="text-3xl font-bold text-[#173F35]">
-
-{{ $greeting }}, {{ auth()->user()->name }} 👋
+{{ $greeting }}, {{ auth()->user()->name }}
 
 </h1>
 
 
-<p class="text-[#66736D] mt-2">
+<p
+class="
+text-[#66736D]
+mt-2
+">
 
 Here's what's happening with your platform today.
 
@@ -57,48 +70,15 @@ Here's what's happening with your platform today.
 
 
 
-<div class="
-bg-white
-border
-border-[#E3EAE6]
-rounded-2xl
-px-5
-py-3
-shadow-sm
-">
-
-
-<p class="font-semibold text-[#173F35]">
-
-{{ now()->format('M d, Y') }}
-
-</p>
-
-
-<p class="text-sm text-[#66736D]">
-
-{{ now()->format('l') }}
-
-</p>
-
-
-</div>
-
-
-</div>
 
 
 
 
+<!-- STAT CARDS -->
 
 
-
-
-
-<!-- STATS -->
-
-
-<div class="
+<div
+class="
 grid
 grid-cols-1
 sm:grid-cols-2
@@ -127,11 +107,15 @@ Total Users
 
 
 <span>
+
 Registered accounts
+
 </span>
 
 
 </div>
+
+
 
 
 
@@ -153,11 +137,15 @@ Buyers
 
 
 <span>
+
 Active buyers
+
 </span>
 
 
 </div>
+
+
 
 
 
@@ -180,11 +168,14 @@ Sellers
 
 
 <span>
+
 Seller accounts
+
 </span>
 
 
 </div>
+
 
 
 
@@ -208,7 +199,9 @@ Orders
 
 
 <span>
+
 Platform orders
+
 </span>
 
 
@@ -218,7 +211,6 @@ Platform orders
 
 
 
-
 </div>
 
 
@@ -229,10 +221,11 @@ Platform orders
 
 
 
-<!-- CHARTS -->
+<!-- CHART SECTION -->
 
 
-<div class="
+<div
+class="
 grid
 grid-cols-1
 xl:grid-cols-2
@@ -250,16 +243,29 @@ mb-8
 <div class="dashboard-panel">
 
 
-<div class="mb-5">
+<div
+class="
+flex
+justify-between
+items-start
+mb-6
+">
+
+
+<div>
 
 
 <h3>
+
 User Growth
+
 </h3>
 
 
 <p>
+
 Registered users trend
+
 </p>
 
 
@@ -267,13 +273,37 @@ Registered users trend
 
 
 
-<canvas id="userGrowthChart"
+<button
+class="
+bg-[#F4F7F5]
+px-4
+py-2
+rounded-xl
+text-sm
+text-[#66736D]
+">
+
+Last 7 Days
+
+</button>
+
+
+</div>
+
+
+
+
+
+<canvas
+id="userGrowthChart"
 height="120">
 </canvas>
 
 
 
+
 </div>
+
 
 
 
@@ -288,16 +318,29 @@ height="120">
 <div class="dashboard-panel">
 
 
-<div class="mb-5">
+<div
+class="
+flex
+justify-between
+items-start
+mb-6
+">
+
+
+<div>
 
 
 <h3>
+
 Order Overview
+
 </h3>
 
 
 <p>
+
 Current order status
+
 </p>
 
 
@@ -305,17 +348,39 @@ Current order status
 
 
 
+<button
+class="
+bg-[#F4F7F5]
+px-4
+py-2
+rounded-xl
+text-sm
+text-[#66736D]
+">
+
+Today
+
+</button>
+
+
+</div>
+
+
+
+
 
 <div class="max-w-[280px] mx-auto">
 
+
 <canvas id="orderChart"></canvas>
 
-</div>
-
-
 
 </div>
 
+
+
+
+</div>
 
 
 
@@ -335,12 +400,16 @@ Current order status
 <!-- LOWER SECTION -->
 
 
-<div class="
+<div
+class="
 grid
 grid-cols-1
 xl:grid-cols-2
 gap-6
 ">
+
+
+
 
 
 
@@ -352,6 +421,18 @@ gap-6
 <div class="dashboard-panel">
 
 
+<div
+class="
+flex
+justify-between
+items-center
+mb-5
+">
+
+
+<div>
+
+
 <h3>
 
 Pending Accounts
@@ -359,21 +440,47 @@ Pending Accounts
 </h3>
 
 
-<p class="mb-6">
+<p>
 
-Waiting for approval
+Accounts waiting for approval
 
 </p>
 
 
+</div>
 
-<div class="
+
+
+
+<button
+class="
+bg-[#F4F7F5]
+px-4
+py-2
+rounded-xl
+text-sm
+">
+
+View All
+
+</button>
+
+
+</div>
+
+
+
+
+
+<div
+class="
 text-center
-py-8
+py-10
 ">
 
 
-<h2 class="
+<h2
+class="
 text-5xl
 font-bold
 text-[#1F6F5B]
@@ -384,6 +491,7 @@ text-[#1F6F5B]
 </h2>
 
 
+
 <p class="text-[#66736D] mt-2">
 
 Pending requests
@@ -391,7 +499,9 @@ Pending requests
 </p>
 
 
+
 </div>
+
 
 
 </div>
@@ -410,6 +520,18 @@ Pending requests
 <div class="dashboard-panel">
 
 
+<div
+class="
+flex
+justify-between
+items-center
+mb-5
+">
+
+
+<div>
+
+
 <h3>
 
 Recent Activity
@@ -417,16 +539,40 @@ Recent Activity
 </h3>
 
 
-<p class="mb-6">
+<p>
 
 Latest platform updates
 
 </p>
 
 
+</div>
+
+
+
+<button
+class="
+bg-[#F4F7F5]
+px-4
+py-2
+rounded-xl
+text-sm
+">
+
+View All
+
+</button>
+
+
+</div>
+
+
+
+
 
 
 <div class="space-y-5">
+
 
 
 <div class="activity-item">
@@ -438,6 +584,8 @@ Today
 </span>
 
 </div>
+
+
 
 
 
@@ -453,6 +601,8 @@ Today
 
 
 
+
+
 <div class="activity-item">
 
 Seller application submitted
@@ -465,17 +615,21 @@ Yesterday
 
 
 
-</div>
-
-
 
 </div>
 
 
 
+</div>
+
+
+
+
+
 
 
 </div>
+
 
 
 
@@ -491,6 +645,7 @@ document.addEventListener(
 ()=>{
 
 
+
 new Chart(
 document.getElementById('userGrowthChart'),
 {
@@ -503,41 +658,36 @@ data:{
 
 
 labels:@json(
-collect($userGrowth)
-->pluck('date')
+collect($userGrowth)->pluck('date')
 ),
 
 
 
 datasets:[{
 
-
 label:'Users',
 
 
 data:@json(
-collect($userGrowth)
-->pluck('count')
+collect($userGrowth)->pluck('count')
 ),
 
 
 
 borderColor:'#1F6F5B',
 
-
-backgroundColor:'rgba(31,111,91,.15)',
-
+backgroundColor:'rgba(31,111,91,.12)',
 
 fill:true,
 
-
-tension:.4
+tension:.4,
 
 
 }]
 
 
 },
+
 
 
 options:{
@@ -612,6 +762,7 @@ labels:[
 ],
 
 
+
 datasets:[{
 
 
@@ -620,14 +771,19 @@ array_values($orderOverview)
 ),
 
 
+
 backgroundColor:[
 
 '#1F6F5B',
+
 '#86EFAC',
+
 '#34D399',
+
 '#CBD5E1'
 
 ]
+
 
 
 }]
@@ -636,10 +792,15 @@ backgroundColor:[
 },
 
 
+
 options:{
 
 
+responsive:true,
+
+
 cutout:'70%',
+
 
 
 plugins:{
@@ -660,6 +821,7 @@ position:'bottom'
 }
 
 
+
 }
 
 );
@@ -672,6 +834,7 @@ position:'bottom'
 
 
 </script>
+
 
 
 
@@ -701,6 +864,7 @@ box-shadow:
 }
 
 
+
 .stat-box p{
 
 color:#66736D;
@@ -710,7 +874,9 @@ font-size:14px;
 }
 
 
+
 .stat-box h2{
+
 
 font-size:38px;
 
@@ -720,16 +886,22 @@ color:#173F35;
 
 margin-top:12px;
 
+
 }
 
 
+
 .stat-box span{
+
 
 font-size:13px;
 
 color:#728078;
 
+
 }
+
+
 
 
 
@@ -752,6 +924,7 @@ box-shadow:
 }
 
 
+
 .dashboard-panel h3{
 
 
@@ -765,13 +938,19 @@ color:#173F35;
 }
 
 
+
 .dashboard-panel p{
+
 
 color:#66736D;
 
 font-size:14px;
 
+
 }
+
+
+
 
 
 
@@ -786,6 +965,7 @@ font-weight:600;
 
 
 }
+
 
 
 .activity-item span{
@@ -805,6 +985,8 @@ color:#728078;
 
 
 </style>
+
+
 
 
 
