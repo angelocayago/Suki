@@ -2766,28 +2766,7 @@ Route::post('/seller/register', function (Request $request) {
     'terms' => 'required',
 
 ]);
-=======
-    'first_name' => 'required|string|max:150',
-    'last_name' => 'required|string|max:150',
-    'middle_initial' => 'nullable|string|max:5',
 
-    'sex' => 'required|string',
-    'birthday' => 'required|date',
-
-    'email' => 'required|email|max:255',
-    'phone' => 'required|string|max:30',
-
-    'business_name' => 'required|string|max:150',
-    'address' => 'required|string|max:255',
-
-    'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-    'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-    'password' => 'required|string|min:8|confirmed',
-
-    'terms' => 'required',
-]);
     
 
 $validIdPath = $request

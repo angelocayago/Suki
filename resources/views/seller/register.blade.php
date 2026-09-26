@@ -4,16 +4,6 @@
 
 @section('content')
 
-
-<form
-    method="POST"
-    action="{{ route('seller.register.submit') }}"
-    enctype="multipart/form-data"
->
-
-@csrf
-
-
 <div class="min-h-screen bg-[#F8FAF8]">
 
     <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[45%_55%]">
@@ -278,13 +268,33 @@
                     Password *
                 </label>
 
-                <input
-                    type="password"
-                    name="password"
-                    required
-                    placeholder="Create a password"
-                    class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                >
+                <div class="relative">
+
+    <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        placeholder="Create a password"
+        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+    >
+
+
+    <button
+        type="button"
+        onclick="togglePassword('password','passwordIcon')"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1F6F5B]"
+    >
+
+        <i
+            id="passwordIcon"
+            data-lucide="eye"
+            class="w-5 h-5"
+        ></i>
+
+    </button>
+
+</div>
 
             </div>
 
@@ -297,13 +307,34 @@
                     Confirm Password *
                 </label>
 
-                <input
-                    type="password"
-                    name="password_confirmation"
-                    required
-                    placeholder="Confirm your password"
-                    class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                >
+                <div class="relative">
+
+    <input
+        type="password"
+        id="password_confirmation"
+        name="password_confirmation"
+        required
+        placeholder="Confirm your password"
+        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+    >
+
+
+    <button
+        type="button"
+        onclick="togglePassword('password_confirmation','confirmPasswordIcon')"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1F6F5B]"
+    >
+
+        <i
+            id="confirmPasswordIcon"
+            data-lucide="eye"
+            class="w-5 h-5"
+        ></i>
+
+    </button>
+
+
+</div>
 
             </div>
 
@@ -445,11 +476,13 @@
             </label>
 
             <input
-                type="text"
-                disabled
-                placeholder="Auto-generated"
-                class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm"
-            >
+    type="text"
+    id="age"
+    name="age"
+    readonly
+    placeholder="Auto-generated"
+    class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm"
+>
 
         </div>
 
@@ -926,6 +959,40 @@
 @push('scripts')
 
 <script>
+
+    const birthdayInput = document.querySelector('[name="birthday"]');
+const ageInput = document.getElementById('age');
+
+
+if (birthdayInput && ageInput) {
+
+    birthdayInput.addEventListener('change', function () {
+
+        const birthDate = new Date(this.value);
+        const today = new Date();
+
+
+        let age =
+            today.getFullYear() - birthDate.getFullYear();
+
+
+        const month =
+            today.getMonth() - birthDate.getMonth();
+
+
+        if (
+            month < 0 ||
+            (month === 0 && today.getDate() < birthDate.getDate())
+        ) {
+            age--;
+        }
+
+
+        ageInput.value = age;
+
+    });
+
+}
 
 function togglePassword(inputId, iconId) {
 
