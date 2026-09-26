@@ -5496,6 +5496,11 @@ Route::middleware(['auth','superadmin'])
             'updateStatus'
         ])->name('users.status');
 
+        Route::get('/users/{user}', [
+        UserManagementController::class,
+        'show'
+        ])->name('users.show');
+
 
     });
     

@@ -12,65 +12,84 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
 
-
         $query = User::query();
 
 
 
-        if($request->search){
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH
+        |--------------------------------------------------------------------------
+        */
 
+        if ($request->search) {
 
             $search = $request->search;
 
 
-            $query->where(function($q) use($search){
+            $query->where(function ($q) use ($search) {
 
-
-                $q->where('name','like',"%{$search}%")
-                ->orWhere('email','like',"%{$search}%")
-                ->orWhere('phone','like',"%{$search}%");
-
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere(
+                        'email',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'phone',
+                        'like',
+                        "%{$search}%"
+                    );
 
             });
-
 
         }
 
 
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER ROLE
+        |--------------------------------------------------------------------------
+        */
 
-        if($request->role){
-
+        if ($request->role) {
 
             $query->where(
                 'role',
                 $request->role
             );
 
-
         }
 
 
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER STATUS
+        |--------------------------------------------------------------------------
+        */
 
-
-        if($request->status){
-
+        if ($request->status) {
 
             $query->where(
                 'status',
                 $request->status
             );
 
-
         }
 
 
 
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | USERS LIST
+        |--------------------------------------------------------------------------
+        */
 
         $users = $query
             ->latest()
@@ -83,30 +102,36 @@ class UserManagementController extends Controller
 
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | USER STATISTICS
+        |--------------------------------------------------------------------------
+        */
+
         $stats = [
 
+            'total' => User::count(),
 
-            'total'=>User::count(),
 
-
-            'buyers'=>User::where(
+            'buyers' => User::where(
                 'role',
                 'buyer'
             )->count(),
 
 
-            'sellers'=>User::where(
+            'sellers' => User::where(
                 'role',
                 'seller'
             )->count(),
 
 
-            'suspended'=>User::where(
+            'suspended' => User::where(
                 'status',
                 'suspended'
             )->count(),
 
         ];
+
 
 
 
@@ -122,7 +147,6 @@ class UserManagementController extends Controller
             )
         );
 
-
     }
 
 
@@ -131,45 +155,76 @@ class UserManagementController extends Controller
 
 
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE USER STATUS
+    |--------------------------------------------------------------------------
+    */
+
     public function updateStatus(
         Request $request,
         User $user
-    )
-    {
+    ) {
 
 
         $request->validate([
 
-            'status'=>
-            'required|in:active,suspended,inactive'
+            'status' =>
+                'required|in:active,suspended,inactive'
 
         ]);
+
 
 
 
 
         $user->update([
 
+            'status' =>
+                $request->status,
 
-            'status'=>$request->status,
 
-
-            'is_suspended'=>
-            $request->status === 'suspended'
-
+            'is_suspended' =>
+                $request->status === 'suspended',
 
         ]);
 
 
 
 
-        return back()->with(
-            'success',
-            'User status updated successfully.'
-        );
 
+        return back()
+            ->with(
+                'success',
+                'User status updated successfully.'
+            );
 
     }
+
+
+
+
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER PROFILE
+    |--------------------------------------------------------------------------
+    */
+
+    public function show(User $user)
+{
+
+    return view(
+        'superadmin.users.show',
+        compact('user')
+    );
+
+}
 
 
 }
