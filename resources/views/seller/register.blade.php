@@ -4,6 +4,16 @@
 
 @section('content')
 
+
+<form
+    method="POST"
+    action="{{ route('seller.register.submit') }}"
+    enctype="multipart/form-data"
+>
+
+@csrf
+
+
 <div class="min-h-screen bg-[#F8FAF8]">
 
     <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[45%_55%]">

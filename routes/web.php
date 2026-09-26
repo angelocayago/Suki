@@ -2724,39 +2724,97 @@ Route::get('/seller/register', function () {
 Route::post('/seller/register', function (Request $request) {
 
     $request->validate([
+
     'shop_name' => 'required|string|max:150',
+
     'first_name' => 'required|string|max:100',
+
     'last_name' => 'required|string|max:100',
+
     'middle_initial' => 'nullable|string|max:5',
-    'sex' => 'required',
+
+    'sex' => 'required|string',
+
     'birthday' => 'required|date',
+
     'phone' => 'required|string|max:30',
+
     'email' => 'required|email|max:255',
 
+
     'province' => 'required|string|max:100',
+
     'municipality' => 'required|string|max:100',
+
     'barangay' => 'required|string|max:100',
+
     'address' => 'required|string|max:255',
 
+
     'business_name' => 'required|string|max:150',
+
     'business_category' => 'required|string|max:150',
 
-    'valid_id' => 'required|file',
-    'business_permit' => 'required|file',
+
+    'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+
+    'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+
 
     'password' => 'required|string|min:8|confirmed',
+
+    'terms' => 'required',
+
+]);
+=======
+    'first_name' => 'required|string|max:150',
+    'last_name' => 'required|string|max:150',
+    'middle_initial' => 'nullable|string|max:5',
+
+    'sex' => 'required|string',
+    'birthday' => 'required|date',
+
+    'email' => 'required|email|max:255',
+    'phone' => 'required|string|max:30',
+
+    'business_name' => 'required|string|max:150',
+    'address' => 'required|string|max:255',
+
+    'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+
+    'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+
+    'password' => 'required|string|min:8|confirmed',
+
     'terms' => 'required',
 ]);
+    
+
+$validIdPath = $request
+    ->file('valid_id')
+    ->store('seller-documents', 'public');
+
+
+$permitPath = $request
+    ->file('business_permit')
+    ->store('seller-documents', 'public');
+
+
+
 
     session()->put('seller_profile', [
-        'shop_name' => $request->shop_name,
-        'seller_name' => $request->seller_name,
-        'phone' => $request->phone,
-        'email' => $request->email,
-        'address' => $request->address,
-        'status' => 'approved',
-        'created_at' => now()->format('Y-m-d H:i:s'),
-    ]);
+    'shop_name' => $request->shop_name,
+    'seller_name' => $request->seller_name,
+    'phone' => $request->phone,
+    'email' => $request->email,
+    'address' => $request->address,
+
+    'valid_id' => $validIdPath,
+    'business_permit' => $permitPath,
+
+    'status' => 'approved',
+    'created_at' => now()->format('Y-m-d H:i:s'),
+]);
 
     session()->put('seller_logged_in', true);
 
