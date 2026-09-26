@@ -305,21 +305,28 @@
                         Customer Rating
                     </h3>
 
-                    <div class="space-y-3">
+                   <form
+    method="GET"
+    action="{{ route('buyer.shop') }}"
+>
+
+<div class="space-y-3">
 
                         @foreach([
-                            '5 stars',
-                            '4 stars & up',
-                            '3 stars & up'
-                        ] as $rating)
-
+                         5 => '5 stars',
+                         4 => '4 stars & up',
+                          3 => '3 stars & up'
+                        ] as $value => $rating)
                             <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
 
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-                                >
+                               <input
+    type="radio"
+    name="rating"
+    value="{{ $value }}"
+    onchange="this.form.submit()"
+    {{ request('rating') == $value ? 'checked' : '' }}
+    class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
+>
 
                                 <div class="flex items-center gap-1">
 
@@ -337,6 +344,8 @@
                             </label>
 
                         @endforeach
+
+                        </form>
 
                     </div>
 
