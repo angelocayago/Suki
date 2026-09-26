@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\SuperAdmin\DashboardController;
+use App\Http\Controllers\SuperAdmin\UserManagementController;
 
 
 // =====================================================
@@ -5463,18 +5464,38 @@ Route::post(
 )->name('admin.logout');
 
 // =====================================================
-// SUPER ADMIN DASHBOARD
+// SUPER ADMIN ROUTES
 // =====================================================
 
-Route::middleware(['auth'])
+Route::middleware(['auth','superadmin'])
     ->prefix('superadmin')
     ->name('superadmin.')
     ->group(function () {
+
+
+        // Dashboard
 
         Route::get('/dashboard', [
             DashboardController::class,
             'index'
         ])->name('dashboard');
+
+
+
+        // User Management
+
+        Route::get('/users', [
+            UserManagementController::class,
+            'index'
+        ])->name('users');
+
+
+
+        Route::post('/users/{user}/status', [
+            UserManagementController::class,
+            'updateStatus'
+        ])->name('users.status');
+
 
     });
     
