@@ -197,12 +197,12 @@
 
                         </div>
 
-                        <button
-                            type="button"
-                            class="text-xs font-medium text-[#1F6F5B] hover:underline"
-                        >
-                            Reset
-                        </button>
+                       <a
+                href="{{ route('buyer.shop') }}"
+                 class="text-xs font-medium text-[#1F6F5B] hover:underline"
+                >
+                Reset
+                </a>
 
                     </div>
 
@@ -312,11 +312,11 @@
 
 <div class="space-y-3">
 
-                        @foreach([
-                         5 => '5 stars',
-                         4 => '4 stars & up',
-                          3 => '3 stars & up'
-                        ] as $value => $rating)
+             @foreach([
+    5 => '5 stars',
+    4 => '4 stars & up',
+    3 => '3 stars & up'
+] as $value => $rating)
                             <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
 
                                <input
@@ -324,7 +324,7 @@
     name="rating"
     value="{{ $value }}"
     onchange="this.form.submit()"
-    {{ request('rating') == $value ? 'checked' : '' }}
+    {{ (float) request('rating') == (float) $value ? 'checked' : '' }}
     class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
 >
 
@@ -404,10 +404,54 @@
                                 Sort by
                             </span>
 
-                           <form
+                          <form
     method="GET"
     action="{{ route('buyer.shop') }}"
 >
+
+    @if(request('category'))
+        <input
+            type="hidden"
+            name="category"
+            value="{{ request('category') }}"
+        >
+    @endif
+
+
+    @if(request('search'))
+        <input
+            type="hidden"
+            name="search"
+            value="{{ request('search') }}"
+        >
+    @endif
+
+
+    @if(request('min_price'))
+        <input
+            type="hidden"
+            name="min_price"
+            value="{{ request('min_price') }}"
+        >
+    @endif
+
+
+    @if(request('max_price'))
+        <input
+            type="hidden"
+            name="max_price"
+            value="{{ request('max_price') }}"
+        >
+    @endif
+
+@if(request('rating') !== null)
+    <input
+        type="hidden"
+        name="rating"
+        value="{{ request('rating') }}"
+    >
+@endif
+
 
     <select
         name="sort"
