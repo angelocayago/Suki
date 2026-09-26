@@ -2,94 +2,74 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         @yield('title', 'SUKI Super Admin')
     </title>
 
+
     @vite([
         'resources/css/app.css',
         'resources/js/app.js'
     ])
 
+
 </head>
 
 
-<body class="bg-gray-100">
+<body class="bg-slate-50 text-slate-800">
 
 
-<div x-data="{ sidebar:false }"
-     class="min-h-screen">
-
-
-    <!-- MOBILE OVERLAY -->
-
-    <div
-        x-show="sidebar"
-        @click="sidebar=false"
-        class="fixed inset-0 bg-black/40 z-30 lg:hidden">
-    </div>
+<div class="flex min-h-screen">
 
 
 
     <!-- SIDEBAR -->
 
     <aside
-        :class="sidebar ? 'translate-x-0' : '-translate-x-full'"
         class="
-            fixed
-            lg:translate-x-0
-            inset-y-0
-            left-0
-            w-72
-            bg-white
-            shadow-xl
-            z-40
-            transition-transform
-            duration-300
+        w-72
+        bg-white
+        border-r
+        hidden
+        lg:flex
+        flex-col
+        fixed
+        inset-y-0
         ">
 
 
         <!-- BRAND -->
 
-        <div class="p-6 border-b">
+        <div class="px-6 py-6 border-b">
 
 
-            <div class="flex items-center gap-3">
+            <img
+                src="{{ asset('images/suki-logo.png') }}"
+                class="h-14 object-contain"
+                alt="SUKI Logo"
+            >
 
 
-                <div
-                    class="
-                    w-12
-                    h-12
-                    rounded-xl
-                    bg-green-600
-                    text-white
-                    flex
-                    items-center
-                    justify-center
-                    font-bold
-                    text-xl
-                    ">
-                    S
-                </div>
+            <div class="mt-4">
 
 
+                <h2 class="text-lg font-bold text-slate-800">
 
-                <div>
+                    Super Admin Portal
 
-                    <h1 class="font-bold text-xl text-gray-800">
-                        SUKI
-                    </h1>
+                </h2>
 
 
-                    <p class="text-sm text-gray-500">
-                        Super Admin
-                    </p>
+                <p class="text-sm text-slate-500">
 
-                </div>
+                    SUKI Platform Control
+
+                </p>
 
 
             </div>
@@ -103,47 +83,68 @@
 
         <!-- NAVIGATION -->
 
+        <nav class="flex-1 px-4 py-6 space-y-2">
 
-        <nav class="p-4 space-y-2">
 
 
             <a href="{{ route('superadmin.dashboard') }}"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
 
-                📊
+
+                <svg class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+
+                    <path stroke-width="2"
+                    d="M3 12l9-9 9 9v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+
+                </svg>
+
+
                 Dashboard
 
+
             </a>
+
 
 
 
 
 
             <a href="{{ route('superadmin.users') }}"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
 
-                👥
-                User Management
+
+                <svg class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+
+
+                    <path stroke-width="2"
+                    d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"/>
+
+
+                </svg>
+
+
+                Users
+
 
             </a>
 
@@ -151,22 +152,24 @@
 
 
 
+
+
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
+
 
                 📝
+
                 Applications
 
+
             </a>
 
 
@@ -174,20 +177,20 @@
 
 
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
+
 
                 🏪
-                Seller Compliance
+
+                Seller Management
+
 
             </a>
 
@@ -196,21 +199,21 @@
 
 
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
+
 
                 📦
+
                 Orders
 
+
             </a>
 
 
@@ -218,21 +221,21 @@
 
 
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
+
 
                 💰
+
                 Commission
 
+
             </a>
 
 
@@ -240,48 +243,112 @@
 
 
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
 
-                📈
+
+                📊
+
                 Reports
 
+
             </a>
+
 
 
 
 
 
             <a href="#"
-               class="
-               flex
-               items-center
-               gap-3
-               px-4
-               py-3
-               rounded-xl
-               hover:bg-green-50
-               hover:text-green-600
-               text-gray-700
-               ">
+            class="
+            flex items-center gap-3
+            px-4 py-3
+            rounded-xl
+            text-sm font-medium
+            hover:bg-green-50
+            hover:text-green-700
+            transition">
 
-                ⚙️
+
+                ⚙
+
                 Settings
 
+
             </a>
+
 
 
 
         </nav>
+
+
+
+
+
+
+
+
+        <!-- USER CARD -->
+
+
+        <div class="p-5 border-t">
+
+
+            <div class="flex items-center gap-3">
+
+
+                <div
+                class="
+                w-12
+                h-12
+                rounded-full
+                bg-green-600
+                text-white
+                flex
+                items-center
+                justify-center
+                font-bold">
+
+
+                    {{ strtoupper(substr(auth()->user()->name,0,1)) }}
+
+
+                </div>
+
+
+
+
+                <div>
+
+
+                    <p class="font-semibold text-sm">
+
+                        {{ auth()->user()->name }}
+
+                    </p>
+
+
+                    <p class="text-xs text-slate-500">
+
+                        Super Administrator
+
+                    </p>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
 
 
 
@@ -292,56 +359,44 @@
 
 
 
-    <!-- MAIN -->
-
-    <div class="lg:ml-72">
 
 
+    <!-- MAIN AREA -->
+
+
+    <div class="flex-1 lg:ml-72">
 
 
 
-        <!-- TOP NAVBAR -->
+
+
+        <!-- TOPBAR -->
+
 
         <header
-            class="
-            bg-white
-            shadow-sm
-            h-20
-            flex
-            items-center
-            justify-between
-            px-6
-            ">
-
-
-            <!-- hamburger -->
-
-            <button
-                @click="sidebar=true"
-                class="
-                lg:hidden
-                text-2xl
-                ">
-
-                ☰
-
-            </button>
-
-
-
+        class="
+        h-20
+        bg-white
+        border-b
+        px-8
+        flex
+        items-center
+        justify-between">
 
 
             <div>
 
-                <h2 class="text-xl font-semibold text-gray-800">
+
+                <h1 class="text-2xl font-bold">
 
                     @yield('title')
 
-                </h2>
+                </h1>
 
-                <p class="text-sm text-gray-500">
 
-                    Manage SUKI platform operations
+                <p class="text-sm text-slate-500">
+
+                    Manage SUKI operations and platform data
 
                 </p>
 
@@ -352,50 +407,43 @@
 
 
 
-            <!-- PROFILE -->
-
 
             <div class="flex items-center gap-4">
 
 
-                <div class="text-right hidden md:block">
 
+                <button
+                class="
+                w-10
+                h-10
+                rounded-xl
+                hover:bg-slate-100">
 
-                    <p class="font-semibold">
+                    🔔
 
-                        {{ auth()->user()->name }}
-
-                    </p>
-
-
-                    <p class="text-xs text-gray-500">
-
-                        Super Administrator
-
-                    </p>
-
-
-                </div>
+                </button>
 
 
 
 
                 <div
-                    class="
-                    w-11
-                    h-11
-                    rounded-full
-                    bg-green-600
-                    text-white
-                    flex
-                    items-center
-                    justify-center
-                    font-bold
-                    ">
+                class="
+                w-11
+                h-11
+                rounded-full
+                bg-green-600
+                text-white
+                flex
+                items-center
+                justify-center
+                font-bold">
+
 
                     {{ strtoupper(substr(auth()->user()->name,0,1)) }}
 
+
                 </div>
+
 
 
             </div>
@@ -408,17 +456,27 @@
 
 
 
+
+
         <!-- CONTENT -->
 
 
-        <main class="p-6">
+        <main class="p-8">
 
 
             @if(session('success'))
 
-                <div class="mb-5 bg-green-100 text-green-700 p-4 rounded-xl">
+                <div class="
+                mb-6
+                bg-green-100
+                text-green-700
+                px-5
+                py-4
+                rounded-xl">
+
 
                     {{ session('success') }}
+
 
                 </div>
 
@@ -426,7 +484,9 @@
 
 
 
+
             @yield('content')
+
 
 
         </main>
@@ -434,6 +494,7 @@
 
 
     </div>
+
 
 
 </div>
