@@ -17,13 +17,12 @@ $hour = now()->hour;
 
 $greeting =
     $hour < 12
-        ? 'Good morning'
-        : (
-            $hour < 18
-                ? 'Good afternoon'
-                : 'Good evening'
-        );
-
+    ? 'Good morning'
+    : (
+        $hour < 18
+        ? 'Good afternoon'
+        : 'Good evening'
+    );
 
 @endphp
 
@@ -34,23 +33,19 @@ $greeting =
 
 <!-- HEADER -->
 
-<div class="flex justify-between items-start mb-8">
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
 
 
 <div>
 
+<h1 class="text-3xl font-bold text-[#173F35]">
 
-<h1 class="text-3xl font-bold text-slate-800">
-
-{{ $greeting }},
-{{ auth()->user()->name }}
-
-!
+{{ $greeting }}, {{ auth()->user()->name }} 👋
 
 </h1>
 
 
-<p class="text-gray-500 mt-2">
+<p class="text-[#66736D] mt-2">
 
 Here's what's happening with your platform today.
 
@@ -62,25 +57,25 @@ Here's what's happening with your platform today.
 
 
 
-
 <div class="
 bg-white
 border
-rounded-xl
+border-[#E3EAE6]
+rounded-2xl
 px-5
 py-3
 shadow-sm
 ">
 
 
-<p class="text-sm font-semibold">
+<p class="font-semibold text-[#173F35]">
 
 {{ now()->format('M d, Y') }}
 
 </p>
 
 
-<p class="text-xs text-gray-500">
+<p class="text-sm text-[#66736D]">
 
 {{ now()->format('l') }}
 
@@ -100,14 +95,15 @@ shadow-sm
 
 
 
-<!-- KPI -->
+<!-- STATS -->
+
 
 <div class="
 grid
 grid-cols-1
-md:grid-cols-2
+sm:grid-cols-2
 xl:grid-cols-4
-gap-5
+gap-6
 mb-8
 ">
 
@@ -115,7 +111,8 @@ mb-8
 
 
 
-<div class="stat-card">
+<div class="stat-box">
+
 
 <p>
 Total Users
@@ -130,7 +127,7 @@ Total Users
 
 
 <span>
-Platform users
+Registered accounts
 </span>
 
 
@@ -140,7 +137,8 @@ Platform users
 
 
 
-<div class="stat-card">
+<div class="stat-box">
+
 
 <p>
 Buyers
@@ -155,7 +153,7 @@ Buyers
 
 
 <span>
-Registered buyers
+Active buyers
 </span>
 
 
@@ -165,7 +163,9 @@ Registered buyers
 
 
 
-<div class="stat-card">
+
+<div class="stat-box">
+
 
 <p>
 Sellers
@@ -180,7 +180,7 @@ Sellers
 
 
 <span>
-Active sellers
+Seller accounts
 </span>
 
 
@@ -190,7 +190,10 @@ Active sellers
 
 
 
-<div class="stat-card">
+
+
+<div class="stat-box">
+
 
 <p>
 Orders
@@ -205,7 +208,7 @@ Orders
 
 
 <span>
-Total transactions
+Platform orders
 </span>
 
 
@@ -215,6 +218,7 @@ Total transactions
 
 
 
+
 </div>
 
 
@@ -225,7 +229,7 @@ Total transactions
 
 
 
-<!-- ANALYTICS -->
+<!-- CHARTS -->
 
 
 <div class="
@@ -243,26 +247,19 @@ mb-8
 <!-- USER GROWTH -->
 
 
-<div class="panel">
+<div class="dashboard-panel">
 
 
-<div class="flex justify-between">
-
-
-<div>
+<div class="mb-5">
 
 
 <h3>
-
 User Growth
-
 </h3>
 
 
 <p>
-
-Total registered users
-
+Registered users trend
 </p>
 
 
@@ -270,71 +267,13 @@ Total registered users
 
 
 
-<button class="date-btn">
-
-Last 7 Days
-
-</button>
-
-
-</div>
-
-
-
-
-
-<div class="
-h-64
-mt-6
-flex
-items-end
-gap-4
-">
-
-
-@for($i = 1; $i <= 7; $i++)
-
-<div class="
-flex-1
-bg-green-100
-rounded-t-xl
-relative
-"
-style="height:{{20+$i*10}}%">
-</div>
-
-@endfor
-
-
-</div>
-
-
-
-
-
-<div class="
-flex
-justify-between
-text-xs
-text-gray-400
-mt-3
-">
-
-<span>Mon</span>
-<span>Tue</span>
-<span>Wed</span>
-<span>Thu</span>
-<span>Fri</span>
-<span>Sat</span>
-<span>Sun</span>
-
-
-</div>
+<canvas id="userGrowthChart"
+height="120">
+</canvas>
 
 
 
 </div>
-
 
 
 
@@ -346,124 +285,30 @@ mt-3
 <!-- ORDER OVERVIEW -->
 
 
-<div class="panel">
+<div class="dashboard-panel">
 
 
-<div class="flex justify-between">
-
-
-<div>
+<div class="mb-5">
 
 
 <h3>
-
 Order Overview
-
 </h3>
 
 
 <p>
-
 Current order status
-
 </p>
 
 
 </div>
 
 
-<button class="date-btn">
-
-Today
-
-</button>
 
 
-</div>
+<div class="max-w-[280px] mx-auto">
 
-
-
-
-
-
-<div class="
-flex
-items-center
-justify-center
-gap-10
-mt-10
-">
-
-
-
-<div
-class="
-w-40
-h-40
-rounded-full
-border-[18px]
-border-green-500
-flex
-items-center
-justify-center
-">
-
-
-<div class="text-center">
-
-
-<h2 class="text-3xl font-bold">
-
-{{ $stats['orders'] }}
-
-</h2>
-
-
-<p class="text-xs text-gray-500">
-
-Orders
-
-</p>
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div class="space-y-4 text-sm">
-
-
-<div>
-<span class="text-green-600">
-●
-</span>
-
-Pending
-
-</div>
-
-
-<div>
-<span class="text-blue-600">
-●
-</span>
-
-Processing
-
-</div>
-
-
-<div>
-<span class="text-gray-400">
-●
-</span>
-
-Completed
+<canvas id="orderChart"></canvas>
 
 </div>
 
@@ -471,13 +316,6 @@ Completed
 
 </div>
 
-
-
-</div>
-
-
-
-</div>
 
 
 
@@ -494,7 +332,8 @@ Completed
 
 
 
-<!-- BOTTOM -->
+<!-- LOWER SECTION -->
+
 
 <div class="
 grid
@@ -507,10 +346,10 @@ gap-6
 
 
 
-<div class="panel">
+<!-- PENDING -->
 
 
-<div class="flex justify-between mb-5">
+<div class="dashboard-panel">
 
 
 <h3>
@@ -520,28 +359,24 @@ Pending Accounts
 </h3>
 
 
-<button class="date-btn">
+<p class="mb-6">
 
-View All
+Waiting for approval
 
-</button>
-
-
-</div>
+</p>
 
 
 
 <div class="
 text-center
-py-12
-text-gray-400
+py-8
 ">
 
 
 <h2 class="
 text-5xl
 font-bold
-text-green-600
+text-[#1F6F5B]
 ">
 
 {{ $stats['pending_users'] }}
@@ -549,9 +384,9 @@ text-green-600
 </h2>
 
 
-<p class="mt-2">
+<p class="text-[#66736D] mt-2">
 
-Pending approvals
+Pending requests
 
 </p>
 
@@ -559,7 +394,6 @@ Pending approvals
 </div>
 
 
-
 </div>
 
 
@@ -569,7 +403,11 @@ Pending approvals
 
 
 
-<div class="panel">
+
+<!-- ACTIVITY -->
+
+
+<div class="dashboard-panel">
 
 
 <h3>
@@ -579,25 +417,21 @@ Recent Activity
 </h3>
 
 
+<p class="mb-6">
 
-<div class="mt-6 space-y-5">
+Latest platform updates
 
-
-<div class="activity">
-
-New buyer registered
-
-<span>
-Today
-</span>
-
-</div>
+</p>
 
 
 
-<div class="activity">
 
-Order created
+<div class="space-y-5">
+
+
+<div class="activity-item">
+
+New user registered
 
 <span>
 Today
@@ -607,8 +441,19 @@ Today
 
 
 
+<div class="activity-item">
 
-<div class="activity">
+New order created
+
+<span>
+Today
+</span>
+
+</div>
+
+
+
+<div class="activity-item">
 
 Seller application submitted
 
@@ -629,8 +474,204 @@ Yesterday
 
 
 
+
 </div>
 
+
+
+
+
+
+
+
+<script>
+
+document.addEventListener(
+'DOMContentLoaded',
+()=>{
+
+
+new Chart(
+document.getElementById('userGrowthChart'),
+{
+
+
+type:'line',
+
+
+data:{
+
+
+labels:@json(
+collect($userGrowth)
+->pluck('date')
+),
+
+
+
+datasets:[{
+
+
+label:'Users',
+
+
+data:@json(
+collect($userGrowth)
+->pluck('count')
+),
+
+
+
+borderColor:'#1F6F5B',
+
+
+backgroundColor:'rgba(31,111,91,.15)',
+
+
+fill:true,
+
+
+tension:.4
+
+
+}]
+
+
+},
+
+
+options:{
+
+
+responsive:true,
+
+
+plugins:{
+
+
+legend:{
+
+
+display:false
+
+
+}
+
+
+},
+
+
+scales:{
+
+
+y:{
+
+
+beginAtZero:true
+
+
+}
+
+
+}
+
+
+}
+
+
+}
+
+);
+
+
+
+
+
+
+
+new Chart(
+
+document.getElementById('orderChart'),
+
+{
+
+
+type:'doughnut',
+
+
+data:{
+
+
+labels:[
+
+'Pending',
+'Processing',
+'Delivered',
+'Cancelled'
+
+],
+
+
+datasets:[{
+
+
+data:@json(
+array_values($orderOverview)
+),
+
+
+backgroundColor:[
+
+'#1F6F5B',
+'#86EFAC',
+'#34D399',
+'#CBD5E1'
+
+]
+
+
+}]
+
+
+},
+
+
+options:{
+
+
+cutout:'70%',
+
+
+plugins:{
+
+
+legend:{
+
+
+position:'bottom'
+
+
+}
+
+
+}
+
+
+}
+
+
+}
+
+);
+
+
+
+}
+
+);
+
+
+</script>
 
 
 
@@ -642,94 +683,122 @@ Yesterday
 <style>
 
 
-.stat-card{
+.stat-box{
+
 
 background:white;
+
+border:1px solid #E3EAE6;
+
 border-radius:22px;
-padding:24px;
-box-shadow:0 5px 18px rgba(0,0,0,.04);
+
+padding:25px;
+
+box-shadow:
+0 10px 30px rgba(23,63,53,.055);
+
 
 }
 
 
-.stat-card p{
+.stat-box p{
 
-color:#64748b;
+color:#66736D;
+
 font-size:14px;
 
 }
 
 
-.stat-card h2{
+.stat-box h2{
 
 font-size:38px;
+
 font-weight:800;
-margin-top:10px;
+
+color:#173F35;
+
+margin-top:12px;
 
 }
 
 
-.stat-card span{
+.stat-box span{
 
 font-size:13px;
-color:#94a3b8;
+
+color:#728078;
 
 }
 
 
 
-.panel{
+
+.dashboard-panel{
+
 
 background:white;
+
+border:1px solid #E3EAE6;
+
 border-radius:24px;
+
 padding:28px;
-box-shadow:0 5px 18px rgba(0,0,0,.04);
+
+box-shadow:
+0 10px 30px rgba(23,63,53,.055);
+
 
 }
 
 
-.panel h3{
+.dashboard-panel h3{
+
 
 font-size:20px;
+
 font-weight:700;
 
-}
+color:#173F35;
 
-
-.panel p{
-
-color:#64748b;
 
 }
 
 
+.dashboard-panel p{
 
-.date-btn{
+color:#66736D;
 
-background:#f1f5f9;
-padding:8px 16px;
-border-radius:12px;
-font-size:13px;
+font-size:14px;
 
 }
 
 
 
-.activity{
+.activity-item{
 
-border-left:3px solid #10b981;
+
+border-left:3px solid #1F6F5B;
+
 padding-left:15px;
+
 font-weight:600;
 
+
 }
 
 
-.activity span{
+.activity-item span{
+
 
 display:block;
+
 font-size:12px;
+
 font-weight:400;
-color:#94a3b8;
+
+color:#728078;
+
 
 }
 
