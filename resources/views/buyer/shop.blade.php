@@ -249,40 +249,53 @@
 
 
                 {{-- PRICE --}}
-                <div class="px-5 py-5 border-b border-gray-100">
+              <form
+    method="GET"
+    action="{{ route('buyer.shop') }}"
+    class="px-5 py-5 border-b border-gray-100"
+>
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                        Price Range
-                    </h3>
+    <h3 class="text-sm font-semibold text-gray-900 mb-4">
+        Price Range
+    </h3>
 
-                    <div class="flex items-center gap-2">
 
-                        <input
-                            type="number"
-                            placeholder="Min"
-                            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
-                        >
+    <div class="flex items-center gap-2">
 
-                        <span class="text-gray-300">
-                            —
-                        </span>
+        <input
+            type="number"
+            name="min_price"
+            value="{{ request('min_price') }}"
+            placeholder="Min"
+            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B]"
+        >
 
-                        <input
-                            type="number"
-                            placeholder="Max"
-                            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
-                        >
 
-                    </div>
+        <span class="text-gray-300">
+            —
+        </span>
 
-                    <button
-                        type="button"
-                        class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
-                    >
-                        Apply Price
-                    </button>
 
-                </div>
+        <input
+            type="number"
+            name="max_price"
+            value="{{ request('max_price') }}"
+            placeholder="Max"
+            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B]"
+        >
+
+    </div>
+
+
+    <button
+        type="submit"
+        class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
+    >
+        Apply Price
+    </button>
+
+
+</form>
 
 
                 {{-- RATING --}}
