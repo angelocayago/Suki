@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Http\Controllers\SuperAdmin\DashboardController;
 
 
 // =====================================================
@@ -5462,6 +5463,22 @@ Route::post(
 )->name('admin.logout');
 
 // =====================================================
+// SUPER ADMIN DASHBOARD
+// =====================================================
+
+Route::middleware(['auth'])
+    ->prefix('superadmin')
+    ->name('superadmin.')
+    ->group(function () {
+
+        Route::get('/dashboard', [
+            DashboardController::class,
+            'index'
+        ])->name('dashboard');
+
+    });
+    
+// =====================================================
 // AUTHENTICATION
 // =====================================================
 
@@ -5653,16 +5670,30 @@ $user = auth()->user();
     // ADMIN LOGIN
     // =====================================================
 
-    if ($user->role === 'admin') {
+   // SUPER ADMIN LOGIN
 
-        return redirect()
-            ->route('admin.dashboard')
-            ->with(
-                'success',
-                'Welcome to the SUKI SHOP Admin Portal.'
-            );
-    }
+if ($user->hasRole('superadmin')) {
 
+    return redirect()
+        ->route('superadmin.dashboard')
+        ->with(
+            'success',
+            'Welcome to the SUKI Super Admin Portal.'
+        );
+}
+
+
+// ADMIN LOGIN
+
+if ($user->role === 'admin') {
+
+    return redirect()
+        ->route('admin.dashboard')
+        ->with(
+            'success',
+            'Welcome to the SUKI SHOP Admin Portal.'
+        );
+}
 
     // =====================================================
     // BUYER LOGIN
