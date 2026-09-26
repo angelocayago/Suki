@@ -577,6 +577,48 @@ font-bold
 <main class="p-8">
 
 
+@if(session('success'))
+
+<div
+x-data="{show:true}"
+x-show="show"
+x-transition
+class="
+mb-6
+bg-green-50
+border
+border-green-200
+text-green-700
+px-5
+py-4
+rounded-xl
+flex
+justify-between
+">
+
+
+<span>
+
+{{ session('success') }}
+
+</span>
+
+
+<button
+@click="show=false">
+
+×
+
+
+</button>
+
+
+</div>
+
+@endif
+
+
+
 @yield('content')
 
 
