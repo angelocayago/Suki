@@ -531,32 +531,6 @@ d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9a6 6 0 0
 
 
 
-
-
-
-<!-- AVATAR -->
-
-
-<div
-class="
-w-11
-h-11
-rounded-full
-bg-[#1F6F5B]
-text-white
-flex
-items-center
-justify-center
-font-bold
-">
-
-{{ strtoupper(substr(auth()->user()->name,0,1)) }}
-
-
-</div>
-
-
-
 </div>
 
 
