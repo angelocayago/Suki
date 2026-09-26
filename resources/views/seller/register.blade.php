@@ -4,6 +4,16 @@
 
 @section('content')
 
+
+<form
+    method="POST"
+    action="{{ route('seller.register.submit') }}"
+    enctype="multipart/form-data"
+>
+
+@csrf
+
+
 <div class="min-h-screen bg-[#F8FAF8]">
 
     <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[45%_55%]">
@@ -899,9 +909,7 @@
     type="submit"
     class="w-full rounded-xl bg-[#1F6F5B] py-3.5 text-sm font-semibold text-white hover:bg-[#155244] transition"
 >
-
     Submit Registration →
-
 </button>
 
 
@@ -1029,6 +1037,7 @@ function showFileName(input, targetId) {
 
 }
 
+
 function togglePassword(inputId, iconId) {
 
     const input = document.getElementById(inputId);
@@ -1059,5 +1068,7 @@ function togglePassword(inputId, iconId) {
 </script>
 
 @endpush
+
+</form>
 
 @endsection
