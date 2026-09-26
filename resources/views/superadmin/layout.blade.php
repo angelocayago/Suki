@@ -586,39 +586,89 @@ font-bold
 x-data="{show:true}"
 x-show="show"
 x-transition
+x-init="setTimeout(()=>show=false,5000)"
 class="
-mb-6
-bg-green-50
+fixed
+top-6
+right-6
+z-50
+bg-white
 border
 border-green-200
-text-green-700
-px-5
+shadow-xl
+rounded-2xl
+px-6
 py-4
-rounded-xl
 flex
-justify-between
+items-center
+gap-4
+max-w-sm
 ">
 
 
-<span>
+<div
+class="
+w-10
+h-10
+rounded-full
+bg-green-100
+text-green-600
+flex
+items-center
+justify-center
+font-bold
+">
+
+✓
+
+</div>
+
+
+
+<div class="flex-1">
+
+
+<p class="
+font-semibold
+text-[#173F35]
+">
+
+Success
+
+</p>
+
+
+<p class="
+text-sm
+text-gray-500
+">
 
 {{ session('success') }}
 
-</span>
+</p>
+
+
+</div>
+
 
 
 <button
-@click="show=false">
+@click="show=false"
+class="
+text-gray-400
+hover:text-gray-700
+">
 
-×
-
+✕
 
 </button>
+
 
 
 </div>
 
 @endif
+
 
 
 

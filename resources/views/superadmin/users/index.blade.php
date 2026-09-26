@@ -2,7 +2,9 @@
 
 
 @section('title')
+
 User Management
+
 @endsection
 
 
@@ -13,7 +15,7 @@ User Management
 <div
 x-data="{
 
-    open:false,
+    showModal:false,
 
     selectedUserId:'',
 
@@ -21,8 +23,10 @@ x-data="{
 
     selectedStatus:'',
 
+    selectedUrl:'',
 
-    confirmAction(id,name,status){
+
+    openConfirm(id,name,status,url){
 
         this.selectedUserId=id;
 
@@ -30,20 +34,22 @@ x-data="{
 
         this.selectedStatus=status;
 
-        this.open=true;
+        this.selectedUrl=url;
+
+        this.showModal=true;
 
     }
-
 
 }"
 >
 
 
 
+
+
 <!-- HEADER -->
 
 <div class="mb-8">
-
 
 <h1 class="text-3xl font-bold text-[#173F35]">
 
@@ -68,8 +74,8 @@ Manage SUKI platform accounts and access.
 
 
 
-
 <!-- STATS -->
+
 
 <div class="
 grid
@@ -93,6 +99,7 @@ mb-8
 
 
 
+
 <div class="user-stat">
 
 <p>Buyers</p>
@@ -102,6 +109,7 @@ mb-8
 </h2>
 
 </div>
+
 
 
 
@@ -117,6 +125,7 @@ mb-8
 
 
 
+
 <div class="user-stat">
 
 <p>Suspended</p>
@@ -129,7 +138,6 @@ mb-8
 
 
 </div>
-
 
 
 
@@ -161,7 +169,7 @@ gap-4
 
 <input
 name="search"
-value="{{request('search')}}"
+value="{{ request('search') }}"
 placeholder="Search users..."
 class="
 border
@@ -169,6 +177,8 @@ rounded-xl
 px-4
 py-3
 ">
+
+
 
 
 
@@ -203,6 +213,8 @@ Admin
 
 
 </select>
+
+
 
 
 
@@ -242,6 +254,8 @@ Suspended
 
 
 
+
+
 <button
 class="
 bg-[#1F6F5B]
@@ -256,12 +270,11 @@ Search
 </button>
 
 
+
 </form>
 
 
 </div>
-
-
 
 
 
@@ -318,17 +331,16 @@ Action
 
 
 
-
 <tbody>
 
 
 @foreach($users as $user)
 
 
-<tr
-class="
+<tr class="
 border-t
 hover:bg-[#FAFCFB]
+transition
 ">
 
 
@@ -338,8 +350,7 @@ hover:bg-[#FAFCFB]
 <div class="flex items-center gap-3">
 
 
-<div
-class="
+<div class="
 w-11
 h-11
 rounded-full
@@ -352,7 +363,7 @@ font-bold
 ">
 
 
-{{strtoupper(substr($user->name,0,1))}}
+{{ strtoupper(substr($user->name,0,1)) }}
 
 
 </div>
@@ -363,14 +374,14 @@ font-bold
 
 <p class="font-semibold">
 
-{{$user->name}}
+{{ $user->name }}
 
 </p>
 
 
 <p class="text-sm text-gray-500">
 
-{{$user->email}}
+{{ $user->email }}
 
 </p>
 
@@ -383,17 +394,28 @@ font-bold
 
 </td>
 
-
-
-
-
-
 <td class="p-5">
 
 
 <span class="badge">
 
-{{ucfirst($user->role)}}
+{{ ucfirst($user->role) }}
+
+</span>
+
+
+</td>
+
+
+
+
+
+<td class="p-5">
+
+
+<span class="status">
+
+{{ ucfirst($user->status) }}
 
 </span>
 
@@ -408,64 +430,168 @@ font-bold
 <td class="p-5">
 
 
-<span class="
-status
-">
-
-
-{{ucfirst($user->status)}}
-
-
-</span>
-
-
-</td>
-
-
-
-
-
-<td class="p-5">
-
-
-<select
-class="border rounded-lg px-3 py-2 text-sm"
-x-on:change="
-if($event.target.value)
-confirmAction(
-'{{$user->id}}',
-'{{$user->name}}',
-$event.target.value
-)
-"
+<div
+x-data="{
+    userMenu:false
+}"
+class="relative"
 >
 
 
-<option>
-Manage
-</option>
+<button
+
+@click="userMenu=!userMenu"
+
+class="
+w-9
+h-9
+rounded-lg
+hover:bg-gray-100
+text-xl
+font-bold
+"
+>
+
+⋮
+
+</button>
 
 
-<option value="active">
+
+<div
+x-show="userMenu"
+@click.outside="userMenu=false"
+x-transition
+class="
+absolute
+right-0
+mt-2
+w-48
+bg-white
+border
+rounded-xl
+shadow-lg
+z-30
+overflow-hidden
+">
+
+
+<a
+@click="userMenu=false"
+href="{{ route('superadmin.users.show',$user) }}"
+class="
+block
+px-4
+py-3
+text-sm
+hover:bg-[#F4F7F5]
+">
+
+View Profile
+
+</a>
+
+
+
+
+
+<button
+
+@click="
+openConfirm(
+'{{ $user->id }}',
+'{{ $user->name }}',
+'active',
+'{{ route('superadmin.users.status',$user) }}'
+)
+"
+
+class="
+block
+w-full
+text-left
+px-4
+py-3
+text-sm
+text-green-700
+hover:bg-green-50
+">
+
 Activate
-</option>
+
+</button>
 
 
-<option value="suspended">
+
+
+
+
+<button
+
+@click="
+openConfirm(
+'{{ $user->id }}',
+'{{ $user->name }}',
+'suspended',
+'{{ route('superadmin.users.status',$user) }}'
+)
+"
+
+class="
+block
+w-full
+text-left
+px-4
+py-3
+text-sm
+text-red-600
+hover:bg-red-50
+">
+
 Suspend
-</option>
+
+</button>
 
 
-<option value="inactive">
+
+
+
+
+<button
+
+@click="
+openConfirm(
+'{{ $user->id }}',
+'{{ $user->name }}',
+'inactive',
+'{{ route('superadmin.users.status',$user) }}'
+)
+"
+
+class="
+block
+w-full
+text-left
+px-4
+py-3
+text-sm
+hover:bg-gray-50
+">
+
 Deactivate
-</option>
+
+</button>
 
 
-</select>
 
+</div>
+
+
+</div>
 
 
 </td>
+
 
 
 </tr>
@@ -480,7 +606,6 @@ Deactivate
 </table>
 
 
-
 </div>
 
 
@@ -491,7 +616,7 @@ Deactivate
 
 
 
-<!-- MOBILE CARDS -->
+<!-- MOBILE -->
 
 
 <div class="
@@ -503,99 +628,67 @@ space-y-4
 @foreach($users as $user)
 
 
-<div
-class="
+<div class="
 bg-white
-rounded-2xl
 border
+rounded-2xl
 p-5
 ">
 
 
-<div class="flex justify-between">
-
-
-<div>
-
-
 <h3 class="font-bold">
 
-{{$user->name}}
+{{ $user->name }}
 
 </h3>
 
 
 <p class="text-sm text-gray-500">
 
-{{$user->email}}
+{{ $user->email }}
 
 </p>
 
 
-</div>
 
 
-<span class="badge">
-
-{{$user->role}}
-
-</span>
-
-
-</div>
-
-
-
-<div class="mt-4 flex justify-between">
+<div class="
+mt-4
+flex
+justify-between
+items-center
+">
 
 
 <span class="status">
 
-{{$user->status}}
+{{ ucfirst($user->status) }}
 
 </span>
 
 
 
 
-<form
-method="POST"
-action="{{route('superadmin.users.status',$user)}}">
+<button
 
+@click="
+openConfirm(
+'{{ $user->id }}',
+'{{ $user->name }}',
+'suspended',
+'{{ route('superadmin.users.status',$user) }}'
+)
+"
 
-@csrf
+class="
+text-red-600
+text-sm
+font-medium
+">
 
-
-<select
-name="status"
-onchange="this.form.submit()"
-class="border rounded-lg px-3 py-2">
-
-
-<option>
-Manage
-</option>
-
-
-<option value="active">
-Activate
-</option>
-
-
-<option value="suspended">
 Suspend
-</option>
 
-
-<option value="inactive">
-Deactivate
-</option>
-
-
-</select>
-
-
-</form>
+</button>
 
 
 </div>
@@ -616,12 +709,12 @@ Deactivate
 
 
 
-
 <!-- PAGINATION -->
+
 
 <div class="mt-6">
 
-{{$users->links()}}
+{{ $users->links() }}
 
 </div>
 
@@ -633,33 +726,48 @@ Deactivate
 
 
 
-<!-- MODAL -->
+<!-- CONFIRM MODAL -->
 
 
 <div
-x-show="open"
+
+x-cloak
+
+x-show="showModal"
+
+x-transition.opacity
+
 class="
 fixed
 inset-0
 bg-black/40
+z-50
 flex
 items-center
 justify-center
-z-50
-">
+px-4
+"
+>
+
 
 
 <div
+
 class="
 bg-white
-rounded-2xl
-p-6
-w-full
+rounded-3xl
+p-8
 max-w-md
+w-full
+shadow-xl
 ">
 
 
-<h2 class="text-xl font-bold">
+<h2 class="
+text-xl
+font-bold
+text-[#173F35]
+">
 
 Confirm Action
 
@@ -667,16 +775,26 @@ Confirm Action
 
 
 
-<p class="text-gray-500 mt-3">
 
 
-Change status of
+<p class="
+text-gray-500
+mt-3
+">
+
+Are you sure you want to change
+
 
 <strong x-text="selectedUserName"></strong>
 
 
-?
+status to
 
+
+<strong x-text="selectedStatus"></strong>
+
+
+?
 
 </p>
 
@@ -685,30 +803,53 @@ Change status of
 
 
 <form
+
 method="POST"
-x-bind:action="'/superadmin/users/'+selectedUserId+'/status'"
-class="mt-5">
+
+x-bind:action="selectedUrl"
+
+class="mt-6"
+
+>
 
 
 @csrf
 
 
 <input
+
 type="hidden"
+
 name="status"
+
 x-bind:value="selectedStatus"
+
 >
 
 
 
 
-<div class="flex justify-end gap-3">
+
+
+<div class="
+flex
+justify-end
+gap-3
+">
 
 
 <button
+
 type="button"
-@click="open=false"
-class="px-4 py-2">
+
+@click="showModal=false"
+
+class="
+px-5
+py-2
+rounded-xl
+border
+">
 
 Cancel
 
@@ -716,13 +857,16 @@ Cancel
 
 
 
+
+
 <button
+
 class="
-bg-[#1F6F5B]
-text-white
 px-5
 py-2
 rounded-xl
+bg-[#1F6F5B]
+text-white
 ">
 
 Confirm
@@ -730,7 +874,9 @@ Confirm
 </button>
 
 
+
 </div>
+
 
 
 </form>
@@ -742,8 +888,6 @@ Confirm
 </div>
 
 
-
-</div>
 
 
 
@@ -757,27 +901,42 @@ Confirm
 .user-stat{
 
 background:white;
+
 border:1px solid #E3EAE6;
+
 border-radius:22px;
+
 padding:24px;
 
+box-shadow:
+0 10px 30px rgba(23,63,53,.055);
+
 }
+
 
 
 .user-stat p{
 
 color:#66736D;
 
+font-size:14px;
+
 }
+
 
 
 .user-stat h2{
 
 font-size:36px;
+
 font-weight:800;
+
 color:#173F35;
 
+margin-top:8px;
+
 }
+
 
 
 
@@ -785,38 +944,63 @@ color:#173F35;
 .head{
 
 padding:18px;
+
 text-align:left;
+
 font-size:12px;
-color:#66736D;
+
 text-transform:uppercase;
 
+letter-spacing:.05em;
+
+color:#66736D;
+
 }
+
+
 
 
 
 .badge{
 
 background:#DDF3EC;
+
 color:#1F6F5B;
+
 padding:6px 12px;
+
 border-radius:999px;
+
 font-size:12px;
 
+font-weight:500;
+
 }
+
+
 
 
 
 .status{
 
 background:#F1F5F9;
+
 padding:6px 12px;
+
 border-radius:999px;
+
 font-size:12px;
 
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
+
 
 </style>
+
 
 
 
