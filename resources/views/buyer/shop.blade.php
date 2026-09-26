@@ -254,6 +254,41 @@
     action="{{ route('buyer.shop') }}"
     class="px-5 py-5 border-b border-gray-100"
 >
+@if(request('category'))
+    <input
+        type="hidden"
+        name="category"
+        value="{{ request('category') }}"
+    >
+@endif
+
+
+@if(request('search'))
+    <input
+        type="hidden"
+        name="search"
+        value="{{ request('search') }}"
+    >
+@endif
+
+
+@if(request('rating'))
+    <input
+        type="hidden"
+        name="rating"
+        value="{{ request('rating') }}"
+    >
+@endif
+
+
+@if(request('sort'))
+    <input
+        type="hidden"
+        name="sort"
+        value="{{ request('sort') }}"
+    >
+@endif
+
 
     <h3 class="text-sm font-semibold text-gray-900 mb-4">
         Price Range
@@ -309,6 +344,49 @@
     method="GET"
     action="{{ route('buyer.shop') }}"
 >
+@if(request('category'))
+    <input
+        type="hidden"
+        name="category"
+        value="{{ request('category') }}"
+    >
+@endif
+
+
+@if(request('search'))
+    <input
+        type="hidden"
+        name="search"
+        value="{{ request('search') }}"
+    >
+@endif
+
+
+@if(request('min_price'))
+    <input
+        type="hidden"
+        name="min_price"
+        value="{{ request('min_price') }}"
+    >
+@endif
+
+
+@if(request('max_price'))
+    <input
+        type="hidden"
+        name="max_price"
+        value="{{ request('max_price') }}"
+    >
+@endif
+
+
+@if(request('sort'))
+    <input
+        type="hidden"
+        name="sort"
+        value="{{ request('sort') }}"
+    >
+@endif
 
 <div class="space-y-3">
 
