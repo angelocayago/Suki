@@ -21,273 +21,305 @@
 </head>
 
 
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-[#f8fafc] text-slate-800">
 
 
-<div class="flex min-h-screen">
+<div
+x-data="{
+    time:'',
+    date:'',
+    greeting:'',
 
+    updateClock(){
 
+        let now = new Date();
 
-    <!-- SIDEBAR -->
 
-    <aside
-        class="
-        w-72
-        bg-white
-        border-r
-        hidden
-        lg:flex
-        flex-col
-        fixed
-        inset-y-0
-        ">
+        this.date =
+        now.toLocaleDateString(
+            'en-US',
+            {
+                weekday:'short',
+                month:'short',
+                day:'numeric',
+                year:'numeric'
+            }
+        );
 
 
-        <!-- BRAND -->
+        this.time =
+        now.toLocaleTimeString(
+            'en-US',
+            {
+                hour:'2-digit',
+                minute:'2-digit',
+                second:'2-digit'
+            }
+        );
 
-        <div class="px-6 py-6 border-b">
 
+        let hour = now.getHours();
 
-            <img
-                src="{{ asset('images/suki-logo.png') }}"
-                class="h-14 object-contain"
-                alt="SUKI Logo"
-            >
 
+        if(hour < 12){
 
-            <div class="mt-4">
+            this.greeting='Good morning';
 
+        }
+        else if(hour < 18){
 
-                <h2 class="text-lg font-bold text-slate-800">
+            this.greeting='Good afternoon';
 
-                    Super Admin Portal
+        }
+        else{
 
-                </h2>
+            this.greeting='Good evening';
 
+        }
 
-                <p class="text-sm text-slate-500">
 
-                    SUKI Platform Control
+    },
 
-                </p>
 
+    init(){
 
-            </div>
+        this.updateClock();
 
+        setInterval(()=>{
 
-        </div>
+            this.updateClock();
 
+        },1000)
 
+    }
 
+}"
+class="min-h-screen flex">
 
 
-        <!-- NAVIGATION -->
 
-        <nav class="flex-1 px-4 py-6 space-y-2">
 
 
+<!-- SIDEBAR -->
 
-            <a href="{{ route('superadmin.dashboard') }}"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
 
+<aside
+class="
+fixed
+left-0
+top-0
+bottom-0
+w-[260px]
+bg-[#064e3b]
+text-white
+flex
+flex-col
+">
 
-                <svg class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
 
-                    <path stroke-width="2"
-                    d="M3 12l9-9 9 9v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
 
-                </svg>
 
 
-                Dashboard
+<!-- BRAND -->
 
 
-            </a>
+<div
+class="
+px-6
+py-5
+border-b
+border-white/10
+">
 
 
+<div
+class="
+flex
+items-center
+gap-3
+">
 
 
+<img
+src="{{asset('images/suki-logo.png')}}"
+class="
+w-12
+h-12
+object-contain
+bg-white
+rounded-xl
+p-1
+">
 
 
-            <a href="{{ route('superadmin.users') }}"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
+<div>
 
 
-                <svg class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
+<h1 class="
+font-bold
+text-base
+">
 
+Super Admin Portal
 
-                    <path stroke-width="2"
-                    d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"/>
+</h1>
 
 
-                </svg>
+<p class="
+text-xs
+text-green-200
+">
 
+Platform Control Center
 
-                Users
+</p>
 
 
-            </a>
+</div>
 
 
+</div>
 
 
+</div>
 
 
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
 
 
-                📝
 
-                Applications
 
+<!-- MENU -->
 
-            </a>
 
+<nav
+class="
+flex-1
+px-4
+py-5
+space-y-2
+">
 
 
+<a
+href="{{route('superadmin.dashboard')}}"
+class="
+flex
+items-center
+gap-3
+px-4
+py-3
+rounded-xl
+bg-[#10b981]
+text-white
+font-medium
+text-sm
+">
 
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
+<!-- dashboard icon -->
 
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
-                🏪
+<path
+stroke-width="2"
+d="M3 12l9-9 9 9v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
 
-                Seller Management
+</svg>
 
 
-            </a>
+Dashboard
 
 
+</a>
 
 
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
 
 
-                📦
 
-                Orders
 
+<a
+href="{{route('superadmin.users')}}"
+class="
+menu-link
+">
 
-            </a>
 
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
+<path
+stroke-width="2"
+d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"/>
 
+</svg>
 
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
+Users
 
 
-                💰
+</a>
 
-                Commission
 
 
-            </a>
 
 
 
 
+<a class="menu-link">
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
+<path
+stroke-width="2"
+d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
 
-                📊
+</svg>
 
-                Reports
 
+Applications
 
-            </a>
 
+</a>
 
 
 
 
 
-            <a href="#"
-            class="
-            flex items-center gap-3
-            px-4 py-3
-            rounded-xl
-            text-sm font-medium
-            hover:bg-green-50
-            hover:text-green-700
-            transition">
 
 
-                ⚙
+<a class="menu-link">
 
-                Settings
 
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
-            </a>
+<path
+stroke-width="2"
+d="M3 7h18M5 7l1 13h12l1-13M9 7V4h6v3"/>
 
+</svg>
 
 
+Seller Management
 
-        </nav>
 
+</a>
 
 
 
@@ -295,212 +327,359 @@
 
 
 
-        <!-- USER CARD -->
+<a class="menu-link">
 
 
-        <div class="p-5 border-t">
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
+<path
+stroke-width="2"
+d="M3 3h18v18H3z"/>
 
-            <div class="flex items-center gap-3">
+</svg>
 
 
-                <div
-                class="
-                w-12
-                h-12
-                rounded-full
-                bg-green-600
-                text-white
-                flex
-                items-center
-                justify-center
-                font-bold">
+Orders
 
 
-                    {{ strtoupper(substr(auth()->user()->name,0,1)) }}
+</a>
 
 
-                </div>
 
 
 
 
-                <div>
+<a class="menu-link">
 
 
-                    <p class="font-semibold text-sm">
+₱
 
-                        {{ auth()->user()->name }}
+Commission
 
-                    </p>
 
+</a>
 
-                    <p class="text-xs text-slate-500">
 
-                        Super Administrator
 
-                    </p>
 
 
-                </div>
 
+<a class="menu-link">
 
-            </div>
 
+<svg
+class="w-5 h-5"
+fill="none"
+stroke="currentColor"
+viewBox="0 0 24 24">
 
-        </div>
+<path
+stroke-width="2"
+d="M3 3v18h18"/>
 
+</svg>
 
 
-    </aside>
+Reports
 
 
+</a>
 
 
 
 
 
 
-    <!-- MAIN AREA -->
+<a class="menu-link">
 
 
-    <div class="flex-1 lg:ml-72">
+⚙
 
+Settings
 
 
+</a>
 
 
-        <!-- TOPBAR -->
 
 
-        <header
-        class="
-        h-20
-        bg-white
-        border-b
-        px-8
-        flex
-        items-center
-        justify-between">
+</nav>
 
 
-            <div>
 
 
-                <h1 class="text-2xl font-bold">
 
-                    @yield('title')
 
-                </h1>
 
+<!-- PROFILE -->
 
-                <p class="text-sm text-slate-500">
 
-                    Manage SUKI operations and platform data
+<div
+class="
+border-t
+border-white/10
+p-5
+">
 
-                </p>
 
+<div
+class="
+flex
+items-center
+gap-3
+">
 
-            </div>
 
+<div
+class="
+w-11
+h-11
+rounded-full
+bg-green-400
+text-green-900
+flex
+items-center
+justify-center
+font-bold
+">
 
 
+{{strtoupper(substr(auth()->user()->name,0,1))}}
 
 
+</div>
 
-            <div class="flex items-center gap-4">
 
 
+<div>
 
-                <button
-                class="
-                w-10
-                h-10
-                rounded-xl
-                hover:bg-slate-100">
+<p class="
+font-semibold
+text-sm
+">
 
-                    🔔
+{{auth()->user()->name}}
 
-                </button>
+</p>
 
 
+<p class="
+text-xs
+text-green-200
+">
 
+Super Administrator
 
-                <div
-                class="
-                w-11
-                h-11
-                rounded-full
-                bg-green-600
-                text-white
-                flex
-                items-center
-                justify-center
-                font-bold">
+</p>
 
 
-                    {{ strtoupper(substr(auth()->user()->name,0,1)) }}
+</div>
 
 
-                </div>
-
-
-
-            </div>
-
-
-
-        </header>
-
-
-
-
-
-
-
-        <!-- CONTENT -->
-
-
-        <main class="p-8">
-
-
-            @if(session('success'))
-
-                <div class="
-                mb-6
-                bg-green-100
-                text-green-700
-                px-5
-                py-4
-                rounded-xl">
-
-
-                    {{ session('success') }}
-
-
-                </div>
-
-            @endif
-
-
-
-
-            @yield('content')
-
-
-
-        </main>
-
-
-
-    </div>
+</div>
 
 
 
 </div>
 
 
+
+</aside>
+
+
+
+
+
+
+
+
+
+<!-- MAIN -->
+
+
+
+<div
+class="
+ml-[260px]
+flex-1
+">
+
+
+
+
+
+<!-- TOPBAR -->
+
+
+<header
+class="
+h-20
+bg-white
+border-b
+flex
+items-center
+justify-between
+px-8
+">
+
+
+<div
+class="
+bg-gray-100
+rounded-xl
+px-5
+py-3
+w-[320px]
+text-sm
+text-gray-400
+">
+
+⌕ Search users, orders, sellers...
+
+</div>
+
+
+
+
+
+<div
+class="
+flex
+items-center
+gap-6
+">
+
+
+<div
+class="
+text-right
+">
+
+
+<p
+class="
+font-semibold
+text-sm
+"
+x-text="date">
+</p>
+
+
+<p
+class="
+text-xs
+text-gray-500
+"
+x-text="time">
+</p>
+
+
+</div>
+
+
+
+
+
+<button
+class="
+w-10
+h-10
+rounded-xl
+hover:bg-gray-100
+">
+
+🔔
+
+</button>
+
+
+
+
+
+<div
+class="
+w-11
+h-11
+rounded-full
+bg-green-600
+text-white
+flex
+items-center
+justify-center
+font-bold
+">
+
+S
+
+</div>
+
+
+
+
+</div>
+
+
+</header>
+
+
+
+
+
+
+
+<main
+class="p-8"
+>
+
+
+@yield('content')
+
+
+</main>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+<style>
+
+.menu-link{
+
+display:flex;
+align-items:center;
+gap:12px;
+padding:12px 16px;
+border-radius:14px;
+font-size:14px;
+color:#d1fae5;
+transition:.2s;
+
+}
+
+
+.menu-link:hover{
+
+background:#047857;
+color:white;
+
+}
+
+
+</style>
+
+
+
+
 </body>
-
-
 </html>
