@@ -313,14 +313,124 @@ Route::get('/home', function () {
 // BUYER SHOP
 // =====================================================
 
-Route::get('/shop', function () use ($products) {
+Route::get('/shop', function (Request $request) use ($products) {
+
+    $filteredProducts = collect($products);
+
+
+    // SEARCH
+    if ($request->filled('search')) {
+
+        $search = strtolower($request->search);
+
+        $filteredProducts = $filteredProducts->filter(function ($product) use ($search) {
+
+            return str_contains(
+                strtolower($product['name']),
+                $search
+            )
+            ||
+            str_contains(
+                strtolower($product['category']),
+                $search
+            )
+            ||
+            str_contains(
+                strtolower($product['seller']),
+                $search
+            );
+
+        });
+
+    }
+
+
+    // CATEGORY
+    if ($request->filled('category')) {
+
+        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
+
+            return $product['category'] === $request->category;
+
+        });
+
+    }
+
+
+    // PRICE RANGE
+    if ($request->filled('min_price')) {
+
+        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
+
+            return (int) $product['price'] >= (int) $request->min_price;
+
+        });
+
+    }
+
+
+    if ($request->filled('max_price')) {
+
+        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
+
+            return (int) $product['price'] <= (int) $request->max_price;
+
+        });
+
+    }
+
+
+    // RATING
+    if ($request->filled('rating')) {
+
+        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
+
+            return (float) $product['rating'] >= (float) $request->rating;
+
+        });
+
+    }
+
+
+    // SORT
+    if ($request->sort === 'price_low') {
+
+        $filteredProducts = $filteredProducts->sortBy(function ($product) {
+
+            return (int) $product['price'];
+
+        });
+
+    }
+
+
+    if ($request->sort === 'price_high') {
+
+        $filteredProducts = $filteredProducts->sortByDesc(function ($product) {
+
+            return (int) $product['price'];
+
+        });
+
+    }
+
+
+    if ($request->sort === 'best_selling') {
+
+        $filteredProducts = $filteredProducts->sortByDesc(function ($product) {
+
+            return $product['sold'];
+
+        });
+
+    }
+
 
     return view('buyer.shop', [
-        'products' => $products,
+        'products' => $filteredProducts->values()->toArray(),
     ]);
 
 })->name('buyer.shop');
-
 
 // =====================================================
 // PRODUCT DETAILS
