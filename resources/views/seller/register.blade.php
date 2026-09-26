@@ -733,21 +733,30 @@
 
 
                 <span class="text-sm font-medium text-gray-700">
-                    Upload your valid ID
-                </span>
+    Upload your valid ID
+</span>
 
 
-                <span class="text-xs text-gray-400 mt-1">
-                    JPG, JPEG, PNG or PDF
-                </span>
+<span class="text-xs text-gray-400 mt-1">
+    JPG, JPEG, PNG or PDF
+</span>
+
+
+<span
+    id="validIdName"
+    class="mt-2 text-xs font-semibold text-[#1F6F5B]"
+>
+</span>
 
 
                 <input
-                    type="file"
-                    name="valid_id"
-                    required
-                    class="hidden"
-                >
+    type="file"
+    id="valid_id"
+    name="valid_id"
+    required
+    class="hidden"
+    onchange="showFileName(this, 'validIdName')"
+>
 
 
             </label>
@@ -778,21 +787,30 @@
 
 
                 <span class="text-sm font-medium text-gray-700">
-                    Upload business permit
-                </span>
+    Upload business permit
+</span>
 
 
-                <span class="text-xs text-gray-400 mt-1">
-                    JPG, JPEG, PNG or PDF
-                </span>
+<span class="text-xs text-gray-400 mt-1">
+    JPG, JPEG, PNG or PDF
+</span>
 
 
-                <input
-                    type="file"
-                    name="business_permit"
-                    required
-                    class="hidden"
-                >
+<span
+    id="permitName"
+    class="mt-2 text-xs font-semibold text-[#1F6F5B]"
+>
+</span>
+
+
+<input
+    type="file"
+    id="business_permit"
+    name="business_permit"
+    required
+    class="hidden"
+    onchange="showFileName(this, 'permitName')"
+>
 
 
             </label>
@@ -991,6 +1009,23 @@ if (birthdayInput && ageInput) {
         ageInput.value = age;
 
     });
+
+}
+
+function showFileName(input, targetId) {
+
+    const target = document.getElementById(targetId);
+
+    if (!target) {
+        return;
+    }
+
+
+    if (input.files.length > 0) {
+
+        target.textContent = input.files[0].name;
+
+    }
 
 }
 

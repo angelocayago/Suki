@@ -2782,11 +2782,15 @@ $permitPath = $request
 
 
     session()->put('seller_profile', [
-    'shop_name' => $request->shop_name,
-    'seller_name' => $request->seller_name,
-    'phone' => $request->phone,
-    'email' => $request->email,
-    'address' => $request->address,
+    'shop_name' => $request->business_name,
+
+'seller_name' => $request->first_name . ' ' . $request->last_name,
+
+'phone' => $request->phone,
+
+'email' => $request->email,
+
+'address' => $request->address,
 
     'valid_id' => $validIdPath,
     'business_permit' => $permitPath,
