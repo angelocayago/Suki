@@ -17,81 +17,61 @@
         'resources/js/app.js'
     ])
 
-
 </head>
 
 
-<body class="bg-[#f8fafc] text-slate-800">
+<body class="suki-dashboard-shell">
 
 
 <div
 x-data="{
-    time:'',
-    date:'',
-    greeting:'',
 
-    updateClock(){
+date:'',
+time:'',
 
-        let now = new Date();
+init(){
 
+this.updateClock();
 
-        this.date =
-        now.toLocaleDateString(
-            'en-US',
-            {
-                weekday:'short',
-                month:'short',
-                day:'numeric',
-                year:'numeric'
-            }
-        );
+setInterval(()=>{
+
+this.updateClock();
+
+},1000);
+
+},
 
 
-        this.time =
-        now.toLocaleTimeString(
-            'en-US',
-            {
-                hour:'2-digit',
-                minute:'2-digit',
-                second:'2-digit'
-            }
-        );
+updateClock(){
+
+let now = new Date();
 
 
-        let hour = now.getHours();
+this.date =
+now.toLocaleDateString(
+'en-US',
+{
+weekday:'short',
+month:'short',
+day:'numeric',
+year:'numeric'
+}
+);
 
 
-        if(hour < 12){
 
-            this.greeting='Good morning';
-
-        }
-        else if(hour < 18){
-
-            this.greeting='Good afternoon';
-
-        }
-        else{
-
-            this.greeting='Good evening';
-
-        }
+this.time =
+now.toLocaleTimeString(
+'en-US',
+{
+hour:'2-digit',
+minute:'2-digit',
+second:'2-digit'
+}
+);
 
 
-    },
-
-
-    init(){
-
-        this.updateClock();
-
-        setInterval(()=>{
-
-            this.updateClock();
-
-        },1000)
-
-    }
+}
 
 }"
 class="min-h-screen flex">
@@ -100,8 +80,8 @@ class="min-h-screen flex">
 
 
 
-<!-- SIDEBAR -->
 
+<!-- SIDEBAR -->
 
 <aside
 class="
@@ -109,7 +89,7 @@ fixed
 left-0
 top-0
 bottom-0
-w-[260px]
+w-[245px]
 bg-[#064e3b]
 text-white
 flex
@@ -120,44 +100,21 @@ flex-col
 
 
 
-<!-- BRAND -->
-
+<!-- HEADER -->
 
 <div
 class="
 px-6
-py-5
+py-7
 border-b
 border-white/10
 ">
 
 
-<div
+<h1
 class="
-flex
-items-center
-gap-3
-">
-
-
-<img
-src="{{asset('images/suki-logo.png')}}"
-class="
-w-12
-h-12
-object-contain
-bg-white
-rounded-xl
-p-1
-">
-
-
-<div>
-
-
-<h1 class="
 font-bold
-text-base
+text-lg
 ">
 
 Super Admin Portal
@@ -165,9 +122,11 @@ Super Admin Portal
 </h1>
 
 
-<p class="
+<p
+class="
 text-xs
 text-green-200
+mt-1
 ">
 
 Platform Control Center
@@ -178,25 +137,20 @@ Platform Control Center
 </div>
 
 
-</div>
-
-
-</div>
 
 
 
 
 
 
-
-<!-- MENU -->
+<!-- NAVIGATION -->
 
 
 <nav
 class="
 flex-1
 px-4
-py-5
+py-6
 space-y-2
 ">
 
@@ -204,41 +158,18 @@ space-y-2
 <a
 href="{{route('superadmin.dashboard')}}"
 class="
-flex
-items-center
-gap-3
+block
 px-4
 py-3
 rounded-xl
 bg-[#10b981]
-text-white
 font-medium
 text-sm
 ">
 
-
-<!-- dashboard icon -->
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M3 12l9-9 9 9v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-
-</svg>
-
-
 Dashboard
 
-
 </a>
-
-
-
 
 
 
@@ -246,164 +177,139 @@ Dashboard
 <a
 href="{{route('superadmin.users')}}"
 class="
-menu-link
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
 ">
-
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"/>
-
-</svg>
-
 
 Users
 
-
 </a>
 
 
 
 
-
-
-
-<a class="menu-link">
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
-
-</svg>
-
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Applications
 
-
 </a>
 
 
 
 
-
-
-
-<a class="menu-link">
-
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M3 7h18M5 7l1 13h12l1-13M9 7V4h6v3"/>
-
-</svg>
-
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Seller Management
 
-
 </a>
 
 
 
 
-
-
-
-<a class="menu-link">
-
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M3 3h18v18H3z"/>
-
-</svg>
-
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Orders
 
-
 </a>
 
 
 
 
-
-
-<a class="menu-link">
-
-
-₱
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Commission
 
-
 </a>
 
 
 
 
-
-
-<a class="menu-link">
-
-
-<svg
-class="w-5 h-5"
-fill="none"
-stroke="currentColor"
-viewBox="0 0 24 24">
-
-<path
-stroke-width="2"
-d="M3 3v18h18"/>
-
-</svg>
-
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Reports
 
-
 </a>
 
 
 
 
-
-
-<a class="menu-link">
-
-
-⚙
+<a
+href="#"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-green-100
+hover:bg-[#047857]
+transition
+text-sm
+">
 
 Settings
 
-
 </a>
-
 
 
 
@@ -447,17 +353,18 @@ justify-center
 font-bold
 ">
 
-
 {{strtoupper(substr(auth()->user()->name,0,1))}}
-
 
 </div>
 
 
 
+
 <div>
 
-<p class="
+
+<p
+class="
 font-semibold
 text-sm
 ">
@@ -467,7 +374,8 @@ text-sm
 </p>
 
 
-<p class="
+<p
+class="
 text-xs
 text-green-200
 ">
@@ -484,7 +392,31 @@ Super Administrator
 
 
 
+
+
+<form method="POST" action="{{route('logout')}}" class="mt-5">
+
+@csrf
+
+
+<button
+class="
+text-sm
+text-green-100
+hover:text-white
+">
+
+Sign Out
+
+</button>
+
+
+</form>
+
+
+
 </div>
+
 
 
 
@@ -500,11 +432,9 @@ Super Administrator
 
 <!-- MAIN -->
 
-
-
 <div
 class="
-ml-[260px]
+ml-[245px]
 flex-1
 ">
 
@@ -512,7 +442,8 @@ flex-1
 
 
 
-<!-- TOPBAR -->
+
+<!-- TOP BAR -->
 
 
 <header
@@ -527,24 +458,34 @@ px-8
 ">
 
 
+
+
+
+<!-- SEARCH -->
+
+
 <div
 class="
 bg-gray-100
 rounded-xl
 px-5
 py-3
-w-[320px]
+w-[330px]
 text-sm
 text-gray-400
 ">
 
-⌕ Search users, orders, sellers...
+Search users, orders, sellers...
 
 </div>
 
 
 
 
+
+
+
+<!-- RIGHT -->
 
 <div
 class="
@@ -600,6 +541,7 @@ hover:bg-gray-100
 
 
 
+
 <div
 class="
 w-11
@@ -613,7 +555,7 @@ justify-center
 font-bold
 ">
 
-S
+{{strtoupper(substr(auth()->user()->name,0,1))}}
 
 </div>
 
@@ -631,9 +573,8 @@ S
 
 
 
-<main
-class="p-8"
->
+
+<main class="p-8">
 
 
 @yield('content')
@@ -644,42 +585,15 @@ class="p-8"
 
 
 
+
 </div>
 
 
 
-
-
-
-
-<style>
-
-.menu-link{
-
-display:flex;
-align-items:center;
-gap:12px;
-padding:12px 16px;
-border-radius:14px;
-font-size:14px;
-color:#d1fae5;
-transition:.2s;
-
-}
-
-
-.menu-link:hover{
-
-background:#047857;
-color:white;
-
-}
-
-
-</style>
-
+</div>
 
 
 
 </body>
+
 </html>

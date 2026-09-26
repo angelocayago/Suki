@@ -2,9 +2,7 @@
 
 
 @section('title')
-
 Dashboard
-
 @endsection
 
 
@@ -17,18 +15,14 @@ Dashboard
 $hour = now()->hour;
 
 
-$greeting = match(true){
-
-    $hour < 12 =>
-        'Good morning',
-
-    $hour < 18 =>
-        'Good afternoon',
-
-    default =>
-        'Good evening'
-
-};
+$greeting =
+    $hour < 12
+        ? 'Good morning'
+        : (
+            $hour < 18
+                ? 'Good afternoon'
+                : 'Good evening'
+        );
 
 
 @endphp
@@ -48,7 +42,10 @@ $greeting = match(true){
 
 <h1 class="text-3xl font-bold text-slate-800">
 
-{{ $greeting }}, {{ auth()->user()->name }} 👋
+{{ $greeting }},
+{{ auth()->user()->name }}
+
+!
 
 </h1>
 
@@ -66,19 +63,17 @@ Here's what's happening with your platform today.
 
 
 
-<!-- DATE -->
-
 <div class="
 bg-white
-rounded-xl
 border
+rounded-xl
 px-5
 py-3
 shadow-sm
 ">
 
 
-<p class="font-semibold text-sm">
+<p class="text-sm font-semibold">
 
 {{ now()->format('M d, Y') }}
 
@@ -88,13 +83,13 @@ shadow-sm
 <p class="text-xs text-gray-500">
 
 {{ now()->format('l') }}
+
 </p>
 
 
 </div>
 
 
-
 </div>
 
 
@@ -104,26 +99,40 @@ shadow-sm
 
 
 
-<!-- KPI CARDS -->
+
+<!-- KPI -->
+
+<div class="
+grid
+grid-cols-1
+md:grid-cols-2
+xl:grid-cols-4
+gap-5
+mb-8
+">
 
 
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
 
 
 
+<div class="stat-card">
 
+<p>
+Total Users
+</p>
 
-<div class="dashboard-card">
-
-<p>Total Users</p>
 
 <h2>
+
 {{ $stats['users'] }}
+
 </h2>
 
+
 <span>
-↑ +0% vs last month
+Platform users
 </span>
+
 
 </div>
 
@@ -131,17 +140,24 @@ shadow-sm
 
 
 
-<div class="dashboard-card">
+<div class="stat-card">
 
-<p>Buyers</p>
+<p>
+Buyers
+</p>
+
 
 <h2>
+
 {{ $stats['buyers'] }}
+
 </h2>
 
+
 <span>
-↑ +0% vs last month
+Registered buyers
 </span>
+
 
 </div>
 
@@ -149,17 +165,24 @@ shadow-sm
 
 
 
-<div class="dashboard-card">
+<div class="stat-card">
 
-<p>Sellers</p>
+<p>
+Sellers
+</p>
+
 
 <h2>
+
 {{ $stats['sellers'] }}
+
 </h2>
 
+
 <span>
-↑ +0% vs last month
+Active sellers
 </span>
+
 
 </div>
 
@@ -167,22 +190,24 @@ shadow-sm
 
 
 
-<div class="dashboard-card">
+<div class="stat-card">
 
-<p>Orders</p>
+<p>
+Orders
+</p>
+
 
 <h2>
+
 {{ $stats['orders'] }}
+
 </h2>
 
+
 <span>
-↑ +0% vs last month
+Total transactions
 </span>
 
-</div>
-
-
-
 
 </div>
 
@@ -190,20 +215,33 @@ shadow-sm
 
 
 
+</div>
 
 
 
 
-<!-- CHART AREA -->
 
 
-<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+
+
+
+<!-- ANALYTICS -->
+
+
+<div class="
+grid
+grid-cols-1
+xl:grid-cols-2
+gap-6
+mb-8
+">
 
 
 
 
 
 <!-- USER GROWTH -->
+
 
 <div class="panel">
 
@@ -212,6 +250,7 @@ shadow-sm
 
 
 <div>
+
 
 <h3>
 
@@ -222,7 +261,7 @@ User Growth
 
 <p>
 
-Total platform users over time
+Total registered users
 
 </p>
 
@@ -231,9 +270,9 @@ Total platform users over time
 
 
 
-<button class="filter-btn">
+<button class="date-btn">
 
-Last 7 Days ▾
+Last 7 Days
 
 </button>
 
@@ -243,53 +282,51 @@ Last 7 Days ▾
 
 
 
-<div class="h-64 flex items-center justify-center">
-
-
-<div class="w-full">
-
 
 <div class="
-h-40
-rounded-xl
-bg-gradient-to-t
-from-green-100
-to-transparent
+h-64
+mt-6
+flex
+items-end
+gap-4
+">
+
+
+@for($i = 1; $i <= 7; $i++)
+
+<div class="
+flex-1
+bg-green-100
+rounded-t-xl
 relative
-">
+"
+style="height:{{20+$i*10}}%">
+</div>
+
+@endfor
+
+
+</div>
+
+
+
 
 
 <div class="
-absolute
-bottom-5
-left-5
-right-5
-border-b-2
-border-green-500
+flex
+justify-between
+text-xs
+text-gray-400
+mt-3
 ">
 
-
-</div>
-
-
-</div>
-
-
-<div class="flex justify-between text-xs text-gray-400 mt-3">
-
-<span>Sep 18</span>
-<span>Sep 19</span>
-<span>Sep 20</span>
-<span>Sep 21</span>
-<span>Sep 22</span>
-<span>Sep 23</span>
-<span>Sep 24</span>
-
-
-</div>
-
-
-</div>
+<span>Mon</span>
+<span>Tue</span>
+<span>Wed</span>
+<span>Thu</span>
+<span>Fri</span>
+<span>Sat</span>
+<span>Sun</span>
 
 
 </div>
@@ -317,6 +354,7 @@ border-green-500
 
 <div>
 
+
 <h3>
 
 Order Overview
@@ -326,7 +364,7 @@ Order Overview
 
 <p>
 
-Total orders and status breakdown
+Current order status
 
 </p>
 
@@ -334,10 +372,9 @@ Total orders and status breakdown
 </div>
 
 
+<button class="date-btn">
 
-<button class="filter-btn">
-
-Last 7 Days ▾
+Today
 
 </button>
 
@@ -349,40 +386,40 @@ Last 7 Days ▾
 
 
 
-<div class="flex items-center justify-center gap-10 mt-8">
-
-
 <div class="
-w-36
-h-36
+flex
+items-center
+justify-center
+gap-10
+mt-10
+">
+
+
+
+<div
+class="
+w-40
+h-40
 rounded-full
-bg-green-500
+border-[18px]
+border-green-500
 flex
 items-center
 justify-center
 ">
 
 
-<div class="
-bg-white
-w-24
-h-24
-rounded-full
-flex
-flex-col
-items-center
-justify-center
-">
+<div class="text-center">
 
 
-<h2 class="text-2xl font-bold">
+<h2 class="text-3xl font-bold">
 
 {{ $stats['orders'] }}
 
 </h2>
 
 
-<p class="text-xs">
+<p class="text-xs text-gray-500">
 
 Orders
 
@@ -398,46 +435,52 @@ Orders
 
 
 
-<div class="space-y-3 text-sm">
+<div class="space-y-4 text-sm">
 
 
 <div>
-🟢 Pending
-<span class="ml-10 font-bold">2</span>
-</div>
+<span class="text-green-600">
+●
+</span>
 
+Pending
 
-<div>
-🟢 Confirmed
-<span class="ml-10 font-bold">0</span>
 </div>
 
 
 <div>
-🟡 Preparing
-<span class="ml-10 font-bold">0</span>
+<span class="text-blue-600">
+●
+</span>
+
+Processing
+
 </div>
 
 
 <div>
-🔵 Delivered
-<span class="ml-10 font-bold">0</span>
-</div>
+<span class="text-gray-400">
+●
+</span>
 
-
-<div>
-🔴 Cancelled
-<span class="ml-10 font-bold">0</span>
-</div>
-
+Completed
 
 </div>
+
 
 
 </div>
 
 
+
 </div>
+
+
+
+</div>
+
+
+
 
 
 
@@ -453,21 +496,22 @@ Orders
 
 <!-- BOTTOM -->
 
-<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+<div class="
+grid
+grid-cols-1
+xl:grid-cols-2
+gap-6
+">
 
 
 
 
-
-<!-- PENDING -->
 
 <div class="panel">
 
 
-<div class="flex justify-between">
+<div class="flex justify-between mb-5">
 
-
-<div>
 
 <h3>
 
@@ -476,17 +520,7 @@ Pending Accounts
 </h3>
 
 
-<p>
-
-Accounts waiting for approval
-
-</p>
-
-
-</div>
-
-
-<button class="filter-btn">
+<button class="date-btn">
 
 View All
 
@@ -497,28 +531,27 @@ View All
 
 
 
-
-
 <div class="
-h-40
-flex
-flex-col
-items-center
-justify-center
-text-gray-500
+text-center
+py-12
+text-gray-400
 ">
 
 
-<h2 class="text-4xl font-bold text-green-600">
+<h2 class="
+text-5xl
+font-bold
+text-green-600
+">
 
 {{ $stats['pending_users'] }}
 
 </h2>
 
 
-<p>
+<p class="mt-2">
 
-No pending accounts
+Pending approvals
 
 </p>
 
@@ -526,6 +559,7 @@ No pending accounts
 </div>
 
 
+
 </div>
 
 
@@ -535,17 +569,8 @@ No pending accounts
 
 
 
-
-<!-- ACTIVITY -->
-
-
 <div class="panel">
 
-
-<div class="flex justify-between">
-
-
-<div>
 
 <h3>
 
@@ -554,38 +579,16 @@ Recent Activity
 </h3>
 
 
-<p>
-
-Latest platform activities
-
-</p>
-
-
-</div>
-
-
-<button class="filter-btn">
-
-View All
-
-</button>
-
-
-</div>
-
-
-
-
 
 <div class="mt-6 space-y-5">
 
 
 <div class="activity">
 
-New order placed
+New buyer registered
 
 <span>
-2 hours ago
+Today
 </span>
 
 </div>
@@ -594,22 +597,23 @@ New order placed
 
 <div class="activity">
 
-New user registered
+Order created
 
 <span>
-4 hours ago
+Today
 </span>
 
 </div>
+
 
 
 
 <div class="activity">
 
-Seller account reviewed
+Seller application submitted
 
 <span>
-5 hours ago
+Yesterday
 </span>
 
 </div>
@@ -625,8 +629,9 @@ Seller account reviewed
 
 
 
-
 </div>
+
+
 
 
 
@@ -637,17 +642,17 @@ Seller account reviewed
 <style>
 
 
-.dashboard-card{
+.stat-card{
 
 background:white;
 border-radius:22px;
-padding:25px;
-box-shadow:0 5px 20px rgba(0,0,0,.04);
+padding:24px;
+box-shadow:0 5px 18px rgba(0,0,0,.04);
 
 }
 
 
-.dashboard-card p{
+.stat-card p{
 
 color:#64748b;
 font-size:14px;
@@ -655,22 +660,21 @@ font-size:14px;
 }
 
 
-.dashboard-card h2{
+.stat-card h2{
 
-font-size:36px;
-font-weight:700;
+font-size:38px;
+font-weight:800;
 margin-top:10px;
 
 }
 
 
-.dashboard-card span{
+.stat-card span{
 
 font-size:13px;
-color:#16a34a;
+color:#94a3b8;
 
 }
-
 
 
 
@@ -679,7 +683,7 @@ color:#16a34a;
 background:white;
 border-radius:24px;
 padding:28px;
-box-shadow:0 5px 20px rgba(0,0,0,.04);
+box-shadow:0 5px 18px rgba(0,0,0,.04);
 
 }
 
@@ -695,16 +699,15 @@ font-weight:700;
 .panel p{
 
 color:#64748b;
-font-size:14px;
 
 }
 
 
 
-.filter-btn{
+.date-btn{
 
 background:#f1f5f9;
-padding:8px 15px;
+padding:8px 16px;
 border-radius:12px;
 font-size:13px;
 
@@ -725,8 +728,8 @@ font-weight:600;
 
 display:block;
 font-size:12px;
-color:#94a3b8;
 font-weight:400;
+color:#94a3b8;
 
 }
 
