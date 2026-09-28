@@ -94,7 +94,7 @@ class SellerManagementController extends Controller
 
             'active' => Seller::where(
                 'status',
-                'active'
+                'approved'
             )->count(),
 
 
