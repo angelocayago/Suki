@@ -16,11 +16,9 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+
     /**
      * Fields that can be mass assigned.
-     *
-     * role + status are kept temporarily for compatibility
-     * with the existing SUKI application.
      */
     protected $fillable = [
         'role',
@@ -38,6 +36,8 @@ class User extends Authenticatable
         'password',
     ];
 
+
+
     /**
      * Fields hidden from serialization.
      */
@@ -45,6 +45,8 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+
 
     /**
      * Automatic data conversion.
@@ -59,6 +61,8 @@ class User extends Authenticatable
         ];
     }
 
+
+
     /**
      * New role architecture.
      */
@@ -67,19 +71,20 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class);
     }
 
+
+
     /**
-     * Check a role while supporting both:
-     * - current legacy users.role
-     * - future roles / role_user tables
+     * Check role support:
+     * legacy users.role
+     * future roles table
      */
     public function hasRole(string $role): bool
     {
-        // Existing production role system.
         if (($this->role ?? null) === $role) {
             return true;
         }
 
-        // New role system may not exist yet in production.
+
         if (
             !Schema::hasTable('roles') ||
             !Schema::hasTable('role_user')
@@ -87,46 +92,54 @@ class User extends Authenticatable
             return false;
         }
 
+
         return $this->roles()
             ->where('roles.name', $role)
             ->exists();
     }
+
+
 
     public function isBuyer(): bool
     {
         return $this->hasRole('buyer');
     }
 
+
     public function isSeller(): bool
     {
         return $this->hasRole('seller');
     }
+
 
     public function isRider(): bool
     {
         return $this->hasRole('rider');
     }
 
+
     public function isLogistics(): bool
     {
         return $this->hasRole('logistics');
     }
+
 
     public function isAdmin(): bool
     {
         return $this->hasRole('admin');
     }
 
+
+
     /**
      * Legacy cart relationship.
-     *
-     * Keep this until routes/views have been migrated
-     * to the new carts table architecture.
      */
     public function cartItems(): HasMany
     {
         return $this->hasMany(CartItem::class);
     }
+
+
 
     /**
      * New cart architecture.
@@ -136,25 +149,35 @@ class User extends Authenticatable
         return $this->hasOne(Cart::class);
     }
 
+
+
     public function wishlistItems(): HasMany
     {
         return $this->hasMany(WishlistItem::class);
     }
+
+
 
     public function sellers(): HasMany
     {
         return $this->hasMany(Seller::class);
     }
 
+
+
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
     }
 
+
+
     public function rider(): HasOne
     {
         return $this->hasOne(Rider::class);
     }
+
+
 
     public function buyerOrders(): HasMany
     {
@@ -163,6 +186,18 @@ class User extends Authenticatable
             'buyer_id'
         );
     }
+
+
+
+    /**
+     * Super Admin Applications
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
+
+
 
     public function getFullNameAttribute(): string
     {

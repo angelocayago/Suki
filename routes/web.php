@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Controllers\SuperAdmin\UserManagementController;
+use App\Http\Controllers\SuperAdmin\ApplicationController;
 
 
 // =====================================================
@@ -5583,7 +5584,11 @@ Route::middleware(['auth','superadmin'])
     ->group(function () {
 
 
-        // Dashboard
+        /*
+        |--------------------------------------------------------------------------
+        | DASHBOARD
+        |--------------------------------------------------------------------------
+        */
 
         Route::get('/dashboard', [
             DashboardController::class,
@@ -5592,7 +5597,12 @@ Route::middleware(['auth','superadmin'])
 
 
 
-        // User Management
+
+        /*
+        |--------------------------------------------------------------------------
+        | USER MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
 
         Route::get('/users', [
             UserManagementController::class,
@@ -5600,16 +5610,49 @@ Route::middleware(['auth','superadmin'])
         ])->name('users');
 
 
-
         Route::post('/users/{user}/status', [
             UserManagementController::class,
             'updateStatus'
         ])->name('users.status');
 
+
         Route::get('/users/{user}', [
-        UserManagementController::class,
-        'show'
+            UserManagementController::class,
+            'show'
         ])->name('users.show');
+
+
+
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | APPLICATION MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/applications', [
+            ApplicationController::class,
+            'index'
+        ])->name('applications');
+
+
+        Route::get('/applications/{application}', [
+            ApplicationController::class,
+            'show'
+        ])->name('applications.show');
+
+
+        Route::post('/applications/{application}/approve', [
+            ApplicationController::class,
+            'approve'
+        ])->name('applications.approve');
+
+
+        Route::post('/applications/{application}/reject', [
+            ApplicationController::class,
+            'reject'
+        ])->name('applications.reject');
 
 
     });
