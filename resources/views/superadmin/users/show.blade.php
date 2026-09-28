@@ -2,9 +2,7 @@
 
 
 @section('title')
-
 User Profile
-
 @endsection
 
 
@@ -12,8 +10,7 @@ User Profile
 @section('content')
 
 
-<div class="max-w-5xl">
-
+<div class="max-w-6xl">
 
 
 <!-- BACK BUTTON -->
@@ -40,6 +37,7 @@ transition
 
 
 
+<!-- PROFILE HEADER -->
 
 <div
 class="
@@ -52,21 +50,15 @@ shadow-sm
 ">
 
 
-
-
-
-
-<!-- PROFILE HEADER -->
-
-
 <div class="
 flex
 flex-col
 md:flex-row
-md:items-center
 justify-between
-gap-5
+gap-6
 ">
+
+
 
 
 
@@ -75,24 +67,21 @@ gap-5
 
 <div
 class="
-w-20
-h-20
+w-24
+h-24
 rounded-full
 bg-[#DDF3EC]
 text-[#1F6F5B]
 flex
 items-center
 justify-center
-text-3xl
+text-4xl
 font-bold
 ">
 
-
 {{ strtoupper(substr($user->name,0,1)) }}
 
-
 </div>
-
 
 
 
@@ -100,8 +89,7 @@ font-bold
 <div>
 
 
-<h1
-class="
+<h1 class="
 text-3xl
 font-bold
 text-[#173F35]
@@ -119,19 +107,26 @@ text-[#173F35]
 </p>
 
 
-</div>
 
 
-
-</div>
-
+<div class="flex gap-3 mt-3">
 
 
+<span
+class="
+px-4
+py-2
+rounded-full
+bg-[#DDF3EC]
+text-[#1F6F5B]
+text-sm
+font-medium
+">
 
+{{ ucfirst($user->role) }}
 
+</span>
 
-
-<!-- STATUS -->
 
 
 <span
@@ -152,18 +147,17 @@ $user->status === 'suspended'
 'bg-gray-100 text-gray-700'
 )
 }}
-
 ">
 
-
 {{ ucfirst($user->status) }}
-
 
 </span>
 
 
+</div>
 
 
+</div>
 
 
 </div>
@@ -174,7 +168,136 @@ $user->status === 'suspended'
 
 
 
-<hr class="my-8">
+
+<!-- ACTION BUTTONS -->
+
+<div class="
+flex
+flex-wrap
+gap-3
+items-start
+">
+
+
+@if($user->status !== 'active')
+
+<form method="POST"
+action="{{ route('superadmin.users.status',$user) }}">
+
+@csrf
+
+<input type="hidden"
+name="status"
+value="active">
+
+
+<button
+class="
+px-4
+py-2
+rounded-xl
+bg-green-100
+text-green-700
+text-sm
+font-medium
+hover:bg-green-200
+">
+
+Activate
+
+</button>
+
+</form>
+
+@endif
+
+
+
+
+
+
+@if($user->status !== 'suspended')
+
+<form method="POST"
+action="{{ route('superadmin.users.status',$user) }}">
+
+@csrf
+
+<input type="hidden"
+name="status"
+value="suspended">
+
+
+<button
+class="
+px-4
+py-2
+rounded-xl
+bg-red-100
+text-red-700
+text-sm
+font-medium
+hover:bg-red-200
+">
+
+Suspend
+
+</button>
+
+</form>
+
+@endif
+
+
+
+
+
+
+@if($user->status !== 'inactive')
+
+<form method="POST"
+action="{{ route('superadmin.users.status',$user) }}">
+
+@csrf
+
+<input type="hidden"
+name="status"
+value="inactive">
+
+
+<button
+class="
+px-4
+py-2
+rounded-xl
+bg-gray-100
+text-gray-700
+text-sm
+font-medium
+hover:bg-gray-200
+">
+
+Deactivate
+
+</button>
+
+</form>
+
+@endif
+
+
+
+</div>
+
+
+
+</div>
+
+
+</div>
+
+
+
 
 
 
@@ -184,180 +307,207 @@ $user->status === 'suspended'
 
 <!-- INFORMATION -->
 
-
-<div
-class="
+<div class="
 grid
 md:grid-cols-2
-gap-8
+gap-6
+mt-6
 ">
 
 
 
 
 
+<!-- PERSONAL INFORMATION -->
+
+<div
+class="
+bg-white
+rounded-3xl
+border
+border-[#E3EAE6]
+p-8
+shadow-sm
+">
+
+
+<h2
+class="
+text-xl
+font-bold
+text-[#173F35]
+mb-6
+">
+
+Personal Information
+
+</h2>
+
+
+
+<div class="space-y-5">
+
 
 <div>
-
-
 <p class="text-sm text-gray-500">
-Role
+Full Name
 </p>
-
-
-<p class="font-semibold text-[#173F35]">
-
-{{ ucfirst($user->role) }}
-
-</p>
-
-
-</div>
-
-
-
-
-
-
-
-@if($user->phone)
-
-
-<div>
-
-
-<p class="text-sm text-gray-500">
-Phone
-</p>
-
 
 <p class="font-semibold">
-
-{{ $user->phone }}
-
+{{ $user->name }}
 </p>
-
-
 </div>
 
 
-@endif
-
-
-
-
-
-
-
-@if($user->middle_initial)
-
 
 <div>
-
-
 <p class="text-sm text-gray-500">
 Middle Initial
 </p>
 
-
 <p class="font-semibold">
-
-{{ $user->middle_initial }}
-
+{{ $user->middle_initial ?? '-' }}
 </p>
-
-
 </div>
 
 
-@endif
-
-
-
-
-
-
-
-
-@if($user->sex)
-
 
 <div>
-
-
 <p class="text-sm text-gray-500">
 Sex
 </p>
 
-
 <p class="font-semibold">
-
-{{ $user->sex }}
-
+{{ $user->sex ?? '-' }}
 </p>
-
-
 </div>
 
 
-@endif
-
-
-
-
-
-
-
-
-@if($user->birthday)
-
 
 <div>
-
-
 <p class="text-sm text-gray-500">
 Birthday
 </p>
 
-
 <p class="font-semibold">
 
-{{ \Carbon\Carbon::parse($user->birthday)->format('M d, Y') }}
+{{ $user->birthday
+? \Carbon\Carbon::parse($user->birthday)->format('M d, Y')
+: '-'
+}}
 
 </p>
+
+</div>
+
+
+
+<div>
+<p class="text-sm text-gray-500">
+Phone
+</p>
+
+<p class="font-semibold">
+{{ $user->phone ?? '-' }}
+</p>
+
+</div>
+
 
 
 </div>
 
 
-@endif
+</div>
 
 
 
 
+
+
+
+
+
+
+<!-- ACCOUNT DETAILS -->
+
+<div
+class="
+bg-white
+rounded-3xl
+border
+border-[#E3EAE6]
+p-8
+shadow-sm
+">
+
+
+<h2
+class="
+text-xl
+font-bold
+text-[#173F35]
+mb-6
+">
+
+Account Details
+
+</h2>
+
+
+
+<div class="space-y-5">
+
+
+
+<div>
+<p class="text-sm text-gray-500">
+User ID
+</p>
+
+<p class="font-semibold">
+#USR-{{ str_pad($user->id,5,'0',STR_PAD_LEFT) }}
+</p>
+</div>
 
 
 
 
 <div>
+<p class="text-sm text-gray-500">
+Role
+</p>
+
+<p class="font-semibold">
+{{ ucfirst($user->role) }}
+</p>
+</div>
 
 
+
+
+<div>
+<p class="text-sm text-gray-500">
+Status
+</p>
+
+<p class="font-semibold">
+{{ ucfirst($user->status) }}
+</p>
+</div>
+
+
+
+
+<div>
 <p class="text-sm text-gray-500">
 Joined Date
 </p>
 
-
 <p class="font-semibold">
-
 {{ $user->created_at->format('M d, Y') }}
-
 </p>
-
-
 </div>
-
-
-
 
 
 
@@ -365,29 +515,36 @@ Joined Date
 </div>
 
 
-
-
-
-
 </div>
 
 
 
 </div>
+
+
+
+
+
+
+
+
 
 <!-- DOCUMENTS -->
 
-<div class="
+<div
+class="
 mt-6
 bg-white
 rounded-3xl
 border
 border-[#E3EAE6]
 p-8
+shadow-sm
 ">
 
 
-<h2 class="
+<h2
+class="
 text-xl
 font-bold
 text-[#173F35]
@@ -405,32 +562,60 @@ Documents
 @if($user->government_id)
 
 
+<div
+class="
+flex
+justify-between
+items-center
+bg-[#F8FAF9]
+rounded-2xl
+p-5
+">
+
+
+<div>
+
+<p class="font-semibold text-[#173F35]">
+Government ID
+</p>
+
+
+<p class="text-sm text-gray-500">
+Uploaded document
+</p>
+
+
+</div>
+
+
+
 <a
 href="{{ asset('storage/'.$user->government_id) }}"
 target="_blank"
 class="
-inline-flex
-bg-[#1F6F5B]
-text-white
 px-5
 py-3
 rounded-xl
+bg-[#1F6F5B]
+text-white
 text-sm
 font-medium
 ">
 
-View Government ID
+View Document
 
 </a>
+
+
+
+</div>
 
 
 @else
 
 
 <p class="text-gray-500">
-
 No documents uploaded.
-
 </p>
 
 
@@ -441,10 +626,62 @@ No documents uploaded.
 </div>
 
 
+</div>
+
+
+
+
+
+
+
+
+
+
+<!-- ACTIVITY -->
+
+<div
+class="
+mt-6
+bg-white
+rounded-3xl
+border
+border-[#E3EAE6]
+p-8
+shadow-sm
+">
+
+
+<h2
+class="
+text-xl
+font-bold
+text-[#173F35]
+mb-5
+">
+
+Recent Activity
+
+</h2>
+
+
+
+<div class="text-gray-500 text-sm">
+
+Activity logs are not available yet.
 
 </div>
 
 
+
+</div>
+
+
+
+
+
+
+
+</div>
 
 
 @endsection
