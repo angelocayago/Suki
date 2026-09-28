@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Controllers\SuperAdmin\UserManagementController;
 use App\Http\Controllers\SuperAdmin\ApplicationController;
+use App\Http\Controllers\SuperAdmin\SellerManagementController;
 
 
 // =====================================================
@@ -5598,6 +5599,7 @@ Route::middleware(['auth','superadmin'])
 
 
 
+
         /*
         |--------------------------------------------------------------------------
         | USER MANAGEMENT
@@ -5620,6 +5622,7 @@ Route::middleware(['auth','superadmin'])
             UserManagementController::class,
             'show'
         ])->name('users.show');
+
 
 
 
@@ -5653,6 +5656,35 @@ Route::middleware(['auth','superadmin'])
             ApplicationController::class,
             'reject'
         ])->name('applications.reject');
+
+
+
+
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELLER MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/sellers', [
+            SellerManagementController::class,
+            'index'
+        ])->name('sellers');
+
+
+        Route::get('/sellers/{seller}', [
+            SellerManagementController::class,
+            'show'
+        ])->name('sellers.show');
+
+
+        Route::post('/sellers/{seller}/status', [
+            SellerManagementController::class,
+            'updateStatus'
+        ])->name('sellers.status');
+
 
 
     });
