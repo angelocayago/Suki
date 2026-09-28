@@ -274,9 +274,22 @@ Applications
 
 <a
 
-href="#"
+href="{{ route('superadmin.sellers') }}"
 
-class="menu-link"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-sm
+font-medium
+
+{{ request()->routeIs('superadmin.sellers*')
+? 'bg-[#10b981] text-white'
+: 'text-green-100 hover:bg-[#047857]'
+}}
+
+"
 
 >
 
