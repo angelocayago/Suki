@@ -18,7 +18,8 @@ Applications
 
 <!-- HEADER -->
 
-<div class="mb-8">
+
+<div class="mb-7">
 
 
 <h1 class="
@@ -32,7 +33,10 @@ Applications
 </h1>
 
 
-<p class="text-gray-500 mt-2">
+<p class="
+text-gray-500
+mt-1
+">
 
 Review and manage platform access applications.
 
@@ -55,36 +59,35 @@ Review and manage platform access applications.
 <div class="
 grid
 grid-cols-1
-md:grid-cols-4
-gap-5
-mb-8
+sm:grid-cols-2
+xl:grid-cols-4
+gap-4
+mb-5
 ">
 
 
 
-
-
-<!-- TOTAL -->
-
-
 <div class="
 bg-[#FFF7E8]
-rounded-3xl
+rounded-2xl
 border
 border-[#F3E4C2]
 p-6
 ">
 
+
 <p class="text-sm text-gray-500">
+
 Total Applications
+
 </p>
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['total'] }}
@@ -100,13 +103,9 @@ mt-3
 
 
 
-
-<!-- PENDING -->
-
-
 <div class="
 bg-[#EEF6FF]
-rounded-3xl
+rounded-2xl
 border
 border-[#D8E9FA]
 p-6
@@ -114,15 +113,17 @@ p-6
 
 
 <p class="text-sm text-gray-500">
+
 Pending
+
 </p>
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['pending'] }}
@@ -138,13 +139,9 @@ mt-3
 
 
 
-
-<!-- APPROVED -->
-
-
 <div class="
 bg-[#EAFBF3]
-rounded-3xl
+rounded-2xl
 border
 border-[#D3F1E1]
 p-6
@@ -152,15 +149,17 @@ p-6
 
 
 <p class="text-sm text-gray-500">
+
 Approved
+
 </p>
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['approved'] }}
@@ -176,13 +175,9 @@ mt-3
 
 
 
-
-<!-- REJECTED -->
-
-
 <div class="
 bg-[#FFF0F0]
-rounded-3xl
+rounded-2xl
 border
 border-[#F6D4D4]
 p-6
@@ -190,15 +185,17 @@ p-6
 
 
 <p class="text-sm text-gray-500">
+
 Rejected
+
 </p>
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['rejected'] }}
@@ -211,6 +208,7 @@ mt-3
 
 
 
+
 </div>
 
 
@@ -221,86 +219,91 @@ mt-3
 
 
 
-<!-- FILTERS -->
+<!-- FILTER BAR -->
 
 
 <div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-6
-mb-6
+border-[#DCE5E0]
+shadow-sm
+p-4
+mb-5
 ">
 
 
-<form method="GET"
+<form
+
+method="GET"
+
 class="
 grid
-md:grid-cols-4
-gap-4
-">
+grid-cols-1
+lg:grid-cols-[1fr_230px_230px_150px]
+gap-3
+"
 
+>
 
 
 <input
+
 type="text"
+
 name="search"
+
 value="{{ request('search') }}"
+
 placeholder="Search applicant..."
+
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
+text-sm
 focus:outline-none
-focus:ring-2
-focus:ring-[#1F6F5B]
-">
+focus:border-[#1F6F5B]
+"
+
+>
+
+
 
 
 
 
 
 <select
-name="application_type"
+
+name="role"
+
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
-">
+text-sm
+bg-white
+"
+
+>
+
 
 <option value="">
+
 All Roles
+
 </option>
 
 
-<option value="buyer"
-{{ request('application_type')=='buyer'?'selected':'' }}
->
-Buyer
-</option>
+<option value="seller">
 
-
-<option value="seller"
-{{ request('application_type')=='seller'?'selected':'' }}
->
 Seller
-</option>
 
-
-<option value="courier"
-{{ request('application_type')=='courier'?'selected':'' }}
->
-Courier
-</option>
-
-
-<option value="logistics"
-{{ request('application_type')=='logistics'?'selected':'' }}
->
-Logistics
 </option>
 
 
@@ -313,37 +316,47 @@ Logistics
 
 
 <select
+
 name="status"
+
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
-">
+text-sm
+bg-white
+"
+
+>
+
 
 <option value="">
+
 All Status
+
 </option>
 
 
-<option value="pending"
-{{ request('status')=='pending'?'selected':'' }}
->
+<option value="pending">
+
 Pending
+
 </option>
 
 
-<option value="approved"
-{{ request('status')=='approved'?'selected':'' }}
->
+<option value="approved">
+
 Approved
+
 </option>
 
 
-<option value="rejected"
-{{ request('status')=='rejected'?'selected':'' }}
->
+<option value="rejected">
+
 Rejected
+
 </option>
 
 
@@ -356,14 +369,18 @@ Rejected
 
 
 <button
+
 class="
 bg-[#1F6F5B]
 text-white
 rounded-xl
-font-medium
+font-semibold
+text-sm
 hover:bg-[#155244]
 transition
-">
+"
+
+>
 
 Search
 
@@ -375,73 +392,80 @@ Search
 
 
 </div>
-
-
-
-
-
-
-
-
-
-<!-- TABLE -->
+<!-- APPLICATION TABLE -->
 
 
 <div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
+border-[#DCE5E0]
+shadow-sm
 overflow-hidden
 ">
 
 
-<table class="w-full">
+<div class="overflow-x-auto">
+
+
+<table class="
+w-full
+min-w-[950px]
+">
 
 
 <thead
+
 class="
-bg-[#F8FAF9]
-text-sm
-text-gray-500
-">
+bg-[#F4F7F5]
+text-[11px]
+uppercase
+tracking-wide
+text-[#607169]
+"
+
+>
+
 
 <tr>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Applicant
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Role
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Email
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Submitted
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Status
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-center">
 Action
 </th>
 
 
 </tr>
 
+
 </thead>
+
+
 
 
 
@@ -453,22 +477,27 @@ Action
 @forelse($applications as $application)
 
 
+
 <tr class="
 border-t
-border-[#E3EAE6]
+border-[#E7ECE9]
+hover:bg-[#FBFCFB]
+transition
 ">
 
 
 
-<td class="p-5">
 
 
-<div class="font-semibold text-[#173F35]">
+<td class="
+px-5
+py-4
+text-sm
+font-semibold
+text-[#253831]
+">
 
-{{ $application->user->name ?? 'Unknown' }}
-
-</div>
-
+{{ $application->user->name ?? '-' }}
 
 </td>
 
@@ -476,16 +505,21 @@ border-[#E3EAE6]
 
 
 
-<td class="p-5">
+
+
+
+<td class="px-5 py-4">
 
 
 <span class="
+inline-flex
 px-3
 py-1
 rounded-full
+text-xs
+font-medium
 bg-[#DDF3EC]
 text-[#1F6F5B]
-text-sm
 ">
 
 {{ ucfirst($application->application_type) }}
@@ -501,7 +535,12 @@ text-sm
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+">
 
 {{ $application->user->email ?? '-' }}
 
@@ -513,7 +552,12 @@ text-sm
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+">
 
 {{ $application->created_at->format('M d, Y') }}
 
@@ -525,32 +569,38 @@ text-sm
 
 
 
-<td class="p-5">
+
+<td class="px-5 py-4">
 
 
-<span class="
+<span
 
+class="
+inline-flex
 px-3
 py-1
 rounded-full
-text-sm
-
+text-xs
+font-medium
 
 {{ $application->status === 'approved'
-? 'bg-green-100 text-green-700'
-:
-(
-$application->status === 'rejected'
-? 'bg-red-100 text-red-700'
-:
-'bg-yellow-100 text-yellow-700'
-)
-
+    ? 'bg-green-100 text-green-700'
+    :
+    (
+        $application->status === 'rejected'
+        ? 'bg-red-100 text-red-700'
+        :
+        'bg-yellow-100 text-yellow-700'
+    )
 }}
 
-">
+"
+
+>
+
 
 {{ ucfirst($application->status) }}
+
 
 </span>
 
@@ -563,24 +613,35 @@ $application->status === 'rejected'
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-center
+">
 
 
 <a
+
 href="{{ route('superadmin.applications.show',$application) }}"
+
 class="
+inline-flex
+justify-center
+border
+border-[#D8E1DC]
+rounded-lg
 px-4
 py-2
-rounded-xl
-border
-border-[#1F6F5B]
-text-[#1F6F5B]
-text-sm
+text-xs
 font-medium
-hover:bg-[#1F6F5B]
+text-[#176B55]
+hover:bg-[#176B55]
 hover:text-white
 transition
-">
+"
+
+>
 
 View Details
 
@@ -592,6 +653,8 @@ View Details
 
 
 
+
+
 </tr>
 
 
@@ -599,20 +662,31 @@ View Details
 @empty
 
 
+
 <tr>
 
-<td colspan="6"
+
+<td
+
+colspan="6"
+
 class="
-p-8
+px-6
+py-12
 text-center
+text-sm
 text-gray-500
-">
+"
+
+>
 
 No applications found.
 
 </td>
 
+
 </tr>
+
 
 
 @endforelse
@@ -622,12 +696,14 @@ No applications found.
 </tbody>
 
 
+
 </table>
 
 
 </div>
 
 
+</div>
 
 
 
