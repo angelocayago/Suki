@@ -14,6 +14,7 @@ use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Controllers\SuperAdmin\UserManagementController;
 use App\Http\Controllers\SuperAdmin\ApplicationController;
 use App\Http\Controllers\SuperAdmin\SellerManagementController;
+use App\Http\Controllers\SuperAdmin\OrderManagementController;
 
 
 // =====================================================
@@ -5685,7 +5686,22 @@ Route::middleware(['auth','superadmin'])
             'updateStatus'
         ])->name('sellers.status');
 
+                /*
+        |--------------------------------------------------------------------------
+        | ORDER MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
 
+        Route::get('/orders', [
+            OrderManagementController::class,
+            'index'
+        ])->name('orders');
+
+
+        Route::get('/orders/{order}', [
+            OrderManagementController::class,
+            'show'
+        ])->name('orders.show');
 
     });
     
