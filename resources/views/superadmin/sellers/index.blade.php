@@ -18,7 +18,7 @@ Seller Management
 
 <!-- HEADER -->
 
-<div class="mb-8">
+<div class="mb-7">
 
 
 <h1 class="
@@ -32,7 +32,10 @@ Seller Management
 </h1>
 
 
-<p class="text-gray-500 mt-2">
+<p class="
+text-gray-500
+mt-1
+">
 
 Manage seller accounts, shops, and seller status.
 
@@ -54,37 +57,42 @@ Manage seller accounts, shops, and seller status.
 <div class="
 grid
 grid-cols-1
-md:grid-cols-4
-gap-5
-mb-8
+sm:grid-cols-2
+xl:grid-cols-4
+gap-4
+mb-5
 ">
 
 
 
 <div class="
 bg-[#FFF7E8]
-rounded-3xl
+rounded-2xl
 border
 border-[#F3E4C2]
 p-6
 ">
 
+
 <p class="text-sm text-gray-500">
 Total Sellers
 </p>
 
+
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['total'] }}
 
 </h2>
 
+
 </div>
+
 
 
 
@@ -93,28 +101,32 @@ mt-3
 
 <div class="
 bg-[#EAFBF3]
-rounded-3xl
+rounded-2xl
 border
 border-[#D3F1E1]
 p-6
 ">
 
+
 <p class="text-sm text-gray-500">
 Active Sellers
 </p>
 
+
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['active'] }}
 
 </h2>
 
+
 </div>
+
 
 
 
@@ -123,28 +135,32 @@ mt-3
 
 <div class="
 bg-[#EEF6FF]
-rounded-3xl
+rounded-2xl
 border
 border-[#D8E9FA]
 p-6
 ">
 
+
 <p class="text-sm text-gray-500">
 Pending Sellers
 </p>
 
+
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['pending'] }}
 
 </h2>
 
+
 </div>
+
 
 
 
@@ -153,89 +169,116 @@ mt-3
 
 <div class="
 bg-[#FFF0F0]
-rounded-3xl
+rounded-2xl
 border
 border-[#F6D4D4]
 p-6
 ">
 
+
 <p class="text-sm text-gray-500">
 Suspended Sellers
 </p>
 
+
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['suspended'] }}
 
 </h2>
 
-</div>
-
-
 
 </div>
 
 
 
 
+</div>
 
 
 
 
 
-<!-- FILTER -->
+
+
+
+
+<!-- FILTER BAR -->
+
 
 <div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-6
-mb-6
+border-[#DCE5E0]
+shadow-sm
+p-4
+mb-5
 ">
 
 
-<form method="GET"
+<form
+
+method="GET"
+
 class="
 grid
-md:grid-cols-3
-gap-4
-">
+grid-cols-1
+lg:grid-cols-[1fr_230px_150px]
+gap-3
+"
 
+>
 
 
 <input
+
 type="text"
+
 name="search"
+
 value="{{ request('search') }}"
+
 placeholder="Search seller or shop..."
+
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
+text-sm
 focus:outline-none
-focus:ring-2
-focus:ring-[#1F6F5B]
-">
+focus:border-[#1F6F5B]
+"
+
+>
+
 
 
 
 
 
 <select
+
 name="status"
+
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
-">
+text-sm
+bg-white
+"
+
+>
 
 
 <option value="">
@@ -243,24 +286,31 @@ All Status
 </option>
 
 
-<option value="active"
-{{ request('status') === 'active' ? 'selected' : '' }}
->
+<option value="approved">
+
 Active
+
 </option>
 
 
-<option value="pending"
-{{ request('status') === 'pending' ? 'selected' : '' }}
->
+<option value="pending">
+
 Pending
+
 </option>
 
 
-<option value="suspended"
-{{ request('status') === 'suspended' ? 'selected' : '' }}
->
+<option value="suspended">
+
 Suspended
+
+</option>
+
+
+<option value="rejected">
+
+Rejected
+
 </option>
 
 
@@ -272,13 +322,18 @@ Suspended
 
 
 <button
+
 class="
 bg-[#1F6F5B]
 text-white
 rounded-xl
-font-medium
+font-semibold
+text-sm
 hover:bg-[#155244]
-">
+transition
+"
+
+>
 
 Search
 
@@ -295,68 +350,76 @@ Search
 
 
 
-
-
-
-
 <!-- SELLER TABLE -->
 
 
-<div
-class="
+<div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
+border-[#DCE5E0]
+shadow-sm
 overflow-hidden
 ">
 
 
-<table class="w-full">
+
+<div class="overflow-x-auto">
+
+
+<table class="
+w-full
+min-w-[950px]
+">
 
 
 <thead
+
 class="
-bg-[#F8FAF9]
-text-sm
-text-gray-500
-">
+bg-[#F4F7F5]
+text-[11px]
+uppercase
+tracking-wide
+text-[#607169]
+"
+
+>
 
 
 <tr>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Seller
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Shop Name
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Email
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Status
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Products
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Joined
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-center">
 Action
 </th>
 
@@ -378,19 +441,31 @@ Action
 @forelse($sellers as $seller)
 
 
-<tr class="
+
+<tr
+
+class="
 border-t
-border-[#E3EAE6]
-">
+border-[#E7ECE9]
+hover:bg-[#FBFCFB]
+transition
+"
+
+>
 
 
 
-<td class="p-5">
+<td class="
+px-5
+py-4
+"
+>
 
 
 <p class="
 font-semibold
-text-[#173F35]
+text-[#253831]
+text-sm
 ">
 
 {{ $seller->owner->name ?? '-' }}
@@ -405,7 +480,13 @@ text-[#173F35]
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+"
+>
 
 {{ $seller->name }}
 
@@ -416,7 +497,13 @@ text-[#173F35]
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+"
+>
 
 {{ $seller->owner->email ?? '-' }}
 
@@ -427,34 +514,46 @@ text-[#173F35]
 
 
 
-<td class="p-5">
+
+<td class="px-5 py-4">
 
 
 <span
+
 class="
+inline-flex
 px-3
 py-1
 rounded-full
-text-sm
+text-xs
+font-medium
 
 {{ $seller->status === 'approved'
-? 'bg-green-100 text-green-700'
-:
-(
-$seller->status === 'suspended'
-|| $seller->status === 'rejected'
-? 'bg-red-100 text-red-700'
-:
-'bg-yellow-100 text-yellow-700'
-)
-
+    ? 'bg-green-100 text-green-700'
+    :
+    (
+        $seller->status === 'suspended'
+        ? 'bg-red-100 text-red-700'
+        :
+        (
+            $seller->status === 'rejected'
+            ? 'bg-red-100 text-red-700'
+            :
+            'bg-yellow-100 text-yellow-700'
+        )
+    )
 }}
-">
+
+"
+
+>
+
 
 {{ $seller->status === 'approved'
     ? 'Active'
     : ucfirst($seller->status)
 }}
+
 
 </span>
 
@@ -466,7 +565,13 @@ $seller->status === 'suspended'
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+"
+>
 
 {{ $seller->products->count() }}
 
@@ -477,7 +582,13 @@ $seller->status === 'suspended'
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-sm
+"
+>
 
 {{ $seller->created_at->format('M d, Y') }}
 
@@ -488,24 +599,36 @@ $seller->status === 'suspended'
 
 
 
-<td class="p-5">
+
+<td class="
+px-5
+py-4
+text-center
+"
+>
 
 
 <a
+
 href="{{ route('superadmin.sellers.show',$seller) }}"
+
 class="
+inline-flex
+justify-center
+border
+border-[#D8E1DC]
+rounded-lg
 px-4
 py-2
-rounded-xl
-border
-border-[#1F6F5B]
-text-[#1F6F5B]
-text-sm
+text-xs
 font-medium
-hover:bg-[#1F6F5B]
+text-[#176B55]
+hover:bg-[#176B55]
 hover:text-white
 transition
-">
+"
+
+>
 
 View Details
 
@@ -516,27 +639,44 @@ View Details
 
 
 
+
+
 </tr>
+
+
 
 
 
 @empty
 
 
+
 <tr>
 
-<td colspan="7"
+
+<td
+
+colspan="7"
+
 class="
-p-8
+px-6
+py-12
 text-center
+text-sm
 text-gray-500
-">
+"
+
+>
+
 
 No sellers found.
 
+
 </td>
 
+
 </tr>
+
 
 
 @endforelse
@@ -544,6 +684,7 @@ No sellers found.
 
 
 </tbody>
+
 
 
 </table>
@@ -554,15 +695,24 @@ No sellers found.
 
 
 
+</div>
 
+
+
+
+
+
+
+<!-- PAGINATION -->
 
 
 <div class="mt-6">
 
+
 {{ $sellers->links() }}
 
-</div>
 
+</div>
 
 
 

@@ -18,7 +18,8 @@ Seller Details
 
 <!-- BACK -->
 
-<a href="{{ route('superadmin.sellers') }}"
+<a
+href="{{ route('superadmin.sellers') }}"
 class="
 inline-flex
 items-center
@@ -28,7 +29,9 @@ font-medium
 text-[#1F6F5B]
 hover:text-[#155244]
 hover:underline
-">
+transition
+"
+>
 
 ← Back to Sellers
 
@@ -40,49 +43,52 @@ hover:underline
 
 
 
-
-
-<!-- SELLER HEADER -->
+<!-- PROFILE HEADER -->
 
 
 <div
 class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-8
+border-[#DCE5E0]
 shadow-sm
-mb-6
-">
+p-6
+mb-5
+"
+>
 
 
 <div class="
 flex
 flex-col
 md:flex-row
+md:items-center
 justify-between
-gap-6
-">
+gap-5
+"
+>
 
 
 
 <div class="flex items-center gap-5">
 
 
+
 <div
 class="
-w-24
-h-24
+w-20
+h-20
 rounded-full
 bg-[#DDF3EC]
 text-[#1F6F5B]
 flex
 items-center
 justify-center
-text-4xl
+text-3xl
 font-bold
-">
+"
+>
 
 {{ strtoupper(substr($seller->owner->name ?? 'S',0,1)) }}
 
@@ -92,11 +98,11 @@ font-bold
 
 
 
+
 <div>
 
 
-<h1
-class="
+<h1 class="
 text-3xl
 font-bold
 text-[#173F35]
@@ -108,7 +114,10 @@ text-[#173F35]
 
 
 
-<p class="text-gray-500">
+<p class="
+text-gray-500
+mt-1
+">
 
 {{ $seller->owner->email ?? '-' }}
 
@@ -116,20 +125,24 @@ text-[#173F35]
 
 
 
-
-<div class="flex gap-3 mt-3">
+<div class="
+flex
+gap-3
+mt-3
+">
 
 
 <span
 class="
-px-4
-py-2
+px-3
+py-1
 rounded-full
+text-xs
+font-medium
 bg-[#DDF3EC]
 text-[#1F6F5B]
-text-sm
-font-medium
-">
+"
+>
 
 Seller
 
@@ -139,34 +152,33 @@ Seller
 
 
 
+
 <span
 class="
-px-4
-py-2
+px-3
+py-1
 rounded-full
-text-sm
+text-xs
 font-medium
 
 {{ $seller->status === 'approved'
-? 'bg-green-100 text-green-700'
-:
-(
-$seller->status === 'suspended'
-? 'bg-red-100 text-red-700'
-:
-'bg-yellow-100 text-yellow-700'
-)
-
+    ? 'bg-green-100 text-green-700'
+    :
+    (
+        $seller->status === 'suspended'
+        ? 'bg-red-100 text-red-700'
+        :
+        'bg-yellow-100 text-yellow-700'
+    )
 }}
 
-">
-
+"
+>
 
 {{ $seller->status === 'approved'
-? 'Active'
-: ucfirst($seller->status)
+    ? 'Active'
+    : ucfirst($seller->status)
 }}
-
 
 </span>
 
@@ -188,17 +200,19 @@ $seller->status === 'suspended'
 
 
 
-<!-- ACTION BUTTONS -->
+<!-- ACTION -->
 
-
-<div class="flex gap-3">
+<div>
 
 
 @if($seller->status === 'approved')
 
 
-<form method="POST"
-action="{{ route('superadmin.sellers.status',$seller) }}">
+<form
+method="POST"
+action="{{ route('superadmin.sellers.status',$seller) }}"
+>
+
 
 @csrf
 
@@ -218,9 +232,11 @@ rounded-xl
 bg-red-100
 text-red-700
 text-sm
-font-medium
+font-semibold
 hover:bg-red-200
-">
+transition
+"
+>
 
 Suspend Seller
 
@@ -230,11 +246,16 @@ Suspend Seller
 </form>
 
 
+
+
 @elseif($seller->status === 'suspended')
 
 
-<form method="POST"
-action="{{ route('superadmin.sellers.status',$seller) }}">
+<form
+method="POST"
+action="{{ route('superadmin.sellers.status',$seller) }}"
+>
+
 
 @csrf
 
@@ -254,9 +275,11 @@ rounded-xl
 bg-green-100
 text-green-700
 text-sm
-font-medium
+font-semibold
 hover:bg-green-200
-">
+transition
+"
+>
 
 Activate Seller
 
@@ -275,12 +298,11 @@ Activate Seller
 
 
 
-</div>
-
 
 </div>
 
 
+</div>
 
 
 
@@ -288,43 +310,42 @@ Activate Seller
 
 
 
-<!-- INFORMATION -->
+
+
+<!-- INFORMATION GRID -->
 
 
 <div
 class="
 grid
-md:grid-cols-2
-gap-6
-">
+grid-cols-1
+lg:grid-cols-2
+gap-5
+"
+>
 
 
 
 
-
-
-
-
-<!-- OWNER INFORMATION -->
-
+<!-- OWNER -->
 
 <div
 class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-8
+border-[#DCE5E0]
 shadow-sm
-">
+p-6
+"
+>
 
 
-<h2
-class="
+<h2 class="
 text-xl
 font-bold
 text-[#173F35]
-mb-6
+mb-5
 ">
 
 Owner Information
@@ -333,8 +354,7 @@ Owner Information
 
 
 
-
-<div class="space-y-5">
+<div class="space-y-4">
 
 
 <div>
@@ -350,7 +370,6 @@ Full Name
 </p>
 
 </div>
-
 
 
 
@@ -370,7 +389,6 @@ Email
 
 
 
-
 <div>
 
 <p class="text-sm text-gray-500">
@@ -386,7 +404,6 @@ Phone
 </div>
 
 
-
 </div>
 
 
@@ -400,27 +417,26 @@ Phone
 
 
 
-
-<!-- SHOP INFORMATION -->
+<!-- SHOP -->
 
 
 <div
 class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-8
+border-[#DCE5E0]
 shadow-sm
-">
+p-6
+"
+>
 
 
-<h2
-class="
+<h2 class="
 text-xl
 font-bold
 text-[#173F35]
-mb-6
+mb-5
 ">
 
 Shop Information
@@ -429,8 +445,7 @@ Shop Information
 
 
 
-
-<div class="space-y-5">
+<div class="space-y-4">
 
 
 <div>
@@ -446,7 +461,6 @@ Shop Name
 </p>
 
 </div>
-
 
 
 
@@ -466,16 +480,15 @@ Description
 
 
 
-
 <div>
 
 <p class="text-sm text-gray-500">
-Commission
+Commission Rate
 </p>
 
 <p class="font-semibold">
 
-{{ $seller->commission_bps }} bps
+{{ number_format($seller->commission_bps / 100,2) }}%
 
 </p>
 
@@ -488,14 +501,6 @@ Commission
 
 
 </div>
-
-
-
-
-
-
-</div>
-
 
 
 
@@ -509,22 +514,22 @@ Commission
 
 <div
 class="
-mt-6
+mt-5
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-8
+border-[#DCE5E0]
 shadow-sm
-">
+p-6
+"
+>
 
 
-<h2
-class="
+<h2 class="
 text-xl
 font-bold
 text-[#173F35]
-mb-6
+mb-5
 ">
 
 Store Summary
@@ -536,21 +541,29 @@ Store Summary
 
 <div class="
 grid
+grid-cols-1
 md:grid-cols-3
-gap-5
+gap-4
 ">
+
+
 
 
 
 <div
 class="
-bg-[#F8FAF9]
-rounded-2xl
+bg-[#FFF7E8]
+rounded-xl
+border
+border-[#F3E4C2]
 p-5
-">
+"
+>
 
 <p class="text-sm text-gray-500">
+
 Products
+
 </p>
 
 
@@ -558,6 +571,7 @@ Products
 text-3xl
 font-bold
 text-[#173F35]
+mt-2
 ">
 
 {{ $seller->products->count() }}
@@ -571,15 +585,23 @@ text-[#173F35]
 
 
 
+
+
+
 <div
 class="
-bg-[#F8FAF9]
-rounded-2xl
+bg-[#EEF6FF]
+rounded-xl
+border
+border-[#D8E9FA]
 p-5
-">
+"
+>
 
 <p class="text-sm text-gray-500">
+
 Orders
+
 </p>
 
 
@@ -587,6 +609,7 @@ Orders
 text-3xl
 font-bold
 text-[#173F35]
+mt-2
 ">
 
 {{ $seller->orders->count() }}
@@ -600,24 +623,157 @@ text-[#173F35]
 
 
 
+
+
+
 <div
 class="
-bg-[#F8FAF9]
-rounded-2xl
+bg-[#EAFBF3]
+rounded-xl
+border
+border-[#D3F1E1]
 p-5
-">
+"
+>
 
 <p class="text-sm text-gray-500">
+
 Joined Date
+
 </p>
 
 
 <p class="
+text-lg
 font-bold
 text-[#173F35]
+mt-2
 ">
 
 {{ $seller->created_at->format('M d, Y') }}
+
+</p>
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<!-- SELLER STATUS -->
+
+
+<div
+class="
+mt-5
+bg-white
+rounded-2xl
+border
+border-[#DCE5E0]
+shadow-sm
+p-6
+"
+>
+
+
+<h2 class="
+text-xl
+font-bold
+text-[#173F35]
+mb-5
+">
+
+Account Status
+
+</h2>
+
+
+
+
+<div class="space-y-4">
+
+
+
+<div>
+
+<p class="text-sm text-gray-500">
+
+Current Status
+
+</p>
+
+
+<p class="font-semibold">
+
+{{ $seller->status === 'approved'
+    ? 'Active'
+    : ucfirst($seller->status)
+}}
+
+</p>
+
+
+</div>
+
+
+
+
+
+@if($seller->rejection_reason)
+
+
+<div>
+
+<p class="text-sm text-gray-500">
+
+Reason
+
+</p>
+
+
+<p class="font-semibold text-red-600">
+
+{{ $seller->rejection_reason }}
+
+</p>
+
+
+</div>
+
+
+@endif
+
+
+
+
+
+<div>
+
+<p class="text-sm text-gray-500">
+
+Seller ID
+
+</p>
+
+
+<p class="font-semibold">
+
+#SELLER-{{ str_pad($seller->id,5,'0',STR_PAD_LEFT) }}
 
 </p>
 
