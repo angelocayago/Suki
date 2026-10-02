@@ -358,9 +358,22 @@ Orders
 
 <a
 
-href="#"
+href="{{ route('superadmin.reports') }}"
 
-class="menu-link"
+class="
+block
+px-4
+py-3
+rounded-xl
+text-sm
+font-medium
+
+{{ request()->routeIs('superadmin.reports*')
+? 'bg-[#10b981] text-white'
+: 'text-green-100 hover:bg-[#047857]'
+}}
+
+"
 
 >
 

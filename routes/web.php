@@ -16,6 +16,7 @@ use App\Http\Controllers\SuperAdmin\ApplicationController;
 use App\Http\Controllers\SuperAdmin\SellerManagementController;
 use App\Http\Controllers\SuperAdmin\OrderManagementController;
 use App\Http\Controllers\SuperAdmin\CommissionController;
+use App\Http\Controllers\SuperAdmin\ReportController;
 
 
 // =====================================================
@@ -5720,6 +5721,17 @@ Route::post('/commission/{seller}/rate', [
     CommissionController::class,
     'updateRate'
 ])->name('commission.rate');
+
+/*
+|--------------------------------------------------------------------------
+| REPORT MANAGEMENT
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/reports', [
+    ReportController::class,
+    'index'
+])->name('reports');
 
     });
     
