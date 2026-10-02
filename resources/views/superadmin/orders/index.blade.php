@@ -18,8 +18,7 @@ Orders Management
 
 <!-- HEADER -->
 
-
-<div class="mb-8">
+<div class="mb-7">
 
 
 <h1 class="
@@ -33,7 +32,10 @@ Orders Management
 </h1>
 
 
-<p class="text-gray-500 mt-2">
+<p class="
+text-gray-500
+mt-1
+">
 
 Monitor and review customer orders.
 
@@ -56,17 +58,17 @@ Monitor and review customer orders.
 <div class="
 grid
 grid-cols-1
-md:grid-cols-4
-gap-5
-mb-8
+sm:grid-cols-2
+xl:grid-cols-4
+gap-4
+mb-5
 ">
 
 
 
-<div
-class="
+<div class="
 bg-[#FFF7E8]
-rounded-3xl
+rounded-2xl
 border
 border-[#F3E4C2]
 p-6
@@ -78,10 +80,10 @@ Total Orders
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['total'] }}
@@ -97,10 +99,9 @@ mt-3
 
 
 
-<div
-class="
+<div class="
 bg-[#EEF6FF]
-rounded-3xl
+rounded-2xl
 border
 border-[#D8E9FA]
 p-6
@@ -112,10 +113,10 @@ Placed Orders
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['placed'] }}
@@ -131,10 +132,9 @@ mt-3
 
 
 
-<div
-class="
+<div class="
 bg-[#FFF7E8]
-rounded-3xl
+rounded-2xl
 border
 border-[#F3E4C2]
 p-6
@@ -146,10 +146,10 @@ Processing Orders
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['processing'] }}
@@ -165,10 +165,9 @@ mt-3
 
 
 
-<div
-class="
+<div class="
 bg-[#EAFBF3]
-rounded-3xl
+rounded-2xl
 border
 border-[#D3F1E1]
 p-6
@@ -180,10 +179,10 @@ Completed Orders
 
 
 <h2 class="
-text-4xl
+text-3xl
 font-bold
 text-[#173F35]
-mt-3
+mt-2
 ">
 
 {{ $stats['completed'] }}
@@ -208,23 +207,24 @@ mt-3
 <!-- FILTER -->
 
 
-<div
-class="
+<div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
-p-6
-mb-6
+border-[#DCE5E0]
+shadow-sm
+p-4
+mb-5
 ">
 
 
-<form method="GET"
-
+<form
+method="GET"
 class="
 grid
-md:grid-cols-3
-gap-4
+grid-cols-1
+lg:grid-cols-[1fr_230px_150px]
+gap-3
 ">
 
 
@@ -240,15 +240,18 @@ placeholder="Search order, buyer, seller..."
 
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
+text-sm
 focus:outline-none
-focus:ring-2
-focus:ring-[#1F6F5B]
+focus:border-[#1F6F5B]
 "
 
 >
+
+
 
 
 
@@ -259,9 +262,12 @@ name="status"
 
 class="
 border
+border-[#D6DFDA]
 rounded-xl
 px-4
 py-3
+text-sm
+bg-white
 "
 
 >
@@ -297,7 +303,13 @@ Completed
 </option>
 
 
+<option value="CANCELLED">
+Cancelled
+</option>
+
+
 </select>
+
 
 
 
@@ -310,8 +322,10 @@ class="
 bg-[#1F6F5B]
 text-white
 rounded-xl
-font-medium
+font-semibold
+text-sm
 hover:bg-[#155244]
+transition
 "
 
 >
@@ -319,6 +333,7 @@ hover:bg-[#155244]
 Search
 
 </button>
+
 
 
 </form>
@@ -337,25 +352,30 @@ Search
 <!-- TABLE -->
 
 
-<div
-class="
+<div class="
 bg-white
-rounded-3xl
+rounded-2xl
 border
-border-[#E3EAE6]
+border-[#DCE5E0]
+shadow-sm
 overflow-hidden
 ">
 
 
-<table class="w-full">
+<div class="overflow-x-auto">
+
+
+<table class="w-full min-w-[950px]">
 
 
 <thead
 
 class="
-bg-[#F8FAF9]
-text-sm
-text-gray-500
+bg-[#F4F7F5]
+text-[11px]
+uppercase
+tracking-wide
+text-[#607169]
 "
 
 >
@@ -364,37 +384,37 @@ text-gray-500
 <tr>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Order ID
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Buyer
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Seller
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Amount
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Status
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-left">
 Date
 </th>
 
 
-<th class="p-5 text-left">
+<th class="px-5 py-4 text-center">
 Action
 </th>
 
@@ -409,35 +429,29 @@ Action
 
 
 
-
 <tbody>
 
 
 @forelse($orders as $order)
 
 
-<tr
-
-class="
+<tr class="
 border-t
-border-[#E3EAE6]
-"
-
->
-
-
-<td class="p-5">
+border-[#E7ECE9]
+hover:bg-[#FBFCFB]
+transition
+">
 
 
-<p class="
+<td class="
+px-5
+py-4
 font-semibold
-text-[#173F35]
+text-[#176B55]
+text-sm
 ">
 
 #{{ $order->order_number }}
-
-</p>
-
 
 </td>
 
@@ -446,8 +460,7 @@ text-[#173F35]
 
 
 
-
-<td class="p-5">
+<td class="px-5 py-4 text-sm">
 
 {{ $order->buyer->name ?? '-' }}
 
@@ -458,8 +471,7 @@ text-[#173F35]
 
 
 
-
-<td class="p-5">
+<td class="px-5 py-4 text-sm">
 
 {{ $order->seller->name ?? '-' }}
 
@@ -470,8 +482,12 @@ text-[#173F35]
 
 
 
-
-<td class="p-5">
+<td class="
+px-5
+py-4
+text-sm
+font-medium
+">
 
 ₱{{ number_format($order->total_amount,2) }}
 
@@ -483,34 +499,33 @@ text-[#173F35]
 
 
 
-<td class="p-5">
+<td class="px-5 py-4">
 
 
-<span
-
-class="
+<span class="
+inline-flex
 px-3
 py-1
 rounded-full
-text-sm
+text-xs
+font-medium
 
 {{ in_array($order->status,['COMPLETED','DELIVERED'])
-? 'bg-green-100 text-green-700'
+?
+'bg-green-100 text-green-700'
 :
 (
 in_array($order->status,['CANCELLED','RETURNED'])
-? 'bg-red-100 text-red-700'
+?
+'bg-red-100 text-red-700'
 :
 'bg-yellow-100 text-yellow-700'
 )
-
 }}
 
-"
+">
 
->
-
-{{ $order->status }}
+{{ ucfirst(strtolower($order->status)) }}
 
 </span>
 
@@ -523,7 +538,11 @@ in_array($order->status,['CANCELLED','RETURNED'])
 
 
 
-<td class="p-5">
+<td class="
+px-5
+py-4
+text-sm
+">
 
 {{ $order->created_at->format('M d, Y') }}
 
@@ -535,7 +554,11 @@ in_array($order->status,['CANCELLED','RETURNED'])
 
 
 
-<td class="p-5">
+<td class="
+px-5
+py-4
+text-center
+">
 
 
 <a
@@ -543,15 +566,17 @@ in_array($order->status,['CANCELLED','RETURNED'])
 href="{{ route('superadmin.orders.show',$order) }}"
 
 class="
+inline-flex
+justify-center
+border
+border-[#D8E1DC]
+rounded-lg
 px-4
 py-2
-rounded-xl
-border
-border-[#1F6F5B]
-text-[#1F6F5B]
-text-sm
+text-xs
 font-medium
-hover:bg-[#1F6F5B]
+text-[#176B55]
+hover:bg-[#176B55]
 hover:text-white
 transition
 "
@@ -567,6 +592,8 @@ View Details
 
 
 
+
+
 </tr>
 
 
@@ -576,11 +603,16 @@ View Details
 
 <tr>
 
-<td colspan="7"
+
+<td
+
+colspan="7"
 
 class="
-p-8
+px-6
+py-12
 text-center
+text-sm
 text-gray-500
 "
 
@@ -601,7 +633,12 @@ No orders found.
 </tbody>
 
 
+
 </table>
+
+
+</div>
+
 
 
 </div>
@@ -617,7 +654,6 @@ No orders found.
 {{ $orders->links() }}
 
 </div>
-
 
 
 
