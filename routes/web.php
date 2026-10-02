@@ -2725,8 +2725,6 @@ Route::post('/seller/register', function (Request $request) {
 
     $request->validate([
 
-    'shop_name' => 'required|string|max:150',
-
     'first_name' => 'required|string|max:100',
 
     'last_name' => 'required|string|max:100',
@@ -2824,6 +2822,21 @@ Route::get('/seller', function () use ($requireSeller) {
     return view('seller.dashboard');
 
 })->name('seller.dashboard');
+
+
+// =====================================================
+// SELLER STORE PROFILE
+// =====================================================
+
+Route::get('/seller/store-profile', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    return view('seller.store-profile');
+
+})->name('seller.store.profile');
 
 
 // =====================================================
