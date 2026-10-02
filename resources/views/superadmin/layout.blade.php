@@ -333,15 +333,22 @@ Orders
 
 
 <a
+    href="{{ route('superadmin.commission') }}"
+    class="
+        block
+        px-4
+        py-3
+        rounded-xl
+        text-sm
+        font-medium
 
-href="#"
-
-class="menu-link"
-
+        {{ request()->routeIs('superadmin.commission*')
+            ? 'bg-[#10b981] text-white'
+            : 'text-green-100 hover:bg-[#047857]'
+        }}
+    "
 >
-
-Commission
-
+    Commission
 </a>
 
 

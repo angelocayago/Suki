@@ -15,6 +15,7 @@ use App\Http\Controllers\SuperAdmin\UserManagementController;
 use App\Http\Controllers\SuperAdmin\ApplicationController;
 use App\Http\Controllers\SuperAdmin\SellerManagementController;
 use App\Http\Controllers\SuperAdmin\OrderManagementController;
+use App\Http\Controllers\SuperAdmin\CommissionController;
 
 
 // =====================================================
@@ -5702,6 +5703,23 @@ Route::middleware(['auth','superadmin'])
             OrderManagementController::class,
             'show'
         ])->name('orders.show');
+
+        /*
+|--------------------------------------------------------------------------
+| COMMISSION MANAGEMENT
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/commission', [
+    CommissionController::class,
+    'index'
+])->name('commission');
+
+
+Route::post('/commission/{seller}/rate', [
+    CommissionController::class,
+    'updateRate'
+])->name('commission.rate');
 
     });
     
