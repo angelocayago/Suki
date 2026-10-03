@@ -1343,12 +1343,12 @@
                                 text-[11px]
                                 font-semibold
 
-                                {{ $index === 0
+                                {{ $loop->first
                                     ? 'bg-[#173F35] text-white'
                                     : 'bg-[#F1F4F2] text-[#68776F]' }}
                             "
                         >
-                            {{ $index + 1 }}
+                            {{ $loop->iteration }}
                         </div>
 
 
