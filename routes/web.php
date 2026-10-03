@@ -3117,6 +3117,25 @@ Route::post('/seller/inventory/{product}/decrease', function (
 
 
 // =====================================================
+// SELLER SALES
+// =====================================================
+
+Route::get('/seller/sales', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $orders = collect(session('orders', []));
+
+    return view('seller.sales', [
+        'orders' => $orders,
+    ]);
+
+})->name('seller.sales');
+
+
+// =====================================================
 // SELLER REPORTS & ANALYTICS
 // =====================================================
 

@@ -341,6 +341,30 @@
                 </a>
 
 
+                {{-- SALES --}}
+                <a
+                    href="{{ route('seller.sales') }}"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+                        {{ request()->routeIs('seller.sales')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
+                >
+                    <i
+                        data-lucide="banknote"
+                        class="h-[18px] w-[18px]"
+                    ></i>
+
+                    <span>Sales</span>
+                </a>
+
+
                 {{-- REPORTS --}}
                 <a
                     href="{{ route('seller.reports') }}"
