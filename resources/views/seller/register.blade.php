@@ -543,25 +543,14 @@
             </label>
 
             <select
+                id="province"
                 name="province"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
                 <option value="">
-                    Select province
-                </option>
-
-                <option value="Laguna">
-                    Laguna
-                </option>
-
-                <option value="Batangas">
-                    Batangas
-                </option>
-
-                <option value="Cavite">
-                    Cavite
+                    Loading provinces...
                 </option>
 
             </select>
@@ -577,13 +566,19 @@
                 Municipality/City *
             </label>
 
-            <input
-                type="text"
+            <select
+                id="municipality"
                 name="municipality"
                 required
-                placeholder="Enter municipality"
-                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                disabled
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
             >
+
+                <option value="">
+                    Select province first
+                </option>
+
+            </select>
 
         </div>
 
@@ -596,13 +591,19 @@
                 Barangay *
             </label>
 
-            <input
-                type="text"
+            <select
+                id="barangay"
                 name="barangay"
                 required
-                placeholder="Enter barangay"
-                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                disabled
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
             >
+
+                <option value="">
+                    Select municipality/city first
+                </option>
+
+            </select>
 
         </div>
 
@@ -1037,6 +1038,168 @@ function showFileName(input, targetId) {
 
 }
 
+
+const PSGC_API_BASE = '/api/psgc';
+
+const provinceSelect = document.getElementById('province');
+const municipalitySelect = document.getElementById('municipality');
+const barangaySelect = document.getElementById('barangay');
+
+function setSelectOptions(select, placeholder, items, valueKey = 'name') {
+
+    select.innerHTML = '';
+
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder;
+    select.appendChild(placeholderOption);
+
+    items.forEach((item) => {
+
+        const option = document.createElement('option');
+        option.value = item[valueKey];
+        option.textContent = item.name;
+        option.dataset.code = item.code;
+
+        select.appendChild(option);
+
+    });
+
+}
+
+async function loadProvinces() {
+
+    if (!provinceSelect) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(`${PSGC_API_BASE}/provinces`);
+
+        if (!response.ok) {
+            throw new Error('Unable to load provinces.');
+        }
+
+        const provinces = await response.json();
+
+        setSelectOptions(provinceSelect, 'Select province', provinces);
+
+    } catch (error) {
+
+        provinceSelect.innerHTML = '<option value="">Unable to load provinces</option>';
+        console.error(error);
+
+    }
+
+}
+
+async function loadMunicipalities(provinceCode) {
+
+    municipalitySelect.innerHTML = '<option value="">Loading municipalities/cities...</option>';
+    municipalitySelect.disabled = true;
+
+    barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
+    barangaySelect.disabled = true;
+
+    try {
+
+        const response = await fetch(
+            `${PSGC_API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
+        );
+
+        if (!response.ok) {
+            throw new Error('Unable to load municipalities/cities.');
+        }
+
+        const municipalities = await response.json();
+
+        setSelectOptions(
+            municipalitySelect,
+            'Select municipality/city',
+            municipalities
+        );
+
+        municipalitySelect.disabled = false;
+
+    } catch (error) {
+
+        municipalitySelect.innerHTML = '<option value="">Unable to load municipalities/cities</option>';
+        console.error(error);
+
+    }
+
+}
+
+async function loadBarangays(municipalityCode) {
+
+    barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+    barangaySelect.disabled = true;
+
+    try {
+
+        const response = await fetch(
+            `${PSGC_API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
+        );
+
+        if (!response.ok) {
+            throw new Error('Unable to load barangays.');
+        }
+
+        const barangays = await response.json();
+
+        setSelectOptions(
+            barangaySelect,
+            'Select barangay',
+            barangays
+        );
+
+        barangaySelect.disabled = false;
+
+    } catch (error) {
+
+        barangaySelect.innerHTML = '<option value="">Unable to load barangays</option>';
+        console.error(error);
+
+    }
+
+}
+
+if (provinceSelect && municipalitySelect && barangaySelect) {
+
+    provinceSelect.addEventListener('change', function () {
+
+        const provinceCode = this.options[this.selectedIndex]?.dataset.code;
+
+        if (!provinceCode) {
+            municipalitySelect.innerHTML = '<option value="">Select province first</option>';
+            municipalitySelect.disabled = true;
+            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
+            barangaySelect.disabled = true;
+            return;
+        }
+
+        loadMunicipalities(provinceCode);
+
+    });
+
+    municipalitySelect.addEventListener('change', function () {
+
+        const municipalityCode = this.options[this.selectedIndex]?.dataset.code;
+
+        if (!municipalityCode) {
+            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
+            barangaySelect.disabled = true;
+            return;
+        }
+
+        loadBarangays(municipalityCode);
+
+    });
+
+    loadProvinces();
+
+}
 
 function togglePassword(inputId, iconId) {
 

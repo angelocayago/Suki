@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -385,6 +386,65 @@ $requireBuyer = function () {
 
     return null;
 };
+
+
+// =====================================================
+// PSGC API PROXY
+// =====================================================
+
+Route::get('/api/psgc/provinces', function () {
+
+    $response = Http::acceptJson()
+        ->timeout(10)
+        ->get('https://psgc.cloud/api/v2/provinces');
+
+    if (!$response->successful()) {
+        return response()->json([
+            'message' => 'Unable to load provinces.',
+        ], $response->status());
+    }
+
+    return response()->json($response->json('data'));
+
+});
+
+Route::get('/api/psgc/provinces/{province}/cities-municipalities', function (string $province) {
+
+    $response = Http::acceptJson()
+        ->timeout(10)
+        ->get(
+            'https://psgc.cloud/api/v2/provinces/'
+            . rawurlencode($province)
+            . '/cities-municipalities'
+        );
+
+    if (!$response->successful()) {
+        return response()->json([
+            'message' => 'Unable to load municipalities/cities.',
+        ], $response->status());
+    }
+
+    return response()->json($response->json('data'));
+});
+
+Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function (string $municipality) {
+
+    $response = Http::acceptJson()
+        ->timeout(10)
+        ->get(
+            'https://psgc.cloud/api/v2/cities-municipalities/'
+            . rawurlencode($municipality)
+            . '/barangays'
+        );
+
+    if (!$response->successful()) {
+        return response()->json([
+            'message' => 'Unable to load barangays.',
+        ], $response->status());
+    }
+
+    return response()->json($response->json('data'));
+});
 
 
 // =====================================================
