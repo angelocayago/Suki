@@ -17,6 +17,7 @@ use App\Http\Controllers\SuperAdmin\SellerManagementController;
 use App\Http\Controllers\SuperAdmin\OrderManagementController;
 use App\Http\Controllers\SuperAdmin\CommissionController;
 use App\Http\Controllers\SuperAdmin\ReportController;
+use App\Http\Controllers\SuperAdmin\SettingController;
 
 
 // =====================================================
@@ -5732,6 +5733,55 @@ Route::get('/reports', [
     ReportController::class,
     'index'
 ])->name('reports');
+
+/*
+|--------------------------------------------------------------------------
+| SETTINGS MANAGEMENT
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/settings', [
+    SettingController::class,
+    'index'
+])->name('settings');
+
+
+Route::post('/settings/platform', [
+    SettingController::class,
+    'updatePlatform'
+])->name('settings.platform');
+
+
+Route::post('/settings/marketplace', [
+    SettingController::class,
+    'updateMarketplace'
+])->name('settings.marketplace');
+
+
+Route::post('/settings/policies', [
+    SettingController::class,
+    'updatePolicies'
+])->name('settings.policies');
+
+
+
+Route::post('/settings/announcements', [
+    SettingController::class,
+    'storeAnnouncement'
+])->name('settings.announcement.store');
+
+
+
+Route::put('/settings/announcements/{announcement}', [
+    SettingController::class,
+    'updateAnnouncement'
+])->name('settings.announcement.update');
+
+
+Route::delete('/settings/announcements/{announcement}', [
+    SettingController::class,
+    'deleteAnnouncement'
+])->name('settings.announcement.delete');
 
     });
     
