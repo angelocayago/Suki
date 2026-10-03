@@ -3,7 +3,7 @@
 @section('content')
 
 @php
- 
+
 
     $categories = [
         'All Products',
@@ -136,27 +136,35 @@
 
     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
 
-        @foreach($categories as $category)
+    <a
+        href="{{ route('buyer.shop') }}"
+        class="shrink-0 px-4 py-2.5 rounded-lg border
+        {{ !request('category')
+            ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
+            : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
+        }}
+        text-sm font-medium transition"
+    >
+        All Products
+    </a>
 
-            <a
-                href="{{ $category === 'All Products'
-    ? route('buyer.shop')
-    : route('buyer.shop', ['category' => $category])
-}}"
-                class="shrink-0 px-4 py-2.5 rounded-lg border
-{{ request('category') === $category || (!request('category') && $category === 'All Products')
-    ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
-    : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
-}}
-                }}
-                text-sm font-medium transition"
-            >
-                {{ $category }}
-            </a>
+    @foreach($databaseCategories as $category)
 
-        @endforeach
+        <a
+            href="{{ route('buyer.shop', ['category' => $category->slug]) }}"
+            class="shrink-0 px-4 py-2.5 rounded-lg border
+            {{ request('category') === $category->slug
+                ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
+            }}
+            text-sm font-medium transition"
+        >
+            {{ $category->name }}
+        </a>
 
-    </div>
+    @endforeach
+
+</div>
 
 </section>
 
@@ -210,7 +218,13 @@
 
 
                 {{-- CATEGORY --}}
-                <div class="px-5 py-5 border-b border-gray-100">
+
+           <form
+    method="GET"
+    action="{{ route('buyer.shop') }}"
+>
+
+<div class="px-5 py-5 border-b border-gray-100">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
                         Categories
@@ -218,35 +232,39 @@
 
                     <div class="space-y-3">
 
-                        @foreach($categories as $category)
+                       @foreach($databaseCategories as $category)
 
-                            @if($category !== 'All Products')
+    <label class="flex items-center justify-between gap-3 text-sm text-gray-600 cursor-pointer group">
 
-                                <label class="flex items-center justify-between gap-3 text-sm text-gray-600 cursor-pointer group">
+        <div class="flex items-center gap-3">
 
-                                    <div class="flex items-center gap-3">
+            <input
+                type="radio"
+                name="category"
+                value="{{ $category->slug }}"
+                onchange="this.form.submit()"
+                {{ request('category') === $category->slug ? 'checked' : '' }}
+                class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
+            >
 
-                                        <input
-                                            type="checkbox"
-                                            class="w-4 h-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-                                        >
+            <span class="group-hover:text-[#1F6F5B] transition">
+                {{ $category->name }}
+            </span>
 
-                                        <span class="group-hover:text-[#1F6F5B] transition">
-                                            {{ $category }}
-                                        </span>
+        </div>
 
-                                    </div>
+    </label>
 
-                                </label>
+@endforeach
 
-                            @endif
+                        </div>
 
-                        @endforeach
+                        </div>
 
-                    </div>
+                        </form>
 
-                </div>
 
+{{-- PRICE --}}
 
                 {{-- PRICE --}}
               <form
@@ -333,101 +351,6 @@
 </form>
 
 
-                {{-- RATING --}}
-                <div class="px-5 py-5">
-
-                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                        Customer Rating
-                    </h3>
-
-                   <form
-    method="GET"
-    action="{{ route('buyer.shop') }}"
->
-@if(request('category'))
-    <input
-        type="hidden"
-        name="category"
-        value="{{ request('category') }}"
-    >
-@endif
-
-
-@if(request('search'))
-    <input
-        type="hidden"
-        name="search"
-        value="{{ request('search') }}"
-    >
-@endif
-
-
-@if(request('min_price'))
-    <input
-        type="hidden"
-        name="min_price"
-        value="{{ request('min_price') }}"
-    >
-@endif
-
-
-@if(request('max_price'))
-    <input
-        type="hidden"
-        name="max_price"
-        value="{{ request('max_price') }}"
-    >
-@endif
-
-
-@if(request('sort'))
-    <input
-        type="hidden"
-        name="sort"
-        value="{{ request('sort') }}"
-    >
-@endif
-
-<div class="space-y-3">
-
-             @foreach([
-    5 => '5 stars',
-    4 => '4 stars & up',
-    3 => '3 stars & up'
-] as $value => $rating)
-                            <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
-
-                               <input
-    type="radio"
-    name="rating"
-    value="{{ $value }}"
-    onchange="this.form.submit()"
-    {{ (float) request('rating') == (float) $value ? 'checked' : '' }}
-    class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
->
-
-                                <div class="flex items-center gap-1">
-
-                                    <i
-                                        data-lucide="star"
-                                        class="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]"
-                                    ></i>
-
-                                    <span>
-                                        {{ $rating }}
-                                    </span>
-
-                                </div>
-
-                            </label>
-
-                        @endforeach
-
-                        </form>
-
-                    </div>
-
-                </div>
 
             </div>
 
@@ -699,9 +622,6 @@
                                     ₱{{ $product['price'] }}
                                 </span>
 
-                                <span class="text-xs text-gray-400 line-through">
-                                    ₱{{ $product['old_price'] }}
-                                </span>
 
                             </div>
 
@@ -709,24 +629,7 @@
                             {{-- RATING + SOLD --}}
                             <div class="flex items-center gap-2 mt-2">
 
-                                <div class="flex items-center gap-1">
 
-                                    <i
-                                        data-lucide="star"
-                                        class="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]"
-                                    ></i>
-
-                                    <span class="text-xs font-medium text-gray-600">
-                                        {{ $product['rating'] }}
-                                    </span>
-
-                                </div>
-
-                                <span class="text-xs text-gray-400">
-                                    {{ $product['sold'] }} sold
-                                </span>
-
-                            </div>
 
 
                             {{-- SHIPPING --}}

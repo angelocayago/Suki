@@ -5,6 +5,9 @@ use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\Category;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
@@ -319,121 +322,111 @@ Route::get('/home', function () {
 // BUYER SHOP
 // =====================================================
 
-Route::get('/shop', function (Request $request) use ($products) {
+Route::get('/shop', function (Request $request) {
 
-    $filteredProducts = collect($products);
+    $categories = Category::query()
+        ->where('is_active', true)
+        ->orderBy('position')
+        ->get();
 
+    $productQuery = Product::query()
+    ->with([
+        'category',
+        'seller',
+        'images',
+        'variants' => function ($query) {
+            $query
+                ->where('is_active', true)
+                ->orderBy('price_minor');
+        },
+    ])
+    ->where('is_active', true)
+    ->whereHas('variants', function ($query) {
+        $query->where('is_active', true);
+    });
 
-    // SEARCH
-    if ($request->filled('search')) {
+if ($request->filled('category')) {
+    $productQuery->whereHas('category', function ($query) use ($request) {
+        $query->where('slug', $request->category);
+    });
+}
 
-        $search = strtolower($request->search);
+if ($request->filled('category')) {
+    $productQuery->whereHas('category', function ($query) use ($request) {
+        $query->where('slug', $request->category);
+    });
+}
 
-        $filteredProducts = $filteredProducts->filter(function ($product) use ($search) {
+if ($request->filled('min_price') || $request->filled('max_price')) {
 
-            return str_contains(
-                strtolower($product['name']),
-                $search
-            )
-            ||
-            str_contains(
-                strtolower($product['category']),
-                $search
-            )
-            ||
-            str_contains(
-                strtolower($product['seller']),
-                $search
+    $productQuery->whereHas('variants', function ($query) use ($request) {
+
+        $query->where('is_active', true);
+
+        if ($request->filled('min_price')) {
+            $query->where(
+                'price_minor',
+                '>=',
+                (int) round(((float) $request->min_price) * 100)
             );
+        }
 
-        });
+        if ($request->filled('max_price')) {
+            $query->where(
+                'price_minor',
+                '<=',
+                (int) round(((float) $request->max_price) * 100)
+            );
+        }
 
-    }
+    });
+}
 
-
-    // CATEGORY
-    if ($request->filled('category')) {
-
-        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
-
-            return $product['category'] === $request->category;
-
-        });
-
-    }
+$databaseProducts = $productQuery->get();
 
 
-    // PRICE RANGE
-    if ($request->filled('min_price')) {
 
-        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
+    $products = $databaseProducts->mapWithKeys(function ($product) {
 
-            return (int) $product['price'] >= (int) $request->min_price;
+        $variant = $product->variants->first();
+        $image = $product->images->first();
 
-        });
+        $imageUrl = $image
+            ? (
+                Str::startsWith($image->path, ['http://', 'https://'])
+                    ? $image->path
+                    : asset('storage/' . ltrim($image->path, '/'))
+            )
+            : asset('images/suki-logo.png');
 
-    }
+        return [
+            $product->slug => [
+                'image' => $imageUrl,
+                'name' => $product->name,
+                'category' => $product->category?->name ?? 'Uncategorized',
+                'price' => number_format(
+                    ($variant->price_minor ?? 0) / 100,
+                    2
+                ),
+            ],
+        ];
+    });
 
-
-    if ($request->filled('max_price')) {
-
-        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
-
-            return (int) $product['price'] <= (int) $request->max_price;
-
-        });
-
-    }
-
-
-    // RATING
-    if ($request->filled('rating')) {
-
-        $filteredProducts = $filteredProducts->filter(function ($product) use ($request) {
-
-            return (float) $product['rating'] >= (float) $request->rating;
-
-        });
-
-    }
-
-
-    // SORT
     if ($request->sort === 'price_low') {
+    $products = $products->sortBy(function ($product) {
+        return (float) $product['price'];
+    });
+}
 
-        $filteredProducts = $filteredProducts->sortBy(function ($product) {
-
-            return (int) $product['price'];
-
-        });
-
-    }
-
-
-    if ($request->sort === 'price_high') {
-
-        $filteredProducts = $filteredProducts->sortByDesc(function ($product) {
-
-            return (int) $product['price'];
-
-        });
-
-    }
-
-
-    if ($request->sort === 'best_selling') {
-
-        $filteredProducts = $filteredProducts->sortByDesc(function ($product) {
-
-            return $product['sold'];
-
-        });
-
-    }
-
+if ($request->sort === 'price_high') {
+    $products = $products->sortByDesc(function ($product) {
+        return (float) $product['price'];
+    });
+}
 
     return view('buyer.shop', [
-        'products' => $filteredProducts->values()->toArray(),
+        'products' => $products,
+        'databaseCategories' => $categories,
     ]);
 
 })->name('buyer.shop');
