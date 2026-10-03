@@ -158,58 +158,65 @@
         {{-- STORE --}}
         <div class="px-4 pt-5">
 
+            <a
+    href="{{ route('seller.store.profile') }}"
+    class="block"
+>
+
+    <div
+        class="rounded-2xl
+               border border-white/10
+               bg-white/[0.06]
+               p-4
+               transition
+               hover:bg-white/[0.10]"
+    >
+
+        <div class="flex items-center gap-3">
+
             <div
-                class="rounded-2xl
-                       border border-white/10
-                       bg-white/[0.06]
-                       p-4"
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#DDF3EC]
+                       text-[#173F35]"
             >
 
-                <div class="flex items-center gap-3">
+                <i
+                    data-lucide="store"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
-                    <div
-                        class="flex h-10 w-10
-                               shrink-0
-                               items-center justify-center
-                               rounded-xl
-                               bg-[#DDF3EC]
-                               text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="store"
-                            class="h-[18px] w-[18px]"
-                        ></i>
-
-                    </div>
+            </div>
 
 
-                    <div class="min-w-0">
+            <div class="min-w-0">
 
-                        <p
-                            class="truncate
-                                   text-[13px]
-                                   font-semibold
-                                   text-white"
-                        >
-                            {{ $shopName }}
-                        </p>
+                <p
+                    class="truncate
+                           text-[13px]
+                           font-semibold
+                           text-white"
+                >
+                    {{ $shopName }}
+                </p>
 
-                        <p
-                            class="mt-0.5
-                                   text-[10px]
-                                   text-white/45"
-                        >
-                            Active seller account
-                        </p>
-
-                    </div>
-
-                </div>
+                <p
+                    class="mt-0.5
+                           text-[10px]
+                           text-white/45"
+                >
+                    Active seller account
+                </p>
 
             </div>
 
         </div>
+
+    </div>
+
+</a>
 
 
         {{-- NAVIGATION --}}
