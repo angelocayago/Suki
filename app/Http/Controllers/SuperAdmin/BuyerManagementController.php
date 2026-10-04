@@ -10,13 +10,6 @@ class BuyerManagementController extends Controller
 {
     public function index(Request $request)
     {
-
-        /*
-        |--------------------------------------------------------------------------
-        | BUYERS QUERY
-        |--------------------------------------------------------------------------
-        */
-
         $buyersQuery = User::query()
             ->where('role', 'buyer')
             ->withCount('buyerOrders')
@@ -27,11 +20,9 @@ class BuyerManagementController extends Controller
 
 
 
-
-
         /*
         |--------------------------------------------------------------------------
-        | SEARCH
+        | SEARCH FILTER
         |--------------------------------------------------------------------------
         */
 
@@ -42,29 +33,26 @@ class BuyerManagementController extends Controller
 
             $buyersQuery->where(function ($query) use ($search) {
 
-                $query->where(
-                    'name',
-                    'like',
-                    "%{$search}%"
-                )
-                ->orWhere(
-                    'email',
-                    'like',
-                    "%{$search}%"
-                )
-                ->orWhere(
-                    'phone',
-                    'like',
-                    "%{$search}%"
-                );
+                $query
+                    ->where(
+                        'name',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'email',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'phone',
+                        'like',
+                        "%{$search}%"
+                    );
 
             });
 
         }
-
-
-
-
 
 
 
@@ -85,12 +73,7 @@ class BuyerManagementController extends Controller
 
 
 
-
-
-
-
-        $buyers =
-            $buyersQuery
+        $buyers = $buyersQuery
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -99,15 +82,11 @@ class BuyerManagementController extends Controller
 
 
 
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | SUMMARY
+        | BUYER SUMMARY
         |--------------------------------------------------------------------------
         */
-
 
         $stats = [
 
@@ -115,6 +94,7 @@ class BuyerManagementController extends Controller
                 'role',
                 'buyer'
             )->count(),
+
 
 
             'active' => User::where(
@@ -126,6 +106,7 @@ class BuyerManagementController extends Controller
                 'active'
             )
             ->count(),
+
 
 
             'suspended' => User::where(
@@ -155,8 +136,6 @@ class BuyerManagementController extends Controller
 
 
 
-
-
         return view(
             'superadmin.buyers.index',
             compact(
@@ -164,7 +143,6 @@ class BuyerManagementController extends Controller
                 'stats'
             )
         );
-
     }
 
 
@@ -203,11 +181,88 @@ class BuyerManagementController extends Controller
 
 
 
-        return back()
-            ->with(
-                'success',
-                'Buyer status updated successfully.'
+        return back()->with(
+            'success',
+            'Buyer status updated successfully.'
+        );
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LIVE SEARCH
+    |--------------------------------------------------------------------------
+    */
+
+    public function search(Request $request)
+    {
+
+        $search = $request->search;
+
+
+
+        $buyersQuery = User::query()
+            ->where('role', 'buyer')
+            ->withCount('buyerOrders')
+            ->withSum(
+                'buyerOrders',
+                'total_amount'
             );
+
+
+
+
+
+        if (!empty($search)) {
+
+
+            $buyersQuery->where(function ($query) use ($search) {
+
+                $query
+                    ->where(
+                        'name',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'email',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'phone',
+                        'like',
+                        "%{$search}%"
+                    );
+
+            });
+
+
+        }
+
+
+
+
+        $buyers = $buyersQuery
+            ->latest()
+            ->get();
+
+
+
+
+
+        return view(
+            'superadmin.buyers.partials.table',
+            compact('buyers')
+        );
 
     }
 }

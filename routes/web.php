@@ -5794,6 +5794,11 @@ Route::post('/buyers/{buyer}/status', [
     'updateStatus'
 ])->name('buyers.status');
 
+Route::get('/buyers/search', [
+    BuyerManagementController::class,
+    'search'
+])->name('buyers.search');
+
     });
     
 // =====================================================
