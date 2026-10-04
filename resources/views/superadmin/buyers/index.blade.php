@@ -2,24 +2,19 @@
 
 
 @section('title')
-
 Buyer Management
-
 @endsection
 
 
 
 @section('content')
 
-
 <div class="w-full">
-
 
 
     <!-- HEADER -->
 
     <div class="mb-7">
-
 
         <h1 class="
             text-3xl
@@ -37,10 +32,7 @@ Buyer Management
             Manage buyer accounts and monitor buyer activity.
         </p>
 
-
     </div>
-
-
 
 
 
@@ -82,7 +74,6 @@ Buyer Management
             </h2>
 
         </div>
-
 
 
 
@@ -175,8 +166,6 @@ Buyer Management
 
 
 
-
-
     <!-- FILTER BAR -->
 
 
@@ -191,18 +180,13 @@ Buyer Management
     ">
 
 
-        <form
+        <div class="
+            grid
+            grid-cols-1
+            lg:grid-cols-[1fr_230px_150px]
+            gap-3
+        ">
 
-            method="GET"
-
-            class="
-                grid
-                grid-cols-1
-                lg:grid-cols-[1fr_230px_150px]
-                gap-3
-            "
-
-        >
 
 
             <input
@@ -210,10 +194,6 @@ Buyer Management
                 type="text"
 
                 id="buyerSearch"
-
-                name="search"
-
-                value="{{ request('search') }}"
 
                 placeholder="Search buyer..."
 
@@ -236,7 +216,7 @@ Buyer Management
 
             <select
 
-                name="status"
+                id="buyerStatus"
 
                 class="
                     border
@@ -278,7 +258,9 @@ Buyer Management
 
             <button
 
-                type="submit"
+                type="button"
+
+                id="buyerSearchButton"
 
                 class="
                     bg-[#1F6F5B]
@@ -297,10 +279,12 @@ Buyer Management
             </button>
 
 
-        </form>
+
+        </div>
 
 
     </div>
+
 
 
 
@@ -385,7 +369,6 @@ Buyer Management
 
 
                 </thead>
-
 <tbody id="buyerTable">
 
     @include('superadmin.buyers.partials.table')
@@ -433,89 +416,159 @@ let activeRequest = null;
 
 
 
-const buyerSearch = document.getElementById('buyerSearch');
+function loadBuyers(){
+
+
+    const search =
+        document
+        .getElementById('buyerSearch')
+        .value;
 
 
 
-buyerSearch.addEventListener('input', function(){
-
-
-    clearTimeout(searchTimer);
-
-
-
-    searchTimer = setTimeout(() => {
+    const status =
+        document
+        .getElementById('buyerStatus')
+        .value;
 
 
 
-        if(activeRequest){
 
-            activeRequest.abort();
+    if(activeRequest){
+
+        activeRequest.abort();
+
+    }
+
+
+
+
+    const controller = new AbortController();
+
+
+    activeRequest = controller;
+
+
+
+
+
+    fetch(
+        "{{ route('superadmin.buyers.search') }}"
+        + "?search="
+        + encodeURIComponent(search)
+        + "&status="
+        + encodeURIComponent(status),
+        {
+            signal: controller.signal
+        }
+    )
+
+
+
+    .then(response => response.text())
+
+
+
+    .then(html => {
+
+
+        document
+            .getElementById('buyerTable')
+            .innerHTML = html;
+
+
+    })
+
+
+
+    .catch(error => {
+
+
+        if(error.name !== 'AbortError'){
+
+            console.error(error);
 
         }
 
 
+    });
 
 
 
-        const controller = new AbortController();
-
-
-        activeRequest = controller;
+}
 
 
 
 
 
-        fetch(
-            "{{ route('superadmin.buyers.search') }}?search=" + this.value,
-            {
-                signal: controller.signal
-            }
-        )
+
+
+document
+.getElementById('buyerSearch')
+.addEventListener(
+    'input',
+    function(){
+
+
+        clearTimeout(searchTimer);
 
 
 
-        .then(response => response.text())
+        searchTimer = setTimeout(() => {
+
+
+            loadBuyers();
+
+
+        },500);
 
 
 
-        .then(html => {
-
-
-            document
-                .getElementById('buyerTable')
-                .innerHTML = html;
-
-
-        })
+    }
+);
 
 
 
-        .catch(error => {
-
-
-            if(error.name !== 'AbortError'){
-
-                console.error(error);
-
-            }
-
-
-        });
 
 
 
-    }, 500);
+
+
+document
+.getElementById('buyerStatus')
+.addEventListener(
+    'change',
+    function(){
+
+
+        loadBuyers();
+
+
+    }
+);
 
 
 
-});
+
+
+
+
+document
+.getElementById('buyerSearchButton')
+.addEventListener(
+    'click',
+    function(){
+
+
+        loadBuyers();
+
+
+    }
+);
 
 
 
 </script>
-
 
 
 
