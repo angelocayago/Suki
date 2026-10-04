@@ -5599,31 +5599,33 @@ Route::middleware(['auth','superadmin'])
 
 
         /*
-        |--------------------------------------------------------------------------
-        | USER MANAGEMENT
-        |--------------------------------------------------------------------------
-        */
+|--------------------------------------------------------------------------
+| USER MANAGEMENT
+|--------------------------------------------------------------------------
+*/
 
-        Route::get('/users', [
-            UserManagementController::class,
-            'index'
-        ])->name('users');
-
-
-        Route::post('/users/{user}/status', [
-            UserManagementController::class,
-            'updateStatus'
-        ])->name('users.status');
+Route::get('/users', [
+    UserManagementController::class,
+    'index'
+])->name('users');
 
 
-        Route::get('/users/{user}', [
-            UserManagementController::class,
-            'show'
-        ])->name('users.show');
+Route::get('/users/search', [
+    UserManagementController::class,
+    'search'
+])->name('users.search');
 
 
+Route::post('/users/{user}/status', [
+    UserManagementController::class,
+    'updateStatus'
+])->name('users.status');
 
 
+Route::get('/users/{user}', [
+    UserManagementController::class,
+    'show'
+])->name('users.show');
 
 
         /*

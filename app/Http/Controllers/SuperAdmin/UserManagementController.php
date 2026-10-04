@@ -29,21 +29,26 @@ class UserManagementController extends Controller
 
             $query->where(function ($q) use ($search) {
 
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere(
-                        'email',
-                        'like',
-                        "%{$search}%"
-                    )
-                    ->orWhere(
-                        'phone',
-                        'like',
-                        "%{$search}%"
-                    );
+                $q->where(
+                    'name',
+                    'like',
+                    "%{$search}%"
+                )
+                ->orWhere(
+                    'email',
+                    'like',
+                    "%{$search}%"
+                )
+                ->orWhere(
+                    'phone',
+                    'like',
+                    "%{$search}%"
+                );
 
             });
 
         }
+
 
 
 
@@ -62,6 +67,7 @@ class UserManagementController extends Controller
             );
 
         }
+
 
 
 
@@ -85,16 +91,11 @@ class UserManagementController extends Controller
 
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | USERS LIST
-        |--------------------------------------------------------------------------
-        */
-
         $users = $query
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
 
 
 
@@ -156,6 +157,110 @@ class UserManagementController extends Controller
 
 
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | LIVE SEARCH
+    |--------------------------------------------------------------------------
+    */
+
+    public function search(Request $request)
+    {
+
+        $query = User::query();
+
+
+
+
+
+        if ($request->search) {
+
+            $search = $request->search;
+
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where(
+                    'name',
+                    'like',
+                    "%{$search}%"
+                )
+                ->orWhere(
+                    'email',
+                    'like',
+                    "%{$search}%"
+                )
+                ->orWhere(
+                    'phone',
+                    'like',
+                    "%{$search}%"
+                );
+
+            });
+
+        }
+
+
+
+
+
+
+
+        if ($request->role) {
+
+            $query->where(
+                'role',
+                $request->role
+            );
+
+        }
+
+
+
+
+
+
+
+        if ($request->status) {
+
+            $query->where(
+                'status',
+                $request->status
+            );
+
+        }
+
+
+
+
+
+
+
+        $users = $query
+            ->latest()
+            ->get();
+
+
+
+
+
+
+
+        return view(
+            'superadmin.users.partials.table',
+            compact('users')
+        );
+
+    }
+
+
+
+
+
+
+
+
+
     /*
     |--------------------------------------------------------------------------
     | UPDATE USER STATUS
@@ -165,8 +270,8 @@ class UserManagementController extends Controller
     public function updateStatus(
         Request $request,
         User $user
-    ) {
-
+    )
+    {
 
         $request->validate([
 
@@ -217,14 +322,14 @@ class UserManagementController extends Controller
     */
 
     public function show(User $user)
-{
+    {
 
-    return view(
-        'superadmin.users.show',
-        compact('user')
-    );
+        return view(
+            'superadmin.users.show',
+            compact('user')
+        );
 
-}
+    }
 
 
 }
