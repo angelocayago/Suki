@@ -21,6 +21,7 @@ use App\Http\Controllers\SuperAdmin\OrderManagementController;
 use App\Http\Controllers\SuperAdmin\CommissionController;
 use App\Http\Controllers\SuperAdmin\ReportController;
 use App\Http\Controllers\SuperAdmin\SettingController;
+use App\Http\Controllers\SuperAdmin\BuyerManagementController;
 
 
 // =====================================================
@@ -5775,6 +5776,23 @@ Route::delete('/settings/announcements/{announcement}', [
     SettingController::class,
     'deleteAnnouncement'
 ])->name('settings.announcement.delete');
+
+/*
+|--------------------------------------------------------------------------
+| BUYER MANAGEMENT
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/buyers', [
+    BuyerManagementController::class,
+    'index'
+])->name('buyers');
+
+
+Route::post('/buyers/{buyer}/status', [
+    BuyerManagementController::class,
+    'updateStatus'
+])->name('buyers.status');
 
     });
     

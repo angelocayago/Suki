@@ -121,210 +121,248 @@
 
         <!-- MENU -->
 
-        <nav
-            class="
-                flex-1
-                overflow-y-auto
-                px-4
-                py-6
-                space-y-2
-            "
-        >
+<nav
+    class="
+        flex-1
+        overflow-y-auto
+        px-4
+        py-6
+        space-y-2
+    "
+>
 
 
-            <!-- DASHBOARD -->
+    <!-- DASHBOARD -->
 
-            <a
-                href="{{ route('superadmin.dashboard') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
+    <a
+        href="{{ route('superadmin.dashboard') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
 
-                    {{ request()->routeIs('superadmin.dashboard')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Dashboard
-            </a>
-
-
-
-            <!-- USERS -->
-
-            <a
-                href="{{ route('superadmin.users') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.users*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Users
-            </a>
+            {{ request()->routeIs('superadmin.dashboard')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Dashboard
+    </a>
 
 
 
-            <!-- APPLICATIONS -->
 
-            <a
-                href="{{ route('superadmin.applications') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
+    <!-- USERS -->
 
-                    {{ request()->routeIs('superadmin.applications*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Applications
-            </a>
+    <a
+        href="{{ route('superadmin.users') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
 
-
-
-            <!-- SELLER MANAGEMENT -->
-
-            <a
-                href="{{ route('superadmin.sellers') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.sellers*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Seller Management
-            </a>
+            {{ request()->routeIs('superadmin.users*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Users
+    </a>
 
 
 
-            <!-- ORDERS -->
-
-            <a
-                href="{{ route('superadmin.orders') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.orders*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Orders
-            </a>
 
 
+    <!-- BUYER MANAGEMENT -->
 
-            <!-- COMMISSION -->
+    <a
+        href="{{ route('superadmin.buyers') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
 
-            <a
-                href="{{ route('superadmin.commission') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.commission*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Commission
-            </a>
+            {{ request()->routeIs('superadmin.buyers*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Buyer Management
+    </a>
 
 
 
-            <!-- REPORTS -->
-
-            <a
-                href="{{ route('superadmin.reports') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.reports*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Reports
-            </a>
 
 
+    <!-- SELLER MANAGEMENT -->
 
-            <!-- SETTINGS -->
+    <a
+        href="{{ route('superadmin.sellers') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
 
-            <a
-                href="{{ route('superadmin.settings') }}"
-                class="
-                    block
-                    px-4
-                    py-3
-                    rounded-xl
-                    text-sm
-                    font-medium
-                    transition
-
-                    {{ request()->routeIs('superadmin.settings*')
-                        ? 'bg-[#10b981] text-white'
-                        : 'text-green-100 hover:bg-[#047857] hover:text-white'
-                    }}
-                "
-            >
-                Settings
-            </a>
+            {{ request()->routeIs('superadmin.sellers*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Seller Management
+    </a>
 
 
-        </nav>
 
+
+
+    <!-- APPLICATIONS -->
+
+    <a
+        href="{{ route('superadmin.applications') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.applications*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Applications
+    </a>
+
+
+
+
+
+    <!-- ORDERS -->
+
+    <a
+        href="{{ route('superadmin.orders') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.orders*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Orders
+    </a>
+
+
+
+
+
+    <!-- COMMISSION -->
+
+    <a
+        href="{{ route('superadmin.commission') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.commission*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Commission
+    </a>
+
+
+
+
+
+    <!-- REPORTS -->
+
+    <a
+        href="{{ route('superadmin.reports') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.reports*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Reports
+    </a>
+
+
+
+
+
+    <!-- SETTINGS -->
+
+    <a
+        href="{{ route('superadmin.settings') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.settings*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Settings
+    </a>
+
+
+</nav>
 
 
         <!-- SIGN OUT -->
