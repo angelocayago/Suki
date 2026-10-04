@@ -11,7 +11,14 @@ class BuyerManagementController extends Controller
     public function index(Request $request)
     {
         $buyersQuery = User::query()
-            ->where('role', 'buyer')
+            ->whereHas('roles', function ($query) {
+
+                $query->where(
+                    'name',
+                    'buyer'
+                );
+
+            })
             ->withCount('buyerOrders')
             ->withSum(
                 'buyerOrders',
@@ -56,6 +63,10 @@ class BuyerManagementController extends Controller
 
 
 
+
+
+
+
         /*
         |--------------------------------------------------------------------------
         | STATUS FILTER
@@ -73,10 +84,17 @@ class BuyerManagementController extends Controller
 
 
 
+
+
+
+
         $buyers = $buyersQuery
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
+
+
 
 
 
@@ -90,16 +108,33 @@ class BuyerManagementController extends Controller
 
         $stats = [
 
-            'total' => User::where(
-                'role',
-                'buyer'
+
+            'total' => User::whereHas(
+                'roles',
+                function ($query) {
+
+                    $query->where(
+                        'name',
+                        'buyer'
+                    );
+
+                }
             )->count(),
 
 
 
-            'active' => User::where(
-                'role',
-                'buyer'
+
+
+            'active' => User::whereHas(
+                'roles',
+                function ($query) {
+
+                    $query->where(
+                        'name',
+                        'buyer'
+                    );
+
+                }
             )
             ->where(
                 'status',
@@ -109,9 +144,18 @@ class BuyerManagementController extends Controller
 
 
 
-            'suspended' => User::where(
-                'role',
-                'buyer'
+
+
+            'suspended' => User::whereHas(
+                'roles',
+                function ($query) {
+
+                    $query->where(
+                        'name',
+                        'buyer'
+                    );
+
+                }
             )
             ->where(
                 'is_suspended',
@@ -121,16 +165,28 @@ class BuyerManagementController extends Controller
 
 
 
-            'with_orders' => User::where(
-                'role',
-                'buyer'
+
+
+            'with_orders' => User::whereHas(
+                'roles',
+                function ($query) {
+
+                    $query->where(
+                        'name',
+                        'buyer'
+                    );
+
+                }
             )
             ->whereHas(
                 'buyerOrders'
             )
             ->count(),
 
+
         ];
+
+
 
 
 
@@ -143,7 +199,10 @@ class BuyerManagementController extends Controller
                 'stats'
             )
         );
+
     }
+
+
 
 
 
@@ -210,7 +269,14 @@ class BuyerManagementController extends Controller
 
 
         $buyersQuery = User::query()
-            ->where('role', 'buyer')
+            ->whereHas('roles', function ($query) {
+
+                $query->where(
+                    'name',
+                    'buyer'
+                );
+
+            })
             ->withCount('buyerOrders')
             ->withSum(
                 'buyerOrders',
@@ -221,10 +287,13 @@ class BuyerManagementController extends Controller
 
 
 
+
+
         if (!empty($search)) {
 
 
             $buyersQuery->where(function ($query) use ($search) {
+
 
                 $query
                     ->where(
@@ -243,10 +312,14 @@ class BuyerManagementController extends Controller
                         "%{$search}%"
                     );
 
+
             });
 
 
         }
+
+
+
 
 
 
@@ -259,10 +332,13 @@ class BuyerManagementController extends Controller
 
 
 
+
+
         return view(
             'superadmin.buyers.partials.table',
             compact('buyers')
         );
 
     }
+
 }

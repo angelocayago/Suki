@@ -71,6 +71,7 @@ Buyer Management
                 Total Buyers
             </p>
 
+
             <h2 class="
                 text-3xl
                 font-bold
@@ -81,6 +82,7 @@ Buyer Management
             </h2>
 
         </div>
+
 
 
 
@@ -97,6 +99,7 @@ Buyer Management
                 Active Buyers
             </p>
 
+
             <h2 class="
                 text-3xl
                 font-bold
@@ -107,6 +110,7 @@ Buyer Management
             </h2>
 
         </div>
+
 
 
 
@@ -123,6 +127,7 @@ Buyer Management
                 Suspended Buyers
             </p>
 
+
             <h2 class="
                 text-3xl
                 font-bold
@@ -133,6 +138,7 @@ Buyer Management
             </h2>
 
         </div>
+
 
 
 
@@ -149,6 +155,7 @@ Buyer Management
                 Buyers With Orders
             </p>
 
+
             <h2 class="
                 text-3xl
                 font-bold
@@ -162,7 +169,6 @@ Buyer Management
 
 
     </div>
-
 
 
 
@@ -270,7 +276,6 @@ Buyer Management
 
 
 
-
             <button
 
                 type="submit"
@@ -292,12 +297,10 @@ Buyer Management
             </button>
 
 
-
         </form>
 
 
     </div>
-
 
 
 
@@ -383,13 +386,11 @@ Buyer Management
 
                 </thead>
 
+<tbody id="buyerTable">
 
+    @include('superadmin.buyers.partials.table')
 
-                <tbody id="buyerTable">
-
-                    @include('superadmin.buyers.partials.table')
-
-                </tbody>
+</tbody>
 
 
             </table>
@@ -399,7 +400,14 @@ Buyer Management
 
 
     </div>
-        <div class="mt-6">
+
+
+
+
+
+
+
+    <div class="mt-6">
 
         {{ $buyers->links() }}
 
@@ -419,46 +427,91 @@ Buyer Management
 
 <script>
 
-let searchTimer;
+let searchTimer = null;
 
-
-document
-    .getElementById('buyerSearch')
-    .addEventListener('input', function(){
-
-
-        clearTimeout(searchTimer);
+let activeRequest = null;
 
 
 
-        searchTimer = setTimeout(() => {
-
-
-            fetch(
-                `{{ route('superadmin.buyers.search') }}?search=${this.value}`
-            )
-
-
-            .then(response => response.text())
-
-
-            .then(html => {
-
-
-                document
-                    .getElementById('buyerTable')
-                    .innerHTML = html;
-
-
-            });
+const buyerSearch = document.getElementById('buyerSearch');
 
 
 
-        }, 300);
+buyerSearch.addEventListener('input', function(){
+
+
+    clearTimeout(searchTimer);
 
 
 
-    });
+    searchTimer = setTimeout(() => {
+
+
+
+        if(activeRequest){
+
+            activeRequest.abort();
+
+        }
+
+
+
+
+
+        const controller = new AbortController();
+
+
+        activeRequest = controller;
+
+
+
+
+
+        fetch(
+            "{{ route('superadmin.buyers.search') }}?search=" + this.value,
+            {
+                signal: controller.signal
+            }
+        )
+
+
+
+        .then(response => response.text())
+
+
+
+        .then(html => {
+
+
+            document
+                .getElementById('buyerTable')
+                .innerHTML = html;
+
+
+        })
+
+
+
+        .catch(error => {
+
+
+            if(error.name !== 'AbortError'){
+
+                console.error(error);
+
+            }
+
+
+        });
+
+
+
+    }, 500);
+
+
+
+});
+
 
 
 </script>
