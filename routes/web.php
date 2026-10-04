@@ -5672,7 +5672,11 @@ Route::get('/users/{user}', [
             SellerManagementController::class,
             'index'
         ])->name('sellers');
-
+        
+        Route::get('/sellers/search', [
+    SellerManagementController::class,
+    'search'
+])->name('sellers.search');
 
         Route::get('/sellers/{seller}', [
             SellerManagementController::class,

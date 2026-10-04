@@ -200,6 +200,85 @@ class SellerManagementController extends Controller
 
     }
 
+public function search(Request $request)
+{
 
+    $query = Seller::with('owner');
+
+
+
+    if ($request->search) {
+
+        $search = $request->search;
+
+
+        $query->where(function ($q) use ($search) {
+
+
+            $q->where(
+                'name',
+                'like',
+                "%{$search}%"
+            )
+            ->orWhereHas(
+                'owner',
+                function ($user) use ($search) {
+
+
+                    $user->where(
+                        'name',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'email',
+                        'like',
+                        "%{$search}%"
+                    );
+
+
+                }
+            );
+
+
+        });
+
+
+    }
+
+
+
+
+
+
+    if ($request->status) {
+
+        $query->where(
+            'status',
+            $request->status
+        );
+
+    }
+
+
+
+
+
+
+    $sellers = $query
+        ->latest()
+        ->get();
+
+
+
+
+
+
+    return view(
+        'superadmin.sellers.partials.table',
+        compact('sellers')
+    );
+
+}
 
 }

@@ -240,11 +240,9 @@ gap-3
 
 type="text"
 
-name="search"
+id="sellerSearch"
 
-value="{{ request('search') }}"
-
-placeholder="Search seller or shop..."
+placeholder="Search seller..."
 
 class="
 border
@@ -266,7 +264,7 @@ focus:border-[#1F6F5B]
 
 <select
 
-name="status"
+id="sellerStatus"
 
 class="
 border
@@ -322,6 +320,10 @@ Rejected
 
 
 <button
+
+type="button"
+
+id="sellerSearchButton"
 
 class="
 bg-[#1F6F5B]
@@ -430,258 +432,9 @@ Action
 </thead>
 
 
+<tbody id="sellerTable">
 
-
-
-
-
-<tbody>
-
-
-@forelse($sellers as $seller)
-
-
-
-<tr
-
-class="
-border-t
-border-[#E7ECE9]
-hover:bg-[#FBFCFB]
-transition
-"
-
->
-
-
-
-<td class="
-px-5
-py-4
-"
->
-
-
-<p class="
-font-semibold
-text-[#253831]
-text-sm
-">
-
-{{ $seller->owner->name ?? '-' }}
-
-</p>
-
-
-</td>
-
-
-
-
-
-
-
-<td class="
-px-5
-py-4
-text-sm
-"
->
-
-{{ $seller->name }}
-
-</td>
-
-
-
-
-
-
-
-<td class="
-px-5
-py-4
-text-sm
-"
->
-
-{{ $seller->owner->email ?? '-' }}
-
-</td>
-
-
-
-
-
-
-
-<td class="px-5 py-4">
-
-
-<span
-
-class="
-inline-flex
-px-3
-py-1
-rounded-full
-text-xs
-font-medium
-
-{{ $seller->status === 'approved'
-    ? 'bg-green-100 text-green-700'
-    :
-    (
-        $seller->status === 'suspended'
-        ? 'bg-red-100 text-red-700'
-        :
-        (
-            $seller->status === 'rejected'
-            ? 'bg-red-100 text-red-700'
-            :
-            'bg-yellow-100 text-yellow-700'
-        )
-    )
-}}
-
-"
-
->
-
-
-{{ $seller->status === 'approved'
-    ? 'Active'
-    : ucfirst($seller->status)
-}}
-
-
-</span>
-
-
-</td>
-
-
-
-
-
-
-
-<td class="
-px-5
-py-4
-text-sm
-"
->
-
-{{ $seller->products->count() }}
-
-</td>
-
-
-
-
-
-
-
-<td class="
-px-5
-py-4
-text-sm
-"
->
-
-{{ $seller->created_at->format('M d, Y') }}
-
-</td>
-
-
-
-
-
-
-
-<td class="
-px-5
-py-4
-text-center
-"
->
-
-
-<a
-
-href="{{ route('superadmin.sellers.show',$seller) }}"
-
-class="
-inline-flex
-justify-center
-border
-border-[#D8E1DC]
-rounded-lg
-px-4
-py-2
-text-xs
-font-medium
-text-[#176B55]
-hover:bg-[#176B55]
-hover:text-white
-transition
-"
-
->
-
-View Details
-
-</a>
-
-
-</td>
-
-
-
-
-
-</tr>
-
-
-
-
-
-@empty
-
-
-
-<tr>
-
-
-<td
-
-colspan="7"
-
-class="
-px-6
-py-12
-text-center
-text-sm
-text-gray-500
-"
-
->
-
-
-No sellers found.
-
-
-</td>
-
-
-</tr>
-
-
-
-@endforelse
-
-
+    @include('superadmin.sellers.partials.table')
 
 </tbody>
 
@@ -720,6 +473,168 @@ No sellers found.
 
 
 </div>
+<script>
+
+let sellerSearchTimer = null;
+
+let sellerRequest = null;
+
+
+
+function loadSellers(){
+
+
+    const search =
+        document
+        .getElementById('sellerSearch')
+        .value;
+
+
+
+    const status =
+        document
+        .getElementById('sellerStatus')
+        .value;
+
+
+
+
+
+    if(sellerRequest){
+
+        sellerRequest.abort();
+
+    }
+
+
+
+
+    const controller = new AbortController();
+
+
+    sellerRequest = controller;
+
+
+
+
+
+    fetch(
+
+        "{{ route('superadmin.sellers.search') }}"
+        +
+        "?search="
+        +
+        encodeURIComponent(search)
+        +
+        "&status="
+        +
+        encodeURIComponent(status),
+
+        {
+            signal: controller.signal
+        }
+
+    )
+
+
+
+    .then(response => response.text())
+
+
+
+    .then(html => {
+
+
+        document
+        .getElementById('sellerTable')
+        .innerHTML = html;
+
+
+    })
+
+
+
+    .catch(error => {
+
+
+        if(error.name !== 'AbortError'){
+
+            console.error(error);
+
+        }
+
+
+    });
+
+
+
+}
+
+
+
+
+
+
+
+document
+.getElementById('sellerSearch')
+.addEventListener(
+    'input',
+    function(){
+
+
+        clearTimeout(sellerSearchTimer);
+
+
+
+        sellerSearchTimer = setTimeout(() => {
+
+
+            loadSellers();
+
+
+        },500);
+
+
+    }
+);
+
+
+
+
+
+
+document
+.getElementById('sellerStatus')
+.addEventListener(
+    'change',
+    function(){
+
+        loadSellers();
+
+    }
+);
+
+
+
+
+
+
+
+document
+.getElementById('sellerSearchButton')
+.addEventListener(
+    'click',
+    function(){
+
+        loadSellers();
+
+    }
+);
+
+
+
+</script>
 
 
 @endsection
