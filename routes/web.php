@@ -9,6 +9,8 @@ use App\Models\OrderItem;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
@@ -2858,6 +2860,8 @@ $permitPath = $request
     'valid_id' => $validIdPath,
     'business_permit' => $permitPath,
 
+    'password_hash' => Hash::make($request->password),
+
     'status' => 'approved',
     'created_at' => now()->format('Y-m-d H:i:s'),
 ]);
@@ -2902,6 +2906,144 @@ Route::get('/seller/store-profile', function () use ($requireSeller) {
     return view('seller.store-profile');
 
 })->name('seller.store.profile');
+
+Route::post('/seller/store-profile/profile', function (
+    Request $request
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $request->validate([
+        'phone' => 'required|string|max:30',
+        'description' => 'nullable|string|max:500',
+        'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+    ]);
+
+    $profile = session('seller_profile', []);
+
+    $profile['phone'] = $request->phone;
+    $profile['description'] = $request->description;
+
+    if ($request->hasFile('profile_photo')) {
+
+        if (! empty($profile['profile_photo'])) {
+            Storage::disk('public')->delete($profile['profile_photo']);
+        }
+
+        $profile['profile_photo'] = $request
+            ->file('profile_photo')
+            ->store('seller-profiles', 'public');
+    }
+
+    session()->put('seller_profile', $profile);
+
+    return redirect(route('seller.store.profile') . '#shop-profile')
+        ->with('success', 'Shop profile updated successfully.');
+
+})->name('seller.store.profile.update');
+
+
+Route::post('/seller/store-profile/photo/remove', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $profile = session('seller_profile', []);
+
+    if (! empty($profile['profile_photo'])) {
+
+        Storage::disk('public')->delete($profile['profile_photo']);
+
+        unset($profile['profile_photo']);
+
+        session()->put('seller_profile', $profile);
+    }
+
+    return redirect(route('seller.store.profile') . '#shop-profile')
+        ->with('success', 'Shop photo removed successfully.');
+
+})->name('seller.store.profile.photo.remove');
+
+
+Route::post('/seller/store-profile/address', function (
+    Request $request
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $request->validate([
+        'province' => 'required|string|max:100',
+        'municipality' => 'required|string|max:100',
+        'barangay' => 'required|string|max:100',
+        'address' => 'required|string|max:255',
+    ]);
+
+    $profile = session('seller_profile', []);
+
+    $profile['province'] = $request->province;
+    $profile['municipality'] = $request->municipality;
+    $profile['barangay'] = $request->barangay;
+    $profile['address'] = $request->address;
+
+    session()->put('seller_profile', $profile);
+
+    return redirect(route('seller.store.profile') . '#pickup-address')
+        ->with('success', 'Pickup address updated successfully.');
+
+})->name('seller.store.address.update');
+
+
+Route::post('/seller/store-profile/password', function (
+    Request $request
+) use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    $request->validate([
+        'current_password' => 'required|string',
+        'password' => 'required|string|min:8|confirmed',
+    ]);
+
+    $profile = session('seller_profile', []);
+
+    $currentPasswordHash = $profile['password_hash'] ?? null;
+
+    if (
+        ! $currentPasswordHash ||
+        ! Hash::check($request->current_password, $currentPasswordHash)
+    ) {
+        return back()
+            ->withErrors([
+                'current_password' => 'The current password is incorrect.',
+            ])
+            ->withInput();
+    }
+
+    if (
+        Hash::check($request->password, $currentPasswordHash)
+    ) {
+        return back()
+            ->withErrors([
+                'password' => 'The new password must be different from your current password.',
+            ])
+            ->withInput();
+    }
+
+    $profile['password_hash'] = Hash::make($request->password);
+
+    session()->put('seller_profile', $profile);
+
+    return redirect(route('seller.store.profile') . '#security')
+        ->with('success', 'Password updated successfully.');
+
+})->name('seller.store.password.update');
 
 
 // =====================================================
