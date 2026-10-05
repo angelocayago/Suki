@@ -2842,13 +2842,18 @@ $permitPath = $request
     session()->put('seller_profile', [
     'shop_name' => $request->business_name,
 
-'seller_name' => $request->first_name . ' ' . $request->last_name,
+    'business_category' => $request->business_category,
 
-'phone' => $request->phone,
+    'seller_name' => $request->first_name . ' ' . $request->last_name,
 
-'email' => $request->email,
+    'phone' => $request->phone,
 
-'address' => $request->address,
+    'email' => $request->email,
+
+    'province' => $request->province,
+    'municipality' => $request->municipality,
+    'barangay' => $request->barangay,
+    'address' => $request->address,
 
     'valid_id' => $validIdPath,
     'business_permit' => $permitPath,
