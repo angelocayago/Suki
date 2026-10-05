@@ -600,31 +600,58 @@
                 </button>
 
 
-                {{-- PAGE TITLE --}}
-                <div class="min-w-0 flex-1">
+               {{-- PAGE TITLE --}}
+<div class="min-w-0 flex-1">
 
-                    <p
-                        class="text-[10px]
-                               font-semibold
-                               uppercase
-                               tracking-[0.14em]
-                               text-[#1F6F5B]"
-                    >
-                        Seller Centre
-                    </p>
+    @hasSection('page-subtitle')
 
-                    <h1
-                        class="truncate
-                               text-[17px]
-                               font-semibold
-                               tracking-[-0.025em]
-                               text-[#24312C]
-                               sm:text-lg"
-                    >
-                        @yield('page-title', 'Dashboard')
-                    </h1>
+        <h1
+            class="truncate
+                   text-[17px]
+                   font-semibold
+                   tracking-[-0.025em]
+                   text-[#24312C]
+                   sm:text-lg"
+        >
+            @yield('page-title', 'Dashboard')
+        </h1>
 
-                </div>
+        <p
+            class="mt-0.5
+                   truncate
+                   text-[11px]
+                   text-[#89958F]
+                   sm:text-xs"
+        >
+            @yield('page-subtitle')
+        </p>
+
+    @else
+
+        <p
+            class="text-[10px]
+                   font-semibold
+                   uppercase
+                   tracking-[0.14em]
+                   text-[#1F6F5B]"
+        >
+            Seller Centre
+        </p>
+
+        <h1
+            class="truncate
+                   text-[17px]
+                   font-semibold
+                   tracking-[-0.025em]
+                   text-[#24312C]
+                   sm:text-lg"
+        >
+            @yield('page-title', 'Dashboard')
+        </h1>
+
+    @endif
+
+</div>
 
 
                 {{-- ACTIONS --}}
