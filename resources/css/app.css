@@ -279,6 +279,142 @@ body {
     flex: 1;
 }
 
+/* ================================================================
+   SELLER SIDEBAR COLLAPSE
+================================================================ */
+
+#sellerSidebar,
+#sellerMainContent {
+    transition:
+        width .3s ease,
+        padding-left .3s ease,
+        transform .3s ease;
+}
+
+.seller-sidebar-brand-copy,
+.seller-sidebar-store-copy,
+.seller-sidebar-user-copy,
+.seller-sidebar-link-label,
+.seller-sidebar-signout-label,
+.seller-sidebar-section-label {
+    transition:
+        opacity .2s ease,
+        max-width .3s ease,
+        transform .2s ease;
+}
+
+@media (min-width: 1024px) {
+
+    html.seller-sidebar-collapsed #sellerSidebar {
+        width: 76px;
+        overflow-x: hidden;
+    }
+
+    html.seller-sidebar-collapsed #sellerMainContent {
+        padding-left: 76px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand {
+        gap: 0;
+        padding-right: 3px;
+        padding-left: 3px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link {
+        flex: 0 0 36px;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link > div:first-child {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border-radius: 10px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link img {
+        width: 30px;
+        height: 30px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-copy,
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-copy,
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user-copy,
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label,
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout-label {
+        max-width: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateX(-5px);
+        white-space: nowrap;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse {
+        width: 30px;
+        height: 34px;
+        flex: 0 0 30px;
+        border-radius: 9px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse svg {
+        transform: rotate(180deg);
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-wrap {
+        padding: 12px 8px 0;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-card {
+        padding: 8px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-content {
+        justify-content: center;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar nav {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-section-label {
+        height: 0;
+        max-width: 0;
+        margin: 0;
+        overflow: hidden;
+        padding: 0;
+        opacity: 0;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link {
+        justify-content: center;
+        gap: 0;
+        overflow: hidden;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label {
+        display: inline-block;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user {
+        justify-content: center;
+        gap: 0;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout {
+        justify-content: center;
+        gap: 0;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+}
+
 @media (max-width: 1023px) {
 
     .suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
