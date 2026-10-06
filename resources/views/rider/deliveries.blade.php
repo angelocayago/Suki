@@ -1,2157 +1,434 @@
 @extends('layouts.rider')
 
-@section('title', 'Deliveries')
-@section('page-heading', 'Deliveries')
+@section('title', 'My Deliveries')
 
 @section('content')
 
 @php
-
     /*
     |--------------------------------------------------------------------------
-    | RIDER
+    | RIDER INFORMATION
     |--------------------------------------------------------------------------
     */
 
-    $riders =
-        session('rider_applications', []);
+    $riderName = session('logged_in_rider_name', 'SUKI Rider');
 
-    $riderIndex =
-        session('logged_in_rider_index');
+    /*
+    |--------------------------------------------------------------------------
+    | ALL ORDERS
+    |--------------------------------------------------------------------------
+    */
 
-    $rider = [];
+    $allOrders = session('suki_orders', collect());
 
-    if (
-        $riderIndex !== null &&
-        isset($riders[$riderIndex])
-    ) {
-        $rider =
-            $riders[$riderIndex];
+    if (!($allOrders instanceof \Illuminate\Support\Collection)) {
+        $allOrders = collect($allOrders);
     }
-
-    $riderName = trim(
-        ($rider['first_name'] ?? '') . ' ' .
-        ($rider['last_name'] ?? '')
-    );
-
-    if ($riderName === '') {
-        $riderName = 'SUKI Rider';
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ORDERS
-    |--------------------------------------------------------------------------
-    */
-
-    $ordersCollection =
-        collect($orders ?? []);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | HELPERS
-    |--------------------------------------------------------------------------
-    */
-
-    $formatAddress = function ($order) {
-
-        $address =
-            $order['shipping_address']
-            ?? [];
-
-        if (!is_array($address)) {
-            $address = [];
-        }
-
-        $parts = array_filter([
-            $address['house_number'] ?? null,
-            $address['street'] ?? null,
-            $address['barangay'] ?? null,
-            $address['municipality'] ?? null,
-            $address['province'] ?? null,
-            $address['postal_code'] ?? null,
-        ]);
-
-        if (!empty($parts)) {
-            return implode(', ', $parts);
-        }
-
-        return $order['address']
-            ?? 'Delivery address is not available.';
-    };
-
-
-    $getCustomerName = function ($order) {
-
-        return
-            $order['shipping_address']['name']
-            ?? $order['customer_name']
-            ?? 'Customer';
-
-    };
-
-
-    $getCustomerPhone = function ($order) {
-
-        return
-            $order['shipping_address']['phone']
-            ?? $order['customer_phone']
-            ?? null;
-
-    };
-
-
-    $belongsToPickupRider =
-        function ($order)
-        use ($riderIndex) {
-
-            if ($riderIndex === null) {
-                return false;
-            }
-
-            return
-                isset(
-                    $order['pickup_rider_index']
-                )
-                &&
-                (string)
-                $order['pickup_rider_index']
-                ===
-                (string)
-                $riderIndex;
-
-        };
-
-
-    $belongsToDeliveryRider =
-        function ($order)
-        use ($riderIndex) {
-
-            if ($riderIndex === null) {
-                return false;
-            }
-
-            return
-                isset($order['rider_index'])
-                &&
-                (string)
-                $order['rider_index']
-                ===
-                (string)
-                $riderIndex;
-
-        };
-
 
     /*
     |--------------------------------------------------------------------------
     | AVAILABLE PICKUPS
     |--------------------------------------------------------------------------
+    |
+    | Orders that are ready for pickup and do not have a rider assigned yet.
+    |
     */
 
-    $availablePickups =
-        $ordersCollection
-            ->filter(function ($order) {
-
-                return
-                    ($order['status'] ?? '')
-                    === 'ready_for_pickup'
-                    &&
-                    !isset(
-                        $order['pickup_rider_index']
-                    );
-
-            });
-
+    $availablePickups = $allOrders
+        ->filter(function ($order) {
+            return ($order['status'] ?? '') === 'ready_for_pickup'
+                && empty($order['rider_name']);
+        });
 
     /*
     |--------------------------------------------------------------------------
-    | MY PICKUP TASKS
+    | MY DELIVERIES
     |--------------------------------------------------------------------------
+    |
+    | Only show orders assigned to the currently logged-in rider.
+    | Logistics saves the rider_index when assigning a delivery.
+    |
     */
 
-    $myPickupTasks =
-        $ordersCollection
-            ->filter(
-                function ($order)
-                use ($belongsToPickupRider) {
+    $riderIndex = session('logged_in_rider_index');
 
-                    return
-                        $belongsToPickupRider($order)
-                        &&
-                        in_array(
-                            $order['status']
-                                ?? '',
-                            [
-                                'ready_for_pickup',
-                                'picked_up',
-                                'at_sorting_center',
-                            ]
-                        );
+    $myOrders = $allOrders
+        ->filter(function ($order) use ($riderIndex, $riderName) {
 
-                }
-            );
+            // Primary check: actual rider index
+            if (
+                $riderIndex !== null &&
+                isset($order['rider_index'])
+            ) {
+                return (string) $order['rider_index']
+                    === (string) $riderIndex;
+            }
 
+            // Fallback for older orders created before rider_index
+            return ($order['rider_name'] ?? '') === $riderName;
+        });
 
     /*
     |--------------------------------------------------------------------------
-    | MY DELIVERY TASKS
+    | STATUS COUNTS
     |--------------------------------------------------------------------------
     */
 
-    $myDeliveryTasks =
-        $ordersCollection
-            ->filter(
-                function ($order)
-                use ($belongsToDeliveryRider) {
+    $assignedCount = $myOrders
+        ->where('status', 'assigned_to_rider')
+        ->count();
 
-                    return
-                        $belongsToDeliveryRider($order)
-                        &&
-                        in_array(
-                            $order['status']
-                                ?? '',
-                            [
-                                'assigned_to_rider',
-                                'out_for_delivery',
-                                'delivered',
-                                'completed',
-                                'delivery_failed',
-                                'returned',
-                            ]
-                        );
+    $pickedUpCount = $myOrders
+        ->where('status', 'picked_up')
+        ->count();
 
-                }
-            );
+    $sortingCount = $myOrders
+        ->where('status', 'at_sorting_center')
+        ->count();
 
+    $outForDeliveryCount = $myOrders
+        ->where('status', 'out_for_delivery')
+        ->count();
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUMMARY
-    |--------------------------------------------------------------------------
-    */
-
-    $acceptedPickupCount =
-        $myPickupTasks
-            ->where(
-                'status',
-                'ready_for_pickup'
-            )
-            ->count();
-
-    $pickupInTransitCount =
-        $myPickupTasks
-            ->where(
-                'status',
-                'picked_up'
-            )
-            ->count();
-
-    $deliveryAssignedCount =
-        $myDeliveryTasks
-            ->where(
-                'status',
-                'assigned_to_rider'
-            )
-            ->count();
-
-    $outForDeliveryCount =
-        $myDeliveryTasks
-            ->where(
-                'status',
-                'out_for_delivery'
-            )
-            ->count();
-
-    $deliveredCount =
-        $myDeliveryTasks
-            ->whereIn(
-                'status',
-                [
-                    'delivered',
-                    'completed',
-                ]
-            )
-            ->count();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | STATUS DESIGN
-    |--------------------------------------------------------------------------
-    */
-
-    $statusConfig = [
-
-        'ready_for_pickup' => [
-            'label' =>
-                'Pickup Accepted',
-
-            'class' =>
-                'border-amber-200 bg-amber-50 text-amber-700',
-
-            'icon' =>
-                'package-plus',
-        ],
-
-        'picked_up' => [
-            'label' =>
-                'Picked Up',
-
-            'class' =>
-                'border-cyan-200 bg-cyan-50 text-cyan-700',
-
-            'icon' =>
-                'package-check',
-        ],
-
-        'at_sorting_center' => [
-            'label' =>
-                'At Sorting Center',
-
-            'class' =>
-                'border-sky-200 bg-sky-50 text-sky-700',
-
-            'icon' =>
-                'warehouse',
-        ],
-
-        'assigned_to_rider' => [
-            'label' =>
-                'Assigned to Rider',
-
-            'class' =>
-                'border-violet-200 bg-violet-50 text-violet-700',
-
-            'icon' =>
-                'user-check',
-        ],
-
-        'out_for_delivery' => [
-            'label' =>
-                'Out for Delivery',
-
-            'class' =>
-                'border-orange-200 bg-orange-50 text-orange-700',
-
-            'icon' =>
-                'bike',
-        ],
-
-        'delivered' => [
-            'label' =>
-                'Delivered',
-
-            'class' =>
-                'border-emerald-200 bg-emerald-50 text-emerald-700',
-
-            'icon' =>
-                'map-pin-check',
-        ],
-
-        'completed' => [
-            'label' =>
-                'Completed',
-
-            'class' =>
-                'border-emerald-200 bg-emerald-50 text-emerald-700',
-
-            'icon' =>
-                'badge-check',
-        ],
-
-        'delivery_failed' => [
-            'label' =>
-                'Delivery Failed',
-
-            'class' =>
-                'border-red-200 bg-red-50 text-red-700',
-
-            'icon' =>
-                'triangle-alert',
-        ],
-
-        'returned' => [
-            'label' =>
-                'Returned',
-
-            'class' =>
-                'border-rose-200 bg-rose-50 text-rose-700',
-
-            'icon' =>
-                'rotate-ccw',
-        ],
-
-    ];
-
+    $deliveredCount = $myOrders
+        ->whereIn('status', ['delivered', 'completed'])
+        ->count();
 @endphp
 
 
-{{-- =========================================================
-    ALERTS
-========================================================= --}}
+{{-- ============================================================
+     PAGE HEADER
+============================================================ --}}
 
-@if(session('success'))
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">
+        My Deliveries
+    </h1>
 
-    <div
-        class="mb-6 flex items-start gap-3
-               rounded-2xl border border-emerald-200
-               bg-emerald-50 px-4 py-3.5"
-    >
-
-        <div
-            class="flex h-8 w-8 shrink-0
-                   items-center justify-center
-                   rounded-xl bg-white"
-        >
-            <i
-                data-lucide="check"
-                class="h-4 w-4 text-emerald-600"
-            ></i>
-        </div>
-
-        <div>
-            <p
-                class="text-xs font-semibold
-                       text-emerald-800"
-            >
-                Delivery updated
-            </p>
-
-            <p
-                class="mt-0.5 text-xs leading-5
-                       text-emerald-700"
-            >
-                {{ session('success') }}
-            </p>
-        </div>
-
-    </div>
-
-@endif
+    <p class="mt-1 text-sm text-gray-500">
+        Manage your assigned deliveries and available pickups.
+    </p>
+</div>
 
 
-@if(session('error'))
+{{-- ============================================================
+     STATUS SUMMARY
+============================================================ --}}
 
-    <div
-        class="mb-6 flex items-start gap-3
-               rounded-2xl border border-red-200
-               bg-red-50 px-4 py-3.5"
-    >
+<div class="grid grid-cols-2 gap-4 mb-8 md:grid-cols-5">
 
-        <div
-            class="flex h-8 w-8 shrink-0
-                   items-center justify-center
-                   rounded-xl bg-white"
-        >
-            <i
-                data-lucide="triangle-alert"
-                class="h-4 w-4 text-red-600"
-            ></i>
-        </div>
-
-        <div>
-            <p
-                class="text-xs font-semibold
-                       text-red-800"
-            >
-                Action unavailable
-            </p>
-
-            <p
-                class="mt-0.5 text-xs leading-5
-                       text-red-700"
-            >
-                {{ session('error') }}
-            </p>
-        </div>
-
-    </div>
-
-@endif
-
-
-@if($errors->any())
-
-    <div
-        class="mb-6 rounded-2xl
-               border border-red-200
-               bg-red-50 p-4"
-    >
-
-        <div class="flex items-start gap-3">
-
-            <i
-                data-lucide="circle-alert"
-                class="mt-0.5 h-4 w-4
-                       shrink-0 text-red-600"
-            ></i>
-
-            <div>
-                @foreach($errors->all() as $error)
-                    <p
-                        class="text-xs leading-5
-                               text-red-700"
-                    >
-                        {{ $error }}
-                    </p>
-                @endforeach
-            </div>
-
-        </div>
-
-    </div>
-
-@endif
-
-
-{{-- =========================================================
-    PAGE INTRO
-========================================================= --}}
-
-<div
-    class="mb-7 flex flex-col gap-4
-           lg:flex-row lg:items-end
-           lg:justify-between"
->
-
-    <div>
-
-        <p
-            class="text-[11px] font-semibold
-                   uppercase tracking-[0.12em]
-                   text-[#1F6F5B]"
-        >
-            Rider operations
+    <div class="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <p class="text-xs text-gray-500">Assigned</p>
+        <p class="mt-1 text-2xl font-bold text-gray-800">
+            {{ $assignedCount }}
         </p>
+    </div>
 
-        <h2
-            class="mt-1 text-2xl font-semibold
-                   tracking-[-0.04em]
-                   text-[#24312C]
-                   sm:text-[28px]"
-        >
-            Pickup & Delivery Tasks
-        </h2>
-
-        <p
-            class="mt-1.5 max-w-2xl
-                   text-sm leading-6
-                   text-[#728078]"
-        >
-            Collect seller parcels, hand them to the
-            Sorting Center, and complete delivery
-            assignments issued by SUKI Logistics.
+    <div class="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <p class="text-xs text-gray-500">Picked Up</p>
+        <p class="mt-1 text-2xl font-bold text-gray-800">
+            {{ $pickedUpCount }}
         </p>
-
     </div>
 
-
-    <div
-        class="inline-flex items-center gap-2
-               self-start rounded-xl
-               border border-emerald-200
-               bg-emerald-50
-               px-3.5 py-2.5
-               text-[10px] font-semibold
-               text-emerald-700
-               lg:self-auto"
-    >
-        <span
-            class="h-2 w-2 rounded-full
-                   bg-emerald-500"
-        ></span>
-
-        {{ $riderName }}
-
+    <div class="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <p class="text-xs text-gray-500">Sorting Center</p>
+        <p class="mt-1 text-2xl font-bold text-gray-800">
+            {{ $sortingCount }}
+        </p>
     </div>
 
-</div>
-
-
-{{-- =========================================================
-    SUMMARY
-========================================================= --}}
-
-<div
-    class="mb-6 grid grid-cols-2
-           gap-4 xl:grid-cols-5"
->
-
-    {{-- AVAILABLE --}}
-    <div
-        class="rounded-2xl border
-               border-[#E1E8E4]
-               bg-white p-5"
-    >
-        <div
-            class="flex items-start
-                   justify-between gap-3"
-        >
-            <div>
-                <p
-                    class="text-[9px] font-semibold
-                           uppercase tracking-[0.12em]
-                           text-[#839189]"
-                >
-                    Available Pickup
-                </p>
-
-                <p
-                    class="mt-3 text-2xl
-                           font-semibold
-                           tracking-[-0.04em]
-                           text-[#24312C]"
-                >
-                    {{ $availablePickups->count() }}
-                </p>
-            </div>
-
-            <div
-                class="flex h-10 w-10
-                       items-center justify-center
-                       rounded-xl bg-amber-50
-                       text-amber-700"
-            >
-                <i
-                    data-lucide="package-plus"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-        </div>
+    <div class="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <p class="text-xs text-gray-500">Out for Delivery</p>
+        <p class="mt-1 text-2xl font-bold text-gray-800">
+            {{ $outForDeliveryCount }}
+        </p>
     </div>
 
-
-    {{-- ACCEPTED --}}
-    <div
-        class="rounded-2xl border
-               border-[#E1E8E4]
-               bg-white p-5"
-    >
-        <div
-            class="flex items-start
-                   justify-between gap-3"
-        >
-            <div>
-                <p
-                    class="text-[9px] font-semibold
-                           uppercase tracking-[0.12em]
-                           text-[#839189]"
-                >
-                    Pickup Accepted
-                </p>
-
-                <p
-                    class="mt-3 text-2xl
-                           font-semibold
-                           text-[#24312C]"
-                >
-                    {{ $acceptedPickupCount }}
-                </p>
-            </div>
-
-            <div
-                class="flex h-10 w-10
-                       items-center justify-center
-                       rounded-xl bg-cyan-50
-                       text-cyan-700"
-            >
-                <i
-                    data-lucide="package-check"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-        </div>
-    </div>
-
-
-    {{-- TO SORTING --}}
-    <div
-        class="rounded-2xl border
-               border-[#E1E8E4]
-               bg-white p-5"
-    >
-        <div
-            class="flex items-start
-                   justify-between gap-3"
-        >
-            <div>
-                <p
-                    class="text-[9px] font-semibold
-                           uppercase tracking-[0.12em]
-                           text-[#839189]"
-                >
-                    To Sorting Center
-                </p>
-
-                <p
-                    class="mt-3 text-2xl
-                           font-semibold
-                           text-[#24312C]"
-                >
-                    {{ $pickupInTransitCount }}
-                </p>
-            </div>
-
-            <div
-                class="flex h-10 w-10
-                       items-center justify-center
-                       rounded-xl bg-sky-50
-                       text-sky-700"
-            >
-                <i
-                    data-lucide="warehouse"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-        </div>
-    </div>
-
-
-    {{-- DELIVERY ASSIGNMENTS --}}
-    <div
-        class="rounded-2xl border
-               border-[#E1E8E4]
-               bg-white p-5"
-    >
-        <div
-            class="flex items-start
-                   justify-between gap-3"
-        >
-            <div>
-                <p
-                    class="text-[9px] font-semibold
-                           uppercase tracking-[0.12em]
-                           text-[#839189]"
-                >
-                    Delivery Assigned
-                </p>
-
-                <p
-                    class="mt-3 text-2xl
-                           font-semibold
-                           text-[#24312C]"
-                >
-                    {{ $deliveryAssignedCount }}
-                </p>
-            </div>
-
-            <div
-                class="flex h-10 w-10
-                       items-center justify-center
-                       rounded-xl bg-violet-50
-                       text-violet-700"
-            >
-                <i
-                    data-lucide="user-check"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-        </div>
-    </div>
-
-
-    {{-- OUT FOR DELIVERY --}}
-    <div
-        class="col-span-2 rounded-2xl
-               border border-[#E1E8E4]
-               bg-white p-5
-               xl:col-span-1"
-    >
-        <div
-            class="flex items-start
-                   justify-between gap-3"
-        >
-            <div>
-                <p
-                    class="text-[9px] font-semibold
-                           uppercase tracking-[0.12em]
-                           text-[#839189]"
-                >
-                    Out for Delivery
-                </p>
-
-                <p
-                    class="mt-3 text-2xl
-                           font-semibold
-                           text-[#24312C]"
-                >
-                    {{ $outForDeliveryCount }}
-                </p>
-
-                <p
-                    class="mt-1 text-[9px]
-                           text-[#8A9791]"
-                >
-                    {{ $deliveredCount }} delivered/completed
-                </p>
-            </div>
-
-            <div
-                class="flex h-10 w-10
-                       items-center justify-center
-                       rounded-xl bg-orange-50
-                       text-orange-700"
-            >
-                <i
-                    data-lucide="bike"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-        </div>
+    <div class="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <p class="text-xs text-gray-500">Delivered</p>
+        <p class="mt-1 text-2xl font-bold text-gray-800">
+            {{ $deliveredCount }}
+        </p>
     </div>
 
 </div>
 
 
-{{-- =========================================================
-    WORKFLOW SELECTOR
-========================================================= --}}
+{{-- ============================================================
+     AVAILABLE PICKUPS
+============================================================ --}}
 
-<div
-    class="mb-6 inline-flex w-full
-           rounded-2xl border
-           border-[#DDE6E1]
-           bg-white p-1.5
-           sm:w-auto"
->
+<div class="mb-8">
 
-    <button
-        type="button"
-        data-workflow-tab="pickup"
-        class="workflow-tab flex h-10 flex-1
-               items-center justify-center gap-2
-               rounded-xl bg-[#173F35]
-               px-5 text-[11px] font-semibold
-               text-white transition
-               sm:flex-none"
-    >
-        <i
-            data-lucide="package-plus"
-            class="h-4 w-4"
-        ></i>
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h2 class="text-lg font-bold text-gray-800">
+                Available Pickups
+            </h2>
 
-        Pickup Tasks
+            <p class="text-sm text-gray-500">
+                Accept a delivery that is waiting for a rider.
+            </p>
+        </div>
 
-        <span
-            class="rounded-full
-                   bg-white/15
-                   px-2 py-0.5
-                   text-[9px]"
-        >
-            {{ $availablePickups->count() + $myPickupTasks->count() }}
+        <span class="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
+            {{ $availablePickups->count() }} Available
         </span>
-    </button>
+    </div>
 
 
-    <button
-        type="button"
-        data-workflow-tab="delivery"
-        class="workflow-tab flex h-10 flex-1
-               items-center justify-center gap-2
-               rounded-xl px-5
-               text-[11px] font-semibold
-               text-[#68776F]
-               transition hover:bg-[#F3F7F5]
-               sm:flex-none"
-    >
-        <i
-            data-lucide="bike"
-            class="h-4 w-4"
-        ></i>
+    @if ($availablePickups->count())
 
-        Delivery Tasks
+        <div class="space-y-4">
 
-        <span
-            class="rounded-full
-                   bg-[#EEF2F0]
-                   px-2 py-0.5
-                   text-[9px]"
-        >
-            {{ $myDeliveryTasks->count() }}
-        </span>
-    </button>
+            @foreach ($availablePickups as $order)
 
-</div>
+                @php
+                    $orderId = $order['id'] ?? $loop->index;
+                @endphp
 
+                <div class="p-5 bg-white border border-gray-100 rounded-xl shadow-sm">
 
-{{-- =========================================================
-    PICKUP WORKFLOW
-========================================================= --}}
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-<div
-    id="pickupWorkflow"
-    class="workflow-panel space-y-6"
->
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-gray-800">
+                                    Order #{{ $orderId }}
+                                </h3>
 
+                                <span class="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">
+                                    Ready for Pickup
+                                </span>
+                            </div>
 
-    {{-- FLOW GUIDE --}}
-    <section
-        class="overflow-hidden rounded-2xl
-               border border-[#D9E6DF]
-               bg-[#F1F8F4]"
-    >
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ $order['customer_name'] ?? 'Customer' }}
+                            </p>
 
-        <div
-            class="flex items-start gap-4 p-5"
-        >
-
-            <div
-                class="flex h-10 w-10 shrink-0
-                       items-center justify-center
-                       rounded-xl bg-white
-                       text-[#1F6F5B]"
-            >
-                <i
-                    data-lucide="route"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-
-            <div class="min-w-0">
-
-                <p
-                    class="text-xs font-semibold
-                           text-[#294C42]"
-                >
-                    Seller Pickup Workflow
-                </p>
-
-                <p
-                    class="mt-1 text-[10px]
-                           leading-5 text-[#6B8178]"
-                >
-                    Accept pickup → go to seller →
-                    collect parcel → scan/confirm →
-                    deliver parcel to the Sorting Center.
-                </p>
-
-
-                <div
-                    class="mt-4 flex flex-wrap
-                           items-center gap-2"
-                >
-
-                    @foreach([
-                        'Accept',
-                        'Seller',
-                        'Scan',
-                        'Picked Up',
-                        'Sorting Center'
-                    ] as $step)
-
-                        <span
-                            class="rounded-full
-                                   border border-[#D3E4DB]
-                                   bg-white
-                                   px-2.5 py-1
-                                   text-[9px]
-                                   font-semibold
-                                   text-[#587067]"
-                        >
-                            {{ $step }}
-                        </span>
-
-                        @if(!$loop->last)
-                            <i
-                                data-lucide="arrow-right"
-                                class="h-3 w-3
-                                       text-[#90A39A]"
-                            ></i>
-                        @endif
-
-                    @endforeach
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    {{-- =====================================================
-        AVAILABLE PICKUPS
-    ====================================================== --}}
-
-    <section
-        class="overflow-hidden rounded-2xl
-               border border-[#E1E8E4]
-               bg-white"
-    >
-
-        <div
-            class="flex items-center
-                   justify-between gap-4
-                   border-b border-[#EDF1EF]
-                   px-5 py-4"
-        >
-
-            <div>
-                <h3
-                    class="text-sm font-semibold
-                           text-[#24312C]"
-                >
-                    Available Pickup Requests
-                </h3>
-
-                <p
-                    class="mt-0.5 text-[11px]
-                           text-[#7C8983]"
-                >
-                    Parcels marked Ready for Pickup
-                    by sellers.
-                </p>
-            </div>
-
-
-            <span
-                class="rounded-full
-                       bg-amber-50
-                       px-2.5 py-1
-                       text-[9px] font-semibold
-                       text-amber-700"
-            >
-                {{ $availablePickups->count() }}
-                available
-            </span>
-
-        </div>
-
-
-        @forelse($availablePickups as $orderId => $order)
-
-            @php
-
-                $resolvedOrderId =
-                    $order['id']
-                    ?? $orderId;
-
-                $items =
-                    collect(
-                        $order['items'] ?? []
-                    );
-
-                $sellerName =
-                    $order['seller_name']
-                    ?? $order['shop_name']
-                    ?? 'Seller';
-
-            @endphp
-
-
-            <article
-                class="border-b border-[#EDF1EF]
-                       p-5 last:border-b-0"
-            >
-
-                <div
-                    class="flex flex-col gap-5
-                           lg:flex-row
-                           lg:items-center"
-                >
-
-                    <div
-                        class="flex h-12 w-12
-                               shrink-0
-                               items-center justify-center
-                               rounded-2xl
-                               bg-amber-50
-                               text-amber-700"
-                    >
-                        <i
-                            data-lucide="package-plus"
-                            class="h-5 w-5"
-                        ></i>
-                    </div>
-
-
-                    <div class="min-w-0 flex-1">
-
-                        <div
-                            class="flex flex-wrap
-                                   items-center gap-2"
-                        >
-                            <h4
-                                class="text-sm font-semibold
-                                       text-[#34483F]"
-                            >
-                                Order #{{ $resolvedOrderId }}
-                            </h4>
-
-                            <span
-                                class="rounded-full
-                                       border border-amber-200
-                                       bg-amber-50
-                                       px-2.5 py-1
-                                       text-[9px] font-semibold
-                                       text-amber-700"
-                            >
-                                Ready for Pickup
-                            </span>
+                            @if (!empty($order['address']))
+                                <p class="mt-1 text-sm text-gray-500">
+                                    {{ $order['address'] }}
+                                </p>
+                            @endif
                         </div>
 
 
-                        <div
-                            class="mt-3 grid gap-2
-                                   text-[10px]
-                                   text-[#74827B]
-                                   sm:grid-cols-2"
+                        {{-- Accept Pickup --}}
+
+                        <form
+                            method="POST"
+                            action="{{ route('rider.order.status', $orderId) }}"
                         >
+                            @csrf
 
-                            <div
-                                class="flex items-center gap-2"
+                            <input
+                                type="hidden"
+                                name="status"
+                                value="assigned_to_rider"
                             >
-                                <i
-                                    data-lucide="store"
-                                    class="h-3.5 w-3.5
-                                           text-[#1F6F5B]"
-                                ></i>
 
-                                {{ $sellerName }}
-                            </div>
-
-                            <div
-                                class="flex items-center gap-2"
+                            <button
+                                type="submit"
+                                class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition md:w-auto"
                             >
-                                <i
-                                    data-lucide="package"
-                                    class="h-3.5 w-3.5
-                                           text-[#1F6F5B]"
-                                ></i>
-
-                                {{ $items->sum('quantity') ?: $items->count() }}
-                                item(s)
-                            </div>
-
-                        </div>
+                                Accept Pickup
+                            </button>
+                        </form>
 
                     </div>
 
-
-                    <form
-                        method="POST"
-                        action="{{ route(
-                            'rider.pickup.accept',
-                            $resolvedOrderId
-                        ) }}"
-                        class="accept-pickup-form"
-                    >
-
-                        @csrf
-
-
-                        <button
-                            type="submit"
-                            class="inline-flex h-10
-                                   w-full items-center
-                                   justify-center gap-2
-                                   rounded-xl
-                                   bg-[#173F35]
-                                   px-4
-                                   text-[11px] font-semibold
-                                   text-white transition
-                                   hover:bg-[#1F6F5B]
-                                   lg:w-auto"
-                        >
-                            <i
-                                data-lucide="hand"
-                                class="h-4 w-4"
-                            ></i>
-
-                            Accept Pickup
-                        </button>
-
-                    </form>
-
                 </div>
 
-            </article>
+            @endforeach
 
+        </div>
 
-        @empty
+    @else
 
-            <div
-                class="px-6 py-12 text-center"
-            >
+        <div class="p-8 text-center bg-white border border-gray-100 rounded-xl">
 
-                <div
-                    class="mx-auto flex h-12 w-12
-                           items-center justify-center
-                           rounded-2xl bg-[#EEF5F1]
-                           text-[#1F6F5B]"
+            <div class="flex items-center justify-center w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100">
+                <svg
+                    class="w-7 h-7 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                 >
-                    <i
-                        data-lucide="package-search"
-                        class="h-5 w-5"
-                    ></i>
-                </div>
-
-                <p
-                    class="mt-4 text-sm font-semibold
-                           text-[#34483F]"
-                >
-                    No available pickup requests
-                </p>
-
-                <p
-                    class="mt-1 text-xs
-                           text-[#849089]"
-                >
-                    New seller pickup requests
-                    will appear here.
-                </p>
-
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"
+                    />
+                </svg>
             </div>
 
-        @endforelse
-
-    </section>
-
-
-    {{-- =====================================================
-        MY PICKUP TASKS
-    ====================================================== --}}
-
-    <section
-        class="overflow-hidden rounded-2xl
-               border border-[#E1E8E4]
-               bg-white"
-    >
-
-        <div
-            class="border-b border-[#EDF1EF]
-                   px-5 py-4"
-        >
-            <h3
-                class="text-sm font-semibold
-                       text-[#24312C]"
-            >
-                My Pickup Tasks
+            <h3 class="font-semibold text-gray-700">
+                No available pickups
             </h3>
 
-            <p
-                class="mt-0.5 text-[11px]
-                       text-[#7C8983]"
-            >
-                Pickups you have accepted from sellers.
+            <p class="mt-1 text-sm text-gray-500">
+                There are currently no orders waiting for a rider.
             </p>
+
         </div>
 
-
-        @forelse($myPickupTasks as $orderId => $order)
-
-            @php
-
-                $resolvedOrderId =
-                    $order['id']
-                    ?? $orderId;
-
-                $status =
-                    $order['status']
-                    ?? 'ready_for_pickup';
-
-                $data =
-                    $statusConfig[$status]
-                    ?? [
-                        'label' => ucfirst(
-                            str_replace(
-                                '_',
-                                ' ',
-                                $status
-                            )
-                        ),
-                        'class' =>
-                            'border-gray-200 bg-gray-50 text-gray-600',
-                        'icon' =>
-                            'package',
-                    ];
-
-                $sellerName =
-                    $order['seller_name']
-                    ?? $order['shop_name']
-                    ?? 'Seller';
-
-            @endphp
-
-
-            <article
-                class="border-b border-[#EDF1EF]
-                       p-5 last:border-b-0"
-            >
-
-                <div
-                    class="flex flex-col gap-5
-                           xl:flex-row"
-                >
-
-                    <div class="min-w-0 flex-1">
-
-                        <div
-                            class="flex flex-wrap
-                                   items-center gap-2"
-                        >
-
-                            <h4
-                                class="text-sm font-semibold
-                                       text-[#34483F]"
-                            >
-                                Order #{{ $resolvedOrderId }}
-                            </h4>
-
-                            <span
-                                class="
-                                    inline-flex items-center
-                                    gap-1.5 rounded-full
-                                    border px-2.5 py-1
-                                    text-[9px] font-semibold
-                                    {{ $data['class'] }}
-                                "
-                            >
-                                <i
-                                    data-lucide="{{ $data['icon'] }}"
-                                    class="h-3 w-3"
-                                ></i>
-
-                                {{ $data['label'] }}
-                            </span>
-
-                        </div>
-
-
-                        <div
-                            class="mt-4 rounded-xl
-                                   bg-[#F7F9F8]
-                                   p-4"
-                        >
-
-                            <div
-                                class="flex items-start gap-3"
-                            >
-                                <i
-                                    data-lucide="store"
-                                    class="mt-0.5 h-4 w-4
-                                           shrink-0 text-[#1F6F5B]"
-                                ></i>
-
-                                <div>
-                                    <p
-                                        class="text-[9px]
-                                               uppercase
-                                               tracking-[0.08em]
-                                               text-[#96A29C]"
-                                    >
-                                        Pickup From
-                                    </p>
-
-                                    <p
-                                        class="mt-1 text-xs
-                                               font-semibold
-                                               text-[#52635B]"
-                                    >
-                                        {{ $sellerName }}
-                                    </p>
-                                </div>
-                            </div>
-
-                        </div>
-
-
-                        {{-- PICKUP PROGRESS --}}
-                        <div
-                            class="mt-4 grid grid-cols-3
-                                   gap-2"
-                        >
-
-                            @php
-                                $acceptedDone =
-                                    true;
-
-                                $pickedDone =
-                                    in_array(
-                                        $status,
-                                        [
-                                            'picked_up',
-                                            'at_sorting_center'
-                                        ]
-                                    );
-
-                                $sortingDone =
-                                    $status ===
-                                    'at_sorting_center';
-                            @endphp
-
-
-                            <div
-                                class="rounded-xl
-                                       {{ $acceptedDone
-                                            ? 'bg-[#EEF8F3]'
-                                            : 'bg-[#F5F6F5]' }}
-                                       p-3"
-                            >
-                                <i
-                                    data-lucide="check"
-                                    class="h-4 w-4
-                                           {{ $acceptedDone
-                                                ? 'text-[#1F6F5B]'
-                                                : 'text-[#9AA59F]' }}"
-                                ></i>
-
-                                <p
-                                    class="mt-2 text-[9px]
-                                           font-semibold
-                                           text-[#52635B]"
-                                >
-                                    Accepted
-                                </p>
-                            </div>
-
-
-                            <div
-                                class="rounded-xl
-                                       {{ $pickedDone
-                                            ? 'bg-[#EEF8F3]'
-                                            : 'bg-[#F5F6F5]' }}
-                                       p-3"
-                            >
-                                <i
-                                    data-lucide="scan-line"
-                                    class="h-4 w-4
-                                           {{ $pickedDone
-                                                ? 'text-[#1F6F5B]'
-                                                : 'text-[#9AA59F]' }}"
-                                ></i>
-
-                                <p
-                                    class="mt-2 text-[9px]
-                                           font-semibold
-                                           text-[#52635B]"
-                                >
-                                    Scan Pickup
-                                </p>
-                            </div>
-
-
-                            <div
-                                class="rounded-xl
-                                       {{ $sortingDone
-                                            ? 'bg-[#EEF8F3]'
-                                            : 'bg-[#F5F6F5]' }}
-                                       p-3"
-                            >
-                                <i
-                                    data-lucide="warehouse"
-                                    class="h-4 w-4
-                                           {{ $sortingDone
-                                                ? 'text-[#1F6F5B]'
-                                                : 'text-[#9AA59F]' }}"
-                                ></i>
-
-                                <p
-                                    class="mt-2 text-[9px]
-                                           font-semibold
-                                           text-[#52635B]"
-                                >
-                                    Sorting Center
-                                </p>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <div
-                        class="w-full xl:w-[250px]"
-                    >
-
-                        @if($status === 'ready_for_pickup')
-
-                            <div
-                                class="mb-3 rounded-xl
-                                       border border-[#DDE6E1]
-                                       bg-[#FAFCFB]
-                                       p-3"
-                            >
-                                <p
-                                    class="text-[10px]
-                                           leading-5
-                                           text-[#73827A]"
-                                >
-                                    Go to the seller, collect the
-                                    parcel, then scan or confirm it
-                                    before leaving.
-                                </p>
-                            </div>
-
-
-                            <form
-                                method="POST"
-                                action="{{ route(
-                                    'rider.order.status',
-                                    $resolvedOrderId
-                                ) }}"
-                            >
-                                @csrf
-
-                                <input
-                                    type="hidden"
-                                    name="status"
-                                    value="picked_up"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="inline-flex h-10
-                                           w-full items-center
-                                           justify-center gap-2
-                                           rounded-xl
-                                           bg-[#173F35]
-                                           text-[11px]
-                                           font-semibold
-                                           text-white transition
-                                           hover:bg-[#1F6F5B]"
-                                >
-                                    <i
-                                        data-lucide="scan-line"
-                                        class="h-4 w-4"
-                                    ></i>
-
-                                    Scan & Confirm Pickup
-                                </button>
-                            </form>
-
-
-                        @elseif($status === 'picked_up')
-
-                            <div
-                                class="mb-3 rounded-xl
-                                       border border-sky-200
-                                       bg-sky-50 p-3"
-                            >
-                                <p
-                                    class="text-[10px]
-                                           leading-5
-                                           text-sky-700"
-                                >
-                                    Parcel collected. Deliver it
-                                    to the SUKI Sorting Center.
-                                </p>
-                            </div>
-
-
-                            <form
-                                method="POST"
-                                action="{{ route(
-                                    'rider.order.status',
-                                    $resolvedOrderId
-                                ) }}"
-                            >
-                                @csrf
-
-                                <input
-                                    type="hidden"
-                                    name="status"
-                                    value="at_sorting_center"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="inline-flex h-10
-                                           w-full items-center
-                                           justify-center gap-2
-                                           rounded-xl
-                                           bg-[#173F35]
-                                           text-[11px]
-                                           font-semibold
-                                           text-white transition
-                                           hover:bg-[#1F6F5B]"
-                                >
-                                    <i
-                                        data-lucide="warehouse"
-                                        class="h-4 w-4"
-                                    ></i>
-
-                                    Confirm Sorting Center Arrival
-                                </button>
-                            </form>
-
-
-                        @elseif($status === 'at_sorting_center')
-
-                            <div
-                                class="rounded-xl
-                                       border border-emerald-200
-                                       bg-emerald-50 p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="circle-check"
-                                        class="mt-0.5 h-4 w-4
-                                               shrink-0
-                                               text-emerald-700"
-                                    ></i>
-
-                                    <div>
-                                        <p
-                                            class="text-[10px]
-                                                   font-semibold
-                                                   text-emerald-800"
-                                        >
-                                            Pickup completed
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-[9px]
-                                                   leading-5
-                                                   text-emerald-700"
-                                        >
-                                            Logistics now handles
-                                            parcel sorting and final
-                                            rider assignment.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                        @endif
-
-                    </div>
-
-                </div>
-
-            </article>
-
-
-        @empty
-
-            <div
-                class="px-6 py-12 text-center"
-            >
-                <div
-                    class="mx-auto flex h-12 w-12
-                           items-center justify-center
-                           rounded-2xl bg-[#EEF5F1]
-                           text-[#1F6F5B]"
-                >
-                    <i
-                        data-lucide="clipboard-check"
-                        class="h-5 w-5"
-                    ></i>
-                </div>
-
-                <p
-                    class="mt-4 text-sm font-semibold
-                           text-[#34483F]"
-                >
-                    No active pickup tasks
-                </p>
-
-                <p
-                    class="mt-1 text-xs
-                           text-[#849089]"
-                >
-                    Accepted pickup requests will
-                    appear here.
-                </p>
-            </div>
-
-        @endforelse
-
-    </section>
+    @endif
 
 </div>
 
 
-{{-- =========================================================
-    DELIVERY WORKFLOW
-========================================================= --}}
+{{-- ============================================================
+     MY ASSIGNED DELIVERIES
+============================================================ --}}
 
-<div
-    id="deliveryWorkflow"
-    class="workflow-panel hidden space-y-6"
->
+<div>
 
+    <div class="mb-4">
+        <h2 class="text-lg font-bold text-gray-800">
+            My Assigned Deliveries
+        </h2>
 
-    {{-- FLOW GUIDE --}}
-    <section
-        class="overflow-hidden rounded-2xl
-               border border-[#D9E6DF]
-               bg-[#F1F8F4]"
-    >
-
-        <div
-            class="flex items-start gap-4 p-5"
-        >
-
-            <div
-                class="flex h-10 w-10 shrink-0
-                       items-center justify-center
-                       rounded-xl bg-white
-                       text-[#1F6F5B]"
-            >
-                <i
-                    data-lucide="bike"
-                    class="h-[18px] w-[18px]"
-                ></i>
-            </div>
-
-            <div>
-                <p
-                    class="text-xs font-semibold
-                           text-[#294C42]"
-                >
-                    Customer Delivery Workflow
-                </p>
-
-                <p
-                    class="mt-1 text-[10px]
-                           leading-5 text-[#6B8178]"
-                >
-                    Receive Logistics assignment →
-                    view address → pick up from
-                    Sorting Center → Out for Delivery →
-                    deliver to customer.
-                </p>
-
-                <div
-                    class="mt-4 flex flex-wrap
-                           items-center gap-2"
-                >
-
-                    @foreach([
-                        'Assigned',
-                        'Sorting Center',
-                        'Out for Delivery',
-                        'Deliver',
-                        'Buyer Confirm'
-                    ] as $step)
-
-                        <span
-                            class="rounded-full
-                                   border border-[#D3E4DB]
-                                   bg-white
-                                   px-2.5 py-1
-                                   text-[9px] font-semibold
-                                   text-[#587067]"
-                        >
-                            {{ $step }}
-                        </span>
-
-                        @if(!$loop->last)
-                            <i
-                                data-lucide="arrow-right"
-                                class="h-3 w-3
-                                       text-[#90A39A]"
-                            ></i>
-                        @endif
-
-                    @endforeach
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
+        <p class="text-sm text-gray-500">
+            Track and update your current deliveries.
+        </p>
+    </div>
 
 
-    {{-- DELIVERY TASKS --}}
-    <section
-        class="overflow-hidden rounded-2xl
-               border border-[#E1E8E4]
-               bg-white"
-    >
+    @if ($myOrders->count())
 
-        <div
-            class="flex items-center
-                   justify-between gap-4
-                   border-b border-[#EDF1EF]
-                   px-5 py-4"
-        >
-            <div>
-                <h3
-                    class="text-sm font-semibold
-                           text-[#24312C]"
-                >
-                    My Delivery Assignments
-                </h3>
+        <div class="space-y-4">
 
-                <p
-                    class="mt-0.5 text-[11px]
-                           text-[#7C8983]"
-                >
-                    Parcels assigned to you by
-                    the Sorting Center.
-                </p>
-            </div>
+            @foreach ($myOrders as $order)
 
-            <span
-                class="rounded-full bg-[#EEF5F1]
-                       px-2.5 py-1 text-[9px]
-                       font-semibold text-[#1F6F5B]"
-            >
-                {{ $myDeliveryTasks->count() }}
-                task(s)
-            </span>
-        </div>
+                @php
+                    $orderId = $order['id'] ?? $loop->index;
+                    $status = $order['status'] ?? 'assigned_to_rider';
 
-
-        @forelse($myDeliveryTasks as $orderId => $order)
-
-            @php
-
-                $resolvedOrderId =
-                    $order['id']
-                    ?? $orderId;
-
-                $status =
-                    $order['status']
-                    ?? 'assigned_to_rider';
-
-                $data =
-                    $statusConfig[$status]
-                    ?? [
-                        'label' => ucfirst(
-                            str_replace(
-                                '_',
-                                ' ',
-                                $status
-                            )
-                        ),
-                        'class' =>
-                            'border-gray-200 bg-gray-50 text-gray-600',
-                        'icon' =>
-                            'package',
+                    $statusLabels = [
+                        'assigned_to_rider' => 'Assigned to Rider',
+                        'picked_up' => 'Picked Up',
+                        'at_sorting_center' => 'At Sorting Center',
+                        'out_for_delivery' => 'Out for Delivery',
+                        'delivered' => 'Delivered',
+                        'completed' => 'Completed',
                     ];
 
-                $customerName =
-                    $getCustomerName($order);
-
-                $customerPhone =
-                    $getCustomerPhone($order);
-
-                $deliveryAddress =
-                    $formatAddress($order);
-
-                $area =
-                    $order['assigned_area']
-                    ?? $order['area']
-                    ?? null;
-
-            @endphp
+                    $statusLabel = $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status));
+                @endphp
 
 
-            <article
-                class="border-b border-[#EDF1EF]
-                       p-5 last:border-b-0"
-            >
+                <div class="p-5 bg-white border border-gray-100 rounded-xl shadow-sm">
 
-                {{-- TOP --}}
-                <div
-                    class="flex flex-col gap-5
-                           xl:flex-row"
-                >
+                    <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-                    <div class="min-w-0 flex-1">
+                        {{-- Order Details --}}
 
-                        <div
-                            class="flex flex-wrap
-                                   items-center gap-2"
-                        >
+                        <div class="flex-1">
 
-                            <h4
-                                class="text-sm font-semibold
-                                       text-[#34483F]"
-                            >
-                                Order #{{ $resolvedOrderId }}
-                            </h4>
+                            <div class="flex flex-wrap items-center gap-2">
 
-                            <span
-                                class="
-                                    inline-flex items-center
-                                    gap-1.5 rounded-full
-                                    border px-2.5 py-1
-                                    text-[9px] font-semibold
-                                    {{ $data['class'] }}
-                                "
-                            >
-                                <i
-                                    data-lucide="{{ $data['icon'] }}"
-                                    class="h-3 w-3"
-                                ></i>
+                                <h3 class="font-bold text-gray-800">
+                                    Order #{{ $orderId }}
+                                </h3>
 
-                                {{ $data['label'] }}
-                            </span>
+                                <span class="px-2.5 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
+                                    {{ $statusLabel }}
+                                </span>
 
-                        </div>
-
-
-                        {{-- CUSTOMER / ADDRESS --}}
-                        <div
-                            class="mt-4 grid gap-3
-                                   md:grid-cols-2"
-                        >
-
-                            <div
-                                class="rounded-xl
-                                       bg-[#F7F9F8]
-                                       p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="user-round"
-                                        class="mt-0.5 h-4 w-4
-                                               shrink-0
-                                               text-[#1F6F5B]"
-                                    ></i>
-
-                                    <div class="min-w-0">
-                                        <p
-                                            class="text-[9px]
-                                                   uppercase
-                                                   tracking-[0.08em]
-                                                   text-[#96A29C]"
-                                        >
-                                            Customer
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-xs
-                                                   font-semibold
-                                                   text-[#52635B]"
-                                        >
-                                            {{ $customerName }}
-                                        </p>
-
-                                        @if($customerPhone)
-                                            <p
-                                                class="mt-1 text-[10px]
-                                                       text-[#849089]"
-                                            >
-                                                {{ $customerPhone }}
-                                            </p>
-                                        @endif
-                                    </div>
-                                </div>
                             </div>
 
 
-                            <div
-                                class="rounded-xl
-                                       bg-[#F7F9F8]
-                                       p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="map-pin"
-                                        class="mt-0.5 h-4 w-4
-                                               shrink-0
-                                               text-[#1F6F5B]"
-                                    ></i>
+                            <div class="mt-3 space-y-1">
 
-                                    <div class="min-w-0">
-                                        <p
-                                            class="text-[9px]
-                                                   uppercase
-                                                   tracking-[0.08em]
-                                                   text-[#96A29C]"
-                                        >
-                                            Delivery Address
-                                        </p>
+                                <p class="text-sm text-gray-600">
+                                    <span class="font-medium">Customer:</span>
+                                    {{ $order['customer_name'] ?? 'Customer' }}
+                                </p>
 
-                                        <p
-                                            class="mt-1 text-[10px]
-                                                   leading-5
-                                                   text-[#52635B]"
-                                        >
-                                            {{ $deliveryAddress }}
-                                        </p>
+                                @if (!empty($order['address']))
+                                    <p class="text-sm text-gray-600">
+                                        <span class="font-medium">Address:</span>
+                                        {{ $order['address'] }}
+                                    </p>
+                                @endif
 
-                                        @if($area)
-                                            <span
-                                                class="mt-2 inline-flex
-                                                       rounded-full
-                                                       bg-[#DDF3EC]
-                                                       px-2 py-1
-                                                       text-[9px]
-                                                       font-semibold
-                                                       text-[#173F35]"
-                                            >
-                                                {{ $area }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
+                                @if (isset($order['total']))
+                                    <p class="text-sm text-gray-600">
+                                        <span class="font-medium">Total:</span>
+                                        ₱{{ number_format((float) $order['total'], 2) }}
+                                    </p>
+                                @endif
+
                             </div>
 
                         </div>
 
 
-                        {{-- AMOUNT --}}
-                        <div
-                            class="mt-3 flex flex-wrap
-                                   gap-3"
-                        >
+                        {{-- Status Action --}}
 
-                            <div
-                                class="rounded-lg
-                                       border border-[#E5EBE7]
-                                       bg-white px-3 py-2"
-                            >
-                                <p
-                                    class="text-[8px]
-                                           uppercase
-                                           text-[#98A39E]"
-                                >
-                                    Order Total
-                                </p>
+                        <div class="w-full lg:w-auto">
 
-                                <p
-                                    class="mt-0.5 text-[11px]
-                                           font-semibold
-                                           text-[#34483F]"
-                                >
-                                    ₱{{ number_format(
-                                        (float) (
-                                            $order['total']
-                                            ?? 0
-                                        ),
-                                        2
-                                    ) }}
-                                </p>
-                            </div>
-
-
-                            <div
-                                class="rounded-lg
-                                       border border-[#E5EBE7]
-                                       bg-white px-3 py-2"
-                            >
-                                <p
-                                    class="text-[8px]
-                                           uppercase
-                                           text-[#98A39E]"
-                                >
-                                    Payment
-                                </p>
-
-                                <p
-                                    class="mt-0.5 text-[11px]
-                                           font-semibold
-                                           text-[#34483F]"
-                                >
-                                    {{ strtoupper(
-                                        $order['payment_method']
-                                        ?? 'COD'
-                                    ) }}
-                                </p>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- ACTION --}}
-                    <div
-                        class="w-full xl:w-[270px]"
-                    >
-
-                        @if($status === 'assigned_to_rider')
-
-                            <div
-                                class="mb-3 rounded-xl
-                                       border border-violet-200
-                                       bg-violet-50 p-3"
-                            >
-                                <p
-                                    class="text-[10px]
-                                           leading-5
-                                           text-violet-700"
-                                >
-                                    Pick up this parcel from the
-                                    Sorting Center before starting
-                                    customer delivery.
-                                </p>
-                            </div>
-
-
-                            <form
-                                method="POST"
-                                action="{{ route(
-                                    'rider.order.status',
-                                    $resolvedOrderId
-                                ) }}"
-                            >
-                                @csrf
-
-                                <input
-                                    type="hidden"
-                                    name="status"
-                                    value="out_for_delivery"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="inline-flex h-10
-                                           w-full items-center
-                                           justify-center gap-2
-                                           rounded-xl
-                                           bg-[#173F35]
-                                           text-[11px]
-                                           font-semibold
-                                           text-white transition
-                                           hover:bg-[#1F6F5B]"
-                                >
-                                    <i
-                                        data-lucide="navigation"
-                                        class="h-4 w-4"
-                                    ></i>
-
-                                    Pick Up & Start Delivery
-                                </button>
-                            </form>
-
-
-                        @elseif($status === 'out_for_delivery')
-
-                            <div
-                                class="mb-3 rounded-xl
-                                       border border-orange-200
-                                       bg-orange-50 p-3"
-                            >
-                                <p
-                                    class="text-[10px]
-                                           leading-5
-                                           text-orange-700"
-                                >
-                                    Deliver the parcel to the
-                                    customer, then record whether
-                                    delivery was successful.
-                                </p>
-                            </div>
-
-
-                            <div class="grid grid-cols-2 gap-2">
+                            @if ($status === 'assigned_to_rider')
 
                                 <form
                                     method="POST"
-                                    action="{{ route(
-                                        'rider.order.status',
-                                        $resolvedOrderId
-                                    ) }}"
-                                    class="delivered-form"
+                                    action="{{ route('rider.order.status', $orderId) }}"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="status"
+                                        value="picked_up"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
+                                    >
+                                        Mark as Picked Up
+                                    </button>
+                                </form>
+
+
+                            @elseif ($status === 'picked_up')
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('rider.order.status', $orderId) }}"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="status"
+                                        value="at_sorting_center"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
+                                    >
+                                        Send to Sorting Center
+                                    </button>
+                                </form>
+
+
+                            @elseif ($status === 'at_sorting_center')
+
+                                <span class="inline-flex px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg">
+                                    Processing at Sorting Center
+                                </span>
+
+
+                            @elseif ($status === 'out_for_delivery')
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('rider.order.status', $orderId) }}"
                                 >
                                     @csrf
 
@@ -2163,661 +440,70 @@
 
                                     <button
                                         type="submit"
-                                        class="inline-flex h-10
-                                               w-full items-center
-                                               justify-center gap-2
-                                               rounded-xl
-                                               bg-[#173F35]
-                                               text-[10px]
-                                               font-semibold
-                                               text-white transition
-                                               hover:bg-[#1F6F5B]"
+                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
                                     >
-                                        <i
-                                            data-lucide="check"
-                                            class="h-4 w-4"
-                                        ></i>
-
-                                        Delivered
+                                        Mark as Delivered
                                     </button>
                                 </form>
 
 
-                                <button
-                                    type="button"
-                                    data-failed-order="{{ $resolvedOrderId }}"
-                                    class="delivery-failed-button
-                                           inline-flex h-10
-                                           items-center justify-center
-                                           gap-2 rounded-xl
-                                           border border-red-200
-                                           bg-white
-                                           text-[10px]
-                                           font-semibold
-                                           text-red-600
-                                           transition
-                                           hover:bg-red-50"
+                            @elseif ($status === 'delivered')
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('rider.order.status', $orderId) }}"
                                 >
-                                    <i
-                                        data-lucide="x"
-                                        class="h-4 w-4"
-                                    ></i>
+                                    @csrf
 
-                                    Failed
-                                </button>
+                                    <input
+                                        type="hidden"
+                                        name="status"
+                                        value="completed"
+                                    >
 
-                            </div>
-
-
-                        @elseif($status === 'delivered')
-
-                            <div
-                                class="rounded-xl
-                                       border border-emerald-200
-                                       bg-emerald-50 p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="map-pin-check"
-                                        class="mt-0.5 h-4 w-4
-                                               shrink-0
-                                               text-emerald-700"
-                                    ></i>
-
-                                    <div>
-                                        <p
-                                            class="text-[10px]
-                                                   font-semibold
-                                                   text-emerald-800"
-                                        >
-                                            Delivery successful
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-[9px]
-                                                   leading-5
-                                                   text-emerald-700"
-                                        >
-                                            Waiting for the buyer to
-                                            confirm receipt. The Rider
-                                            cannot mark this order as
-                                            Completed.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                                    <button
+                                        type="submit"
+                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition lg:w-auto"
+                                    >
+                                        Complete Delivery
+                                    </button>
+                                </form>
 
 
-                        @elseif($status === 'completed')
+                            @elseif ($status === 'completed')
 
-                            <div
-                                class="rounded-xl
-                                       border border-emerald-200
-                                       bg-emerald-50 p-4"
-                            >
-                                <div
-                                    class="flex items-center gap-3"
-                                >
-                                    <i
-                                        data-lucide="badge-check"
-                                        class="h-4 w-4
-                                               text-emerald-700"
-                                    ></i>
+                                <span class="inline-flex px-4 py-2 text-sm font-semibold text-green-700 bg-green-100 rounded-lg">
+                                    Delivery Completed
+                                </span>
 
-                                    <div>
-                                        <p
-                                            class="text-[10px]
-                                                   font-semibold
-                                                   text-emerald-800"
-                                        >
-                                            Order Completed
-                                        </p>
+                            @endif
 
-                                        <p
-                                            class="mt-1 text-[9px]
-                                                   text-emerald-700"
-                                        >
-                                            Buyer confirmed receipt.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        @elseif($status === 'delivery_failed')
-
-                            <div
-                                class="rounded-xl
-                                       border border-red-200
-                                       bg-red-50 p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="triangle-alert"
-                                        class="mt-0.5 h-4 w-4
-                                               shrink-0
-                                               text-red-600"
-                                    ></i>
-
-                                    <div>
-                                        <p
-                                            class="text-[10px]
-                                                   font-semibold
-                                                   text-red-800"
-                                        >
-                                            Delivery Failed
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-[9px]
-                                                   leading-5
-                                                   text-red-700"
-                                        >
-                                            {{ $order['delivery_failure_reason']
-                                                ?? 'No reason recorded.' }}
-                                        </p>
-
-                                        <p
-                                            class="mt-2 text-[9px]
-                                                   leading-5
-                                                   text-red-600"
-                                        >
-                                            Waiting for Logistics to
-                                            reschedule delivery or
-                                            process parcel return.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        @elseif($status === 'returned')
-
-                            <div
-                                class="rounded-xl
-                                       border border-rose-200
-                                       bg-rose-50 p-4"
-                            >
-                                <div
-                                    class="flex items-start gap-3"
-                                >
-                                    <i
-                                        data-lucide="rotate-ccw"
-                                        class="mt-0.5 h-4 w-4
-                                               text-rose-700"
-                                    ></i>
-
-                                    <div>
-                                        <p
-                                            class="text-[10px]
-                                                   font-semibold
-                                                   text-rose-800"
-                                        >
-                                            Parcel Returned
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-[9px]
-                                                   text-rose-700"
-                                        >
-                                            Logistics processed this
-                                            parcel for return.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                        @endif
+                        </div>
 
                     </div>
 
                 </div>
 
-            </article>
-
-
-        @empty
-
-            <div
-                class="px-6 py-14 text-center"
-            >
-
-                <div
-                    class="mx-auto flex h-12 w-12
-                           items-center justify-center
-                           rounded-2xl bg-[#EEF5F1]
-                           text-[#1F6F5B]"
-                >
-                    <i
-                        data-lucide="bike"
-                        class="h-5 w-5"
-                    ></i>
-                </div>
-
-                <p
-                    class="mt-4 text-sm font-semibold
-                           text-[#34483F]"
-                >
-                    No delivery assignments
-                </p>
-
-                <p
-                    class="mx-auto mt-1 max-w-sm
-                           text-xs leading-5
-                           text-[#849089]"
-                >
-                    After Logistics sorts a parcel
-                    and assigns your delivery area,
-                    it will appear here.
-                </p>
-
-            </div>
-
-        @endforelse
-
-    </section>
-
-</div>
-
-
-{{-- =========================================================
-    DELIVERY FAILED MODAL
-========================================================= --}}
-
-<div
-    id="deliveryFailedModal"
-    class="fixed inset-0 z-[100]
-           hidden items-center justify-center
-           bg-[#102C25]/45
-           px-4 backdrop-blur-[2px]"
->
-
-    <div
-        class="w-full max-w-md
-               rounded-2xl
-               border border-[#E1E8E4]
-               bg-white
-               shadow-[0_24px_80px_rgba(23,63,53,.18)]"
-    >
-
-        <div class="p-5 sm:p-6">
-
-            <div
-                class="flex h-11 w-11
-                       items-center justify-center
-                       rounded-xl bg-red-50
-                       text-red-600"
-            >
-                <i
-                    data-lucide="triangle-alert"
-                    class="h-5 w-5"
-                ></i>
-            </div>
-
-
-            <h3
-                class="mt-4 text-lg
-                       font-semibold
-                       tracking-[-0.03em]
-                       text-[#24312C]"
-            >
-                Record Delivery Failure
-            </h3>
-
-
-            <p
-                class="mt-2 text-xs
-                       leading-6 text-[#728078]"
-            >
-                Record why the delivery was
-                unsuccessful. Logistics will use
-                this information for rescheduling
-                or parcel return.
-            </p>
-
-
-            <form
-                id="deliveryFailedForm"
-                method="POST"
-                action=""
-                class="mt-5"
-            >
-
-                @csrf
-
-                <input
-                    type="hidden"
-                    name="status"
-                    value="delivery_failed"
-                >
-
-
-                <label
-                    for="failure_reason"
-                    class="mb-2 block
-                           text-xs font-semibold
-                           text-[#34483F]"
-                >
-                    Failure Reason
-                </label>
-
-
-                <textarea
-                    id="failure_reason"
-                    name="failure_reason"
-                    rows="4"
-                    maxlength="500"
-                    required
-                    placeholder="Example: Customer unavailable, incorrect address, customer requested reschedule..."
-                    class="w-full resize-none
-                           rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white
-                           px-4 py-3
-                           text-xs leading-6
-                           text-[#34483F]
-                           placeholder:text-[#9AA69F]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                ></textarea>
-
-
-                <div
-                    class="mt-5 flex
-                           flex-col-reverse gap-2
-                           sm:flex-row
-                           sm:justify-end"
-                >
-
-                    <button
-                        type="button"
-                        id="cancelDeliveryFailure"
-                        class="inline-flex h-10
-                               items-center justify-center
-                               rounded-xl
-                               border border-[#DDE6E1]
-                               bg-white px-4
-                               text-xs font-semibold
-                               text-[#52635B]
-                               transition
-                               hover:bg-[#F5F8F6]"
-                    >
-                        Cancel
-                    </button>
-
-
-                    <button
-                        type="submit"
-                        class="inline-flex h-10
-                               items-center justify-center
-                               gap-2 rounded-xl
-                               bg-red-600 px-4
-                               text-xs font-semibold
-                               text-white transition
-                               hover:bg-red-700"
-                    >
-                        <i
-                            data-lucide="triangle-alert"
-                            class="h-4 w-4"
-                        ></i>
-
-                        Record Failure
-                    </button>
-
-                </div>
-
-            </form>
+            @endforeach
 
         </div>
 
-    </div>
+    @else
+
+        <div class="p-8 text-center bg-white border border-gray-100 rounded-xl">
+
+            <h3 class="font-semibold text-gray-700">
+                No assigned deliveries
+            </h3>
+
+            <p class="mt-1 text-sm text-gray-500">
+                Your accepted deliveries will appear here.
+            </p>
+
+        </div>
+
+    @endif
 
 </div>
-
-
-@push('scripts')
-
-<script>
-
-document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-
-        /* =====================================================
-           WORKFLOW TABS
-        ====================================================== */
-
-        const tabs =
-            document.querySelectorAll(
-                '.workflow-tab'
-            );
-
-        const pickupPanel =
-            document.getElementById(
-                'pickupWorkflow'
-            );
-
-        const deliveryPanel =
-            document.getElementById(
-                'deliveryWorkflow'
-            );
-
-
-        function setWorkflow(
-            workflow
-        ) {
-
-            const pickupActive =
-                workflow === 'pickup';
-
-
-            pickupPanel?.classList.toggle(
-                'hidden',
-                !pickupActive
-            );
-
-            deliveryPanel?.classList.toggle(
-                'hidden',
-                pickupActive
-            );
-
-
-            tabs.forEach(
-                function (tab) {
-
-                    const active =
-                        tab.dataset.workflowTab
-                        === workflow;
-
-
-                    tab.classList.toggle(
-                        'bg-[#173F35]',
-                        active
-                    );
-
-                    tab.classList.toggle(
-                        'text-white',
-                        active
-                    );
-
-                    tab.classList.toggle(
-                        'text-[#68776F]',
-                        !active
-                    );
-
-                }
-            );
-
-        }
-
-
-        tabs.forEach(
-            function (tab) {
-
-                tab.addEventListener(
-                    'click',
-                    function () {
-
-                        setWorkflow(
-                            this.dataset.workflowTab
-                        );
-
-                    }
-                );
-
-            }
-        );
-
-
-        /* =====================================================
-           DELIVERY FAILED MODAL
-        ====================================================== */
-
-        const modal =
-            document.getElementById(
-                'deliveryFailedModal'
-            );
-
-        const failureForm =
-            document.getElementById(
-                'deliveryFailedForm'
-            );
-
-        const cancelFailure =
-            document.getElementById(
-                'cancelDeliveryFailure'
-            );
-
-        const failureReason =
-            document.getElementById(
-                'failure_reason'
-            );
-
-
-        document
-            .querySelectorAll(
-                '.delivery-failed-button'
-            )
-            .forEach(
-                function (button) {
-
-                    button.addEventListener(
-                        'click',
-                        function () {
-
-                            const orderId =
-                                this.dataset.failedOrder;
-
-
-                            failureForm.action =
-                                `/rider/orders/${orderId}/status`;
-
-
-                            if (failureReason) {
-                                failureReason.value = '';
-                            }
-
-
-                            modal.classList.remove(
-                                'hidden'
-                            );
-
-                            modal.classList.add(
-                                'flex'
-                            );
-
-                            document.body.classList.add(
-                                'overflow-hidden'
-                            );
-
-
-                            setTimeout(
-                                function () {
-
-                                    failureReason
-                                        ?.focus();
-
-                                },
-                                100
-                            );
-
-                        }
-                    );
-
-                }
-            );
-
-
-        function closeFailureModal() {
-
-            modal?.classList.add(
-                'hidden'
-            );
-
-            modal?.classList.remove(
-                'flex'
-            );
-
-            document.body.classList.remove(
-                'overflow-hidden'
-            );
-
-        }
-
-
-        cancelFailure?.addEventListener(
-            'click',
-            closeFailureModal
-        );
-
-
-        modal?.addEventListener(
-            'click',
-            function (event) {
-
-                if (event.target === modal) {
-                    closeFailureModal();
-                }
-
-            }
-        );
-
-
-        document.addEventListener(
-            'keydown',
-            function (event) {
-
-                if (
-                    event.key === 'Escape' &&
-                    !modal?.classList.contains(
-                        'hidden'
-                    )
-                ) {
-                    closeFailureModal();
-                }
-
-            }
-        );
-
-
-        if (
-            typeof lucide !== 'undefined' &&
-            typeof lucide.createIcons ===
-                'function'
-        ) {
-            lucide.createIcons();
-        }
-
-    }
-);
-
-</script>
-
-@endpush
 
 @endsection

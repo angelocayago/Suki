@@ -158,58 +158,65 @@
         {{-- STORE --}}
         <div class="px-4 pt-5">
 
+            <a
+    href="{{ route('seller.store.profile') }}"
+    class="block"
+>
+
+    <div
+        class="rounded-2xl
+               border border-white/10
+               bg-white/[0.06]
+               p-4
+               transition
+               hover:bg-white/[0.10]"
+    >
+
+        <div class="flex items-center gap-3">
+
             <div
-                class="rounded-2xl
-                       border border-white/10
-                       bg-white/[0.06]
-                       p-4"
+                class="flex h-10 w-10
+                       shrink-0
+                       items-center justify-center
+                       rounded-xl
+                       bg-[#DDF3EC]
+                       text-[#173F35]"
             >
 
-                <div class="flex items-center gap-3">
+                <i
+                    data-lucide="store"
+                    class="h-[18px] w-[18px]"
+                ></i>
 
-                    <div
-                        class="flex h-10 w-10
-                               shrink-0
-                               items-center justify-center
-                               rounded-xl
-                               bg-[#DDF3EC]
-                               text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="store"
-                            class="h-[18px] w-[18px]"
-                        ></i>
-
-                    </div>
+            </div>
 
 
-                    <div class="min-w-0">
+            <div class="min-w-0">
 
-                        <p
-                            class="truncate
-                                   text-[13px]
-                                   font-semibold
-                                   text-white"
-                        >
-                            {{ $shopName }}
-                        </p>
+                <p
+                    class="truncate
+                           text-[13px]
+                           font-semibold
+                           text-white"
+                >
+                    {{ $shopName }}
+                </p>
 
-                        <p
-                            class="mt-0.5
-                                   text-[10px]
-                                   text-white/45"
-                        >
-                            Active seller account
-                        </p>
-
-                    </div>
-
-                </div>
+                <p
+                    class="mt-0.5
+                           text-[10px]
+                           text-white/45"
+                >
+                    Active seller account
+                </p>
 
             </div>
 
         </div>
+
+    </div>
+
+</a>
 
 
         {{-- NAVIGATION --}}
@@ -334,6 +341,30 @@
                 </a>
 
 
+                {{-- SALES --}}
+                <a
+                    href="{{ route('seller.sales') }}"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+                        {{ request()->routeIs('seller.sales')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
+                >
+                    <i
+                        data-lucide="banknote"
+                        class="h-[18px] w-[18px]"
+                    ></i>
+
+                    <span>Sales</span>
+                </a>
+
+
                 {{-- REPORTS --}}
                 <a
                     href="{{ route('seller.reports') }}"
@@ -358,6 +389,31 @@
                     <span>Reports</span>
 
                 </a>
+
+                {{-- PROMOTIONS --}}
+                <a
+                    href="{{ route('seller.promotions') }}"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+                        {{ request()->routeIs('seller.promotions*')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
+                >
+                    <i
+                        data-lucide="badge-percent"
+                        class="h-[18px] w-[18px]"
+                    ></i>
+
+                    <span>Promotions</span>
+                </a>
+
+
 
             </div>
 
@@ -544,31 +600,58 @@
                 </button>
 
 
-                {{-- PAGE TITLE --}}
-                <div class="min-w-0 flex-1">
+               {{-- PAGE TITLE --}}
+<div class="min-w-0 flex-1">
 
-                    <p
-                        class="text-[10px]
-                               font-semibold
-                               uppercase
-                               tracking-[0.14em]
-                               text-[#1F6F5B]"
-                    >
-                        Seller Centre
-                    </p>
+    @hasSection('page-subtitle')
 
-                    <h1
-                        class="truncate
-                               text-[17px]
-                               font-semibold
-                               tracking-[-0.025em]
-                               text-[#24312C]
-                               sm:text-lg"
-                    >
-                        @yield('page-title', 'Dashboard')
-                    </h1>
+        <h1
+            class="truncate
+                   text-[17px]
+                   font-semibold
+                   tracking-[-0.025em]
+                   text-[#24312C]
+                   sm:text-lg"
+        >
+            @yield('page-title', 'Dashboard')
+        </h1>
 
-                </div>
+        <p
+            class="mt-0.5
+                   truncate
+                   text-[11px]
+                   text-[#89958F]
+                   sm:text-xs"
+        >
+            @yield('page-subtitle')
+        </p>
+
+    @else
+
+        <p
+            class="text-[10px]
+                   font-semibold
+                   uppercase
+                   tracking-[0.14em]
+                   text-[#1F6F5B]"
+        >
+            Seller Centre
+        </p>
+
+        <h1
+            class="truncate
+                   text-[17px]
+                   font-semibold
+                   tracking-[-0.025em]
+                   text-[#24312C]
+                   sm:text-lg"
+        >
+            @yield('page-title', 'Dashboard')
+        </h1>
+
+    @endif
+
+</div>
 
 
                 {{-- ACTIONS --}}

@@ -3,7 +3,88 @@
 @section('content')
 
 @php
-
+    $products = [
+        [
+            'name' => 'Minimalist Shoulder Bag',
+            'slug' => 'shoulder-bag',
+            'price' => '399',
+            'old_price' => '599',
+            'rating' => '4.9',
+            'sold' => '1.2k',
+            'category' => 'Fashion',
+            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Wireless Headphones',
+            'slug' => 'wireless-headphones',
+            'price' => '899',
+            'old_price' => '1,299',
+            'rating' => '4.8',
+            'sold' => '856',
+            'category' => 'Electronics',
+            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Ceramic Home Set',
+            'slug' => 'ceramic-home-set',
+            'price' => '549',
+            'old_price' => '799',
+            'rating' => '4.7',
+            'sold' => '642',
+            'category' => 'Home',
+            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Everyday Sneakers',
+            'slug' => 'everyday-sneakers',
+            'price' => '799',
+            'old_price' => '1,099',
+            'rating' => '4.9',
+            'sold' => '2.1k',
+            'category' => 'Fashion',
+            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Skincare Essentials Set',
+            'slug' => 'skincare-essentials',
+            'price' => '459',
+            'old_price' => '699',
+            'rating' => '4.8',
+            'sold' => '934',
+            'category' => 'Beauty',
+            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Classic Analog Watch',
+            'slug' => 'analog-watch',
+            'price' => '699',
+            'old_price' => '999',
+            'rating' => '4.8',
+            'sold' => '721',
+            'category' => 'Fashion',
+            'image' => 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Portable Bluetooth Speaker',
+            'slug' => 'bluetooth-speaker',
+            'price' => '649',
+            'old_price' => '899',
+            'rating' => '4.7',
+            'sold' => '534',
+            'category' => 'Electronics',
+            'image' => 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80',
+        ],
+        [
+            'name' => 'Modern Table Lamp',
+            'slug' => 'table-lamp',
+            'price' => '499',
+            'old_price' => '799',
+            'rating' => '4.6',
+            'sold' => '438',
+            'category' => 'Home',
+            'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80',
+        ],
+    ];
 
     $categories = [
         'All Products',
@@ -90,9 +171,6 @@
                     perfect for your everyday needs.
                 </p>
 
-
-
-
             </div>
 
             <div class="hidden md:flex w-16 h-16 rounded-2xl bg-white items-center justify-center border border-[#DCEDE6]">
@@ -136,35 +214,23 @@
 
     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
 
-    <a
-        href="{{ route('buyer.shop') }}"
-        class="shrink-0 px-4 py-2.5 rounded-lg border
-        {{ !request('category')
-            ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
-            : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
-        }}
-        text-sm font-medium transition"
-    >
-        All Products
-    </a>
+        @foreach($categories as $category)
 
-    @foreach($databaseCategories as $category)
+            <a
+                href="{{ route('buyer.shop') }}"
+                class="shrink-0 px-4 py-2.5 rounded-lg border
+                {{ $category === 'All Products'
+                    ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
+                }}
+                text-sm font-medium transition"
+            >
+                {{ $category }}
+            </a>
 
-        <a
-            href="{{ route('buyer.shop', ['category' => $category->slug]) }}"
-            class="shrink-0 px-4 py-2.5 rounded-lg border
-            {{ request('category') === $category->slug
-                ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
-            }}
-            text-sm font-medium transition"
-        >
-            {{ $category->name }}
-        </a>
+        @endforeach
 
-    @endforeach
-
-</div>
+    </div>
 
 </section>
 
@@ -205,12 +271,12 @@
 
                         </div>
 
-                       <a
-                href="{{ route('buyer.shop') }}"
-                 class="text-xs font-medium text-[#1F6F5B] hover:underline"
-                >
-                Reset
-                </a>
+                        <button
+                            type="button"
+                            class="text-xs font-medium text-[#1F6F5B] hover:underline"
+                        >
+                            Reset
+                        </button>
 
                     </div>
 
@@ -218,13 +284,7 @@
 
 
                 {{-- CATEGORY --}}
-
-           <form
-    method="GET"
-    action="{{ route('buyer.shop') }}"
->
-
-<div class="px-5 py-5 border-b border-gray-100">
+                <div class="px-5 py-5 border-b border-gray-100">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
                         Categories
@@ -232,125 +292,116 @@
 
                     <div class="space-y-3">
 
-                       @foreach($databaseCategories as $category)
+                        @foreach($categories as $category)
 
-    <label class="flex items-center justify-between gap-3 text-sm text-gray-600 cursor-pointer group">
+                            @if($category !== 'All Products')
 
-        <div class="flex items-center gap-3">
+                                <label class="flex items-center justify-between gap-3 text-sm text-gray-600 cursor-pointer group">
 
-            <input
-                type="radio"
-                name="category"
-                value="{{ $category->slug }}"
-                onchange="this.form.submit()"
-                {{ request('category') === $category->slug ? 'checked' : '' }}
-                class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-            >
+                                    <div class="flex items-center gap-3">
 
-            <span class="group-hover:text-[#1F6F5B] transition">
-                {{ $category->name }}
-            </span>
+                                        <input
+                                            type="checkbox"
+                                            class="w-4 h-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
+                                        >
 
-        </div>
+                                        <span class="group-hover:text-[#1F6F5B] transition">
+                                            {{ $category }}
+                                        </span>
 
-    </label>
+                                    </div>
 
-@endforeach
+                                </label>
 
-                        </div>
+                            @endif
 
-                        </div>
+                        @endforeach
 
-                        </form>
+                    </div>
 
+                </div>
 
-{{-- PRICE --}}
 
                 {{-- PRICE --}}
-              <form
-    method="GET"
-    action="{{ route('buyer.shop') }}"
-    class="px-5 py-5 border-b border-gray-100"
->
-@if(request('category'))
-    <input
-        type="hidden"
-        name="category"
-        value="{{ request('category') }}"
-    >
-@endif
+                <div class="px-5 py-5 border-b border-gray-100">
+
+                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
+                        Price Range
+                    </h3>
+
+                    <div class="flex items-center gap-2">
+
+                        <input
+                            type="number"
+                            placeholder="Min"
+                            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
+                        >
+
+                        <span class="text-gray-300">
+                            —
+                        </span>
+
+                        <input
+                            type="number"
+                            placeholder="Max"
+                            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
+                        >
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
+                    >
+                        Apply Price
+                    </button>
+
+                </div>
 
 
-@if(request('search'))
-    <input
-        type="hidden"
-        name="search"
-        value="{{ request('search') }}"
-    >
-@endif
+                {{-- RATING --}}
+                <div class="px-5 py-5">
 
+                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
+                        Customer Rating
+                    </h3>
 
-@if(request('rating'))
-    <input
-        type="hidden"
-        name="rating"
-        value="{{ request('rating') }}"
-    >
-@endif
+                    <div class="space-y-3">
 
+                        @foreach([
+                            '5 stars',
+                            '4 stars & up',
+                            '3 stars & up'
+                        ] as $rating)
 
-@if(request('sort'))
-    <input
-        type="hidden"
-        name="sort"
-        value="{{ request('sort') }}"
-    >
-@endif
+                            <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
 
+                                <input
+                                    type="radio"
+                                    name="rating"
+                                    class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
+                                >
 
-    <h3 class="text-sm font-semibold text-gray-900 mb-4">
-        Price Range
-    </h3>
+                                <div class="flex items-center gap-1">
 
+                                    <i
+                                        data-lucide="star"
+                                        class="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]"
+                                    ></i>
 
-    <div class="flex items-center gap-2">
+                                    <span>
+                                        {{ $rating }}
+                                    </span>
 
-        <input
-            type="number"
-            name="min_price"
-            value="{{ request('min_price') }}"
-            placeholder="Min"
-            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B]"
-        >
+                                </div>
 
+                            </label>
 
-        <span class="text-gray-300">
-            —
-        </span>
+                        @endforeach
 
+                    </div>
 
-        <input
-            type="number"
-            name="max_price"
-            value="{{ request('max_price') }}"
-            placeholder="Max"
-            class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B]"
-        >
-
-    </div>
-
-
-    <button
-        type="submit"
-        class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
-    >
-        Apply Price
-    </button>
-
-
-</form>
-
-
+                </div>
 
             </div>
 
@@ -405,92 +456,15 @@
                                 Sort by
                             </span>
 
-                          <form
-    method="GET"
-    action="{{ route('buyer.shop') }}"
->
-
-    @if(request('category'))
-        <input
-            type="hidden"
-            name="category"
-            value="{{ request('category') }}"
-        >
-    @endif
-
-
-    @if(request('search'))
-        <input
-            type="hidden"
-            name="search"
-            value="{{ request('search') }}"
-        >
-    @endif
-
-
-    @if(request('min_price'))
-        <input
-            type="hidden"
-            name="min_price"
-            value="{{ request('min_price') }}"
-        >
-    @endif
-
-
-    @if(request('max_price'))
-        <input
-            type="hidden"
-            name="max_price"
-            value="{{ request('max_price') }}"
-        >
-    @endif
-
-@if(request('rating') !== null)
-    <input
-        type="hidden"
-        name="rating"
-        value="{{ request('rating') }}"
-    >
-@endif
-
-
-    <select
-        name="sort"
-        onchange="this.form.submit()"
-        class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none"
-    >
-
-        <option value="">
-            Recommended
-        </option>
-
-
-        <option
-            value="best_selling"
-            {{ request('sort') === 'best_selling' ? 'selected' : '' }}
-        >
-            Best Selling
-        </option>
-
-
-        <option
-            value="price_low"
-            {{ request('sort') === 'price_low' ? 'selected' : '' }}
-        >
-            Price: Low to High
-        </option>
-
-
-        <option
-            value="price_high"
-            {{ request('sort') === 'price_high' ? 'selected' : '' }}
-        >
-            Price: High to Low
-        </option>
-
-    </select>
-
-</form>
+                            <select
+                                class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1F6F5B]"
+                            >
+                                <option>Recommended</option>
+                                <option>Newest</option>
+                                <option>Best Selling</option>
+                                <option>Price: Low to High</option>
+                                <option>Price: High to Low</option>
+                            </select>
 
                         </div>
 
@@ -507,14 +481,14 @@
 
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
 
-@foreach($products as $slug => $product)
+                @foreach($products as $product)
 
                     @php
-                       $isWishlisted = in_array(
-    $slug,
-    $wishlistSlugs,
-    true
-);
+                        $isWishlisted = in_array(
+                            $product['slug'],
+                            $wishlistSlugs,
+                            true
+                        );
                     @endphp
 
 
@@ -527,7 +501,7 @@
                         <div class="relative aspect-square overflow-hidden bg-gray-100">
 
                             <a
-                                href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                                href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
                                 class="block w-full h-full"
                             >
 
@@ -553,7 +527,7 @@
 {{-- ================================================= --}}
 
 <form
-    action="{{ route('buyer.wishlist.toggle', ['slug' => $slug]) }}"
+    action="{{ route('buyer.wishlist.toggle', ['slug' => $product['slug']]) }}"
     method="POST"
     class="absolute top-3 right-3 z-20"
 >
@@ -596,7 +570,7 @@
 
                         {{-- PRODUCT DETAILS --}}
                         <a
-                            href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                            href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
                             class="block p-3.5 sm:p-4"
                         >
 
@@ -622,6 +596,9 @@
                                     ₱{{ $product['price'] }}
                                 </span>
 
+                                <span class="text-xs text-gray-400 line-through">
+                                    ₱{{ $product['old_price'] }}
+                                </span>
 
                             </div>
 
@@ -629,7 +606,24 @@
                             {{-- RATING + SOLD --}}
                             <div class="flex items-center gap-2 mt-2">
 
+                                <div class="flex items-center gap-1">
 
+                                    <i
+                                        data-lucide="star"
+                                        class="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]"
+                                    ></i>
+
+                                    <span class="text-xs font-medium text-gray-600">
+                                        {{ $product['rating'] }}
+                                    </span>
+
+                                </div>
+
+                                <span class="text-xs text-gray-400">
+                                    {{ $product['sold'] }} sold
+                                </span>
+
+                            </div>
 
 
                             {{-- SHIPPING --}}
