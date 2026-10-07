@@ -22,8 +22,9 @@
     $lowStockProducts = collect($products)
         ->filter(function ($product) {
             $stock = (int) ($product['stock'] ?? 0);
+            $threshold = (int) ($product['low_stock_threshold'] ?? 10);
 
-            return $stock > 0 && $stock <= 10;
+            return $stock > 0 && $stock <= $threshold;
         })
         ->count();
 
@@ -584,6 +585,9 @@
                     <option value="inactive">
                         Inactive
                     </option>
+                    <option value="draft">
+                        Draft
+                    </option>
                 </select>
 
                 <i
@@ -739,6 +743,8 @@
                     @php
 
                         $stock = (int) ($product['stock'] ?? 0);
+                        $lowStockThreshold =
+                            (int) ($product['low_stock_threshold'] ?? 10);
 
                         $productStatus =
                             $product['status'] ?? 'active';
@@ -753,7 +759,7 @@
                             $stockClass =
                                 'bg-red-50 text-red-700 border-red-200';
 
-                        } elseif ($stock <= 10) {
+                        } elseif ($stock <= $lowStockThreshold) {
 
                             $stockLabel = $stock . ' left';
 
@@ -876,6 +882,9 @@
                                        text-[#65746D]"
                             >
                                 {{ $product['category'] ?? 'Uncategorized' }}
+                                @if(!empty($product['subcategory']))
+                                    <span class="text-[#9AA69F]">· {{ $product['subcategory'] }}</span>
+                                @endif
                             </span>
 
                         </td>
@@ -889,6 +898,11 @@
                                        font-semibold
                                        text-[#24312C]"
                             >
+                                @if(!empty($product['on_sale']))
+                                    <span class="mr-1 text-[10px] font-medium text-[#89968F] line-through">
+                                        ₱{{ number_format((float) ($product['regular_price'] ?? 0), 2) }}
+                                    </span>
+                                @endif
                                 ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
                             </p>
 
@@ -940,6 +954,13 @@
 
                                     Active
 
+                                </span>
+
+                            @elseif($productStatus === 'draft')
+
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                    Draft
                                 </span>
 
                             @else
@@ -1102,6 +1123,8 @@
 
                 $stock =
                     (int) ($product['stock'] ?? 0);
+                $lowStockThreshold =
+                    (int) ($product['low_stock_threshold'] ?? 10);
 
                 $productStatus =
                     $product['status'] ?? 'active';
@@ -1116,7 +1139,7 @@
                     $mobileStockClass =
                         'text-red-600';
 
-                } elseif ($stock <= 10) {
+                } elseif ($stock <= $lowStockThreshold) {
 
                     $stockLabel =
                         $stock . ' left';
@@ -1206,6 +1229,9 @@
                                            text-[#89968F]"
                                 >
                                     {{ $product['category'] ?? 'Uncategorized' }}
+                                    @if(!empty($product['subcategory']))
+                                        · {{ $product['subcategory'] }}
+                                    @endif
 
                                     @if(!empty($product['sku']))
                                         · {{ $product['sku'] }}
@@ -1228,6 +1254,12 @@
                                            text-emerald-700"
                                 >
                                     Active
+                                </span>
+
+                            @elseif($productStatus === 'draft')
+
+                                <span class="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">
+                                    Draft
                                 </span>
 
                             @else
@@ -1263,6 +1295,11 @@
                                            font-semibold
                                            text-[#24312C]"
                                 >
+                                    @if(!empty($product['on_sale']))
+                                        <span class="mr-1 text-[10px] font-medium text-[#89968F] line-through">
+                                            ₱{{ number_format((float) ($product['regular_price'] ?? 0), 2) }}
+                                        </span>
+                                    @endif
                                     ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
                                 </p>
 

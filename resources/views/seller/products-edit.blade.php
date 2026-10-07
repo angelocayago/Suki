@@ -1642,6 +1642,18 @@
                                     Inactive
                                 </option>
 
+                                <option
+                                    value="draft"
+                                    {{ old(
+                                        'status',
+                                        $product['status'] ?? ''
+                                    ) === 'draft'
+                                        ? 'selected'
+                                        : '' }}
+                                >
+                                    Draft
+                                </option>
+
                             </select>
 
 
@@ -1780,6 +1792,7 @@
 
                         <button
                             type="submit"
+                            formnovalidate
                             id="saveProductButton"
                             class="inline-flex h-11
                                    w-full

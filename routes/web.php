@@ -3088,21 +3088,39 @@ Route::post('/seller/products', function (
         return $redirect;
     }
 
+    $isDraft = $request->input('submit_action') === 'draft';
+    $required = $isDraft ? 'nullable' : 'required';
+    $hasVariations = $request->boolean('has_variations');
+
     $request->validate([
-        'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
-        'description' => 'required|string|max:3000',
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
+        'name' => "{$required}|string|max:150",
+        'category' => "{$required}|string|max:100",
+        'subcategory' => 'nullable|string|max:100',
+        'description' => "{$required}|string|max:3000",
+        'price' => "{$required}|numeric|min:0",
+        'sale_price' => [
+            $isDraft ? 'nullable' : 'required_if:on_sale,1',
+            'numeric',
+            'min:0',
+            'lt:price',
+        ],
+        'on_sale' => 'nullable|boolean',
+        'stock' => "{$required}|integer|min:0",
+        'low_stock_threshold' => 'nullable|integer|min:0',
         'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
-        'images' => 'required|array|min:1|max:5',
+        'status' => $isDraft ? 'nullable|in:active,inactive' : 'required|in:active,inactive',
+        'images' => $isDraft ? 'nullable|array|max:5' : 'required|array|min:1|max:5',
         'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         'additional_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         'product_video' => 'nullable|file|mimes:mp4,mov,avi,webm|max:10240',
+        'has_variations' => 'nullable|boolean',
+        'variation_name' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
+        'variation_name.*' => !$isDraft && $hasVariations ? 'required|string|max:100' : 'nullable|string|max:100',
+        'variation_value' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
+        'variation_value.*' => !$isDraft && $hasVariations ? 'required|string|max:255' : 'nullable|string|max:255',
     ]);
 
-    $imageUrls = collect($request->file('images'))
+    $imageUrls = collect($request->file('images', []))
         ->map(function ($image) {
             $path = $image->store('products', 'public');
 
@@ -3135,26 +3153,38 @@ Route::post('/seller/products', function (
         'id' => $productId,
         'name' => $request->name,
         'category' => $request->category,
+        'subcategory' => $request->subcategory,
         'brand' => $request->brand,
         'description' => $request->description,
-        'image' => $imageUrls[0],
+        'image' => $imageUrls[0] ?? null,
         'images' => $imageUrls,
         'additional_image' => $additionalImageUrl,
         'product_video' => $productVideoUrl,
 
-        'price' => (float) $request->price,
+        'regular_price' => $request->filled('price') ? (float) $request->price : null,
+        'price' => $request->boolean('on_sale')
+            ? (float) $request->sale_price
+            : ($request->filled('price') ? (float) $request->price : null),
+        'on_sale' => $request->boolean('on_sale'),
+        'sale_price' => $request->filled('sale_price') ? (float) $request->sale_price : null,
         'stock' => (int) $request->stock,
+        'low_stock_threshold' => (int) $request->input('low_stock_threshold', 5),
 
         'sku' => $request->sku,
-        'status' => $request->status,
+        'status' => $isDraft ? 'draft' : $request->status,
 
         'weight' => $request->weight,
         'length' => $request->length,
         'width' => $request->width,
         'height' => $request->height,
 
-        'variation_names' => $request->variation_name ?? [],
-        'variation_values' => $request->variation_value ?? [],
+        'has_variations' => $request->boolean('has_variations'),
+        'variation_names' => $request->boolean('has_variations')
+            ? array_values(array_filter($request->variation_name ?? []))
+            : [],
+        'variation_values' => $request->boolean('has_variations')
+            ? array_values(array_filter($request->variation_value ?? []))
+            : [],
 
         'shipping_options' => $request->shipping_options ?? [],
 
@@ -3170,7 +3200,7 @@ Route::post('/seller/products', function (
         ->route('seller.products')
         ->with(
             'success',
-            'Product added successfully.'
+            $isDraft ? 'Product saved as a draft.' : 'Product added successfully.'
         );
 
 })->name('seller.products.store');
@@ -3218,14 +3248,17 @@ Route::put('/seller/products/{product}', function (
         abort(404);
     }
 
+    $isDraft = $request->input('status') === 'draft';
+    $required = $isDraft ? 'nullable' : 'required';
+
     $request->validate([
-        'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
-        'description' => 'required|string|max:3000',
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
+        'name' => "{$required}|string|max:150",
+        'category' => "{$required}|string|max:100",
+        'description' => "{$required}|string|max:3000",
+        'price' => "{$required}|numeric|min:0",
+        'stock' => "{$required}|integer|min:0",
         'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
+        'status' => 'required|in:active,inactive,draft',
     ]);
 
     $products[$productId] = array_merge(

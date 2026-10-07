@@ -128,7 +128,11 @@
 
 
         <button
-            type="button"
+            type="submit"
+            formnovalidate
+            name="submit_action"
+            value="draft"
+            form="productForm"
             class="inline-flex h-10
                    items-center
                    justify-center
@@ -149,6 +153,8 @@
 
         <button
             type="submit"
+            name="submit_action"
+            value="publish"
             form="productForm"
             class="inline-flex h-10
                    items-center
@@ -385,7 +391,7 @@
                     <div
                         class="grid grid-cols-1
                                gap-5
-                               md:grid-cols-2"
+                               md:grid-cols-3"
                     >
 
 
@@ -469,6 +475,29 @@
                                 ></i>
 
                             </div>
+
+                        </div>
+
+
+                        {{-- SUBCATEGORY --}}
+                        <div>
+
+                            <label
+                                for="subcategory"
+                                class="mb-2 block text-xs font-semibold text-[#34483F]"
+                            >
+                                Subcategory
+                            </label>
+
+                            <input
+                                type="text"
+                                id="subcategory"
+                                name="subcategory"
+                                value="{{ old('subcategory') }}"
+                                maxlength="100"
+                                placeholder="e.g. Bags"
+                                class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] placeholder:text-[#9AA69F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
+                            >
 
                         </div>
 
@@ -778,7 +807,7 @@
                     class="grid grid-cols-1
                            gap-5
                            p-5
-                           md:grid-cols-3"
+                           md:grid-cols-4"
                 >
 
 
@@ -922,6 +951,86 @@
 
                     </div>
 
+
+                    {{-- LOW STOCK ALERT --}}
+                    <div>
+
+                        <label
+                            for="low_stock_threshold"
+                            class="mb-2 block text-xs font-semibold text-[#34483F]"
+                        >
+                            Low-stock threshold
+                        </label>
+
+                        <input
+                            type="number"
+                            id="low_stock_threshold"
+                            name="low_stock_threshold"
+                            value="{{ old('low_stock_threshold', 5) }}"
+                            min="0"
+                            step="1"
+                            placeholder="5"
+                            class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] placeholder:text-[#9AA69F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
+                        >
+
+                        <p class="mt-1.5 text-[10px] leading-4 text-[#8C9992]">
+                            The inventory page will flag the product at this stock level.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            {{-- =================================================
+                SALE PRICE
+            ================================================== --}}
+
+            <section class="overflow-hidden rounded-2xl border border-[#E1E8E4] bg-white">
+
+                <div class="flex items-center justify-between gap-4 border-b border-[#EDF1EF] px-5 py-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-[#24312C]">Sale pricing</h3>
+                        <p class="mt-0.5 text-[11px] text-[#7C8983]">
+                            Show a reduced price while keeping the regular price on record.
+                        </p>
+                    </div>
+
+                    <label for="on_sale" class="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-[#52635B]">
+                        <input
+                            type="checkbox"
+                            id="on_sale"
+                            name="on_sale"
+                            value="1"
+                            {{ old('on_sale') ? 'checked' : '' }}
+                            class="h-4 w-4 rounded border-[#C8D6CF] text-[#1F6F5B] focus:ring-[#DDF3EC]"
+                        >
+                        Offer a sale price
+                    </label>
+                </div>
+
+                <div id="salePriceFields" class="hidden p-5">
+                    <label for="sale_price" class="mb-2 block text-xs font-semibold text-[#34483F]">
+                        Sale price <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative sm:max-w-sm">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-[#728078]">₱</span>
+                        <input
+                            type="number"
+                            id="sale_price"
+                            name="sale_price"
+                            value="{{ old('sale_price') }}"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white pl-9 pr-4 text-sm text-[#34483F] placeholder:text-[#9AA69F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
+                        >
+                    </div>
+                    <p class="mt-1.5 text-[10px] leading-4 text-[#8C9992]">
+                        The sale price must be lower than the regular price above.
+                    </p>
                 </div>
 
             </section>
@@ -986,37 +1095,36 @@
                     </div>
 
 
-                    <button
-                        type="button"
-                        id="addVariation"
-                        class="inline-flex h-9
-                               shrink-0
-                               items-center gap-2
-                               rounded-xl
-                               border border-[#DDE6E1]
-                               bg-white
-                               px-3
-                               text-[10px]
-                               font-semibold
-                               text-[#52635B]
-                               transition
-                               hover:bg-[#F5F8F6]
-                               hover:text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="plus"
-                            class="h-3.5 w-3.5"
-                        ></i>
-
-                        Add
-
-                    </button>
+                    <div class="flex shrink-0 items-center gap-3">
+                        <label for="has_variations" class="inline-flex cursor-pointer items-center gap-2 text-[10px] font-semibold text-[#52635B]">
+                            <input
+                                type="checkbox"
+                                id="has_variations"
+                                name="has_variations"
+                                value="1"
+                                {{ old('has_variations') ? 'checked' : '' }}
+                                class="h-4 w-4 rounded border-[#C8D6CF] text-[#1F6F5B] focus:ring-[#DDF3EC]"
+                            >
+                            Enable
+                        </label>
+                        <button
+                            type="button"
+                            id="addVariation"
+                            class="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-[#DDE6E1] bg-white px-3 text-[10px] font-semibold text-[#52635B] transition hover:bg-[#F5F8F6] hover:text-[#173F35]"
+                        >
+                            <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                            Add option
+                        </button>
+                    </div>
 
                 </div>
 
 
-                <div class="p-5">
+                <div id="variationFields" class="p-5">
+
+                    <p class="mb-3 text-[10px] leading-4 text-[#7C8983]">
+                        Add option names and values. All options use the product price and stock above.
+                    </p>
 
                     <div
                         id="variationList"
@@ -1744,7 +1852,9 @@
 
                         <button
                             type="submit"
-                            id="submitProductButton"
+                                name="submit_action"
+                                value="publish"
+                                id="submitProductButton"
                             class="inline-flex h-11
                                    w-full
                                    items-center
@@ -1840,6 +1950,29 @@ document.addEventListener('DOMContentLoaded', function () {
     );
 
     updateDescriptionCount();
+
+
+    const saleToggle =
+        document.getElementById('on_sale');
+
+    const salePriceFields =
+        document.getElementById('salePriceFields');
+
+    const salePriceInput =
+        document.getElementById('sale_price');
+
+    function updateSaleFields() {
+        const enabled = Boolean(saleToggle?.checked);
+
+        salePriceFields?.classList.toggle('hidden', !enabled);
+
+        if (salePriceInput) {
+            salePriceInput.required = enabled;
+        }
+    }
+
+    saleToggle?.addEventListener('change', updateSaleFields);
+    updateSaleFields();
 
 
     /* =========================================================
@@ -2011,6 +2144,33 @@ document.addEventListener('DOMContentLoaded', function () {
     const addVariation =
         document.getElementById('addVariation');
 
+    const variationToggle =
+        document.getElementById('has_variations');
+
+    const variationFields =
+        document.getElementById('variationFields');
+
+    function updateVariationFields() {
+        const enabled = Boolean(variationToggle?.checked);
+
+        variationFields?.classList.toggle('hidden', !enabled);
+
+        variationFields
+            ?.querySelectorAll('input')
+            .forEach(function (input) {
+                input.disabled = !enabled;
+            });
+
+        if (addVariation) {
+            addVariation.disabled = !enabled;
+            addVariation.classList.toggle('opacity-50', !enabled);
+            addVariation.classList.toggle('cursor-not-allowed', !enabled);
+        }
+    }
+
+    variationToggle?.addEventListener('change', updateVariationFields);
+    updateVariationFields();
+
 
     function refreshIcons() {
 
@@ -2154,9 +2314,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     productForm?.addEventListener(
         'submit',
-        function () {
+        function (event) {
 
             if (!submitButton) {
+                return;
+            }
+
+            if (event.submitter?.value === 'draft') {
                 return;
             }
 
