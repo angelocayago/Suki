@@ -738,17 +738,23 @@
             </label>
 
 
-            <label class="flex h-36 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white cursor-pointer hover:border-[#1F6F5B] transition">
+            <label class="flex min-h-44 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-3 text-center cursor-pointer hover:border-[#1F6F5B] transition">
 
 
                 <i
+                    id="validIdUploadIcon"
                     data-lucide="upload"
                     class="w-6 h-6 text-gray-400 mb-2"
                 ></i>
 
+                <img
+                    id="validIdPreview"
+                    alt="Selected valid ID preview"
+                    class="hidden max-h-24 max-w-full rounded-lg border border-gray-100 object-contain"
+                >
 
                 <span class="text-sm font-medium text-gray-700">
-    Upload your valid ID
+    Choose a valid ID file
 </span>
 
 
@@ -769,8 +775,9 @@
     id="valid_id"
     name="valid_id"
     required
+    accept="image/jpeg,image/png,application/pdf"
     class="hidden"
-    onchange="showFileName(this, 'validIdName')"
+    onchange="showFileName(this, 'validIdName', 'validIdPreview', 'validIdUploadIcon')"
 >
 
 
@@ -792,17 +799,23 @@
             </label>
 
 
-            <label class="flex h-36 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white cursor-pointer hover:border-[#1F6F5B] transition">
+            <label class="flex min-h-44 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-3 text-center cursor-pointer hover:border-[#1F6F5B] transition">
 
 
                 <i
+                    id="permitUploadIcon"
                     data-lucide="upload"
                     class="w-6 h-6 text-gray-400 mb-2"
                 ></i>
 
+                <img
+                    id="permitPreview"
+                    alt="Selected business permit preview"
+                    class="hidden max-h-24 max-w-full rounded-lg border border-gray-100 object-contain"
+                >
 
                 <span class="text-sm font-medium text-gray-700">
-    Upload business permit
+    Choose a business permit file
 </span>
 
 
@@ -823,8 +836,9 @@
     id="business_permit"
     name="business_permit"
     required
+    accept="image/jpeg,image/png,application/pdf"
     class="hidden"
-    onchange="showFileName(this, 'permitName')"
+    onchange="showFileName(this, 'permitName', 'permitPreview', 'permitUploadIcon')"
 >
 
 
@@ -1025,19 +1039,47 @@ if (birthdayInput && ageInput) {
 
 }
 
-function showFileName(input, targetId) {
+function showFileName(input, targetId, previewId, iconId) {
 
     const target = document.getElementById(targetId);
+    const preview = document.getElementById(previewId);
+    const icon = document.getElementById(iconId);
 
-    if (!target) {
+    if (!target || !preview || !icon) {
         return;
     }
 
 
     if (input.files.length > 0) {
 
-        target.textContent = input.files[0].name;
+        const file = input.files[0];
+        target.textContent = file.name;
 
+        if (preview.src.startsWith('blob:')) {
+            URL.revokeObjectURL(preview.src);
+        }
+
+        if (file.type.startsWith('image/')) {
+            preview.src = URL.createObjectURL(file);
+            preview.classList.remove('hidden');
+            icon.classList.add('hidden');
+        } else {
+            preview.removeAttribute('src');
+            preview.classList.add('hidden');
+            icon.classList.remove('hidden');
+        }
+
+    } else {
+
+        target.textContent = '';
+
+        if (preview.src.startsWith('blob:')) {
+            URL.revokeObjectURL(preview.src);
+        }
+
+        preview.removeAttribute('src');
+        preview.classList.add('hidden');
+        icon.classList.remove('hidden');
     }
 
 }
