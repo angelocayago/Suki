@@ -2816,7 +2816,7 @@ Route::post('/seller/register', function (Request $request) {
     'business_category' => [
         'required',
         'string',
-        'in:Pet Supplies,Kids and Baby,Electronics and Gadgets,Home and Garden,Women\'s Apparel,Men\'s Apparel,Health and Beauty,Sports and Outdoors',
+        \Illuminate\Validation\Rule::in(array_keys(config('seller_categories', []))),
     ],
 
 
@@ -3073,7 +3073,11 @@ Route::get('/seller/products', function () use ($requireSeller) {
 // SELLER ADD PRODUCT
 // =====================================================
 
-Route::get('/seller/products/create', function () {
+Route::get('/seller/products/create', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     return view('seller.products-create');
 
@@ -3092,14 +3096,24 @@ Route::post('/seller/products', function (
         return $redirect;
     }
 
+    $sellerCategory = session('seller_profile.business_category');
+    $registeredCategories = config('seller_categories', []);
+
+    if (!array_key_exists($sellerCategory, $registeredCategories)) {
+        abort(403, 'A valid business category is required to add products.');
+    }
+
     $isDraft = $request->input('submit_action') === 'draft';
     $required = $isDraft ? 'nullable' : 'required';
     $hasVariations = $request->boolean('has_variations');
 
     $request->validate([
         'name' => "{$required}|string|max:150",
-        'category' => "{$required}|string|max:100",
-        'subcategory' => 'nullable|string|max:100',
+        'subcategory' => [
+            $isDraft ? 'nullable' : 'required',
+            'string',
+            \Illuminate\Validation\Rule::in($registeredCategories[$sellerCategory]),
+        ],
         'description' => "{$required}|string|max:3000",
         'price' => "{$required}|numeric|min:0",
         'sale_price' => [
@@ -3156,7 +3170,7 @@ Route::post('/seller/products', function (
     $products[$productId] = [
         'id' => $productId,
         'name' => $request->name,
-        'category' => $request->category,
+        'category' => $sellerCategory,
         'subcategory' => $request->subcategory,
         'brand' => $request->brand,
         'description' => $request->description,
@@ -3507,9 +3521,15 @@ Route::delete('/seller/promotions/{promotion}', function (
 // SELLER REPORTS & ANALYTICS
 // =====================================================
 
-Route::get('/seller/reports', function () {
+Route::get('/seller/reports', function () use ($requireSeller) {
 
-    return view('seller.reports');
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    return view('seller.reports', [
+        'orders' => session('seller_orders', []),
+    ]);
 
 })->name('seller.reports');
 

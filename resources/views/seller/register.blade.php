@@ -685,16 +685,7 @@
                     Select category
                 </option>
 
-                @foreach([
-                    'Pet Supplies',
-                    'Kids and Baby',
-                    'Electronics and Gadgets',
-                    'Home and Garden',
-                    "Women's Apparel",
-                    "Men's Apparel",
-                    'Health and Beauty',
-                    'Sports and Outdoors',
-                ] as $businessCategory)
+                @foreach(array_keys(config('seller_categories')) as $businessCategory)
 
                     <option
                         value="{{ $businessCategory }}"

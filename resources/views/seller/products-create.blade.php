@@ -14,6 +14,8 @@
         'suki_rider',
         'logistics_partner'
     ]);
+    $sellerCategory = session('seller_profile.business_category', '');
+    $productSubcategories = config('seller_categories', []);
 @endphp
 
 
@@ -387,13 +389,12 @@
                     </div>
 
 
-                    {{-- CATEGORY + BRAND --}}
+                    {{-- CATEGORY, SUBCATEGORY + BRAND --}}
                     <div
                         class="grid grid-cols-1
                                gap-5
                                md:grid-cols-3"
                     >
-
 
                         {{-- CATEGORY --}}
                         <div>
@@ -411,72 +412,24 @@
                                 <span class="text-red-500">
                                     *
                                 </span>
-                            </label>
+                            </label                            >
 
+                            <input
+                                type="hidden"
+                                name="category"
+                                value="{{ $sellerCategory }}"
+                            >
 
-                            <div class="relative">
-
-                                <select
-                                    id="category"
-                                    name="category"
-                                    required
-                                    class="h-11 w-full
-                                           appearance-none
-                                           rounded-xl
-                                           border border-[#DDE6E1]
-                                           bg-white
-                                           px-4 pr-10
-                                           text-sm
-                                           text-[#52635B]
-                                           focus:border-[#1F6F5B]
-                                           focus:ring-4
-                                           focus:ring-[#DDF3EC]/70"
-                                >
-
-                                    <option value="">
-                                        Select category
-                                    </option>
-
-                                    @foreach([
-                                        'Electronics',
-                                        'Fashion',
-                                        "Women's Apparel",
-                                        "Men's Apparel",
-                                        'Beauty',
-                                        'Home & Living',
-                                        'Groceries',
-                                        'Health',
-                                        'Sports',
-                                        'Toys & Hobbies',
-                                        'Automotive',
-                                        'Pet Supplies',
-                                        'Books & Stationery',
-                                        'Others'
-                                    ] as $category)
-
-                                        <option
-                                            value="{{ $category }}"
-                                            {{ old('category') === $category ? 'selected' : '' }}
-                                        >
-                                            {{ $category }}
-                                        </option>
-
-                                    @endforeach
-
-                                </select>
-
-
-                                <i
-                                    data-lucide="chevron-down"
-                                    class="pointer-events-none
-                                           absolute
-                                           right-3.5 top-1/2
-                                           h-4 w-4
-                                           -translate-y-1/2
-                                           text-[#8A9791]"
-                                ></i>
-
+                            <div
+                                class="flex h-11 items-center rounded-xl border border-[#DDE6E1] bg-[#F7F9F8] px-4 text-sm text-[#52635B]"
+                                aria-readonly="true"
+                            >
+                                {{ $sellerCategory ?: 'Business category is missing from your seller profile' }}
                             </div>
+
+                            <p class="mt-1.5 text-[10px] leading-4 text-[#8C9992]">
+                                This is set from your registered business category.
+                            </p>
 
                         </div>
 
@@ -494,9 +447,18 @@
                             <select
                                 id="subcategory"
                                 name="subcategory"
+                                required
                                 class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
                             >
                                 <option value="">Select subcategory</option>
+                                @foreach($productSubcategories[$sellerCategory] ?? [] as $subcategory)
+                                    <option
+                                        value="{{ $subcategory }}"
+                                        {{ old('subcategory') === $subcategory ? 'selected' : '' }}
+                                    >
+                                        {{ $subcategory }}
+                                    </option>
+                                @endforeach
                             </select>
 
                         </div>
@@ -1973,146 +1935,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     saleToggle?.addEventListener('change', updateSaleFields);
     updateSaleFields();
-
-    const categorySelect =
-        document.getElementById('category');
-
-    const subcategorySelect =
-        document.getElementById('subcategory');
-
-    const subcategories = {
-        'Electronics': [
-            'Phones & Accessories',
-            'Computers & Accessories',
-            'Audio',
-            'Cameras',
-            'Appliances'
-        ],
-        'Fashion': [
-            'Tops',
-            'Dresses',
-            'Pants and Jeans',
-            'Skirts',
-            'Shoes',
-            'Bags',
-            'Accessories'
-        ],
-        "Women's Apparel": [
-            'Tops',
-            'Dresses',
-            'Pants and Jeans',
-            'Skirts',
-            'Jackets and Outerwear'
-        ],
-        "Men's Apparel": [
-            'T-Shirts',
-            'Shirts',
-            'Pants and Jeans',
-            'Shorts',
-            'Jackets and Outerwear'
-        ],
-        'Beauty': [
-            'Skincare',
-            'Makeup',
-            'Hair Care',
-            'Fragrance',
-            'Personal Care'
-        ],
-        'Home & Living': [
-            'Furniture',
-            'Kitchen & Dining',
-            'Home Decor',
-            'Bedding',
-            'Storage'
-        ],
-        'Groceries': [
-            'Fresh Food',
-            'Snacks',
-            'Beverages',
-            'Pantry',
-            'Household Essentials'
-        ],
-        'Health': [
-            'Personal Care',
-            'Wellness',
-            'Medical Supplies',
-            'Supplements'
-        ],
-        'Sports': [
-            'Sportswear',
-            'Fitness Equipment',
-            'Outdoor Recreation',
-            'Team Sports'
-        ],
-        'Toys & Hobbies': [
-            'Toys',
-            'Games',
-            'Arts & Crafts',
-            'Collectibles'
-        ],
-        'Automotive': [
-            'Car Accessories',
-            'Motorcycle Accessories',
-            'Tools & Equipment',
-            'Care & Maintenance'
-        ],
-        'Pet Supplies': [
-            'Food',
-            'Toys',
-            'Grooming',
-            'Accessories'
-        ],
-        'Books & Stationery': [
-            'Books',
-            'School Supplies',
-            'Office Supplies',
-            'Art Supplies'
-        ],
-        'Others': [
-            'Other'
-        ]
-    };
-
-    const previousSubcategory =
-        @json(old('subcategory', ''));
-
-    function updateSubcategories(selectedValue = '') {
-
-        if (!categorySelect || !subcategorySelect) {
-            return;
-        }
-
-        subcategorySelect.replaceChildren();
-
-        const placeholder =
-            document.createElement('option');
-
-        placeholder.value = '';
-        placeholder.textContent = categorySelect.value
-            ? 'Select subcategory'
-            : 'Choose a category first';
-        subcategorySelect.appendChild(placeholder);
-
-        (subcategories[categorySelect.value] || [])
-            .forEach(function (subcategory) {
-                const option =
-                    document.createElement('option');
-
-                option.value = subcategory;
-                option.textContent = subcategory;
-                option.selected = subcategory === selectedValue;
-                subcategorySelect.appendChild(option);
-            });
-
-        subcategorySelect.disabled = !categorySelect.value;
-    }
-
-    categorySelect?.addEventListener('change', function () {
-        updateSubcategories();
-    });
-
-    updateSubcategories(previousSubcategory);
-
 
     /* =========================================================
        IMAGE PREVIEW
