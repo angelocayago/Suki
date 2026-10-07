@@ -610,7 +610,7 @@
                        text-[11px]
                        text-[#7C8983]"
             >
-                The first image is used as the main product photo.
+                Your first photo will appear as the product's cover image.
             </p>
 
         </div>
@@ -659,8 +659,58 @@
         ></p>
 
         <p class="mt-3 text-[10px] leading-4 text-[#7C8983]">
-            JPG, PNG, or WebP. Recommended size: 1000 x 1000px.
+            Use clear, square photos for best results. JPG, PNG, and WebP are supported.
         </p>
+
+        <details class="mt-5 overflow-hidden rounded-xl border border-[#DDE6E1]">
+            <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-xs font-medium text-[#34483F] marker:hidden">
+                <i data-lucide="plus" class="h-4 w-4 text-[#1F6F5B]"></i>
+                Add extra product media
+                <span class="text-[#8A9791]">(optional)</span>
+            </summary>
+
+            <div class="space-y-4 border-t border-[#EDF1EF] p-4">
+                <div>
+                    <label
+                        for="additional_image"
+                        class="mb-1.5 block text-xs font-medium text-[#34483F]"
+                    >
+                        Supporting photo
+                        <span class="font-normal text-[#8A9791]">(optional)</span>
+                    </label>
+                    <input
+                        type="file"
+                        id="additional_image"
+                        name="additional_image"
+                        accept="image/jpeg,image/png,image/webp"
+                        class="block h-11 w-full cursor-pointer rounded-xl border border-[#DDE6E1] bg-white px-3 text-xs text-[#52635B] transition hover:border-[#B9CBC1] focus:border-[#1F6F5B] focus:outline-none focus:ring-4 focus:ring-[#DDF3EC]/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#F1F5F3] file:px-3 file:py-2 file:text-xs file:font-medium file:text-[#34483F] hover:file:bg-[#E8EFEB]"
+                    >
+                    <p class="mt-1.5 text-[10px] leading-4 text-[#7C8983]">
+                        Include a close-up, packaging view, or another useful angle. Maximum file size: 2 MB.
+                    </p>
+                </div>
+
+                <div>
+                    <label
+                        for="product_video"
+                        class="mb-1.5 block text-xs font-medium text-[#34483F]"
+                    >
+                        Product video
+                        <span class="font-normal text-[#8A9791]">(optional)</span>
+                    </label>
+                    <input
+                        type="file"
+                        id="product_video"
+                        name="product_video"
+                        accept="video/mp4,video/quicktime,video/x-msvideo,video/webm"
+                        class="block h-11 w-full cursor-pointer rounded-xl border border-[#DDE6E1] bg-white px-3 text-xs text-[#52635B] transition hover:border-[#B9CBC1] focus:border-[#1F6F5B] focus:outline-none focus:ring-4 focus:ring-[#DDF3EC]/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#F1F5F3] file:px-3 file:py-2 file:text-xs file:font-medium file:text-[#34483F] hover:file:bg-[#E8EFEB]"
+                    >
+                    <p class="mt-1.5 text-[10px] leading-4 text-[#7C8983]">
+                        Show the item in use with a short clip. MP4, MOV, AVI, or WebM; maximum file size: 10 MB.
+                    </p>
+                </div>
+            </div>
+        </details>
 
     </div>
 

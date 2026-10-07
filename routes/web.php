@@ -3098,6 +3098,8 @@ Route::post('/seller/products', function (
         'status' => 'required|in:active,inactive',
         'images' => 'required|array|min:1|max:5',
         'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        'additional_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        'product_video' => 'nullable|file|mimes:mp4,mov,avi,webm|max:10240',
     ]);
 
     $imageUrls = collect($request->file('images'))
@@ -3107,6 +3109,18 @@ Route::post('/seller/products', function (
             return Storage::disk('public')->url($path);
         })
         ->all();
+
+    $additionalImageUrl = $request->hasFile('additional_image')
+        ? Storage::disk('public')->url(
+            $request->file('additional_image')->store('products', 'public')
+        )
+        : null;
+
+    $productVideoUrl = $request->hasFile('product_video')
+        ? Storage::disk('public')->url(
+            $request->file('product_video')->store('products/videos', 'public')
+        )
+        : null;
 
     $products = session()->get('seller_products', []);
 
@@ -3125,6 +3139,8 @@ Route::post('/seller/products', function (
         'description' => $request->description,
         'image' => $imageUrls[0],
         'images' => $imageUrls,
+        'additional_image' => $additionalImageUrl,
+        'product_video' => $productVideoUrl,
 
         'price' => (float) $request->price,
         'stock' => (int) $request->stock,
@@ -6228,4 +6244,3 @@ Route::post('/logout', function (Request $request) {
         );
 
 })->name('logout');
-
