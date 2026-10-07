@@ -576,161 +576,96 @@
             </section>
 
 
-            {{-- =================================================
-                PRODUCT IMAGES
-            ================================================== --}}
+           {{-- =================================================
+    PRODUCT IMAGES
+================================================== --}}
 
-            <section
-                class="overflow-hidden
-                       rounded-2xl
-                       border border-[#E1E8E4]
-                       bg-white"
+<section
+    class="overflow-hidden
+           rounded-2xl
+           border border-[#E1E8E4]
+           bg-white"
+>
+
+    <div
+        class="flex items-center justify-between
+               border-b border-[#EDF1EF]
+               px-5 py-4"
+    >
+
+        <div>
+
+            <h3
+                class="text-sm
+                       font-semibold
+                       text-[#24312C]"
             >
-
-                <div
-                    class="flex items-center gap-3
-                           border-b border-[#EDF1EF]
-                           px-5 py-4"
-                >
-
-                    <div
-                        class="flex h-9 w-9
-                               items-center justify-center
-                               rounded-xl
-                               bg-[#EEF5F1]
-                               text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="images"
-                            class="h-4 w-4"
-                        ></i>
-
-                    </div>
+                Product Images
+                <span class="text-red-500">*</span>
+            </h3>
 
 
-                    <div>
+            <p
+                class="mt-1
+                       text-[11px]
+                       text-[#7C8983]"
+            >
+                The first image is used as the main product photo.
+            </p>
 
-                        <h3
-                            class="text-sm
-                                   font-semibold
-                                   text-[#24312C]"
-                        >
-                            Product Images
-                        </h3>
-
-                        <p
-                            class="mt-0.5
-                                   text-[11px]
-                                   text-[#7C8983]"
-                        >
-                            Upload clear images of your product.
-                        </p>
-
-                    </div>
-
-                </div>
+        </div>
 
 
-                <div class="p-5">
+        <span
+            class="text-[11px]
+                   text-[#8A9791]"
+        >
+            Max 5 images
+        </span>
 
-                    <label
-                        for="images"
-                        class="group
-                               flex min-h-[170px]
-                               cursor-pointer
-                               flex-col
-                               items-center
-                               justify-center
-                               rounded-2xl
-                               border border-dashed
-                               border-[#C8D6CF]
-                               bg-[#F8FAF8]
-                               px-6 py-8
-                               text-center
-                               transition
-                               hover:border-[#1F6F5B]
-                               hover:bg-[#F3F8F5]"
-                    >
-
-                        <div
-                            class="flex h-11 w-11
-                                   items-center justify-center
-                                   rounded-xl
-                                   bg-white
-                                   text-[#1F6F5B]
-                                   shadow-sm"
-                        >
-
-                            <i
-                                data-lucide="image-plus"
-                                class="h-5 w-5"
-                            ></i>
-
-                        </div>
+    </div>
 
 
-                        <p
-                            class="mt-3
-                                   text-xs
-                                   font-semibold
-                                   text-[#34483F]"
-                        >
-                            Choose product images
-                        </p>
+
+    <div class="p-5">
+
+        <input
+            type="file"
+            id="imagePicker"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            class="hidden"
+        >
+
+        <input
+            type="file"
+            id="images"
+            name="images[]"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            class="hidden"
+        >
+
+        <div
+            id="imagePreview"
+            class="flex flex-wrap items-start gap-2"
+        ></div>
+
+        <p
+            id="imageUploadStatus"
+            class="mt-3 hidden text-xs text-red-600"
+            role="status"
+            aria-live="polite"
+        ></p>
+
+        <p class="mt-3 text-[10px] leading-4 text-[#7C8983]">
+            JPG, PNG, or WebP. Recommended size: 1000 x 1000px.
+        </p>
+
+    </div>
 
 
-                        <p
-                            class="mt-1
-                                   max-w-sm
-                                   text-[10px]
-                                   leading-5
-                                   text-[#8A9791]"
-                        >
-                            JPEG, PNG, or WebP. You may select multiple files.
-                        </p>
-
-
-                        <span
-                            class="mt-3
-                                   inline-flex
-                                   rounded-lg
-                                   border border-[#DDE6E1]
-                                   bg-white
-                                   px-3 py-1.5
-                                   text-[10px]
-                                   font-semibold
-                                   text-[#52635B]"
-                        >
-                            Browse files
-                        </span>
-
-                    </label>
-
-
-                    <input
-                        type="file"
-                        id="images"
-                        name="images[]"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        class="hidden"
-                    >
-
-
-                    <div
-                        id="imagePreview"
-                        class="mt-4
-                               hidden
-                               grid grid-cols-2
-                               gap-3
-                               sm:grid-cols-3
-                               lg:grid-cols-4"
-                    ></div>
-
-                </div>
-
-            </section>
+</section>
 
 
             {{-- =================================================
@@ -1861,84 +1796,159 @@ document.addEventListener('DOMContentLoaded', function () {
        IMAGE PREVIEW
     ========================================================= */
 
+    const imagePicker =
+        document.getElementById('imagePicker');
+
     const imageInput =
         document.getElementById('images');
 
     const imagePreview =
         document.getElementById('imagePreview');
 
+    const imageUploadStatus =
+        document.getElementById('imageUploadStatus');
 
-    imageInput?.addEventListener(
-        'change',
-        function () {
+    const maxImages = 5;
+    let selectedImages = [];
 
-            if (!imagePreview) {
-                return;
+
+    function syncImageInput() {
+
+        const transfer =
+            new DataTransfer();
+
+        selectedImages.forEach(function (file) {
+            transfer.items.add(file);
+        });
+
+        imageInput.files = transfer.files;
+
+    }
+
+
+    function renderImages() {
+
+        imagePreview.querySelectorAll('img').forEach(function (image) {
+            URL.revokeObjectURL(image.src);
+        });
+
+        imagePreview.innerHTML = '';
+
+        selectedImages.forEach(function (file, index) {
+
+            const wrapper =
+                document.createElement('div');
+
+            wrapper.className = index === 0
+                ? 'relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-[#E1E8E4] bg-white'
+                : 'relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[#E1E8E4] bg-white';
+
+            const image =
+                document.createElement('img');
+
+            image.src = URL.createObjectURL(file);
+            image.alt = file.name;
+            image.className = 'h-full w-full object-cover';
+            wrapper.appendChild(image);
+
+            if (index === 0) {
+
+                const badge =
+                    document.createElement('span');
+
+                badge.textContent = 'Main Image';
+                badge.className =
+                    'absolute left-1 top-1 z-10 rounded-md bg-[#173F35] px-1.5 py-1 text-[8px] font-semibold text-white';
+                wrapper.appendChild(badge);
+
             }
 
+            const removeButton =
+                document.createElement('button');
 
-            imagePreview.innerHTML = '';
-
-
-            const files =
-                Array.from(this.files || []);
-
-
-            if (!files.length) {
-
-                imagePreview.classList.add('hidden');
-
-                return;
-
-            }
-
-
-            imagePreview.classList.remove('hidden');
-
-
-            files.forEach(function (file) {
-
-                const reader =
-                    new FileReader();
-
-
-                reader.onload = function (event) {
-
-                    const wrapper =
-                        document.createElement('div');
-
-
-                    wrapper.className =
-                        'relative aspect-square overflow-hidden rounded-xl border border-[#E1E8E4] bg-[#F1F4F2]';
-
-
-                    const image =
-                        document.createElement('img');
-
-
-                    image.src =
-                        event.target.result;
-
-                    image.alt =
-                        file.name;
-
-                    image.className =
-                        'h-full w-full object-cover';
-
-
-                    wrapper.appendChild(image);
-
-                    imagePreview.appendChild(wrapper);
-
-                };
-
-
-                reader.readAsDataURL(file);
-
+            removeButton.type = 'button';
+            removeButton.textContent = '×';
+            removeButton.title = 'Remove photo';
+            removeButton.setAttribute(
+                'aria-label',
+                `Remove ${file.name}`
+            );
+            removeButton.className =
+                'absolute right-1 top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs font-bold text-white hover:bg-red-600';
+            removeButton.addEventListener('click', function () {
+                selectedImages.splice(index, 1);
+                imageUploadStatus.textContent = '';
+                imageUploadStatus.classList.add('hidden');
+                syncImageInput();
+                renderImages();
             });
 
+            wrapper.appendChild(removeButton);
+            imagePreview.appendChild(wrapper);
+
+        });
+
+        if (selectedImages.length < maxImages) {
+
+            const addImage =
+                document.createElement('label');
+
+            addImage.htmlFor = 'imagePicker';
+            addImage.className =
+                'flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#C8D6CF] bg-[#FAFCFB] text-center transition hover:border-[#1F6F5B] hover:bg-[#F4F8F5]';
+
+            const icon =
+                document.createElement('i');
+
+            icon.setAttribute('data-lucide', 'plus');
+            icon.className = 'h-5 w-5 text-[#1F6F5B]';
+
+            const label =
+                document.createElement('span');
+
+            label.className =
+                'mt-1 text-[10px] font-semibold text-[#52635B]';
+            label.textContent = 'Add Image';
+
+            addImage.appendChild(icon);
+            addImage.appendChild(label);
+            imagePreview.appendChild(addImage);
+            refreshIcons();
+
         }
-    );
+
+    }
+
+
+    imagePicker?.addEventListener('change', function () {
+
+        const newFiles =
+            Array.from(imagePicker.files || []);
+
+        const remainingSlots =
+            maxImages - selectedImages.length;
+
+        selectedImages = selectedImages.concat(
+            newFiles.slice(0, remainingSlots)
+        );
+
+        if (newFiles.length > remainingSlots) {
+            imageUploadStatus.textContent =
+                `You can upload up to ${maxImages} images.`;
+            imageUploadStatus.classList.remove('hidden');
+        } else {
+            imageUploadStatus.textContent = '';
+            imageUploadStatus.classList.add('hidden');
+        }
+
+        imagePicker.value = '';
+        syncImageInput();
+        renderImages();
+
+    });
+
+
+    renderImages();
 
 
     /* =========================================================

@@ -3096,7 +3096,17 @@ Route::post('/seller/products', function (
         'stock' => 'required|integer|min:0',
         'sku' => 'nullable|string|max:50',
         'status' => 'required|in:active,inactive',
+        'images' => 'required|array|min:1|max:5',
+        'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
     ]);
+
+    $imageUrls = collect($request->file('images'))
+        ->map(function ($image) {
+            $path = $image->store('products', 'public');
+
+            return Storage::disk('public')->url($path);
+        })
+        ->all();
 
     $products = session()->get('seller_products', []);
 
@@ -3113,6 +3123,8 @@ Route::post('/seller/products', function (
         'category' => $request->category,
         'brand' => $request->brand,
         'description' => $request->description,
+        'image' => $imageUrls[0],
+        'images' => $imageUrls,
 
         'price' => (float) $request->price,
         'stock' => (int) $request->stock,
@@ -6216,5 +6228,4 @@ Route::post('/logout', function (Request $request) {
         );
 
 })->name('logout');
-
 
