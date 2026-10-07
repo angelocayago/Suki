@@ -2,6 +2,7 @@
 
 @section('title', 'Add Product')
 @section('page-title', 'Add Product')
+@section('page-subtitle', 'Create a complete product listing for your SUKI SHOP store.')
 
 @section('content')
 
@@ -22,7 +23,7 @@
 
 <div
     class="mb-7
-           flex flex-col gap-4
+           flex flex-col gap-5
            sm:flex-row
            sm:items-end
            sm:justify-between"
@@ -79,6 +80,7 @@
             Add New Product
         </h2>
 
+
         <p
             class="mt-1.5
                    max-w-2xl
@@ -92,36 +94,82 @@
     </div>
 
 
-    <a
-        href="{{ route('seller.products') }}"
-        class="inline-flex h-10
-               items-center justify-center gap-2
+
+    {{-- ACTION BUTTONS --}}
+    <div
+        class="flex
+               flex-wrap
+               items-center
+               gap-3
                self-start
-               rounded-xl
-               border border-[#DDE6E1]
-               bg-white
-               px-4
-               text-xs
-               font-semibold
-               text-[#52635B]
-               transition
-               hover:border-[#BFD2C9]
-               hover:bg-[#F5F8F6]
-               hover:text-[#173F35]
                sm:self-auto"
     >
 
-        <i
-            data-lucide="arrow-left"
-            class="h-4 w-4"
-        ></i>
 
-        Back to Products
+        <a
+            href="{{ route('seller.products') }}"
+            class="inline-flex h-10
+                   items-center
+                   justify-center
+                   rounded-xl
+                   border border-[#DDE6E1]
+                   bg-white
+                   px-4
+                   text-xs
+                   font-semibold
+                   text-[#52635B]
+                   transition
+                   hover:bg-[#F5F8F6]
+                   hover:text-[#173F35]"
+        >
+            Back to Products
+        </a>
 
-    </a>
+
+
+        <button
+            type="button"
+            class="inline-flex h-10
+                   items-center
+                   justify-center
+                   rounded-xl
+                   border border-[#DDE6E1]
+                   bg-white
+                   px-4
+                   text-xs
+                   font-semibold
+                   text-[#52635B]
+                   transition
+                   hover:bg-[#F5F8F6]"
+        >
+            Save as Draft
+        </button>
+
+
+
+        <button
+            type="submit"
+            form="productForm"
+            class="inline-flex h-10
+                   items-center
+                   justify-center
+                   rounded-xl
+                   bg-[#173F35]
+                   px-5
+                   text-xs
+                   font-semibold
+                   text-white
+                   transition
+                   hover:bg-[#1F6F5B]"
+        >
+            Save Product
+        </button>
+
+
+    </div>
+
 
 </div>
-
 
 {{-- =========================================================
     VALIDATION ERRORS
