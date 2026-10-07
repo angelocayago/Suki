@@ -2813,7 +2813,11 @@ Route::post('/seller/register', function (Request $request) {
 
     'business_name' => 'required|string|max:150',
 
-    'business_category' => 'required|string|max:150',
+    'business_category' => [
+        'required',
+        'string',
+        'in:Pet Supplies,Kids and Baby,Electronics and Gadgets,Home and Garden,Women\'s Apparel,Men\'s Apparel,Health and Beauty,Sports and Outdoors',
+    ],
 
 
     'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',

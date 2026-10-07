@@ -440,6 +440,8 @@
                                     @foreach([
                                         'Electronics',
                                         'Fashion',
+                                        "Women's Apparel",
+                                        "Men's Apparel",
                                         'Beauty',
                                         'Home & Living',
                                         'Groceries',
@@ -489,15 +491,13 @@
                                 Subcategory
                             </label>
 
-                            <input
-                                type="text"
+                            <select
                                 id="subcategory"
                                 name="subcategory"
-                                value="{{ old('subcategory') }}"
-                                maxlength="100"
-                                placeholder="e.g. Bags"
-                                class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] placeholder:text-[#9AA69F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
+                                class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
                             >
+                                <option value="">Select subcategory</option>
+                            </select>
 
                         </div>
 
@@ -1973,6 +1973,145 @@ document.addEventListener('DOMContentLoaded', function () {
 
     saleToggle?.addEventListener('change', updateSaleFields);
     updateSaleFields();
+
+    const categorySelect =
+        document.getElementById('category');
+
+    const subcategorySelect =
+        document.getElementById('subcategory');
+
+    const subcategories = {
+        'Electronics': [
+            'Phones & Accessories',
+            'Computers & Accessories',
+            'Audio',
+            'Cameras',
+            'Appliances'
+        ],
+        'Fashion': [
+            'Tops',
+            'Dresses',
+            'Pants and Jeans',
+            'Skirts',
+            'Shoes',
+            'Bags',
+            'Accessories'
+        ],
+        "Women's Apparel": [
+            'Tops',
+            'Dresses',
+            'Pants and Jeans',
+            'Skirts',
+            'Jackets and Outerwear'
+        ],
+        "Men's Apparel": [
+            'T-Shirts',
+            'Shirts',
+            'Pants and Jeans',
+            'Shorts',
+            'Jackets and Outerwear'
+        ],
+        'Beauty': [
+            'Skincare',
+            'Makeup',
+            'Hair Care',
+            'Fragrance',
+            'Personal Care'
+        ],
+        'Home & Living': [
+            'Furniture',
+            'Kitchen & Dining',
+            'Home Decor',
+            'Bedding',
+            'Storage'
+        ],
+        'Groceries': [
+            'Fresh Food',
+            'Snacks',
+            'Beverages',
+            'Pantry',
+            'Household Essentials'
+        ],
+        'Health': [
+            'Personal Care',
+            'Wellness',
+            'Medical Supplies',
+            'Supplements'
+        ],
+        'Sports': [
+            'Sportswear',
+            'Fitness Equipment',
+            'Outdoor Recreation',
+            'Team Sports'
+        ],
+        'Toys & Hobbies': [
+            'Toys',
+            'Games',
+            'Arts & Crafts',
+            'Collectibles'
+        ],
+        'Automotive': [
+            'Car Accessories',
+            'Motorcycle Accessories',
+            'Tools & Equipment',
+            'Care & Maintenance'
+        ],
+        'Pet Supplies': [
+            'Food',
+            'Toys',
+            'Grooming',
+            'Accessories'
+        ],
+        'Books & Stationery': [
+            'Books',
+            'School Supplies',
+            'Office Supplies',
+            'Art Supplies'
+        ],
+        'Others': [
+            'Other'
+        ]
+    };
+
+    const previousSubcategory =
+        @json(old('subcategory', ''));
+
+    function updateSubcategories(selectedValue = '') {
+
+        if (!categorySelect || !subcategorySelect) {
+            return;
+        }
+
+        subcategorySelect.replaceChildren();
+
+        const placeholder =
+            document.createElement('option');
+
+        placeholder.value = '';
+        placeholder.textContent = categorySelect.value
+            ? 'Select subcategory'
+            : 'Choose a category first';
+        subcategorySelect.appendChild(placeholder);
+
+        (subcategories[categorySelect.value] || [])
+            .forEach(function (subcategory) {
+                const option =
+                    document.createElement('option');
+
+                option.value = subcategory;
+                option.textContent = subcategory;
+                option.selected = subcategory === selectedValue;
+                subcategorySelect.appendChild(option);
+            });
+
+        subcategorySelect.disabled = !categorySelect.value;
+    }
+
+    categorySelect?.addEventListener('change', function () {
+        updateSubcategories();
+    });
+
+    updateSubcategories(previousSubcategory);
 
 
     /* =========================================================

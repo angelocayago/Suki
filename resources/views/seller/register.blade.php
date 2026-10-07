@@ -685,21 +685,25 @@
                     Select category
                 </option>
 
-                <option value="Food">
-                    Food
-                </option>
+                @foreach([
+                    'Pet Supplies',
+                    'Kids and Baby',
+                    'Electronics and Gadgets',
+                    'Home and Garden',
+                    "Women's Apparel",
+                    "Men's Apparel",
+                    'Health and Beauty',
+                    'Sports and Outdoors',
+                ] as $businessCategory)
 
-                <option value="Clothing">
-                    Clothing
-                </option>
+                    <option
+                        value="{{ $businessCategory }}"
+                        {{ old('business_category') === $businessCategory ? 'selected' : '' }}
+                    >
+                        {{ $businessCategory }}
+                    </option>
 
-                <option value="Electronics">
-                    Electronics
-                </option>
-
-                <option value="Others">
-                    Others
-                </option>
+                @endforeach
 
             </select>
 
