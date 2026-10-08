@@ -1,0 +1,790 @@
+/* =========================================================
+   SUKI AUTH PAGES
+   Login + Register
+========================================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --suki-green: #08694f;
+    --suki-green-hover: #055640;
+    --suki-dark: #12261e;
+
+    --cream: #fbfaf6;
+    --soft-green: #eef6f1;
+
+    --border: #d9dfdc;
+
+    --text: #17221c;
+    --muted: #68736d;
+
+    --danger-bg: #fff1f2;
+    --danger-border: #fecdd3;
+    --danger-text: #be123c;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    font-family: "Poppins", Arial, sans-serif;
+    background: var(--cream);
+    color: var(--text);
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   MAIN AUTH LAYOUT
+========================================================= */
+
+.auth-page {
+    width: 100%;
+    min-height: 100vh;
+
+    display: grid;
+    grid-template-columns: 50% 50%;
+}
+
+
+/* =========================================================
+   LEFT BRAND / LIFESTYLE PANEL
+========================================================= */
+
+.auth-brand {
+    position: relative;
+
+    min-height: 100vh;
+
+    overflow: hidden;
+
+    display: flex;
+
+    background-image:
+        linear-gradient(
+            90deg,
+            rgba(251, 248, 240, 0.96) 0%,
+            rgba(251, 248, 240, 0.91) 26%,
+            rgba(251, 248, 240, 0.68) 50%,
+            rgba(251, 248, 240, 0.20) 74%,
+            rgba(251, 248, 240, 0.04) 100%
+        ),
+        var(--auth-bg);
+
+    background-size: cover;
+    background-position: 62% center;
+    background-repeat: no-repeat;
+}
+
+.auth-brand-content {
+    position: relative;
+    z-index: 2;
+
+    width: 100%;
+    min-height: 100vh;
+
+    padding: 30px 7vw 48px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* =========================================================
+   LEFT LOGO
+========================================================= */
+
+.auth-brand-logo {
+    display: flex;
+    align-items: center;
+
+    gap: 18px;
+
+    width: max-content;
+}
+
+.auth-brand-logo img {
+    width: 68px;
+    height: 58px;
+
+    object-fit: contain;
+}
+
+.auth-brand-logo span {
+    padding-left: 18px;
+
+    border-left: 1px solid rgba(18, 38, 30, 0.22);
+
+    color: #394a42;
+
+    font-size: 12px;
+    font-weight: 500;
+}
+
+
+/* =========================================================
+   LEFT MESSAGE
+========================================================= */
+
+.auth-message {
+    width: min(500px, 95%);
+
+    margin-top: clamp(88px, 13vh, 132px);
+}
+
+.auth-message h1 {
+    color: #111b17;
+
+    font-size: clamp(44px, 4.35vw, 64px);
+    font-weight: 700;
+
+    line-height: 0.99;
+
+    letter-spacing: -0.052em;
+}
+
+.auth-message h1 span {
+    color: var(--suki-green);
+}
+
+.auth-message > p {
+    max-width: 455px;
+
+    margin-top: 22px;
+
+    color: #5f6e67;
+
+    font-size: 15px;
+    font-weight: 400;
+
+    line-height: 1.65;
+}
+
+
+/* =========================================================
+   LEFT BENEFITS
+========================================================= */
+
+.auth-benefits {
+    max-width: 430px;
+
+    margin-top: 32px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 18px;
+}
+
+.auth-benefit {
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+}
+
+.auth-benefit-icon {
+    width: 46px;
+    height: 46px;
+
+    flex: 0 0 46px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+
+    background: rgba(8, 105, 79, 0.10);
+    color: var(--suki-green);
+}
+
+.auth-benefit-icon svg {
+    width: 21px;
+    height: 21px;
+
+    stroke-width: 1.8;
+}
+
+.auth-benefits p {
+    margin: 0;
+
+    color: #6b756f;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+}
+
+.auth-benefits strong {
+    display: block;
+
+    margin-bottom: 3px;
+
+    color: #1c3027;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   RIGHT FORM SIDE
+========================================================= */
+
+.auth-form-side {
+    position: relative;
+
+    min-height: 100vh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 76px 70px 52px;
+
+    background: #ffffff;
+}
+
+
+/* =========================================================
+   BACK TO LANDING
+========================================================= */
+
+.back-home {
+    position: absolute;
+
+    top: 39px;
+    right: 52px;
+
+    color: var(--suki-green);
+
+    font-size: 12px;
+    font-weight: 600;
+
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+}
+
+.back-home:hover {
+    opacity: 0.75;
+
+    transform: translateX(-2px);
+}
+
+
+/* =========================================================
+   LOGIN FORM WRAPPER
+========================================================= */
+
+.auth-form-container {
+    width: 100%;
+    max-width: 510px;
+}
+
+.auth-eyebrow {
+    color: var(--suki-green);
+
+    font-size: 10px;
+    font-weight: 700;
+
+    letter-spacing: 0.24em;
+}
+
+.auth-form-container h2 {
+    margin-top: 10px;
+
+    color: #17221c;
+
+    font-size: clamp(36px, 3.2vw, 48px);
+    font-weight: 700;
+
+    line-height: 1.04;
+
+    letter-spacing: -0.045em;
+}
+
+.auth-form-container h2 span {
+    color: var(--suki-green);
+}
+
+.auth-description {
+    max-width: 480px;
+
+    margin-top: 14px;
+
+    color: var(--muted);
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   ERRORS
+========================================================= */
+
+.auth-error {
+    margin-top: 24px;
+
+    padding: 14px 16px;
+
+    border: 1px solid var(--danger-border);
+    border-radius: 12px;
+
+    background: var(--danger-bg);
+
+    color: var(--danger-text);
+
+    font-size: 12px;
+}
+
+.auth-error p + p {
+    margin-top: 5px;
+}
+
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.auth-form {
+    margin-top: 34px;
+}
+
+.field-group {
+    margin-bottom: 24px;
+}
+
+.field-group > label,
+.field-label-row label {
+    display: block;
+
+    color: #28352e;
+
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.field-group > label {
+    margin-bottom: 9px;
+}
+
+.field-label-row {
+    margin-bottom: 9px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+}
+
+.field-label-row a {
+    color: var(--suki-green);
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.field-label-row a:hover {
+    text-decoration: underline;
+}
+
+.field-group input {
+    width: 100%;
+    height: 58px;
+
+    padding: 0 18px;
+
+    border: 1px solid #cfd6d2;
+    border-radius: 11px;
+
+    background: #ffffff;
+
+    color: var(--text);
+
+    font-family: inherit;
+    font-size: 13px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+.field-group input::placeholder {
+    color: #9ba49f;
+}
+
+.field-group input:hover {
+    border-color: #b8c4be;
+}
+
+.field-group input:focus {
+    border-color: var(--suki-green);
+
+    box-shadow:
+        0 0 0 4px rgba(8, 105, 79, 0.08);
+}
+
+
+/* =========================================================
+   PASSWORD FIELD + EYE TOGGLE
+========================================================= */
+
+.password-input-wrap {
+    position: relative;
+}
+
+.password-input-wrap input {
+    padding-right: 52px;
+}
+
+.password-toggle {
+    position: absolute;
+
+    top: 50%;
+    right: 16px;
+
+    width: 34px;
+    height: 34px;
+
+    transform: translateY(-50%);
+
+    display: grid;
+    place-items: center;
+
+    padding: 0;
+
+    border: 0;
+    border-radius: 50%;
+
+    background: transparent;
+    color: #8b9690;
+
+    cursor: pointer;
+
+    transition:
+        color 0.2s ease,
+        background 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: var(--suki-green);
+
+    background: rgba(8, 105, 79, 0.07);
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid rgba(8, 105, 79, 0.25);
+    outline-offset: 2px;
+}
+
+.password-toggle svg {
+    width: 18px;
+    height: 18px;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   REMEMBER ME
+========================================================= */
+
+.remember-row {
+    margin-top: -2px;
+    margin-bottom: 25px;
+}
+
+.remember-row label {
+    width: max-content;
+
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    color: #69746e;
+
+    font-size: 12px;
+
+    cursor: pointer;
+}
+
+.remember-row input {
+    width: 15px;
+    height: 15px;
+
+    accent-color: var(--suki-green);
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   LOGIN BUTTON
+========================================================= */
+
+.auth-submit {
+    width: 100%;
+    height: 56px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 0;
+    border-radius: 999px;
+
+    background: var(--suki-green);
+
+    color: #ffffff;
+
+    font-family: inherit;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 8px 20px rgba(8, 105, 79, 0.12);
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.auth-submit:hover {
+    background: var(--suki-green-hover);
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 10px 24px rgba(8, 105, 79, 0.16);
+}
+
+
+/* =========================================================
+   DIVIDER
+========================================================= */
+
+.auth-divider {
+    margin: 31px 0 27px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+    color: #9aa29e;
+
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+
+    height: 1px;
+
+    flex: 1;
+
+    background: #e1e5e3;
+}
+
+
+/* =========================================================
+   CREATE ACCOUNT
+========================================================= */
+
+.auth-bottom {
+    color: #727c77;
+
+    text-align: center;
+
+    font-size: 13px;
+}
+
+.auth-bottom a {
+    margin-left: 4px;
+
+    color: var(--suki-green);
+
+    font-weight: 700;
+}
+
+.auth-bottom a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   RESPONSIVE - SMALL DESKTOP
+========================================================= */
+
+@media (max-width: 1180px) {
+
+    .auth-brand-content {
+        padding-left: 52px;
+        padding-right: 45px;
+    }
+
+    .auth-message {
+        margin-top: 82px;
+    }
+
+    .auth-message h1 {
+        font-size: 47px;
+    }
+
+    .auth-form-side {
+        padding-left: 52px;
+        padding-right: 52px;
+    }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE - TABLET
+========================================================= */
+
+@media (max-width: 960px) {
+
+    .auth-page {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .auth-form-side {
+        min-height: 100svh;
+
+        padding:
+            100px
+            28px
+            50px;
+    }
+
+    .auth-form-container {
+        max-width: 520px;
+    }
+
+    .back-home {
+        top: 30px;
+        right: 30px;
+    }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .auth-form-side {
+        align-items: flex-start;
+
+        padding:
+            92px
+            20px
+            38px;
+    }
+
+    .back-home {
+        top: 24px;
+        right: 20px;
+
+        font-size: 11px;
+    }
+
+    .auth-eyebrow {
+        font-size: 9px;
+    }
+
+    .auth-form-container h2 {
+        font-size: 34px;
+    }
+
+    .auth-description {
+        font-size: 12px;
+    }
+
+    .auth-form {
+        margin-top: 28px;
+    }
+
+    .field-group {
+        margin-bottom: 20px;
+    }
+
+    .field-group input {
+        height: 52px;
+
+        font-size: 12px;
+    }
+
+    .password-toggle {
+        right: 12px;
+
+        width: 32px;
+        height: 32px;
+    }
+
+    .password-toggle svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .auth-submit {
+        height: 52px;
+    }
+
+    .auth-bottom {
+        font-size: 12px;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 390px) {
+
+    .auth-form-container h2 {
+        font-size: 30px;
+    }
+
+    .field-label-row {
+        gap: 10px;
+    }
+
+    .field-label-row a {
+        font-size: 10px;
+    }
+
+}
