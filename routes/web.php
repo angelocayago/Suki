@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\Seller;
 use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
@@ -2882,12 +2883,23 @@ Route::get('/seller/orders', function () use ($requireSeller) {
 
 Route::get('/seller/register', function () {
 
-    return view('seller.register');
+    return view('seller.register', [
+        'sellerTypes' => config('seller_types', []),
+    ]);
 
 })->name('seller.register');
 
 
 Route::post('/seller/register', function (Request $request) {
+
+    $tin = $request->input('tin');
+    $tinIsValid = is_string($tin) && (
+        preg_match('/\A[0-9]{12}\z/', $tin) === 1 ||
+        preg_match('/\A[0-9]{3}(?:-[0-9]{3}){3}\z/', $tin) === 1
+    );
+    $normalizedTin = is_string($tin)
+        ? str_replace('-', '', $tin)
+        : '';
 
     $request->validate([
 
@@ -2901,9 +2913,8 @@ Route::post('/seller/register', function (Request $request) {
 
     'birthday' => 'required|date',
 
-    'phone' => 'required|string|max:30',
-
-    'email' => 'required|email|max:255',
+    'email' => 'required|email|max:255|unique:users,email',
+    'phone' => 'required|string|max:30|unique:users,phone',
 
 
     'province' => 'required|string|max:100',
@@ -2923,6 +2934,27 @@ Route::post('/seller/register', function (Request $request) {
         'in:Pet Supplies,Kids and Baby,Electronics and Gadgets,Home and Garden,Women\'s Apparel,Men\'s Apparel,Health and Beauty,Sports and Outdoors',
     ],
 
+    'seller_type' => [
+        'required',
+        'string',
+        \Illuminate\Validation\Rule::in(config('seller_types', [])),
+    ],
+
+    'tin' => [
+        'required',
+        function ($attribute, $value, $fail) use ($tinIsValid, $normalizedTin) {
+            if (! $tinIsValid) {
+                $fail('TIN must contain exactly 12 digits, displayed as 000-000-000-000.');
+
+                return;
+            }
+
+            if (Seller::query()->where('tin', $normalizedTin)->exists()) {
+                $fail('This TIN is already registered.');
+            }
+        },
+    ],
+
 
     'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
 
@@ -2935,7 +2967,7 @@ Route::post('/seller/register', function (Request $request) {
 
 ]);
 
-    
+    $sellerSlug = Str::slug($request->business_name);
 
 $validIdPath = $request
     ->file('valid_id')
@@ -2946,6 +2978,37 @@ $permitPath = $request
     ->file('business_permit')
     ->store('seller-documents', 'public');
 
+    DB::transaction(function () use ($request, $normalizedTin, $sellerSlug) {
+        $user = User::create([
+            'role' => 'seller',
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'name' => trim($request->first_name . ' ' . $request->last_name),
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'status' => 'active',
+            'password' => $request->password,
+        ]);
+
+        $baseSlug = $sellerSlug !== ''
+            ? $sellerSlug
+            : 'seller-' . $user->id;
+        $uniqueSlug = $baseSlug;
+        $suffix = 1;
+
+        while (Seller::query()->where('slug', $uniqueSlug)->exists()) {
+            $uniqueSlug = $baseSlug . '-' . $suffix++;
+        }
+
+        Seller::create([
+            'user_id' => $user->id,
+            'name' => $request->business_name,
+            'slug' => $uniqueSlug,
+            'business_category' => $request->business_category,
+            'seller_type' => $request->seller_type,
+            'tin' => $normalizedTin,
+        ]);
+    });
 
 
 
@@ -2953,6 +3016,11 @@ $permitPath = $request
     'shop_name' => $request->business_name,
 
     'business_category' => $request->business_category,
+    'seller_type' => $request->seller_type,
+    'tin' => substr($normalizedTin, 0, 3) . '-' .
+        substr($normalizedTin, 3, 3) . '-' .
+        substr($normalizedTin, 6, 3) . '-' .
+        substr($normalizedTin, 9, 3),
 
     'seller_name' => $request->first_name . ' ' . $request->last_name,
 
