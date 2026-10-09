@@ -537,18 +537,43 @@
         {{-- REGION --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="region-trigger" class="block text-sm font-medium text-gray-700 mb-2">
                 Region *
             </label>
 
-            <select
-                id="region"
-                name="region"
-                required
-                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
-                <option value="">Loading regions...</option>
-            </select>
+            <div class="relative" data-address-combobox="region">
+                <button
+                    id="region-trigger"
+                    type="button"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="region-listbox"
+                    aria-haspopup="listbox"
+                    aria-describedby="region-validation"
+                    disabled
+                    class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                    <span id="region-value" class="truncate text-gray-500">Loading regions...</span>
+                    <span class="ml-3 shrink-0 text-gray-500" aria-hidden="true">⌄</span>
+                </button>
+                <select id="region" name="region" class="hidden" tabindex="-1" aria-hidden="true"></select>
+                <div
+                    id="region-options"
+                    class="absolute left-0 right-0 top-full z-30 mt-1 hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg"
+                >
+                    <input
+                        id="region-search"
+                        type="search"
+                        role="searchbox"
+                        aria-label="Search regions"
+                        autocomplete="off"
+                        placeholder="Search region"
+                        class="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                    >
+                    <div id="region-listbox" role="listbox" aria-label="Regions" class="overflow-y-auto" style="max-height: 224px; overscroll-behavior: contain;"></div>
+                </div>
+                <p id="region-validation" class="mt-1 hidden text-xs text-red-600" aria-live="polite"></p>
+            </div>
 
         </div>
 
@@ -579,21 +604,43 @@
         {{-- MUNICIPALITY --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="municipality-trigger" class="block text-sm font-medium text-gray-700 mb-2">
                 City / Municipality *
             </label>
 
-            <select
-                id="municipality"
-                name="municipality"
-                required
-                disabled
-                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
-            >
-
-                <option value="">Select province first</option>
-
-            </select>
+            <div class="relative" data-address-combobox="municipality">
+                <button
+                    id="municipality-trigger"
+                    type="button"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="municipality-listbox"
+                    aria-haspopup="listbox"
+                    aria-describedby="municipality-validation"
+                    disabled
+                    class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                    <span id="municipality-value" class="truncate text-gray-500">Select city/municipality</span>
+                    <span class="ml-3 shrink-0 text-gray-500" aria-hidden="true">⌄</span>
+                </button>
+                <select id="municipality" name="municipality" class="hidden" tabindex="-1" aria-hidden="true"></select>
+                <div
+                    id="municipality-options"
+                    class="absolute left-0 right-0 top-full z-30 mt-1 hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg"
+                >
+                    <input
+                        id="municipality-search"
+                        type="search"
+                        role="searchbox"
+                        aria-label="Search cities and municipalities"
+                        autocomplete="off"
+                        placeholder="Search city/municipality"
+                        class="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                    >
+                    <div id="municipality-listbox" role="listbox" aria-label="Cities and municipalities" class="overflow-y-auto" style="max-height: 224px; overscroll-behavior: contain;"></div>
+                </div>
+                <p id="municipality-validation" class="mt-1 hidden text-xs text-red-600" aria-live="polite"></p>
+            </div>
 
         </div>
 
@@ -1182,7 +1229,242 @@ let regionLoadId = 0;
 let municipalityLoadId = 0;
 let barangayLoadId = 0;
 
+function createAddressCombobox(select, inputId, listId, placeholder) {
+    const trigger = document.getElementById(inputId.replace('-search', '-trigger'));
+    const valueDisplay = document.getElementById(inputId.replace('-search', '-value'));
+    const search = document.getElementById(inputId);
+    const panel = document.getElementById(listId);
+    const list = document.getElementById(listId.replace('-options', '-listbox'));
+    const validation = document.getElementById(inputId.replace('-search', '-validation'));
+    const wrapper = trigger.closest('[data-address-combobox]');
+    let options = [];
+    let activeIndex = -1;
+
+    function close() {
+        panel.classList.add('hidden');
+        trigger.setAttribute('aria-expanded', 'false');
+        search.removeAttribute('aria-activedescendant');
+        activeIndex = -1;
+    }
+
+    function updateActiveOption() {
+        const visibleOptions = [...list.querySelectorAll('[role="option"]')];
+
+        visibleOptions.forEach((option, index) => {
+            const active = index === activeIndex;
+            option.classList.toggle('bg-[#EEF8F3]', active);
+            option.classList.toggle('text-[#1F6F5B]', active);
+            option.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+
+        if (visibleOptions[activeIndex]) {
+            search.setAttribute('aria-activedescendant', visibleOptions[activeIndex].id);
+            visibleOptions[activeIndex].scrollIntoView({ block: 'nearest' });
+        } else {
+            search.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function renderOptions() {
+        const query = search.value.trim().toLocaleLowerCase();
+        const filteredOptions = options.filter((option) =>
+            option.name.toLocaleLowerCase().includes(query)
+        );
+
+        list.innerHTML = '';
+
+        if (filteredOptions.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'px-4 py-3 text-sm text-gray-500';
+            emptyMessage.textContent = options.length === 0
+                ? 'No options available.'
+                : 'No matching results found.';
+            list.appendChild(emptyMessage);
+            activeIndex = -1;
+            search.removeAttribute('aria-activedescendant');
+            return;
+        }
+
+        filteredOptions.forEach((option, index) => {
+            const optionElement = document.createElement('div');
+            optionElement.id = `${list.id}-option-${index}`;
+            optionElement.setAttribute('role', 'option');
+            optionElement.setAttribute(
+                'aria-selected',
+                select.value === option.code ? 'true' : 'false'
+            );
+            optionElement.className = 'cursor-pointer px-4 py-2.5 text-sm text-gray-700 hover:bg-[#EEF8F3] hover:text-[#1F6F5B]';
+            optionElement.textContent = option.name;
+            optionElement.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                selectOption(option);
+            });
+            list.appendChild(optionElement);
+        });
+
+        if (activeIndex >= filteredOptions.length) {
+            activeIndex = filteredOptions.length - 1;
+        }
+        updateActiveOption();
+    }
+
+    function open() {
+        if (trigger.disabled) {
+            return;
+        }
+
+        search.value = '';
+        renderOptions();
+        panel.classList.remove('hidden');
+        trigger.setAttribute('aria-expanded', 'true');
+        search.focus();
+    }
+
+    function selectOption(option) {
+        select.value = option.code;
+        valueDisplay.textContent = option.name;
+        valueDisplay.classList.remove('text-gray-500');
+        validation.textContent = '';
+        validation.classList.add('hidden');
+        close();
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        trigger.focus();
+    }
+
+    trigger.addEventListener('click', open);
+    trigger.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            open();
+        } else if (event.key === 'Escape' && !panel.classList.contains('hidden')) {
+            event.preventDefault();
+            close();
+        }
+    });
+    search.addEventListener('input', renderOptions);
+    search.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            const visibleOptions = list.querySelectorAll('[role="option"]');
+            if (visibleOptions.length > 0) {
+                const direction = event.key === 'ArrowDown' ? 1 : -1;
+                activeIndex = activeIndex < 0
+                    ? (direction > 0 ? 0 : visibleOptions.length - 1)
+                    : (activeIndex + direction + visibleOptions.length) % visibleOptions.length;
+                updateActiveOption();
+            }
+        } else if (event.key === 'Enter' && !panel.classList.contains('hidden')) {
+            event.preventDefault();
+            const filteredOptions = options.filter((option) =>
+                option.name.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())
+            );
+            if (filteredOptions[activeIndex]) {
+                selectOption(filteredOptions[activeIndex]);
+            }
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+            trigger.focus();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!wrapper.contains(event.target)) {
+            close();
+            if (document.activeElement === search) {
+                search.blur();
+            }
+        }
+    });
+
+    return {
+        setOptions(items, optionPlaceholder = placeholder) {
+            options = items.map((item) => ({
+                code: item.code,
+                name: item.name.trim(),
+            }));
+            select.innerHTML = '';
+
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = optionPlaceholder;
+            select.appendChild(placeholderOption);
+
+            options.forEach((option) => {
+                const nativeOption = document.createElement('option');
+                nativeOption.value = option.code;
+                nativeOption.textContent = option.name;
+                select.appendChild(nativeOption);
+            });
+
+            select.value = '';
+            valueDisplay.textContent = optionPlaceholder;
+            valueDisplay.classList.add('text-gray-500');
+            search.placeholder = `Search ${optionPlaceholder.toLocaleLowerCase().replace(/^select /, '')}`;
+            validation.textContent = '';
+            validation.classList.add('hidden');
+            renderOptions();
+        },
+        setState(message, disabled) {
+            options = [];
+            select.innerHTML = '';
+            valueDisplay.textContent = message;
+            valueDisplay.classList.add('text-gray-500');
+            trigger.disabled = disabled;
+            select.disabled = disabled;
+            close();
+        },
+        setValue(code) {
+            select.value = code;
+            valueDisplay.textContent = select.selectedOptions[0]?.textContent || placeholder;
+            valueDisplay.classList.toggle('text-gray-500', !select.value);
+            validation.textContent = '';
+            validation.classList.add('hidden');
+        },
+        setDisabled(disabled) {
+            trigger.disabled = disabled;
+            select.disabled = disabled;
+            if (disabled) {
+                close();
+            }
+        },
+        validate() {
+            const valid = Boolean(select.value);
+            validation.textContent = valid ? '' : `${placeholder} is required.`;
+            validation.classList.toggle('hidden', valid);
+            trigger.setAttribute('aria-invalid', valid ? 'false' : 'true');
+            if (!valid && !trigger.disabled) {
+                trigger.focus();
+            }
+            return valid;
+        },
+    };
+}
+
+const regionCombobox = createAddressCombobox(
+    regionSelect,
+    'region-search',
+    'region-options',
+    'Select region'
+);
+const municipalityCombobox = createAddressCombobox(
+    municipalitySelect,
+    'municipality-search',
+    'municipality-options',
+    'Select city/municipality'
+);
+
 function setSelectOptions(select, placeholder, items) {
+    if (select === regionSelect) {
+        regionCombobox.setOptions(items, placeholder);
+        return;
+    }
+
+    if (select === municipalitySelect) {
+        municipalityCombobox.setOptions(items, placeholder);
+        return;
+    }
+
     select.innerHTML = '';
 
     const placeholderOption = document.createElement('option');
@@ -1222,8 +1504,7 @@ function resetDependentAddressSelects() {
     provinceSelect.disabled = true;
     provinceSelect.required = false;
 
-    municipalitySelect.innerHTML = '<option value="">Select province first</option>';
-    municipalitySelect.disabled = true;
+    municipalityCombobox.setState('Select province first', true);
 
     barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
     barangaySelect.disabled = true;
@@ -1233,8 +1514,7 @@ async function loadRegions(selectedRegion = '') {
     const loadId = ++regionLoadId;
 
     resetDependentAddressSelects();
-    regionSelect.disabled = true;
-    regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+    regionCombobox.setState('Loading regions...', true);
 
     try {
         const regions = await fetchPsgcOptions('regions');
@@ -1244,10 +1524,10 @@ async function loadRegions(selectedRegion = '') {
         }
 
         setSelectOptions(regionSelect, 'Select region', regions);
-        regionSelect.disabled = false;
+        regionCombobox.setDisabled(false);
 
         if (selectedRegion && regions.some((region) => region.code === selectedRegion)) {
-            regionSelect.value = selectedRegion;
+            regionCombobox.setValue(selectedRegion);
             await loadProvinces(
                 selectedRegion,
                 previousLocation.province,
@@ -1257,8 +1537,7 @@ async function loadRegions(selectedRegion = '') {
         }
     } catch (error) {
         if (loadId === regionLoadId) {
-            regionSelect.innerHTML = '<option value="">Unable to load regions</option>';
-            regionSelect.disabled = true;
+            regionCombobox.setState('Unable to load regions', true);
             console.error(error);
         }
     }
@@ -1332,8 +1611,7 @@ async function loadMunicipalities(
 ) {
     const loadId = ++municipalityLoadId;
 
-    municipalitySelect.innerHTML = '<option value="">Loading cities/municipalities...</option>';
-    municipalitySelect.disabled = true;
+    municipalityCombobox.setState('Loading cities/municipalities...', true);
     barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
     barangaySelect.disabled = true;
     barangayLoadId++;
@@ -1350,18 +1628,21 @@ async function loadMunicipalities(
         }
 
         setSelectOptions(municipalitySelect, 'Select city/municipality', municipalities);
-        municipalitySelect.disabled = false;
+        municipalityCombobox.setDisabled(false);
 
         if (
             selectedMunicipality &&
             municipalities.some((municipality) => municipality.code === selectedMunicipality)
         ) {
-            municipalitySelect.value = selectedMunicipality;
+            municipalityCombobox.setValue(selectedMunicipality);
             await loadBarangays(selectedMunicipality, selectedBarangay);
         }
     } catch (error) {
         if (loadId === municipalityLoadId) {
-            municipalitySelect.innerHTML = '<option value="">Unable to load cities/municipalities</option>';
+            municipalityCombobox.setState(
+                'Unable to load cities/municipalities',
+                false
+            );
             console.error(error);
         }
     }
@@ -1407,8 +1688,7 @@ if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
         } else {
             municipalityLoadId++;
             barangayLoadId++;
-            municipalitySelect.innerHTML = '<option value="">Select province first</option>';
-            municipalitySelect.disabled = true;
+            municipalityCombobox.setState('Select province first', true);
             barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
             barangaySelect.disabled = true;
         }
@@ -1421,6 +1701,15 @@ if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
             barangayLoadId++;
             barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
             barangaySelect.disabled = true;
+        }
+    });
+
+    regionSelect.closest('form').addEventListener('submit', (event) => {
+        const regionValid = regionCombobox.validate();
+        const municipalityValid = municipalityCombobox.validate();
+
+        if (!regionValid || !municipalityValid) {
+            event.preventDefault();
         }
     });
 
