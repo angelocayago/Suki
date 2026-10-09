@@ -74,4 +74,9 @@ class Seller extends Model
     {
         return $this->hasMany(SellerOrder::class);
     }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SellerDocument::class);
+    }
 }

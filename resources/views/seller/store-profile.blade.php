@@ -26,10 +26,17 @@
 
     $status = $profile['status'] ?? '';
 
-    $isVerified =
-        $status === 'approved'
-        && !empty($profile['valid_id'])
-        && !empty($profile['business_permit']);
+    $requiredSellerDocuments = config(
+        'seller_document_requirements.requirements.' . ($profile['seller_type'] ?? ''),
+        []
+    );
+    $storedSellerDocuments = $profile['documents'] ?? [];
+    $isVerified = $status === 'approved';
+
+    foreach ($requiredSellerDocuments as $requiredSellerDocument) {
+        $isVerified = $isVerified
+            && ! empty($storedSellerDocuments[$requiredSellerDocument]);
+    }
 
     $accountStatus = match ($status) {
         'approved' => 'Active',
