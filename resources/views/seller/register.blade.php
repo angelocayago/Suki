@@ -659,6 +659,7 @@
             <input
                 type="text"
                 name="business_name"
+                value="{{ old('business_name') }}"
                 required
                 placeholder="Business name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -672,7 +673,7 @@
         <div>
 
             <label class="block text-sm font-medium text-gray-700 mb-2">
-                Line of Business (Category) *
+                Line of Business *
             </label>
 
             <select
@@ -697,6 +698,59 @@
                 @endforeach
 
             </select>
+
+        </div>
+
+        {{-- SELLER TYPE --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Seller Type *
+            </label>
+
+            <select
+                name="seller_type"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+                <option value="">
+                    Select seller type
+                </option>
+
+                @foreach ($sellerTypes as $sellerType)
+                    <option
+                        value="{{ $sellerType }}"
+                        {{ old('seller_type') === $sellerType ? 'selected' : '' }}
+                    >
+                        {{ $sellerType }}
+                    </option>
+                @endforeach
+
+            </select>
+
+        </div>
+
+        {{-- TIN --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                TIN *
+            </label>
+
+            <input
+                type="text"
+                name="tin"
+                value="{{ old('tin') }}"
+                required
+                inputmode="numeric"
+                maxlength="15"
+                pattern="[0-9]{3}-[0-9]{3}-[0-9]{3}-[0-9]{3}"
+                title="Enter exactly 12 digits in the format 000-000-000-000."
+                placeholder="000-000-000-000"
+                oninput="formatTinInput(this)"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
 
         </div>
 
@@ -1262,6 +1316,21 @@ function togglePassword(inputId, iconId) {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
+
+}
+
+function formatTinInput(input) {
+
+    const containsInvalidCharacters = /[^0-9-]/.test(input.value);
+    const digits = input.value.replace(/\D/g, '').slice(0, 12);
+    const groups = digits.match(/.{1,3}/g) || [];
+
+    input.value = groups.join('-');
+    input.setCustomValidity(
+        containsInvalidCharacters
+            ? 'TIN can contain numbers only.'
+            : ''
+    );
 
 }
 
