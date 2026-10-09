@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Models\Seller;
+use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
@@ -395,58 +396,104 @@ $requireBuyer = function () {
 // PSGC API PROXY
 // =====================================================
 
-Route::get('/api/psgc/provinces', function () {
+$fetchPsgcData = function (string $path): ?array {
+    try {
+        $response = Http::acceptJson()
+            ->timeout(10)
+            ->get('https://psgc.cloud/api/v2/' . $path);
+    } catch (\Illuminate\Http\Client\ConnectionException $exception) {
+        report($exception);
 
-    $response = Http::acceptJson()
-        ->timeout(10)
-        ->get('https://psgc.cloud/api/v2/provinces');
+        return null;
+    }
 
-    if (!$response->successful()) {
+    if (! $response->successful()) {
+        return null;
+    }
+
+    $data = $response->json('data');
+
+    return is_array($data) ? $data : null;
+};
+
+Route::get('/api/psgc/regions', function () use ($fetchPsgcData) {
+    $regions = $fetchPsgcData('regions');
+
+    if ($regions === null) {
+        return response()->json([
+            'message' => 'Unable to load regions.',
+        ], 502);
+    }
+
+    return response()->json($regions);
+});
+
+Route::get('/api/psgc/regions/{region}/provinces', function (string $region) use ($fetchPsgcData) {
+    $provinces = $fetchPsgcData(
+        'regions/' . rawurlencode($region) . '/provinces'
+    );
+
+    if ($provinces === null) {
         return response()->json([
             'message' => 'Unable to load provinces.',
-        ], $response->status());
+        ], 502);
     }
 
-    return response()->json($response->json('data'));
-
+    return response()->json($provinces);
 });
 
-Route::get('/api/psgc/provinces/{province}/cities-municipalities', function (string $province) {
+Route::get('/api/psgc/regions/{region}/cities-municipalities', function (string $region) use ($fetchPsgcData) {
+    $municipalities = $fetchPsgcData(
+        'regions/' . rawurlencode($region) . '/cities-municipalities'
+    );
 
-    $response = Http::acceptJson()
-        ->timeout(10)
-        ->get(
-            'https://psgc.cloud/api/v2/provinces/'
-            . rawurlencode($province)
-            . '/cities-municipalities'
-        );
-
-    if (!$response->successful()) {
+    if ($municipalities === null) {
         return response()->json([
             'message' => 'Unable to load municipalities/cities.',
-        ], $response->status());
+        ], 502);
     }
 
-    return response()->json($response->json('data'));
+    return response()->json($municipalities);
 });
 
-Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function (string $municipality) {
+Route::get('/api/psgc/provinces', function () use ($fetchPsgcData) {
+    $provinces = $fetchPsgcData('provinces');
 
-    $response = Http::acceptJson()
-        ->timeout(10)
-        ->get(
-            'https://psgc.cloud/api/v2/cities-municipalities/'
-            . rawurlencode($municipality)
-            . '/barangays'
-        );
-
-    if (!$response->successful()) {
+    if ($provinces === null) {
         return response()->json([
-            'message' => 'Unable to load barangays.',
-        ], $response->status());
+            'message' => 'Unable to load provinces.',
+        ], 502);
     }
 
-    return response()->json($response->json('data'));
+    return response()->json($provinces);
+});
+
+Route::get('/api/psgc/provinces/{province}/cities-municipalities', function (string $province) use ($fetchPsgcData) {
+    $municipalities = $fetchPsgcData(
+        'provinces/' . rawurlencode($province) . '/cities-municipalities'
+    );
+
+    if ($municipalities === null) {
+        return response()->json([
+            'message' => 'Unable to load municipalities/cities.',
+        ], 502);
+    }
+
+    return response()->json($municipalities);
+});
+
+Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function (string $municipality) use ($fetchPsgcData) {
+    $barangays = $fetchPsgcData(
+        'cities-municipalities/' . rawurlencode($municipality) . '/barangays'
+    );
+
+    if ($barangays === null) {
+        return response()->json([
+            'message' => 'Unable to load barangays.',
+        ], 502);
+    }
+
+    return response()->json($barangays);
 });
 
 
@@ -2786,7 +2833,7 @@ Route::get('/seller/register', function () {
 })->name('seller.register');
 
 
-Route::post('/seller/register', function (Request $request) {
+Route::post('/seller/register', function (Request $request) use ($fetchPsgcData) {
 
     $tin = $request->input('tin');
     $tinIsValid = is_string($tin) && (
@@ -2797,7 +2844,7 @@ Route::post('/seller/register', function (Request $request) {
         ? str_replace('-', '', $tin)
         : '';
 
-    $request->validate([
+    $validated = $request->validate([
 
     'first_name' => 'required|string|max:100',
 
@@ -2813,13 +2860,12 @@ Route::post('/seller/register', function (Request $request) {
     'phone' => 'required|string|max:30|unique:users,phone',
 
 
-    'province' => 'required|string|max:100',
-
-    'municipality' => 'required|string|max:100',
-
-    'barangay' => 'required|string|max:100',
-
+    'region' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
+    'province' => ['nullable', 'string', 'regex:/\A[0-9]{10}\z/'],
+    'municipality' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
+    'barangay' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
     'address' => 'required|string|max:255',
+    'postal_code' => ['required', 'string', 'regex:/\A[0-9]{4}\z/'],
 
 
     'business_name' => 'required|string|max:150',
@@ -2861,7 +2907,124 @@ Route::post('/seller/register', function (Request $request) {
 
     'terms' => 'required',
 
+], [
+    'region.required' => 'Select a region.',
+    'region.regex' => 'Select a valid region.',
+    'province.regex' => 'Select a valid province.',
+    'municipality.regex' => 'Select a valid city or municipality.',
+    'barangay.regex' => 'Select a valid barangay.',
+    'postal_code.required' => 'Postal code is required.',
+    'postal_code.regex' => 'Postal code must contain exactly four numerical digits.',
 ]);
+
+    $regions = $fetchPsgcData('regions');
+
+    if ($regions === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $region = collect($regions)->firstWhere('code', $validated['region']);
+    $locationErrors = [];
+
+    if ($region === null) {
+        $locationErrors['region'] = 'Select a valid region.';
+    }
+
+    $province = null;
+    $municipalities = [];
+
+    if ($region !== null) {
+        $regionPath = 'regions/' . rawurlencode($region['code']);
+        $provinces = $fetchPsgcData($regionPath . '/provinces');
+
+        if ($provinces === null) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'region' => 'Address data could not be verified. Please try again later.',
+            ]);
+        }
+
+        if ($provinces !== []) {
+            if (empty($validated['province'])) {
+                $locationErrors['province'] = 'Select a province.';
+            } else {
+                $province = collect($provinces)->firstWhere(
+                    'code',
+                    $validated['province']
+                );
+
+                if ($province === null) {
+                    $locationErrors['province'] = 'Select a province in the selected region.';
+                } else {
+                    $municipalities = $fetchPsgcData(
+                        'provinces/' . rawurlencode($province['code']) . '/cities-municipalities'
+                    );
+                }
+            }
+        } else {
+            if (! empty($validated['province'])) {
+                $locationErrors['province'] = 'This region does not have provinces.';
+            }
+
+            $municipalities = $fetchPsgcData(
+                $regionPath . '/cities-municipalities'
+            );
+        }
+
+        if ($municipalities === null) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'region' => 'Address data could not be verified. Please try again later.',
+            ]);
+        }
+    }
+
+    $municipality = collect($municipalities)->firstWhere(
+        'code',
+        $validated['municipality']
+    );
+
+    if ($municipality === null) {
+        $locationErrors['municipality'] = 'Select a city or municipality in the selected administrative area.';
+    }
+
+    $barangay = null;
+
+    if ($municipality !== null) {
+        $barangays = $fetchPsgcData(
+            'cities-municipalities/'
+            . rawurlencode($municipality['code'])
+            . '/barangays'
+        );
+
+        if ($barangays === null) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'region' => 'Address data could not be verified. Please try again later.',
+            ]);
+        }
+
+        $barangay = collect($barangays)->firstWhere(
+            'code',
+            $validated['barangay']
+        );
+
+        if ($barangay === null) {
+            $locationErrors['barangay'] = 'Select a barangay in the selected city or municipality.';
+        }
+    }
+
+    if ($locationErrors !== []) {
+        throw \Illuminate\Validation\ValidationException::withMessages(
+            $locationErrors
+        );
+    }
+
+    $resolvedAddress = [
+        'region' => $region['name'],
+        'province' => $province['name'] ?? null,
+        'city' => $municipality['name'],
+        'barangay' => $barangay['name'],
+    ];
 
     $sellerSlug = Str::slug($request->business_name);
 
@@ -2874,7 +3037,12 @@ $permitPath = $request
     ->file('business_permit')
     ->store('seller-documents', 'public');
 
-    DB::transaction(function () use ($request, $normalizedTin, $sellerSlug) {
+    DB::transaction(function () use (
+        $request,
+        $normalizedTin,
+        $sellerSlug,
+        $resolvedAddress
+    ) {
         $user = User::create([
             'role' => 'seller',
             'first_name' => $request->first_name,
@@ -2884,6 +3052,20 @@ $permitPath = $request
             'phone' => $request->phone,
             'status' => 'active',
             'password' => $request->password,
+        ]);
+
+        $address = Address::create([
+            'user_id' => $user->id,
+            'label' => 'Pickup',
+            'recipient' => trim($request->first_name . ' ' . $request->last_name),
+            'phone' => $request->phone,
+            'line1' => $request->address,
+            'region' => $resolvedAddress['region'],
+            'province' => $resolvedAddress['province'] ?? '',
+            'city' => $resolvedAddress['city'],
+            'barangay' => $resolvedAddress['barangay'],
+            'postal_code' => $request->postal_code,
+            'is_default' => true,
         ]);
 
         $baseSlug = $sellerSlug !== ''
@@ -2903,6 +3085,7 @@ $permitPath = $request
             'business_category' => $request->business_category,
             'seller_type' => $request->seller_type,
             'tin' => $normalizedTin,
+            'pickup_address_id' => $address->id,
         ]);
     });
 
@@ -2924,10 +3107,12 @@ $permitPath = $request
 
     'email' => $request->email,
 
-    'province' => $request->province,
-    'municipality' => $request->municipality,
-    'barangay' => $request->barangay,
+    'region' => $resolvedAddress['region'],
+    'province' => $resolvedAddress['province'],
+    'municipality' => $resolvedAddress['city'],
+    'barangay' => $resolvedAddress['barangay'],
     'address' => $request->address,
+    'postal_code' => $request->postal_code,
 
     'valid_id' => $validIdPath,
     'business_permit' => $permitPath,
