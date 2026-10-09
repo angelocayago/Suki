@@ -510,12 +510,23 @@
         </label>
 
         <input
-            type="text"
+            type="tel"
             name="phone"
+            value="{{ old('phone') }}"
             required
-            placeholder="09XXXXXXXXX"
+            inputmode="tel"
+            autocomplete="tel"
+            maxlength="13"
+            pattern="(?:09[0-9]{9}|\+639[0-9]{9})"
+            title="Enter an 11-digit Philippine mobile number starting with 09 or +639."
+            placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+            aria-invalid="{{ $errors->has('phone') ? 'true' : 'false' }}"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
         >
+
+        @error('phone')
+            <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+        @enderror
 
     </div>
 
