@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
 use Tests\TestCase;
 
 class SellerDocumentRegistrationTest extends TestCase
@@ -92,6 +93,84 @@ class SellerDocumentRegistrationTest extends TestCase
                 );
             }
         }
+    }
+
+    public function test_local_and_international_mobile_numbers_are_stored_in_local_format(): void
+    {
+        Storage::fake('seller_documents');
+        $this->fakeAddressApi();
+
+        foreach ([
+            '09189876543',
+            '+639189876544',
+        ] as $index => $phone) {
+            $registration = $this->validRegistrationData('Individual');
+            $registration['email'] = 'seller' . $index . '@example.test';
+            $registration['phone'] = $phone;
+            $registration['tin'] = '123-456-789-01' . $index;
+
+            $this->post(route('seller.register.submit'), [
+                ...$registration,
+                'government_id' => $this->fakePdf('identity.pdf'),
+            ])->assertRedirect(route('seller.dashboard'));
+        }
+
+        $this->assertDatabaseHas('users', ['phone' => '09189876543']);
+        $this->assertDatabaseHas('users', ['phone' => '09189876544']);
+        $this->assertDatabaseCount('users', 2);
+        $this->assertDatabaseCount('addresses', 2);
+        $this->assertDatabaseHas('addresses', ['phone' => '09189876544']);
+    }
+
+    public function test_duplicate_local_mobile_number_is_rejected_when_submitted_in_international_format(): void
+    {
+        User::factory()->create([
+            'phone' => '09189876543',
+        ]);
+        User::factory()->create([
+            'phone' => '+639189876544',
+        ]);
+
+        $registration = $this->validRegistrationData('Individual');
+        $registration['phone'] = '+639189876543';
+
+        $this->from(route('seller.register'))
+            ->post(route('seller.register.submit'), $registration)
+            ->assertSessionHasErrors('phone')
+            ->assertSessionHasInput('phone', '+639189876543');
+
+        $registration['email'] = 'another-seller@example.test';
+        $registration['phone'] = '09189876544';
+
+        $this->from(route('seller.register'))
+            ->post(route('seller.register.submit'), $registration)
+            ->assertSessionHasErrors('phone')
+            ->assertSessionHasInput('phone', '09189876544');
+
+        $this->assertDatabaseCount('users', 2);
+        $this->assertDatabaseCount('sellers', 0);
+    }
+
+    public function test_invalid_phone_characters_lengths_and_landlines_are_rejected(): void
+    {
+        foreach ([
+            '0917ABC4567',
+            '0917-123-456',
+            '12345678901',
+            '02-8123-4567',
+            '0912345678',
+            '+6391898765430',
+        ] as $phone) {
+            $registration = $this->validRegistrationData('Individual');
+            $registration['phone'] = $phone;
+
+            $this->from(route('seller.register'))
+                ->post(route('seller.register.submit'), $registration)
+                ->assertSessionHasErrors('phone');
+        }
+
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('sellers', 0);
     }
 
     public function test_document_upload_accepts_supported_mimes_and_files_up_to_five_mb(): void

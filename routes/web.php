@@ -2872,6 +2872,17 @@ Route::get('/seller/register', function () {
 
 Route::post('/seller/register', function (Request $request) use ($fetchPsgcData) {
 
+    $submittedPhone = $request->input('phone');
+    $normalizedPhone = null;
+
+    if (is_string($submittedPhone)) {
+        if (preg_match('/\A09[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = $submittedPhone;
+        } elseif (preg_match('/\A\+639[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = '0' . substr($submittedPhone, 3);
+        }
+    }
+
     $tin = $request->input('tin');
     $tinIsValid = is_string($tin) && (
         preg_match('/\A[0-9]{12}\z/', $tin) === 1 ||
@@ -2940,7 +2951,30 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     'birthday' => 'required|date',
 
     'email' => 'required|email|max:255|unique:users,email',
-    'phone' => 'required|string|max:30|unique:users,phone',
+    'phone' => [
+        'bail',
+        'required',
+        'string',
+        function ($attribute, $value, $fail) use ($normalizedPhone) {
+            if ($normalizedPhone === null) {
+                $fail('Enter a valid Philippine mobile number in local or +63 format.');
+
+                return;
+            }
+
+            $internationalPhone = '+63' . substr($normalizedPhone, 1);
+            $phoneAlreadyRegistered = User::query()
+                ->where(function ($query) use ($normalizedPhone, $internationalPhone) {
+                    $query->where('phone', $normalizedPhone)
+                        ->orWhere('phone', $internationalPhone);
+                })
+                ->exists();
+
+            if ($phoneAlreadyRegistered) {
+                $fail('This phone number has already been taken.');
+            }
+        },
+    ],
 
 
     'region' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
@@ -3110,6 +3144,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     try {
         $documentPaths = DB::transaction(function () use (
             $request,
+            $normalizedPhone,
             $normalizedTin,
             $sellerSlug,
             $resolvedAddress,
@@ -3122,7 +3157,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
                 'last_name' => $request->last_name,
                 'name' => trim($request->first_name . ' ' . $request->last_name),
                 'email' => $request->email,
-                'phone' => $request->phone,
+                'phone' => $normalizedPhone,
                 'status' => 'active',
                 'password' => $request->password,
             ]);
@@ -3131,7 +3166,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
                 'user_id' => $user->id,
                 'label' => 'Pickup',
                 'recipient' => trim($request->first_name . ' ' . $request->last_name),
-                'phone' => $request->phone,
+                'phone' => $normalizedPhone,
                 'line1' => $request->address,
                 'region' => $resolvedAddress['region'],
                 'province' => $resolvedAddress['province'] ?? '',
@@ -3223,7 +3258,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
 
     'seller_name' => $request->first_name . ' ' . $request->last_name,
 
-    'phone' => $request->phone,
+    'phone' => $normalizedPhone,
 
     'email' => $request->email,
 
