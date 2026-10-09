@@ -790,6 +790,7 @@
             </label>
 
             <select
+                id="seller_type"
                 name="seller_type"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -855,124 +856,82 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
+        @php
+            $initialRequiredDocuments = $sellerDocumentRequirements[old('seller_type')]
+                ?? ['government_id'];
+        @endphp
 
-        {{-- VALID ID --}}
-        <div>
+        @foreach ($sellerDocumentLabels as $documentType => $documentLabel)
+            @php
+                $documentId = 'seller-document-' . $documentType;
+                $requiredInitially = in_array(
+                    $documentType,
+                    $initialRequiredDocuments,
+                    true
+                );
+                $alwaysVisible = $requiredInitially || $documentType === 'business_permit';
+            @endphp
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Upload Valid ID
-            </label>
+            <div
+                data-seller-document-field="{{ $documentType }}"
+                @class(['hidden' => ! $alwaysVisible])
+                @if ($errors->has($documentType))
+                    aria-invalid="true"
+                @endif
+            >
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ $documentLabel }}
+                    <span data-required-marker @class(['hidden' => ! $requiredInitially])>*</span>
+                </label>
 
+                <label class="flex min-h-44 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-3 text-center cursor-pointer hover:border-[#1F6F5B] transition">
+                    <i
+                        id="{{ $documentId }}-icon"
+                        data-lucide="upload"
+                        class="w-6 h-6 text-gray-400 mb-2"
+                    ></i>
 
-            <label class="flex min-h-44 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-3 text-center cursor-pointer hover:border-[#1F6F5B] transition">
+                    <img
+                        id="{{ $documentId }}-preview"
+                        alt="Selected {{ $documentLabel }} preview"
+                        class="hidden max-h-24 max-w-full rounded-lg border border-gray-100 object-contain"
+                    >
 
+                    <span class="text-sm font-medium text-gray-700">
+                        Choose {{ strtolower($documentLabel) }} file
+                    </span>
 
-                <i
-                    id="validIdUploadIcon"
-                    data-lucide="upload"
-                    class="w-6 h-6 text-gray-400 mb-2"
-                ></i>
+                    <span class="text-xs text-gray-400 mt-1">
+                        JPG, PNG or PDF (maximum 5 MB)
+                    </span>
 
-                <img
-                    id="validIdPreview"
-                    alt="Selected valid ID preview"
-                    class="hidden max-h-24 max-w-full rounded-lg border border-gray-100 object-contain"
-                >
+                    <span
+                        id="{{ $documentId }}-name"
+                        class="mt-2 text-xs font-semibold text-[#1F6F5B]"
+                    ></span>
 
-                <span class="text-sm font-medium text-gray-700">
-    Choose a valid ID file
-</span>
+                    <input
+                        type="file"
+                        id="{{ $documentType }}"
+                        name="{{ $documentType }}"
+                        accept="image/jpeg,image/png,application/pdf"
+                        @disabled(! $alwaysVisible)
+                        class="hidden"
+                        onchange="validateSellerDocument(this)"
+                    >
+                </label>
 
+                <p
+                    data-document-error
+                    class="mt-1 hidden text-xs text-red-600"
+                    aria-live="polite"
+                ></p>
 
-<span class="text-xs text-gray-400 mt-1">
-    JPG, JPEG, PNG or PDF
-</span>
-
-
-<span
-    id="validIdName"
-    class="mt-2 text-xs font-semibold text-[#1F6F5B]"
->
-</span>
-
-
-                <input
-    type="file"
-    id="valid_id"
-    name="valid_id"
-    required
-    accept="image/jpeg,image/png,application/pdf"
-    class="hidden"
-    onchange="showFileName(this, 'validIdName', 'validIdPreview', 'validIdUploadIcon')"
->
-
-
-            </label>
-
-
-        </div>
-
-
-
-
-
-        {{-- BUSINESS PERMIT --}}
-        <div>
-
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Upload Business Permit
-            </label>
-
-
-            <label class="flex min-h-44 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-3 text-center cursor-pointer hover:border-[#1F6F5B] transition">
-
-
-                <i
-                    id="permitUploadIcon"
-                    data-lucide="upload"
-                    class="w-6 h-6 text-gray-400 mb-2"
-                ></i>
-
-                <img
-                    id="permitPreview"
-                    alt="Selected business permit preview"
-                    class="hidden max-h-24 max-w-full rounded-lg border border-gray-100 object-contain"
-                >
-
-                <span class="text-sm font-medium text-gray-700">
-    Choose a business permit file
-</span>
-
-
-<span class="text-xs text-gray-400 mt-1">
-    JPG, JPEG, PNG or PDF
-</span>
-
-
-<span
-    id="permitName"
-    class="mt-2 text-xs font-semibold text-[#1F6F5B]"
->
-</span>
-
-
-<input
-    type="file"
-    id="business_permit"
-    name="business_permit"
-    required
-    accept="image/jpeg,image/png,application/pdf"
-    class="hidden"
-    onchange="showFileName(this, 'permitName', 'permitPreview', 'permitUploadIcon')"
->
-
-
-            </label>
-
-
-        </div>
-
+                @error($documentType)
+                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+        @endforeach
 
     </div>
 
@@ -1210,6 +1169,133 @@ function showFileName(input, targetId, previewId, iconId) {
 
 }
 
+function validateSellerDocument(input) {
+    const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'application/pdf',
+    ];
+    const file = input.files[0];
+    const error = input.closest('[data-seller-document-field]')
+        ?.querySelector('[data-document-error]');
+
+    if (!file || !error) {
+        return;
+    }
+
+    let message = '';
+
+    if (!allowedTypes.includes(file.type)) {
+        message = 'Choose a JPG, PNG, or PDF file.';
+    } else if (file.size > 5 * 1024 * 1024) {
+        message = 'The file must not exceed 5 MB.';
+    }
+
+    if (message) {
+        input.value = '';
+        input.dataset.invalidUpload = 'true';
+        error.textContent = message;
+        error.classList.remove('hidden');
+    } else {
+        delete input.dataset.invalidUpload;
+        error.textContent = '';
+        error.classList.add('hidden');
+    }
+
+    const documentType = input.name;
+    const documentId = `seller-document-${documentType}`;
+    showFileName(
+        input,
+        `${documentId}-name`,
+        `${documentId}-preview`,
+        `${documentId}-icon`
+    );
+}
+
+const sellerDocumentRequirements = @json($sellerDocumentRequirements);
+const sellerTypeSelect = document.getElementById('seller_type');
+
+function updateSellerDocumentFields() {
+    const requiredDocuments = sellerDocumentRequirements[sellerTypeSelect.value] || [];
+
+    document.querySelectorAll('[data-seller-document-field]').forEach((field) => {
+        const documentType = field.dataset.sellerDocumentField;
+        const fileInput = field.querySelector('input[type="file"]');
+        const requiredMarker = field.querySelector('[data-required-marker]');
+        const governmentId = documentType === 'government_id';
+        const optionalPermit = documentType === 'business_permit';
+        const visible = governmentId
+            || optionalPermit
+            || requiredDocuments.includes(documentType);
+        const required = governmentId || requiredDocuments.includes(documentType);
+
+        field.classList.toggle('hidden', !visible);
+        fileInput.disabled = !visible;
+        fileInput.required = false;
+        fileInput.dataset.required = required ? 'true' : 'false';
+        requiredMarker?.classList.toggle('hidden', !required);
+
+        if (!visible) {
+            if (fileInput.files.length > 0) {
+                fileInput.value = '';
+            }
+            delete fileInput.dataset.invalidUpload;
+            const error = field.querySelector('[data-document-error]');
+            error.textContent = '';
+            error.classList.add('hidden');
+
+            const documentId = `seller-document-${documentType}`;
+            showFileName(
+                fileInput,
+                `${documentId}-name`,
+                `${documentId}-preview`,
+                `${documentId}-icon`
+            );
+        }
+    });
+}
+
+if (sellerTypeSelect) {
+    sellerTypeSelect.addEventListener('change', updateSellerDocumentFields);
+    updateSellerDocumentFields();
+
+    sellerTypeSelect.form?.addEventListener('submit', (event) => {
+        const form = sellerTypeSelect.form;
+        const invalidUpload = form.querySelector(
+            '[data-invalid-upload="true"]'
+        );
+
+        const missingRequiredUploads = [...form.querySelectorAll(
+            '[data-seller-document-field] input[type="file"]'
+        )].filter((input) => (
+            !input.disabled
+            && input.dataset.required === 'true'
+            && input.files.length === 0
+        ));
+
+        missingRequiredUploads.forEach((input) => {
+            const field = input.closest('[data-seller-document-field]');
+            const label = field.querySelector('[data-required-marker]')
+                ?.parentElement.textContent.replace(/\s*\*\s*$/, '').trim();
+            const error = field.querySelector('[data-document-error]');
+
+            error.textContent = `${label || 'This document'} is required for the selected seller type.`;
+            error.classList.remove('hidden');
+        });
+
+        if (invalidUpload || missingRequiredUploads.length > 0) {
+            event.preventDefault();
+            const firstInvalidField = (
+                invalidUpload
+                    || missingRequiredUploads[0]
+            ).closest('[data-seller-document-field]');
+            firstInvalidField.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        }
+    });
+}
 
 const PSGC_API_BASE = '/api/psgc';
 
