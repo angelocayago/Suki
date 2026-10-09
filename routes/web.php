@@ -2969,12 +2969,19 @@ Route::get('/seller/register', function () {
             'seller_document_requirements.labels',
             []
         ),
+        'latestAllowedBirthday' => \Illuminate\Support\Carbon::today('Asia/Manila')
+            ->subYears(18)
+            ->toDateString(),
     ]);
 
 })->name('seller.register');
 
 
 Route::post('/seller/register', function (Request $request) use ($fetchPsgcData) {
+
+    $latestAllowedBirthday = \Illuminate\Support\Carbon::today('Asia/Manila')
+        ->subYears(18)
+        ->toDateString();
 
     $submittedPhone = $request->input('phone');
     $normalizedPhone = null;
@@ -3052,7 +3059,22 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
 
     'sex' => 'required|string',
 
-    'birthday' => 'required|date',
+    'birthday' => [
+        'bail',
+        'required',
+        'date',
+        'before_or_equal:' . $latestAllowedBirthday,
+        function ($attribute, $value, $fail) {
+            $birthday = \Illuminate\Support\Carbon::parse(
+                $value,
+                'Asia/Manila'
+            );
+
+            if ($birthday->age < 18) {
+                $fail('You must be at least 18 years old to register as a seller.');
+            }
+        },
+    ],
 
     'email' => 'required|email|max:255|unique:users,email',
     'phone' => [

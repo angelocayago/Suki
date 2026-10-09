@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -171,6 +172,130 @@ class SellerDocumentRegistrationTest extends TestCase
 
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('sellers', 0);
+    }
+
+    public function test_seller_registration_accepts_a_birthday_exactly_eighteen_years_ago(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-10 12:00:00'));
+        Storage::fake('seller_documents');
+        $this->fakeAddressApi();
+
+        $registration = $this->validRegistrationData('Individual');
+        $registration['birthday'] = '2008-10-10';
+
+        $this->post(route('seller.register.submit'), [
+            ...$registration,
+            'government_id' => $this->fakePdf('identity.pdf'),
+        ])
+            ->assertRedirect(route('seller.dashboard'))
+            ->assertSessionDoesntHaveErrors('birthday');
+    }
+
+    public function test_seller_registration_rejects_underage_and_future_birthdays(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-10 12:00:00'));
+
+        foreach ([
+            '2008-10-11',
+            '2008-11-01',
+            '2008-12-31',
+            '2026-10-11',
+        ] as $birthday) {
+            $registration = $this->validRegistrationData('Individual');
+            $registration['birthday'] = $birthday;
+
+            $this->from(route('seller.register'))
+                ->post(route('seller.register.submit'), $registration)
+                ->assertSessionHasErrors('birthday')
+                ->assertSessionHasInput('birthday', $birthday);
+        }
+
+        $this->travelTo(Carbon::parse('2026-12-10 12:00:00'));
+        $registration = $this->validRegistrationData('Individual');
+        $registration['birthday'] = '2008-12-11';
+
+        $this->from(route('seller.register'))
+            ->post(route('seller.register.submit'), $registration)
+            ->assertSessionHasErrors('birthday');
+
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('sellers', 0);
+    }
+
+    public function test_birthday_later_in_the_year_is_valid_when_age_is_at_least_eighteen(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-10 12:00:00'));
+
+        foreach (['2007-11-01', '2007-12-31'] as $birthday) {
+            $registration = $this->validRegistrationData('Individual');
+            $registration['birthday'] = $birthday;
+
+            $this->from(route('seller.register'))
+                ->post(route('seller.register.submit'), $registration)
+                ->assertSessionDoesntHaveErrors('birthday')
+                ->assertSessionHasInput('birthday', $birthday);
+        }
+
+        $this->travelTo(Carbon::parse('2026-12-10 12:00:00'));
+
+        foreach (['2008-11-01', '2008-12-10'] as $birthday) {
+            $registration = $this->validRegistrationData('Individual');
+            $registration['birthday'] = $birthday;
+
+            $this->from(route('seller.register'))
+                ->post(route('seller.register.submit'), $registration)
+                ->assertSessionDoesntHaveErrors('birthday')
+                ->assertSessionHasInput('birthday', $birthday);
+        }
+    }
+
+    public function test_birthday_picker_maximum_date_updates_with_the_current_date(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-10 12:00:00'));
+
+        $this->get(route('seller.register'))
+            ->assertOk()
+            ->assertSee('max="2008-10-10"', false)
+            ->assertDontSee('name="age"', false);
+
+        $this->travelTo(Carbon::parse('2026-10-11 12:00:00'));
+
+        $this->get(route('seller.register'))
+            ->assertOk()
+            ->assertSee('max="2008-10-11"', false);
+
+        $this->travelTo(Carbon::parse('2026-12-10 12:00:00'));
+
+        $this->get(route('seller.register'))
+            ->assertOk()
+            ->assertSee('max="2008-12-10"', false);
+    }
+
+    public function test_birthday_cutoff_uses_philippine_date_when_utc_is_still_the_previous_day(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-09 19:30:00', 'UTC'));
+
+        $this->get(route('seller.register'))
+            ->assertOk()
+            ->assertSee('max="2008-10-10"', false);
+
+        $registration = $this->validRegistrationData('Individual');
+        $registration['birthday'] = '2008-10-11';
+
+        $this->from(route('seller.register'))
+            ->post(route('seller.register.submit'), $registration)
+            ->assertSessionHasErrors('birthday');
+
+        Storage::fake('seller_documents');
+        $this->fakeAddressApi();
+        $registration['birthday'] = '2008-10-10';
+
+        $this->post(route('seller.register.submit'), [
+            ...$registration,
+            'government_id' => $this->fakePdf('identity.pdf'),
+        ])
+            ->assertRedirect(route('seller.dashboard'))
+            ->assertSessionDoesntHaveErrors('birthday');
     }
 
     public function test_document_upload_accepts_supported_mimes_and_files_up_to_five_mb(): void

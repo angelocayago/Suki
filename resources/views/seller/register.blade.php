@@ -470,9 +470,16 @@
             <input
                 type="date"
                 name="birthday"
+                value="{{ old('birthday') }}"
+                max="{{ $latestAllowedBirthday }}"
                 required
+                aria-invalid="{{ $errors->has('birthday') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            @error('birthday')
+                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+            @enderror
 
         </div>
 
@@ -488,7 +495,6 @@
             <input
     type="text"
     id="age"
-    name="age"
     readonly
     placeholder="Auto-generated"
     class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm"
@@ -1107,31 +1113,34 @@ const ageInput = document.getElementById('age');
 
 if (birthdayInput && ageInput) {
 
-    birthdayInput.addEventListener('change', function () {
+    const updateAge = () => {
+        if (!birthdayInput.value) {
+            ageInput.value = '';
+            return;
+        }
 
-        const birthDate = new Date(this.value);
+        const [year, month, day] = birthdayInput.value
+            .split('-')
+            .map(Number);
+        const birthDate = new Date(year, month - 1, day);
         const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const birthdayHasNotOccurred =
+            today.getMonth() < birthDate.getMonth()
+            || (
+                today.getMonth() === birthDate.getMonth()
+                && today.getDate() < birthDate.getDate()
+            );
 
-
-        let age =
-            today.getFullYear() - birthDate.getFullYear();
-
-
-        const month =
-            today.getMonth() - birthDate.getMonth();
-
-
-        if (
-            month < 0 ||
-            (month === 0 && today.getDate() < birthDate.getDate())
-        ) {
+        if (birthdayHasNotOccurred) {
             age--;
         }
 
+        ageInput.value = Number.isNaN(age) ? '' : age;
+    };
 
-        ageInput.value = age;
-
-    });
+    birthdayInput.addEventListener('change', updateAge);
+    updateAge();
 
 }
 
