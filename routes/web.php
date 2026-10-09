@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\Seller;
 use App\Models\Address;
+use App\Models\SellerDocument;
 use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
@@ -2856,6 +2857,14 @@ Route::get('/seller/register', function () {
 
     return view('seller.register', [
         'sellerTypes' => config('seller_types', []),
+        'sellerDocumentRequirements' => config(
+            'seller_document_requirements.requirements',
+            []
+        ),
+        'sellerDocumentLabels' => config(
+            'seller_document_requirements.labels',
+            []
+        ),
     ]);
 
 })->name('seller.register');
@@ -2871,6 +2880,52 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     $normalizedTin = is_string($tin)
         ? str_replace('-', '', $tin)
         : '';
+
+    $sellerDocumentRequirements = config(
+        'seller_document_requirements.requirements',
+        []
+    );
+    $sellerDocumentLabels = config(
+        'seller_document_requirements.labels',
+        []
+    );
+    $requiredDocuments = $sellerDocumentRequirements[
+        $request->input('seller_type')
+    ] ?? [];
+    $documentRules = [];
+
+    foreach (array_keys($sellerDocumentLabels) as $documentType) {
+        if ($documentType === 'business_permit') {
+            $documentRules[$documentType] = [
+                'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:5120',
+            ];
+        } elseif (in_array($documentType, $requiredDocuments, true)) {
+            $documentRules[$documentType] = [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:5120',
+            ];
+        } else {
+            $documentRules[$documentType] = ['prohibited'];
+        }
+    }
+
+    $documentValidationMessages = [];
+    $documentValidationAttributes = [];
+
+    foreach ($sellerDocumentLabels as $documentType => $documentLabel) {
+        $documentValidationMessages[$documentType . '.required'] =
+            $documentLabel . ' is required for the selected seller type.';
+        $documentValidationMessages[$documentType . '.mimes'] =
+            $documentLabel . ' must be a JPG, PNG, or PDF file.';
+        $documentValidationMessages[$documentType . '.max'] =
+            $documentLabel . ' may not exceed 5 MB.';
+        $documentValidationAttributes[$documentType] = $documentLabel;
+    }
 
     $validated = $request->validate([
 
@@ -2925,12 +2980,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
         },
     ],
 
-
-    'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-    'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-
+    ...$documentRules,
     'password' => 'required|string|min:8|confirmed',
 
     'terms' => 'required',
@@ -2943,7 +2993,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     'barangay.regex' => 'Select a valid barangay.',
     'postal_code.required' => 'Postal code is required.',
     'postal_code.regex' => 'Postal code must contain exactly four numerical digits.',
-]);
+    ] + $documentValidationMessages, $documentValidationAttributes);
 
     $regions = $fetchPsgcData('regions');
 
@@ -3055,67 +3105,109 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     ];
 
     $sellerSlug = Str::slug($request->business_name);
+    $storedDocumentPaths = [];
 
-$validIdPath = $request
-    ->file('valid_id')
-    ->store('seller-documents', 'public');
+    try {
+        $documentPaths = DB::transaction(function () use (
+            $request,
+            $normalizedTin,
+            $sellerSlug,
+            $resolvedAddress,
+            $requiredDocuments,
+            &$storedDocumentPaths
+        ) {
+            $user = User::create([
+                'role' => 'seller',
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'name' => trim($request->first_name . ' ' . $request->last_name),
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'status' => 'active',
+                'password' => $request->password,
+            ]);
 
+            $address = Address::create([
+                'user_id' => $user->id,
+                'label' => 'Pickup',
+                'recipient' => trim($request->first_name . ' ' . $request->last_name),
+                'phone' => $request->phone,
+                'line1' => $request->address,
+                'region' => $resolvedAddress['region'],
+                'province' => $resolvedAddress['province'] ?? '',
+                'city' => $resolvedAddress['city'],
+                'barangay' => $resolvedAddress['barangay'],
+                'postal_code' => $request->postal_code,
+                'is_default' => true,
+            ]);
 
-$permitPath = $request
-    ->file('business_permit')
-    ->store('seller-documents', 'public');
+            $baseSlug = $sellerSlug !== ''
+                ? $sellerSlug
+                : 'seller-' . $user->id;
+            $uniqueSlug = $baseSlug;
+            $suffix = 1;
 
-    DB::transaction(function () use (
-        $request,
-        $normalizedTin,
-        $sellerSlug,
-        $resolvedAddress
-    ) {
-        $user = User::create([
-            'role' => 'seller',
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'name' => trim($request->first_name . ' ' . $request->last_name),
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'status' => 'active',
-            'password' => $request->password,
-        ]);
+            while (Seller::query()->where('slug', $uniqueSlug)->exists()) {
+                $uniqueSlug = $baseSlug . '-' . $suffix++;
+            }
 
-        $address = Address::create([
-            'user_id' => $user->id,
-            'label' => 'Pickup',
-            'recipient' => trim($request->first_name . ' ' . $request->last_name),
-            'phone' => $request->phone,
-            'line1' => $request->address,
-            'region' => $resolvedAddress['region'],
-            'province' => $resolvedAddress['province'] ?? '',
-            'city' => $resolvedAddress['city'],
-            'barangay' => $resolvedAddress['barangay'],
-            'postal_code' => $request->postal_code,
-            'is_default' => true,
-        ]);
+            $seller = Seller::create([
+                'user_id' => $user->id,
+                'name' => $request->business_name,
+                'slug' => $uniqueSlug,
+                'business_category' => $request->business_category,
+                'seller_type' => $request->seller_type,
+                'tin' => $normalizedTin,
+                'pickup_address_id' => $address->id,
+            ]);
 
-        $baseSlug = $sellerSlug !== ''
-            ? $sellerSlug
-            : 'seller-' . $user->id;
-        $uniqueSlug = $baseSlug;
-        $suffix = 1;
+            $documentTypes = array_unique([
+                ...$requiredDocuments,
+                ...($request->hasFile('business_permit')
+                    ? ['business_permit']
+                    : []),
+            ]);
+            $documentPaths = [];
 
-        while (Seller::query()->where('slug', $uniqueSlug)->exists()) {
-            $uniqueSlug = $baseSlug . '-' . $suffix++;
+            foreach ($documentTypes as $documentType) {
+                $file = $request->file($documentType);
+                $directory = 'registration/' . $seller->id;
+                $filename = Str::uuid()->toString() . '.' . $file->extension();
+                $path = $directory . '/' . $filename;
+                $storedDocumentPaths[] = $path;
+
+                if ($file->storeAs($directory, $filename, 'seller_documents') !== $path) {
+                    throw new \RuntimeException(
+                        'A seller document could not be stored securely.'
+                    );
+                }
+
+                $documentPaths[$documentType] = $path;
+
+                SellerDocument::create([
+                    'seller_id' => $seller->id,
+                    'document_type' => $documentType,
+                    'path' => $path,
+                ]);
+            }
+
+            return $documentPaths;
+        });
+    } catch (\Throwable $exception) {
+        if ($storedDocumentPaths !== []) {
+            try {
+                if (! Storage::disk('seller_documents')->delete($storedDocumentPaths)) {
+                    report(new \RuntimeException(
+                        'Seller document cleanup failed after registration rollback.'
+                    ));
+                }
+            } catch (\Throwable $cleanupException) {
+                report($cleanupException);
+            }
         }
 
-        Seller::create([
-            'user_id' => $user->id,
-            'name' => $request->business_name,
-            'slug' => $uniqueSlug,
-            'business_category' => $request->business_category,
-            'seller_type' => $request->seller_type,
-            'tin' => $normalizedTin,
-            'pickup_address_id' => $address->id,
-        ]);
-    });
+        throw $exception;
+    }
 
 
 
@@ -3142,8 +3234,9 @@ $permitPath = $request
     'address' => $request->address,
     'postal_code' => $request->postal_code,
 
-    'valid_id' => $validIdPath,
-    'business_permit' => $permitPath,
+    'valid_id' => $documentPaths['government_id'],
+    'business_permit' => $documentPaths['business_permit'] ?? null,
+    'documents' => $documentPaths,
 
     'password_hash' => Hash::make($request->password),
 
