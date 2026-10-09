@@ -532,7 +532,25 @@
     </h3>
 
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        {{-- REGION --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Region *
+            </label>
+
+            <select
+                id="region"
+                name="region"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+                <option value="">Loading regions...</option>
+            </select>
+
+        </div>
 
 
         {{-- PROVINCE --}}
@@ -546,13 +564,12 @@
                 id="province"
                 name="province"
                 required
+                disabled
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
-
                 <option value="">
-                    Loading provinces...
+                    Select region first
                 </option>
-
             </select>
 
         </div>
@@ -563,7 +580,7 @@
         <div>
 
             <label class="block text-sm font-medium text-gray-700 mb-2">
-                Municipality/City *
+                City / Municipality *
             </label>
 
             <select
@@ -574,9 +591,7 @@
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
             >
 
-                <option value="">
-                    Select province first
-                </option>
+                <option value="">Select province first</option>
 
             </select>
 
@@ -599,33 +614,52 @@
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
             >
 
-                <option value="">
-                    Select municipality/city first
-                </option>
+                <option value="">Select city/municipality first</option>
 
             </select>
 
         </div>
 
 
-    </div>
+        {{-- STREET ADDRESS --}}
+        <div>
 
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Street Address *
+            </label>
 
+            <input
+                type="text"
+                name="address"
+                value="{{ old('address') }}"
+                required
+                placeholder="Enter complete address"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
 
-    {{-- STREET --}}
-    <div class="mt-4">
+        </div>
 
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-            Street / House No. / Building *
-        </label>
+        {{-- POSTAL CODE --}}
+        <div>
 
-        <input
-            type="text"
-            name="address"
-            required
-            placeholder="Enter complete address"
-            class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-        >
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Postal Code *
+            </label>
+
+            <input
+                type="text"
+                name="postal_code"
+                value="{{ old('postal_code') }}"
+                required
+                inputmode="numeric"
+                pattern="[0-9]{4}"
+                title="Postal code must contain exactly four digits."
+                placeholder="0000"
+                oninput="this.setCustomValidity(/[^0-9]/.test(this.value) ? 'Postal code must contain numbers only.' : '')"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+
+        </div>
 
     </div>
 
@@ -1132,12 +1166,23 @@ function showFileName(input, targetId, previewId, iconId) {
 
 const PSGC_API_BASE = '/api/psgc';
 
+const regionSelect = document.getElementById('region');
 const provinceSelect = document.getElementById('province');
 const municipalitySelect = document.getElementById('municipality');
 const barangaySelect = document.getElementById('barangay');
 
-function setSelectOptions(select, placeholder, items, valueKey = 'name') {
+const previousLocation = {
+    region: @json(old('region')),
+    province: @json(old('province')),
+    municipality: @json(old('municipality')),
+    barangay: @json(old('barangay')),
+};
 
+let regionLoadId = 0;
+let municipalityLoadId = 0;
+let barangayLoadId = 0;
+
+function setSelectOptions(select, placeholder, items) {
     select.innerHTML = '';
 
     const placeholderOption = document.createElement('option');
@@ -1146,150 +1191,240 @@ function setSelectOptions(select, placeholder, items, valueKey = 'name') {
     select.appendChild(placeholderOption);
 
     items.forEach((item) => {
-
         const option = document.createElement('option');
-        option.value = item[valueKey];
+        option.value = item.code;
         option.textContent = item.name;
-        option.dataset.code = item.code;
-
         select.appendChild(option);
-
     });
-
 }
 
-async function loadProvinces() {
+async function fetchPsgcOptions(path) {
+    const response = await fetch(`${PSGC_API_BASE}/${path}`);
 
-    if (!provinceSelect) {
+    if (!response.ok) {
+        throw new Error(`Unable to load address data (${response.status}).`);
+    }
+
+    const items = await response.json();
+
+    if (!Array.isArray(items)) {
+        throw new Error('The address service returned invalid data.');
+    }
+
+    return items;
+}
+
+function resetDependentAddressSelects() {
+    municipalityLoadId++;
+    barangayLoadId++;
+
+    provinceSelect.innerHTML = '<option value="">Select region first</option>';
+    provinceSelect.disabled = true;
+    provinceSelect.required = false;
+
+    municipalitySelect.innerHTML = '<option value="">Select province first</option>';
+    municipalitySelect.disabled = true;
+
+    barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
+    barangaySelect.disabled = true;
+}
+
+async function loadRegions(selectedRegion = '') {
+    const loadId = ++regionLoadId;
+
+    resetDependentAddressSelects();
+    regionSelect.disabled = true;
+    regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+
+    try {
+        const regions = await fetchPsgcOptions('regions');
+
+        if (loadId !== regionLoadId) {
+            return;
+        }
+
+        setSelectOptions(regionSelect, 'Select region', regions);
+        regionSelect.disabled = false;
+
+        if (selectedRegion && regions.some((region) => region.code === selectedRegion)) {
+            regionSelect.value = selectedRegion;
+            await loadProvinces(
+                selectedRegion,
+                previousLocation.province,
+                previousLocation.municipality,
+                previousLocation.barangay
+            );
+        }
+    } catch (error) {
+        if (loadId === regionLoadId) {
+            regionSelect.innerHTML = '<option value="">Unable to load regions</option>';
+            regionSelect.disabled = true;
+            console.error(error);
+        }
+    }
+}
+
+async function loadProvinces(
+    regionCode,
+    selectedProvince = '',
+    selectedMunicipality = '',
+    selectedBarangay = ''
+) {
+    const loadId = ++regionLoadId;
+    resetDependentAddressSelects();
+
+    if (!regionCode) {
+        provinceSelect.innerHTML = '<option value="">Select region first</option>';
         return;
     }
 
+    provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+
     try {
+        const provinces = await fetchPsgcOptions(
+            `regions/${encodeURIComponent(regionCode)}/provinces`
+        );
 
-        const response = await fetch(`${PSGC_API_BASE}/provinces`);
-
-        if (!response.ok) {
-            throw new Error('Unable to load provinces.');
+        if (loadId !== regionLoadId) {
+            return;
         }
 
-        const provinces = await response.json();
+        if (provinces.length === 0) {
+            provinceSelect.innerHTML = '<option value="">No provinces in this region</option>';
+            provinceSelect.disabled = true;
+            provinceSelect.required = false;
+            await loadMunicipalities(
+                '',
+                regionCode,
+                selectedMunicipality,
+                selectedBarangay
+            );
+            return;
+        }
 
         setSelectOptions(provinceSelect, 'Select province', provinces);
+        provinceSelect.required = true;
+        provinceSelect.disabled = false;
 
+        if (selectedProvince && provinces.some((province) => province.code === selectedProvince)) {
+            provinceSelect.value = selectedProvince;
+            await loadMunicipalities(
+                selectedProvince,
+                '',
+                selectedMunicipality,
+                selectedBarangay
+            );
+        }
     } catch (error) {
-
-        provinceSelect.innerHTML = '<option value="">Unable to load provinces</option>';
-        console.error(error);
-
+        if (loadId === regionLoadId) {
+            provinceSelect.innerHTML = '<option value="">Unable to load provinces</option>';
+            provinceSelect.disabled = true;
+            console.error(error);
+        }
     }
-
 }
 
-async function loadMunicipalities(provinceCode) {
+async function loadMunicipalities(
+    parentCode,
+    regionCode = '',
+    selectedMunicipality = '',
+    selectedBarangay = ''
+) {
+    const loadId = ++municipalityLoadId;
 
-    municipalitySelect.innerHTML = '<option value="">Loading municipalities/cities...</option>';
+    municipalitySelect.innerHTML = '<option value="">Loading cities/municipalities...</option>';
     municipalitySelect.disabled = true;
-
-    barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
+    barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
     barangaySelect.disabled = true;
+    barangayLoadId++;
+
+    const path = parentCode
+        ? `provinces/${encodeURIComponent(parentCode)}/cities-municipalities`
+        : `regions/${encodeURIComponent(regionCode)}/cities-municipalities`;
 
     try {
+        const municipalities = await fetchPsgcOptions(path);
 
-        const response = await fetch(
-            `${PSGC_API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
-        );
-
-        if (!response.ok) {
-            throw new Error('Unable to load municipalities/cities.');
+        if (loadId !== municipalityLoadId) {
+            return;
         }
 
-        const municipalities = await response.json();
-
-        setSelectOptions(
-            municipalitySelect,
-            'Select municipality/city',
-            municipalities
-        );
-
+        setSelectOptions(municipalitySelect, 'Select city/municipality', municipalities);
         municipalitySelect.disabled = false;
 
+        if (
+            selectedMunicipality &&
+            municipalities.some((municipality) => municipality.code === selectedMunicipality)
+        ) {
+            municipalitySelect.value = selectedMunicipality;
+            await loadBarangays(selectedMunicipality, selectedBarangay);
+        }
     } catch (error) {
-
-        municipalitySelect.innerHTML = '<option value="">Unable to load municipalities/cities</option>';
-        console.error(error);
-
+        if (loadId === municipalityLoadId) {
+            municipalitySelect.innerHTML = '<option value="">Unable to load cities/municipalities</option>';
+            console.error(error);
+        }
     }
-
 }
 
-async function loadBarangays(municipalityCode) {
+async function loadBarangays(municipalityCode, selectedBarangay = '') {
+    const loadId = ++barangayLoadId;
 
     barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
     barangaySelect.disabled = true;
 
     try {
-
-        const response = await fetch(
-            `${PSGC_API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
+        const barangays = await fetchPsgcOptions(
+            `cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
         );
 
-        if (!response.ok) {
-            throw new Error('Unable to load barangays.');
-        }
-
-        const barangays = await response.json();
-
-        setSelectOptions(
-            barangaySelect,
-            'Select barangay',
-            barangays
-        );
-
-        barangaySelect.disabled = false;
-
-    } catch (error) {
-
-        barangaySelect.innerHTML = '<option value="">Unable to load barangays</option>';
-        console.error(error);
-
-    }
-
-}
-
-if (provinceSelect && municipalitySelect && barangaySelect) {
-
-    provinceSelect.addEventListener('change', function () {
-
-        const provinceCode = this.options[this.selectedIndex]?.dataset.code;
-
-        if (!provinceCode) {
-            municipalitySelect.innerHTML = '<option value="">Select province first</option>';
-            municipalitySelect.disabled = true;
-            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
-            barangaySelect.disabled = true;
+        if (loadId !== barangayLoadId) {
             return;
         }
 
-        loadMunicipalities(provinceCode);
+        setSelectOptions(barangaySelect, 'Select barangay', barangays);
+        barangaySelect.disabled = false;
 
+        if (selectedBarangay && barangays.some((barangay) => barangay.code === selectedBarangay)) {
+            barangaySelect.value = selectedBarangay;
+        }
+    } catch (error) {
+        if (loadId === barangayLoadId) {
+            barangaySelect.innerHTML = '<option value="">Unable to load barangays</option>';
+            console.error(error);
+        }
+    }
+}
+
+if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
+    regionSelect.addEventListener('change', function () {
+        loadProvinces(this.value);
+    });
+
+    provinceSelect.addEventListener('change', function () {
+        if (this.value) {
+            loadMunicipalities(this.value);
+        } else {
+            municipalityLoadId++;
+            barangayLoadId++;
+            municipalitySelect.innerHTML = '<option value="">Select province first</option>';
+            municipalitySelect.disabled = true;
+            barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
+            barangaySelect.disabled = true;
+        }
     });
 
     municipalitySelect.addEventListener('change', function () {
-
-        const municipalityCode = this.options[this.selectedIndex]?.dataset.code;
-
-        if (!municipalityCode) {
-            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
+        if (this.value) {
+            loadBarangays(this.value);
+        } else {
+            barangayLoadId++;
+            barangaySelect.innerHTML = '<option value="">Select city/municipality first</option>';
             barangaySelect.disabled = true;
-            return;
         }
-
-        loadBarangays(municipalityCode);
-
     });
 
-    loadProvinces();
-
+    loadRegions(previousLocation.region || '');
 }
 
 function togglePassword(inputId, iconId) {
