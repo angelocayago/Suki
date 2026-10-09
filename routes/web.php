@@ -413,7 +413,35 @@ $fetchPsgcData = function (string $path): ?array {
 
     $data = $response->json('data');
 
-    return is_array($data) ? $data : null;
+    if (! is_array($data)) {
+        return null;
+    }
+
+    foreach ($data as &$item) {
+        if (! is_array($item) || ! is_string($item['name'] ?? null)) {
+            continue;
+        }
+
+        if (
+            preg_match('//u', $item['name']) !== 1 ||
+            preg_match('/[^\x{0000}-\x{00FF}]/u', $item['name']) === 1
+        ) {
+            continue;
+        }
+
+        // Some PSGC names are UTF-8 bytes decoded as Latin-1 upstream.
+        $reinterpretedName = iconv('UTF-8', 'ISO-8859-1', $item['name']);
+
+        if (
+            $reinterpretedName !== false &&
+            preg_match('//u', $reinterpretedName) === 1
+        ) {
+            $item['name'] = $reinterpretedName;
+        }
+    }
+    unset($item);
+
+    return $data;
 };
 
 Route::get('/api/psgc/regions', function () use ($fetchPsgcData) {
