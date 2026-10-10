@@ -2947,13 +2947,34 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
 
     $validated = $request->validate([
 
-    'first_name' => 'required|string|max:100',
+    'first_name' => [
+        'required',
+        'string',
+        'min:2',
+        'max:50',
+        'regex:/\A\p{L}+(?:[\x20\x27\x2D]\p{L}+)*\z/u',
+    ],
 
-    'last_name' => 'required|string|max:100',
+    'last_name' => [
+        'required',
+        'string',
+        'min:2',
+        'max:50',
+        'regex:/\A\p{L}+(?:[\x20\x27\x2D]\p{L}+)*\z/u',
+    ],
 
-    'middle_initial' => 'nullable|string|max:5',
+    'middle_initial' => [
+        'nullable',
+        'string',
+        'max:2',
+        'regex:/\A\p{L}+\z/u',
+    ],
 
-    'sex' => 'required|string',
+    'sex' => [
+        'required',
+        'string',
+        \Illuminate\Validation\Rule::in(['Male', 'Female']),
+    ],
 
     'birthday' => [
         'bail',
@@ -3007,7 +3028,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     'postal_code' => ['required', 'string', 'regex:/\A[0-9]{4}\z/'],
 
 
-    'business_name' => 'required|string|max:150',
+    'business_name' => 'required|string|min:3|max:30',
 
     'business_category' => [
         'required',
@@ -3037,18 +3058,56 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     ],
 
     ...$documentRules,
-    'password' => 'required|string|min:8|confirmed',
+    'password' => 'required|string|min:8',
+    'password_confirmation' => 'required|string|same:password',
 
     'terms' => 'required',
 
 ], [
+    'first_name.required' => 'First name is required.',
+    'first_name.min' => 'First name must be at least 2 characters.',
+    'first_name.max' => 'First name may not exceed 50 characters.',
+    'first_name.regex' => 'First name must contain letters only, with spaces, hyphens, or apostrophes allowed between words.',
+    'last_name.required' => 'Last name is required.',
+    'last_name.min' => 'Last name must be at least 2 characters.',
+    'last_name.max' => 'Last name may not exceed 50 characters.',
+    'last_name.regex' => 'Last name must contain letters only, with spaces, hyphens, or apostrophes allowed between words.',
+    'middle_initial.regex' => 'Middle initial may contain letters only.',
+    'middle_initial.max' => 'Middle initial may not exceed 2 characters.',
+    'sex.required' => 'Select your sex.',
+    'sex.in' => 'Select a valid sex.',
+    'birthday.required' => 'Birthday is required.',
+    'birthday.date' => 'Enter a valid birthday.',
+    'birthday.before_or_equal' => 'You must be at least 18 years old to register as a seller.',
+    'email.required' => 'Email is required.',
+    'email.email' => 'Enter a valid email address.',
+    'email.unique' => 'This email address has already been taken.',
+    'phone.required' => 'Contact number is required.',
     'region.required' => 'Select a region.',
     'region.regex' => 'Select a valid region.',
+    'province.required' => 'Select a province.',
     'province.regex' => 'Select a valid province.',
+    'municipality.required' => 'Select a city or municipality.',
     'municipality.regex' => 'Select a valid city or municipality.',
+    'barangay.required' => 'Select a barangay.',
     'barangay.regex' => 'Select a valid barangay.',
+    'address.required' => 'Street address is required.',
+    'address.max' => 'Street address may not exceed 255 characters.',
     'postal_code.required' => 'Postal code is required.',
     'postal_code.regex' => 'Postal code must contain exactly four numerical digits.',
+    'business_name.required' => 'Business name is required.',
+    'business_name.min' => 'Business name must be between 3 and 30 characters.',
+    'business_name.max' => 'Business name must be between 3 and 30 characters.',
+    'business_category.required' => 'Select a line of business.',
+    'business_category.in' => 'Select a valid line of business.',
+    'seller_type.required' => 'Select a seller type.',
+    'seller_type.in' => 'Select a valid seller type.',
+    'tin.required' => 'TIN is required.',
+    'password.required' => 'Password is required.',
+    'password.min' => 'Password must be at least 8 characters.',
+    'password_confirmation.required' => 'Confirm password is required.',
+    'password_confirmation.same' => 'Password confirmation must match the password.',
+    'terms.required' => 'You must agree to the terms and policies.',
     ] + $documentValidationMessages, $documentValidationAttributes);
 
     $regions = $fetchPsgcData('regions');
