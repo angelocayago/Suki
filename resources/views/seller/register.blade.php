@@ -9,6 +9,7 @@
     method="POST"
     action="{{ route('seller.register.submit') }}"
     enctype="multipart/form-data"
+    novalidate
 >
 
 @csrf
@@ -260,9 +261,12 @@
                 name="email"
                 value="{{ old('email') }}"
                 required
+                aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                 placeholder="Enter your e-mail address"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="email" class="mt-1 text-xs text-red-600 {{ $errors->has('email') ? '' : 'hidden' }}" role="alert">{{ $errors->first('email') }}</p>
 
         </div>
 
@@ -285,6 +289,8 @@
         id="password"
         name="password"
         required
+        minlength="8"
+        aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
         placeholder="Create a password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
     >
@@ -306,6 +312,8 @@
 
 </div>
 
+                <p data-field-error="password" class="mt-1 text-xs text-red-600 {{ $errors->has('password') ? '' : 'hidden' }}" role="alert">{{ $errors->first('password') }}</p>
+
             </div>
 
 
@@ -324,6 +332,7 @@
         id="password_confirmation"
         name="password_confirmation"
         required
+        aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}"
         placeholder="Confirm your password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
     >
@@ -346,8 +355,9 @@
 
 </div>
 
-            </div>
+                <p data-field-error="password_confirmation" class="mt-1 text-xs text-red-600 {{ $errors->has('password_confirmation') ? '' : 'hidden' }}" role="alert">{{ $errors->first('password_confirmation') }}</p>
 
+            </div>
 
         </div>
 
@@ -383,10 +393,18 @@
             <input
                 type="text"
                 name="first_name"
+                value="{{ old('first_name') }}"
                 required
+                minlength="2"
+                maxlength="50"
+                pattern="[\p{L}]+(?:[\x20\x27\x2D][\p{L}]+)*"
+                title="Use 2 to 50 letters, with spaces, hyphens, or apostrophes between words."
+                aria-invalid="{{ $errors->has('first_name') ? 'true' : 'false' }}"
                 placeholder="First name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="first_name" class="mt-1 text-xs text-red-600 {{ $errors->has('first_name') ? '' : 'hidden' }}" role="alert">{{ $errors->first('first_name') }}</p>
 
         </div>
 
@@ -402,10 +420,18 @@
             <input
                 type="text"
                 name="last_name"
+                value="{{ old('last_name') }}"
                 required
+                minlength="2"
+                maxlength="50"
+                pattern="[\p{L}]+(?:[\x20\x27\x2D][\p{L}]+)*"
+                title="Use 2 to 50 letters, with spaces, hyphens, or apostrophes between words."
+                aria-invalid="{{ $errors->has('last_name') ? 'true' : 'false' }}"
                 placeholder="Last name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="last_name" class="mt-1 text-xs text-red-600 {{ $errors->has('last_name') ? '' : 'hidden' }}" role="alert">{{ $errors->first('last_name') }}</p>
 
         </div>
 
@@ -421,9 +447,15 @@
             <input
                 type="text"
                 name="middle_initial"
+                value="{{ old('middle_initial') }}"
+                maxlength="2"
+                pattern="[\p{L}]+"
+                aria-invalid="{{ $errors->has('middle_initial') ? 'true' : 'false' }}"
                 placeholder="M"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="middle_initial" class="mt-1 text-xs text-red-600 {{ $errors->has('middle_initial') ? '' : 'hidden' }}" role="alert">{{ $errors->first('middle_initial') }}</p>
 
         </div>
 
@@ -439,6 +471,7 @@
             <select
                 name="sex"
                 required
+                aria-invalid="{{ $errors->has('sex') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
@@ -446,15 +479,17 @@
                     Select sex
                 </option>
 
-                <option value="Male">
+                <option value="Male" {{ old('sex') === 'Male' ? 'selected' : '' }}>
                     Male
                 </option>
 
-                <option value="Female">
+                <option value="Female" {{ old('sex') === 'Female' ? 'selected' : '' }}>
                     Female
                 </option>
 
             </select>
+
+            <p data-field-error="sex" class="mt-1 text-xs text-red-600 {{ $errors->has('sex') ? '' : 'hidden' }}" role="alert">{{ $errors->first('sex') }}</p>
 
         </div>
 
@@ -477,9 +512,7 @@
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
-            @error('birthday')
-                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
-            @enderror
+            <p data-field-error="birthday" class="mt-1 text-xs text-red-600 {{ $errors->has('birthday') ? '' : 'hidden' }}" role="alert">{{ $errors->first('birthday') }}</p>
 
         </div>
 
@@ -496,9 +529,12 @@
     type="text"
     id="age"
     readonly
+    aria-invalid="{{ $errors->first('birthday') === 'You must be at least 18 years old to register as a seller.' ? 'true' : 'false' }}"
     placeholder="Auto-generated"
     class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm"
 >
+
+            <p data-field-error="age" class="mt-1 text-xs text-red-600 {{ $errors->first('birthday') === 'You must be at least 18 years old to register as a seller.' ? '' : 'hidden' }}" role="alert">{{ $errors->first('birthday') === 'You must be at least 18 years old to register as a seller.' ? $errors->first('birthday') : '' }}</p>
 
         </div>
 
@@ -530,9 +566,7 @@
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
         >
 
-        @error('phone')
-            <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
-        @enderror
+        <p data-field-error="phone" class="mt-1 text-xs text-red-600 {{ $errors->has('phone') ? '' : 'hidden' }}" role="alert">{{ $errors->first('phone') }}</p>
 
     </div>
 
@@ -589,7 +623,7 @@
                     >
                     <div id="region-listbox" role="listbox" aria-label="Regions" class="overflow-y-auto" style="max-height: 224px; overscroll-behavior: contain;"></div>
                 </div>
-                <p id="region-validation" class="mt-1 hidden text-xs text-red-600" aria-live="polite"></p>
+                <p id="region-validation" data-field-error="region" class="mt-1 text-xs text-red-600 {{ $errors->has('region') ? '' : 'hidden' }}" aria-live="polite">{{ $errors->first('region') }}</p>
             </div>
 
         </div>
@@ -598,7 +632,7 @@
         {{-- PROVINCE --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="province" class="block text-sm font-medium text-gray-700 mb-2">
                 Province *
             </label>
 
@@ -607,12 +641,15 @@
                 name="province"
                 required
                 disabled
+                aria-invalid="{{ $errors->has('province') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
                 <option value="">
                     Select region first
                 </option>
             </select>
+
+            <p data-field-error="province" class="mt-1 text-xs text-red-600 {{ $errors->has('province') ? '' : 'hidden' }}" role="alert">{{ $errors->first('province') }}</p>
 
         </div>
 
@@ -656,7 +693,7 @@
                     >
                     <div id="municipality-listbox" role="listbox" aria-label="Cities and municipalities" class="overflow-y-auto" style="max-height: 224px; overscroll-behavior: contain;"></div>
                 </div>
-                <p id="municipality-validation" class="mt-1 hidden text-xs text-red-600" aria-live="polite"></p>
+                <p id="municipality-validation" data-field-error="municipality" class="mt-1 text-xs text-red-600 {{ $errors->has('municipality') ? '' : 'hidden' }}" aria-live="polite">{{ $errors->first('municipality') }}</p>
             </div>
 
         </div>
@@ -666,7 +703,7 @@
         {{-- BARANGAY --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="barangay" class="block text-sm font-medium text-gray-700 mb-2">
                 Barangay *
             </label>
 
@@ -675,12 +712,15 @@
                 name="barangay"
                 required
                 disabled
+                aria-invalid="{{ $errors->has('barangay') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
             >
 
                 <option value="">Select city/municipality first</option>
 
             </select>
+
+            <p data-field-error="barangay" class="mt-1 text-xs text-red-600 {{ $errors->has('barangay') ? '' : 'hidden' }}" role="alert">{{ $errors->first('barangay') }}</p>
 
         </div>
 
@@ -697,9 +737,12 @@
                 name="address"
                 value="{{ old('address') }}"
                 required
+                aria-invalid="{{ $errors->has('address') ? 'true' : 'false' }}"
                 placeholder="Enter complete address"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="address" class="mt-1 text-xs text-red-600 {{ $errors->has('address') ? '' : 'hidden' }}" role="alert">{{ $errors->first('address') }}</p>
 
         </div>
 
@@ -720,8 +763,11 @@
                 title="Postal code must contain exactly four digits."
                 placeholder="0000"
                 oninput="this.setCustomValidity(/[^0-9]/.test(this.value) ? 'Postal code must contain numbers only.' : '')"
+                aria-invalid="{{ $errors->has('postal_code') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="postal_code" class="mt-1 text-xs text-red-600 {{ $errors->has('postal_code') ? '' : 'hidden' }}" role="alert">{{ $errors->first('postal_code') }}</p>
 
         </div>
 
@@ -759,9 +805,14 @@
                 name="business_name"
                 value="{{ old('business_name') }}"
                 required
+                minlength="3"
+                maxlength="30"
+                aria-invalid="{{ $errors->has('business_name') ? 'true' : 'false' }}"
                 placeholder="Business name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="business_name" class="mt-1 text-xs text-red-600 {{ $errors->has('business_name') ? '' : 'hidden' }}" role="alert">{{ $errors->first('business_name') }}</p>
 
         </div>
 
@@ -777,6 +828,7 @@
             <select
                 name="business_category"
                 required
+                aria-invalid="{{ $errors->has('business_category') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
@@ -797,6 +849,8 @@
 
             </select>
 
+            <p data-field-error="business_category" class="mt-1 text-xs text-red-600 {{ $errors->has('business_category') ? '' : 'hidden' }}" role="alert">{{ $errors->first('business_category') }}</p>
+
         </div>
 
         {{-- SELLER TYPE --}}
@@ -810,6 +864,7 @@
                 id="seller_type"
                 name="seller_type"
                 required
+                aria-invalid="{{ $errors->has('seller_type') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
@@ -827,6 +882,8 @@
                 @endforeach
 
             </select>
+
+            <p data-field-error="seller_type" class="mt-1 text-xs text-red-600 {{ $errors->has('seller_type') ? '' : 'hidden' }}" role="alert">{{ $errors->first('seller_type') }}</p>
 
         </div>
 
@@ -848,8 +905,11 @@
                 title="Enter exactly 12 digits in the format 000-000-000-000."
                 placeholder="000-000-000-000"
                 oninput="formatTinInput(this)"
+                aria-invalid="{{ $errors->has('tin') ? 'true' : 'false' }}"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
+
+            <p data-field-error="tin" class="mt-1 text-xs text-red-600 {{ $errors->has('tin') ? '' : 'hidden' }}" role="alert">{{ $errors->first('tin') }}</p>
 
         </div>
 
@@ -1005,6 +1065,7 @@
         name="terms"
         value="1"
         required
+        aria-invalid="{{ $errors->has('terms') ? 'true' : 'false' }}"
         class="mt-1 h-4 w-4 rounded border-gray-300 text-[#1F6F5B]"
     >
 
@@ -1019,6 +1080,7 @@
 
 </div>
 
+<p data-field-error="terms" class="mt-1 text-xs text-red-600 {{ $errors->has('terms') ? '' : 'hidden' }}" role="alert">{{ $errors->first('terms') }}</p>
 
 
 
@@ -1432,6 +1494,7 @@ function createAddressCombobox(select, inputId, listId, placeholder) {
         valueDisplay.classList.remove('text-gray-500');
         validation.textContent = '';
         validation.classList.add('hidden');
+        trigger.setAttribute('aria-invalid', 'false');
         close();
         select.dispatchEvent(new Event('change', { bubbles: true }));
         trigger.focus();
@@ -1507,8 +1570,6 @@ function createAddressCombobox(select, inputId, listId, placeholder) {
             valueDisplay.textContent = optionPlaceholder;
             valueDisplay.classList.add('text-gray-500');
             search.placeholder = `Search ${optionPlaceholder.toLocaleLowerCase().replace(/^select /, '')}`;
-            validation.textContent = '';
-            validation.classList.add('hidden');
             renderOptions();
         },
         setState(message, disabled) {
@@ -1526,6 +1587,7 @@ function createAddressCombobox(select, inputId, listId, placeholder) {
             valueDisplay.classList.toggle('text-gray-500', !select.value);
             validation.textContent = '';
             validation.classList.add('hidden');
+            trigger.setAttribute('aria-invalid', 'false');
         },
         setDisabled(disabled) {
             trigger.disabled = disabled;
@@ -1534,15 +1596,17 @@ function createAddressCombobox(select, inputId, listId, placeholder) {
                 close();
             }
         },
-        validate() {
+        validate(showRequired = false) {
             const valid = Boolean(select.value);
-            validation.textContent = valid ? '' : `${placeholder} is required.`;
-            validation.classList.toggle('hidden', valid);
+            const message = !valid && showRequired
+                ? placeholder === 'Select region'
+                    ? 'Select a valid region.'
+                    : 'Select a city or municipality.'
+                : '';
+            validation.textContent = message;
+            validation.classList.toggle('hidden', !message);
             trigger.setAttribute('aria-invalid', valid ? 'false' : 'true');
-            if (!valid && !trigger.disabled) {
-                trigger.focus();
-            }
-            return valid;
+            return message;
         },
     };
 }
@@ -1810,15 +1874,6 @@ if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
         }
     });
 
-    regionSelect.closest('form').addEventListener('submit', (event) => {
-        const regionValid = regionCombobox.validate();
-        const municipalityValid = municipalityCombobox.validate();
-
-        if (!regionValid || !municipalityValid) {
-            event.preventDefault();
-        }
-    });
-
     loadRegions(previousLocation.region || '');
 }
 
@@ -1862,6 +1917,301 @@ function formatTinInput(input) {
             : ''
     );
 
+}
+
+const registrationForm = document.querySelector('form');
+
+if (registrationForm) {
+    registrationForm.noValidate = true;
+    const namePattern = /^[\p{L}]+(?:[ '\-][\p{L}]+)*$/u;
+    const middleInitialPattern = /^\p{L}+$/u;
+    const phonePattern = /^(?:09[0-9]{9}|\+639[0-9]{9})$/;
+    const tinPattern = /^(?:[0-9]{12}|[0-9]{3}(?:-[0-9]{3}){3})$/;
+    let submitted = false;
+
+    function registrationControl(fieldName) {
+        return fieldName === 'age'
+            ? ageInput
+            : registrationForm.elements.namedItem(fieldName);
+    }
+
+    function setFieldError(fieldName, message) {
+        const error = registrationForm.querySelector(
+            `[data-field-error="${fieldName}"]`
+        );
+        const control = registrationControl(fieldName);
+        const ariaControl = fieldName === 'region'
+            ? document.getElementById('region-trigger')
+            : fieldName === 'municipality'
+                ? document.getElementById('municipality-trigger')
+                : control;
+
+        if (error) {
+            error.textContent = message;
+            error.classList.toggle('hidden', !message);
+        }
+
+        if (ariaControl) {
+            ariaControl.setAttribute('aria-invalid', message ? 'true' : 'false');
+        }
+    }
+
+    function fieldMessage(fieldName, value, showRequired) {
+        switch (fieldName) {
+            case 'email': {
+                const email = registrationControl(fieldName);
+                if (!value && showRequired) return 'Email is required.';
+                if (value && email.validity.typeMismatch) return 'Enter a valid email address.';
+                return '';
+            }
+            case 'password':
+                if (!value && showRequired) return 'Password is required.';
+                if (value && value.length < 8) return 'Password must be at least 8 characters.';
+                return '';
+            case 'password_confirmation':
+                if (!value && showRequired) return 'Confirm password is required.';
+                if (value && value !== registrationControl('password').value) {
+                    return 'Password confirmation must match the password.';
+                }
+                return '';
+            case 'first_name':
+            case 'last_name':
+                {
+                    const name = value.trim();
+                    const nameLength = Array.from(name).length;
+                    const label = fieldName === 'first_name' ? 'First' : 'Last';
+
+                    if (!name && showRequired) {
+                        return `${label} name is required.`;
+                    }
+                    if (!name) return '';
+                    if (nameLength < 2) {
+                        return `${label} name must be at least 2 characters.`;
+                    }
+                    if (nameLength > 50) {
+                        return `${label} name may not exceed 50 characters.`;
+                    }
+                    if (!namePattern.test(name)) {
+                        return `${label} name must contain letters only, with spaces, hyphens, or apostrophes allowed between words.`;
+                    }
+                    return '';
+                }
+            case 'middle_initial':
+                if (value && !middleInitialPattern.test(value)) {
+                    return 'Middle initial may contain letters only.';
+                }
+                return Array.from(value).length > 2
+                    ? 'Middle initial may not exceed 2 characters.'
+                    : '';
+            case 'sex':
+                if (!value && showRequired) return 'Select your sex.';
+                return value && !['Male', 'Female'].includes(value)
+                    ? 'Select a valid sex.'
+                    : '';
+            case 'birthday': {
+                const birthday = registrationControl(fieldName);
+                if (!value && showRequired) return 'Birthday is required.';
+                if (value && birthday.validity.badInput) return 'Enter a valid birthday.';
+                if (value && birthday.max && value > birthday.max) {
+                    return 'You must be at least 18 years old to register as a seller.';
+                }
+                return '';
+            }
+            case 'age':
+                if (!registrationControl('birthday').value && showRequired) {
+                    return 'Select your birthday to calculate your age.';
+                }
+                if (value && Number(value) < 18) {
+                    return 'You must be at least 18 years old to register as a seller.';
+                }
+                return '';
+            case 'phone':
+                if (!value && showRequired) return 'Contact number is required.';
+                return value && !phonePattern.test(value)
+                    ? 'Enter a valid Philippine mobile number in local or +63 format.'
+                    : '';
+            case 'region':
+                return regionCombobox.validate(showRequired);
+            case 'province':
+                if (registrationControl(fieldName).disabled) return '';
+                if (!value && showRequired) return 'Select a province.';
+                return value && !/^[0-9]{10}$/.test(value)
+                    ? 'Select a valid province.'
+                    : '';
+            case 'municipality':
+                return municipalityCombobox.validate(showRequired);
+            case 'barangay':
+                if (!value && showRequired) return 'Select a barangay.';
+                return value && !/^[0-9]{10}$/.test(value)
+                    ? 'Select a valid barangay.'
+                    : '';
+            case 'address':
+                if (!value.trim() && showRequired) return 'Street address is required.';
+                if (value.length > 255) return 'Street address may not exceed 255 characters.';
+                return '';
+            case 'postal_code':
+                if (!value && showRequired) return 'Postal code is required.';
+                return value && !/^[0-9]{4}$/.test(value)
+                    ? 'Postal code must contain exactly four numerical digits.'
+                    : '';
+            case 'business_name':
+                {
+                    const businessName = value.trim();
+                    const businessNameLength = Array.from(businessName).length;
+
+                    if (!businessName && showRequired) return 'Business name is required.';
+                    if (!businessName) return '';
+                    if (businessNameLength < 3 || businessNameLength > 30) {
+                        return 'Business name must be between 3 and 30 characters.';
+                    }
+                    return '';
+                }
+            case 'business_category':
+                if (!value && showRequired) return 'Select a line of business.';
+                return '';
+            case 'seller_type':
+                if (!value && showRequired) return 'Select a seller type.';
+                return '';
+            case 'tin':
+                if (!value && showRequired) return 'TIN is required.';
+                return value && !tinPattern.test(value)
+                    ? 'TIN must contain exactly 12 digits, displayed as 000-000-000-000.'
+                    : '';
+            case 'terms':
+                return !registrationControl(fieldName).checked && showRequired
+                    ? 'You must agree to the terms and policies.'
+                    : '';
+            default:
+                return '';
+        }
+    }
+
+    function validateRegistrationField(fieldName, showRequired = submitted) {
+        const control = registrationControl(fieldName);
+        const value = fieldName === 'terms'
+            ? ''
+            : String(control?.value || '');
+        const message = fieldMessage(fieldName, value, showRequired);
+
+        if (fieldName !== 'region' && fieldName !== 'municipality') {
+            setFieldError(fieldName, message);
+        }
+
+        return !message;
+    }
+
+    const registrationFields = [
+        'email',
+        'password',
+        'password_confirmation',
+        'first_name',
+        'last_name',
+        'middle_initial',
+        'sex',
+        'birthday',
+        'age',
+        'phone',
+        'region',
+        'province',
+        'municipality',
+        'barangay',
+        'address',
+        'postal_code',
+        'business_name',
+        'business_category',
+        'seller_type',
+        'tin',
+        'terms',
+    ];
+
+    function filterNameInput(input, lettersOnly = false) {
+        const allowedCharacters = lettersOnly
+            ? /[^\p{L}]/gu
+            : /[^\p{L} '\-]/gu;
+        const originalValue = input.value;
+        const cursor = input.selectionStart;
+        const filteredValue = originalValue.replace(allowedCharacters, '');
+
+        if (filteredValue !== originalValue) {
+            input.value = filteredValue;
+            const filteredCursor = originalValue
+                .slice(0, cursor ?? originalValue.length)
+                .replace(allowedCharacters, '')
+                .length;
+            input.setSelectionRange(filteredCursor, filteredCursor);
+        }
+    }
+
+    ['first_name', 'last_name', 'middle_initial'].forEach((fieldName) => {
+        const input = registrationControl(fieldName);
+        const lettersOnly = fieldName === 'middle_initial';
+        const typedCharacterPattern = lettersOnly
+            ? /^[\p{L}]+$/u
+            : /^[\p{L} '\-]+$/u;
+
+        input.addEventListener('beforeinput', (event) => {
+            if (
+                event.data
+                && event.inputType.startsWith('insert')
+                && Array.from(event.data).length === 1
+                && !typedCharacterPattern.test(event.data)
+            ) {
+                event.preventDefault();
+            }
+        });
+        input.addEventListener('input', () => {
+            filterNameInput(input, lettersOnly);
+            validateRegistrationField(fieldName);
+        });
+    });
+
+    registrationFields.forEach((fieldName) => {
+        const control = registrationControl(fieldName);
+        const eventName = fieldName === 'terms' ? 'change' : 'input';
+        control?.addEventListener(eventName, () => {
+            validateRegistrationField(fieldName);
+
+            if (fieldName === 'password') {
+                validateRegistrationField('password_confirmation');
+            }
+        });
+
+        if (control && ['sex', 'province', 'barangay', 'business_category', 'seller_type'].includes(fieldName)) {
+            control.addEventListener('change', () => {
+                validateRegistrationField(fieldName);
+            });
+        }
+    });
+
+    birthdayInput?.addEventListener('change', () => {
+        updateAge();
+        validateRegistrationField('birthday');
+        validateRegistrationField('age');
+    });
+
+    registrationForm.addEventListener('submit', (event) => {
+        submitted = true;
+        const valid = registrationFields
+            .map((fieldName) => validateRegistrationField(fieldName, true))
+            .every(Boolean);
+
+        if (!valid) {
+            event.preventDefault();
+            const firstInvalidField = registrationFields.find((fieldName) => (
+                registrationForm.querySelector(
+                    `[data-field-error="${fieldName}"]:not(.hidden)`
+                )
+            ));
+            const focusTarget = firstInvalidField === 'region'
+                ? document.getElementById('region-trigger')
+                : firstInvalidField === 'municipality'
+                    ? document.getElementById('municipality-trigger')
+                    : registrationControl(firstInvalidField);
+
+            focusTarget?.focus();
+            focusTarget?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 }
 
 </script>
