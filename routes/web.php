@@ -5,10 +5,22 @@ use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Http\Controllers\SuperAdmin\DashboardController;
+use App\Http\Middleware\SuperAdminMiddleware;
+
+use App\Http\Controllers\SuperAdmin\UserManagementController;
+use App\Http\Controllers\SuperAdmin\BuyerManagementController;
+use App\Http\Controllers\SuperAdmin\SellerManagementController;
+use App\Http\Controllers\SuperAdmin\ApplicationController;
+use App\Http\Controllers\SuperAdmin\OrderManagementController;
+use App\Http\Controllers\SuperAdmin\CommissionController;
+use App\Http\Controllers\SuperAdmin\ReportController;
+use App\Http\Controllers\SuperAdmin\SettingController;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -314,12 +326,66 @@ Route::get('/home', function () {
 // BUYER SHOP
 // =====================================================
 
-Route::get('/shop', function () use ($products) {
+Route::get('/shop', function (Request $request) use ($products) {
+    $selectedCategories = array_values(array_filter(
+        (array) $request->query('category', []),
+        fn ($category) => is_string($category) && $category !== ''
+    ));
+    $search = $request->query('search');
+    $search = is_string($search) ? trim($search) : '';
+    $minPrice = is_numeric($request->query('min_price'))
+        ? (float) $request->query('min_price')
+        : null;
+    $maxPrice = is_numeric($request->query('max_price'))
+        ? (float) $request->query('max_price')
+        : null;
+    $rating = in_array((string) $request->query('rating'), ['3', '4', '5'], true)
+        ? (float) $request->query('rating')
+        : null;
+    $sort = $request->query('sort', 'recommended');
+    $sort = in_array($sort, ['recommended', 'newest', 'best_selling', 'price_asc', 'price_desc'], true)
+        ? $sort
+        : 'recommended';
+
+    $filteredProducts = collect($products)
+        ->map(fn (array $product, string $slug) => array_merge($product, ['slug' => $slug]))
+        ->filter(function (array $product) use ($selectedCategories, $search, $minPrice, $maxPrice, $rating) {
+            $price = (float) str_replace(',', '', $product['price']);
+
+            if ($selectedCategories && !in_array($product['category'], $selectedCategories, true)) {
+                return false;
+            }
+
+            if ($search !== '' && stripos($product['name'], $search) === false) {
+                return false;
+            }
+
+            if (($minPrice !== null && $price < $minPrice) || ($maxPrice !== null && $price > $maxPrice)) {
+                return false;
+            }
+
+            return $rating === null || (float) $product['rating'] >= $rating;
+        });
+
+    if ($sort === 'newest') {
+        $filteredProducts = $filteredProducts->reverse();
+    } elseif ($sort === 'best_selling') {
+        $filteredProducts = $filteredProducts->sortByDesc(function (array $product) {
+            $sales = strtolower((string) $product['sold']);
+            $multiplier = str_contains($sales, 'k') ? 1000 : 1;
+
+            return (float) preg_replace('/[^0-9.]/', '', $sales) * $multiplier;
+        });
+    } elseif ($sort === 'price_asc') {
+        $filteredProducts = $filteredProducts->sortBy(fn (array $product) => (float) str_replace(',', '', $product['price']));
+    } elseif ($sort === 'price_desc') {
+        $filteredProducts = $filteredProducts->sortByDesc(fn (array $product) => (float) str_replace(',', '', $product['price']));
+    }
 
     return view('buyer.shop', [
-        'products' => $products,
+        'products' => $filteredProducts->values()->all(),
+        'selectedCategories' => $selectedCategories,
     ]);
-
 })->name('buyer.shop');
 
 
@@ -347,7 +413,7 @@ Route::get('/product/{slug}', function ($slug) use ($products) {
 
 $requireBuyer = function () {
 
-    if (!auth()->check()) {
+    if (!Auth::check()) {
 
         $intendedUrl = request()->isMethod('GET')
             ? request()->fullUrl()
@@ -367,13 +433,14 @@ $requireBuyer = function () {
             );
     }
 
-    $user = auth()->user();
+    /** @var User $user */
+    $user = Auth::user();
 
     if (
-        $user->role !== 'buyer' ||
+        !$user->hasRole('buyer') ||
         $user->status !== 'active'
     ) {
-        auth()->logout();
+        Auth::logout();
 
         request()->session()->invalidate();
         request()->session()->regenerateToken();
@@ -384,6 +451,27 @@ $requireBuyer = function () {
                 'error',
                 'This account does not have access to the Buyer portal.'
             );
+    }
+
+    return null;
+};
+
+$requireAdmin = function () {
+
+    if (!Auth::check()) {
+        return redirect()
+            ->route('admin.login')
+            ->with('error', 'Please log in as an administrator.');
+    }
+
+    /** @var User $user */
+    $user = Auth::user();
+
+    if (
+        !$user->hasRole('admin') &&
+        !$user->hasRole('superadmin')
+    ) {
+        abort(403);
     }
 
     return null;
@@ -459,8 +547,10 @@ Route::get('/cart', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $cart = auth()
-        ->user()
+    /** @var User $user */
+    $user = Auth::user();
+
+    $cart = $user
         ->cartItems()
         ->get()
         ->mapWithKeys(function ($item) {
@@ -496,7 +586,7 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
         abort(404);
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $product = $products[$slug];
 
@@ -561,7 +651,7 @@ Route::post('/cart/increase/{slug}', function ($slug) use ($products, $requireBu
         abort(404);
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
@@ -592,7 +682,7 @@ Route::post('/cart/decrease/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
@@ -625,7 +715,7 @@ Route::post('/cart/remove/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
@@ -658,7 +748,7 @@ Route::post('/cart/update/{slug}', function ($slug) use ($products, $requireBuye
         abort(404);
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
@@ -700,7 +790,7 @@ Route::post('/cart/clear', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     CartItem::where('user_id', $user->id)
         ->delete();
@@ -724,8 +814,10 @@ Route::get('/wishlist', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $wishlist = auth()
-        ->user()
+    /** @var User $user */
+    $user = Auth::user();
+
+    $wishlist = $user
         ->wishlistItems()
         ->get()
         ->mapWithKeys(function ($item) {
@@ -759,7 +851,7 @@ Route::post('/wishlist/add/{slug}', function ($slug) use ($products, $requireBuy
         abort(404);
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $product = $products[$slug];
 
@@ -800,7 +892,7 @@ Route::post('/wishlist/remove/{slug}', function ($slug) use ($requireBuyer) {
         return $redirect;
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     WishlistItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
@@ -829,7 +921,7 @@ Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $require
         abort(404);
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     $product = $products[$slug];
 
@@ -876,7 +968,7 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $r
         return $redirect;
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
 
     // Hanapin muna ang item sa wishlist ng current buyer.
     $wishlistItem = WishlistItem::where('user_id', $user->id)
@@ -1140,7 +1232,8 @@ Route::get('/checkout', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $user = auth()->user();
+    /** @var User $user */
+    $user = Auth::user();
 
 
     // =====================================================
@@ -1348,8 +1441,8 @@ Route::post(
         }
 
 
-        $user =
-            auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
 
 
         // =====================================================
@@ -1530,6 +1623,8 @@ Route::post(
                         $orderNumber
 
                     ) {
+
+                        /** @var User $user */
 
 
                         // =====================================================
@@ -1816,7 +1911,7 @@ Route::get(
             Order::with('items')
                 ->where(
                     'buyer_id',
-                    auth()->id()
+                    Auth::id()
                 )
                 ->where(
                     'order_number',
@@ -1875,7 +1970,7 @@ Route::get(
             Order::with('items')
                 ->where(
                     'buyer_id',
-                    auth()->id()
+                    Auth::id()
                 )
                 ->latest()
                 ->get();
@@ -1936,7 +2031,7 @@ Route::get(
             Order::with('items')
                 ->where(
                     'buyer_id',
-                    auth()->id()
+                    Auth::id()
                 )
                 ->where(
                     'order_number',
@@ -1996,7 +2091,7 @@ Route::post(
         $order =
             Order::where(
                 'buyer_id',
-                auth()->id()
+                Auth::id()
             )
                 ->where(
                     'order_number',
@@ -2115,7 +2210,11 @@ Route::post(
     function (
         Request $request,
         $orderNumber
-    ) {
+    ) use ($requireAdmin) {
+
+        if ($redirect = $requireAdmin()) {
+            return $redirect;
+        }
 
 
         $order =
@@ -2323,7 +2422,7 @@ Route::post(
             Order::with('items')
                 ->where(
                     'buyer_id',
-                    auth()->id()
+                    Auth::id()
                 )
                 ->where(
                     'order_number',
@@ -2346,7 +2445,8 @@ Route::post(
 
 
         $user =
-            auth()->user();
+            /** @var User $user */
+            $user = Auth::user();
 
 
         foreach (
@@ -2759,7 +2859,11 @@ $requireSeller = function () {
 // SELLER ORDERS
 // =====================================================
 
-Route::get('/seller/orders', function () {
+Route::get('/seller/orders', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     $orders = session('orders', []);
 
@@ -3069,7 +3173,11 @@ Route::get('/seller/products', function () use ($requireSeller) {
 // SELLER ADD PRODUCT
 // =====================================================
 
-Route::get('/seller/products/create', function () {
+Route::get('/seller/products/create', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     return view('seller.products-create');
 
@@ -3442,7 +3550,11 @@ Route::delete('/seller/promotions/{promotion}', function (
 // SELLER REPORTS & ANALYTICS
 // =====================================================
 
-Route::get('/seller/reports', function () {
+Route::get('/seller/reports', function () use ($requireSeller) {
+
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
 
     return view('seller.reports');
 
@@ -3621,119 +3733,6 @@ Route::get('/rider/application-pending', function () {
     return view('rider.application-pending');
 
 })->name('rider.application.pending');
-
-// =====================================================
-// RIDER MANAGEMENT
-// =====================================================
-
-Route::get('/logistics/riders', function () {
-
-    $riders = session('rider_applications', []);
-
-    return view('logistics.riders', [
-        'riders' => $riders,
-    ]);
-
-})->name('logistics.riders');
-
-// =====================================================
-// RIDER REVIEW
-// =====================================================
-
-Route::get('/logistics/riders/{rider}/review', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return redirect()
-            ->route('logistics.riders')
-            ->with('error', 'Rider application not found.');
-    }
-
-    return view('logistics.rider-review', [
-        'rider' => $riders[$riderId],
-        'riderId' => $riderId,
-    ]);
-
-})->name('logistics.riders.review');
-
-// =====================================================
-// APPROVE RIDER
-// =====================================================
-
-Route::post('/logistics/riders/{riderId}/approve', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return back()
-            ->with('error', 'Rider application not found.');
-    }
-
-    // Update status
-    $riders[$riderId]['status'] = 'approved';
-
-    // Save approval date
-    $riders[$riderId]['approved_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    $riders[$riderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-
-    // Save back to session
-    session()->put('rider_applications', $riders);
-
-
-    return redirect()
-        ->route('logistics.riders')
-        ->with(
-            'success',
-            'Rider application approved successfully!'
-        );
-
-})->name('logistics.riders.approve');
-
-
-// =====================================================
-// DISAPPROVE RIDER
-// =====================================================
-
-Route::post('/logistics/riders/{riderId}/disapprove', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return back()
-            ->with('error', 'Rider application not found.');
-    }
-
-    // Update status
-    $riders[$riderId]['status'] = 'disapproved';
-
-    // Save disapproval date
-    $riders[$riderId]['disapproved_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    $riders[$riderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-
-    // Save back to session
-    session()->put('rider_applications', $riders);
-
-
-    return redirect()
-        ->route('logistics.riders')
-        ->with(
-            'success',
-            'Rider application has been disapproved.'
-        );
-
-})->name('logistics.riders.disapprove');
 
 // =====================================================
 // RIDER LOGIN PAGE
@@ -4897,7 +4896,33 @@ Route::post(
 // SUKI LOGISTICS DASHBOARD
 // =====================================================
 
-Route::get('/logistics', function () {
+$requireLogistics = function () {
+
+    if (!Auth::check()) {
+        return redirect()
+            ->route('login')
+            ->with('error', 'Please log in as a logistics operator.');
+    }
+
+    /** @var User $user */
+    $user = Auth::user();
+
+    if (
+        !$user->isLogistics() ||
+        $user->status !== 'active' ||
+        $user->is_suspended
+    ) {
+        abort(403);
+    }
+
+    return null;
+};
+
+Route::get('/logistics', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $application =
         session('rider_application', []);
@@ -4917,7 +4942,11 @@ Route::get('/logistics', function () {
 // LOGISTICS PARCEL SORTING
 // =====================================================
 
-Route::get('/logistics/sorting', function () {
+Route::get('/logistics/sorting', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     return view('logistics.sorting');
 
@@ -4928,7 +4957,11 @@ Route::get('/logistics/sorting', function () {
 // LOGISTICS DELIVERY ASSIGNMENTS
 // =====================================================
 
-Route::get('/logistics/assignments', function () {
+Route::get('/logistics/assignments', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     return view('logistics.assignments');
 
@@ -4939,7 +4972,11 @@ Route::get('/logistics/assignments', function () {
 // LOGISTICS DELIVERY MONITORING
 // =====================================================
 
-Route::get('/logistics/monitoring', function () {
+Route::get('/logistics/monitoring', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     return view('logistics.monitoring');
 
@@ -4950,7 +4987,11 @@ Route::get('/logistics/monitoring', function () {
 // LOGISTICS REPORTS
 // =====================================================
 
-Route::get('/logistics/reports', function () {
+Route::get('/logistics/reports', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     return view('logistics.reports');
 
@@ -4960,7 +5001,11 @@ Route::get('/logistics/reports', function () {
 // LOGISTICS PARCELS
 // =====================================================
 
-Route::get('/logistics/parcels', function () {
+Route::get('/logistics/parcels', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $orders = session('orders', []);
 
@@ -4975,7 +5020,11 @@ Route::get('/logistics/parcels', function () {
 // LOGISTICS SHIPMENTS
 // =====================================================
 
-Route::get('/logistics/shipments', function () {
+Route::get('/logistics/shipments', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $orders =
         session('orders', []);
@@ -5025,7 +5074,11 @@ Route::get('/logistics/shipments', function () {
 Route::post('/logistics/orders/{order}/status', function (
     Request $request,
     $orderId
-) {
+) use ($requireLogistics) {
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
+
     $orders = session('orders', []);
 
     if (!isset($orders[$orderId])) {
@@ -5195,7 +5248,11 @@ Route::post('/logistics/orders/{order}/status', function (
 // LOGISTICS RIDER MANAGEMENT
 // =====================================================
 
-Route::get('/logistics/riders', function () {
+Route::get('/logistics/riders', function () use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $applications = session('rider_applications', []);
 
@@ -5293,7 +5350,11 @@ Route::get('/logistics/riders', function () {
 // LOGISTICS RIDER REVIEW
 // =====================================================
 
-Route::get('/logistics/riders/{rider}/review', function ($rider) {
+Route::get('/logistics/riders/{rider}/review', function ($rider) use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $applications = session('rider_applications', []);
 
@@ -5326,7 +5387,11 @@ Route::get('/logistics/riders/{rider}/review', function ($rider) {
 // LOGISTICS APPROVE RIDER
 // =====================================================
 
-Route::post('/logistics/riders/{rider}/approve', function ($rider) {
+Route::post('/logistics/riders/{rider}/approve', function ($rider) use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $applications = session('rider_applications', []);
 
@@ -5377,7 +5442,11 @@ Route::post('/logistics/riders/{rider}/approve', function ($rider) {
 Route::post('/logistics/riders/{rider}/disapprove', function (
     Request $request,
     $rider
-) {
+) use ($requireLogistics) {
+
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
     $applications = session('rider_applications', []);
 
@@ -5423,56 +5492,191 @@ Route::post('/logistics/riders/{rider}/disapprove', function (
 })->name('logistics.riders.disapprove');
 
 // =====================================================
-// ADMIN AUTH CHECK
-// =====================================================
-
-$requireAdmin = function () {
-
-    if (!auth()->check()) {
-
-        return redirect()
-            ->route('admin.login')
-            ->with(
-                'error',
-                'Please log in as an administrator.'
-            );
-    }
-
-    $user = auth()->user();
-
-    if (
-        $user->role !== 'admin' ||
-        $user->status !== 'active'
-    ) {
-
-        return redirect()
-            ->route('admin.login')
-            ->with(
-                'error',
-                'You do not have administrator access.'
-            );
-    }
-
-    return null;
-};
-
-
-// =====================================================
 // ADMIN LOGIN PAGE
 // =====================================================
 
+
+
+
+Route::get('/superadmin', [DashboardController::class, 'index'])
+    ->middleware(SuperAdminMiddleware::class)
+    ->name('superadmin.dashboard');
+
+Route::middleware(SuperAdminMiddleware::class)
+    ->prefix('superadmin')
+    ->name('superadmin.')
+    ->group(function () {
+        
+
+        Route::get(
+            '/users',
+            [UserManagementController::class, 'index']
+        )->name('users');
+
+        Route::get(
+            '/users/search',
+            [UserManagementController::class, 'search']
+        )->name('users.search');
+
+        Route::get(
+            '/users/{user}',
+            [UserManagementController::class, 'show']
+        )->name('users.show');
+
+        Route::post(
+            '/users/{user}/status',
+            [UserManagementController::class, 'updateStatus']
+        )->name('users.status');
+
+                // =====================================================
+        // BUYERS
+        // =====================================================
+
+        Route::get(
+            '/buyers',
+            [BuyerManagementController::class, 'index']
+        )->name('buyers');
+
+        Route::get(
+            '/buyers/search',
+            [BuyerManagementController::class, 'search']
+        )->name('buyers.search');
+
+        Route::post(
+            '/buyers/{buyer}/status',
+            [BuyerManagementController::class, 'updateStatus']
+        )->name('buyers.status');
+
+        // =====================================================
+// SELLERS
+// =====================================================
+
+Route::get(
+    '/sellers',
+    [SellerManagementController::class, 'index']
+)->name('sellers');
+
+Route::get(
+    '/sellers/search',
+    [SellerManagementController::class, 'search']
+)->name('sellers.search');
+
+Route::get(
+    '/sellers/{seller}',
+    [SellerManagementController::class, 'show']
+)->name('sellers.show');
+
+Route::post(
+    '/sellers/{seller}/status',
+    [SellerManagementController::class, 'updateStatus']
+)->name('sellers.status');
+
+// =====================================================
+// APPLICATIONS
+// =====================================================
+
+Route::get(
+    '/applications',
+    [ApplicationController::class, 'index']
+)->name('applications');
+
+Route::get(
+    '/applications/{application}',
+    [ApplicationController::class, 'show']
+)->name('applications.show');
+
+Route::post(
+    '/applications/{application}/approve',
+    [ApplicationController::class, 'approve']
+)->name('applications.approve');
+
+Route::post(
+    '/applications/{application}/reject',
+    [ApplicationController::class, 'reject']
+)->name('applications.reject');
+
+// =====================================================
+// ORDERS
+// =====================================================
+
+Route::get(
+    '/orders',
+    [OrderManagementController::class, 'index']
+)->name('orders');
+
+Route::get(
+    '/orders/{order}',
+    [OrderManagementController::class, 'show']
+)->name('orders.show');
+
+// =====================================================
+// COMMISSION
+// =====================================================
+
+Route::get(
+    '/commission',
+    [CommissionController::class, 'index']
+)->name('commission');
+
+Route::post(
+    '/commission/{seller}/rate',
+    [CommissionController::class, 'updateRate']
+)->name('commission.rate');
+
+// =====================================================
+// REPORTS
+// =====================================================
+
+Route::get(
+    '/reports',
+    [ReportController::class, 'index']
+)->name('reports');
+
+// =====================================================
+// SETTINGS
+// =====================================================
+
+Route::get(
+    '/settings',
+    [SettingController::class, 'index']
+)->name('settings');
+
+Route::post(
+    '/settings/platform',
+    [SettingController::class, 'updatePlatform']
+)->name('settings.platform');
+
+Route::post(
+    '/settings/marketplace',
+    [SettingController::class, 'updateMarketplace']
+)->name('settings.marketplace');
+
+Route::post(
+    '/settings/policies',
+    [SettingController::class, 'updatePolicies']
+)->name('settings.policies');
+
+Route::post(
+    '/settings/announcements',
+    [SettingController::class, 'storeAnnouncement']
+)->name('settings.announcement.store');
+
+Route::post(
+    '/settings/announcements/{announcement}',
+    [SettingController::class, 'updateAnnouncement']
+)->name('settings.announcement.update');
+
+Route::post(
+    '/settings/announcements/{announcement}/delete',
+    [SettingController::class, 'deleteAnnouncement']
+)->name('settings.announcement.delete');
+
+    });
+
 Route::get('/admin/login', function () {
 
-    if (
-        auth()->check() &&
-        auth()->user()->role === 'admin'
-    ) {
-
-        return redirect()
-            ->route('admin.dashboard');
-    }
-
-    return view('admin.login');
+    return redirect()
+        ->route('login');
 
 })->name('admin.login');
 
@@ -5495,33 +5699,49 @@ Route::post('/admin/login', function (Request $request) {
         ? 'email'
         : 'phone';
 
-
-    $loggedIn = auth()->attempt([
+    $loggedIn = Auth::attempt([
         $loginField => $validated['login'],
         'password' => $validated['password'],
-        'role' => 'admin',
-        'status' => 'active',
     ]);
 
-
     if (!$loggedIn) {
-
         return back()
             ->withErrors([
-                'login' =>
-                    'Invalid administrator credentials.',
+                'login' => 'Invalid administrator credentials.',
             ])
             ->onlyInput('login');
     }
 
+    /** @var User $user */
+    $user = Auth::user();
+
+    $userRole = $user->hasRole('superadmin')
+        ? 'superadmin'
+        : ($user->hasRole('admin') ? 'admin' : null);
+
+    if (!in_array($userRole, ['admin', 'superadmin'], true)) {
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return back()
+            ->withErrors([
+                'login' => 'You do not have administrator access.',
+            ])
+            ->onlyInput('login');
+    }
 
     $request
         ->session()
         ->regenerate();
 
-
     return redirect()
-        ->route('admin.dashboard')
+        ->route(
+            $userRole === 'superadmin'
+                ? 'superadmin.dashboard'
+                : 'admin.dashboard'
+        )
         ->with(
             'success',
             'Welcome to the SUKI SHOP Admin Portal.'
@@ -5732,7 +5952,7 @@ Route::post(
         }
 
 
-        if ($buyer->role !== 'buyer') {
+        if (!$buyer->hasRole('buyer')) {
 
             return back()
                 ->with(
@@ -5785,7 +6005,7 @@ Route::post(
         }
 
 
-        if ($buyer->role !== 'buyer') {
+        if (!$buyer->hasRole('buyer')) {
 
             return back()
                 ->with(
@@ -5831,7 +6051,7 @@ Route::post(
         Request $request
     ) {
 
-        auth()->logout();
+        Auth::logout();
 
         $request
             ->session()
@@ -5841,9 +6061,8 @@ Route::post(
             ->session()
             ->regenerateToken();
 
-
         return redirect()
-            ->route('admin.login')
+            ->route('login')
             ->with(
                 'success',
                 'Administrator logged out successfully.'
@@ -5865,22 +6084,27 @@ Route::get('/login', function () {
 
     // If an authenticated account visits the normal login page,
     // send it directly to the correct portal.
-    if (auth()->check()) {
+    if (Auth::check()) {
 
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
 
-        if (
-            $user->role === 'admin' &&
-            $user->status === 'active'
-        ) {
+        if ($user->hasRole('superadmin')) {
+            return redirect()
+                ->route('superadmin.dashboard');
+        }
+
+        if ($user->hasRole('admin')) {
             return redirect()
                 ->route('admin.dashboard');
         }
 
-        if (
-            $user->role === 'buyer' &&
-            $user->status === 'active'
-        ) {
+        if ($user->hasRole('logistics')) {
+            return redirect()
+                ->route('logistics.dashboard');
+        }
+
+        if ($user->hasRole('buyer')) {
             return redirect()
                 ->route('buyer.home');
         }
@@ -5889,7 +6113,6 @@ Route::get('/login', function () {
     return view('auth.login');
 
 })->name('login');
-
 
 // =====================================================
 // LOGIN SUBMIT
@@ -5912,7 +6135,7 @@ Route::post('/login', function (Request $request) {
 
     // Authenticate by credentials first.
     // The account role is checked only after authentication succeeds.
-    $loggedIn = auth()->attempt([
+    $loggedIn = Auth::attempt([
         $loginField => $validated['login'],
         'password' => $validated['password'],
     ]);
@@ -5931,7 +6154,8 @@ Route::post('/login', function (Request $request) {
 
     $request->session()->regenerate();
 
-    $user = auth()->user();
+    /** @var User $user */
+    $user = Auth::user();
 
 
     // =====================================================
@@ -5940,7 +6164,7 @@ Route::post('/login', function (Request $request) {
 
     if ($user->is_suspended ?? false) {
 
-        auth()->logout();
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -5965,7 +6189,7 @@ Route::post('/login', function (Request $request) {
             $user->status ?? ''
         );
 
-        auth()->logout();
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -6006,10 +6230,24 @@ Route::post('/login', function (Request $request) {
 
 
     // =====================================================
-    // ADMIN LOGIN
+    // ADMIN / SUPERADMIN LOGIN
     // =====================================================
 
-    if ($user->role === 'admin') {
+    $userRole = $user->hasRole('superadmin')
+        ? 'superadmin'
+        : ($user->hasRole('admin') ? 'admin' : null);
+
+    if ($userRole === 'superadmin') {
+
+        return redirect()
+            ->route('superadmin.dashboard')
+            ->with(
+                'success',
+                'Welcome to the SUKI SHOP Super Admin Portal.'
+            );
+    }
+
+    if ($userRole === 'admin') {
 
         return redirect()
             ->route('admin.dashboard')
@@ -6019,12 +6257,21 @@ Route::post('/login', function (Request $request) {
             );
     }
 
+    if ($user->hasRole('logistics')) {
+
+        return redirect()
+            ->route('logistics.dashboard')
+            ->with(
+                'success',
+                'Welcome to the SUKI Logistics Portal.'
+            );
+    }
 
     // =====================================================
     // BUYER LOGIN
     // =====================================================
 
-    if ($user->role === 'buyer') {
+    if ($user->hasRole('buyer')) {
 
         $request->session()->put(
             'buyer_profile',
@@ -6056,7 +6303,7 @@ Route::post('/login', function (Request $request) {
     // OTHER / UNSUPPORTED ROLES
     // =====================================================
 
-    auth()->logout();
+    Auth::logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
@@ -6197,7 +6444,7 @@ Route::post('/register', function (Request $request) {
 
 Route::post('/logout', function (Request $request) {
 
-    auth()->logout();
+    Auth::logout();
 
     $request->session()->forget([
         'buyer_logged_in',
