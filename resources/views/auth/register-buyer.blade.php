@@ -399,67 +399,163 @@
                             </p>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 gap-4">
 
                             <!-- Province -->
                             <div>
                                 <label
-                                    for="province"
+                                    for="provinceDropdown"
+                                    id="provinceDropdownLabel"
                                     class="block text-sm font-medium text-gray-700 mb-2"
                                 >
                                     Province <span class="text-red-500">*</span>
                                 </label>
 
-                                <select
-                                    id="province"
-                                    name="province"
-                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
-                                    required
-                                >
-                                    <option value="">Loading provinces...</option>
-                                </select>
+                                <div class="relative">
+                                    <button
+                                        type="button"
+                                        id="provinceDropdown"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        aria-expanded="false"
+                                        aria-controls="provinceOptions"
+                                        aria-labelledby="provinceDropdownLabel"
+                                        aria-required="true"
+                                        class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled
+                                    >
+                                        <span id="provinceDropdownValue" class="text-gray-500">Loading provinces...</span>
+                                        <i data-lucide="chevron-down" class="ml-3 h-4 w-4 shrink-0 text-gray-400"></i>
+                                    </button>
+
+                                    <div
+                                        id="provinceOptions"
+                                        role="listbox"
+                                        aria-labelledby="provinceDropdownLabel"
+                                        class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                                    ></div>
+
+                                    <p id="provinceError" class="mt-1 hidden text-xs text-red-600">
+                                        Please select a province.
+                                    </p>
+
+                                    <select
+                                        id="province"
+                                        name="province"
+                                        class="sr-only"
+                                        tabindex="-1"
+                                        aria-hidden="true"
+                                        required
+                                    >
+                                        <option value="">Loading provinces...</option>
+                                    </select>
+                                </div>
                             </div>
 
 
                             <!-- Municipality / City -->
                             <div>
                                 <label
-                                    for="municipality"
+                                    for="municipalityDropdown"
+                                    id="municipalityDropdownLabel"
                                     class="block text-sm font-medium text-gray-700 mb-2"
                                 >
                                     Municipality / City <span class="text-red-500">*</span>
                                 </label>
 
-                                <select
-                                    id="municipality"
-                                    name="municipality"
-                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
-                                    required
-                                    disabled
-                                >
-                                    <option value="">Select municipality / city</option>
-                                </select>
+                                <div class="relative">
+                                    <button
+                                        type="button"
+                                        id="municipalityDropdown"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        aria-expanded="false"
+                                        aria-controls="municipalityOptions"
+                                        aria-labelledby="municipalityDropdownLabel"
+                                        aria-required="true"
+                                        class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled
+                                    >
+                                        <span id="municipalityDropdownValue" class="text-gray-500">Select province first</span>
+                                        <i data-lucide="chevron-down" class="ml-3 h-4 w-4 shrink-0 text-gray-400"></i>
+                                    </button>
+
+                                    <div
+                                        id="municipalityOptions"
+                                        role="listbox"
+                                        aria-labelledby="municipalityDropdownLabel"
+                                        class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                                    ></div>
+
+                                    <p id="municipalityError" class="mt-1 hidden text-xs text-red-600">
+                                        Please select a municipality or city.
+                                    </p>
+
+                                    <select
+                                        id="municipality"
+                                        name="municipality"
+                                        class="sr-only"
+                                        tabindex="-1"
+                                        aria-hidden="true"
+                                        required
+                                        disabled
+                                    >
+                                        <option value="">Select province first</option>
+                                    </select>
+                                </div>
                             </div>
 
 
                             <!-- Barangay -->
                             <div>
                                 <label
-                                    for="barangay"
+                                    for="barangayDropdown"
+                                    id="barangayDropdownLabel"
                                     class="block text-sm font-medium text-gray-700 mb-2"
                                 >
                                     Barangay <span class="text-red-500">*</span>
                                 </label>
 
-                                <select
-                                    id="barangay"
-                                    name="barangay"
-                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
-                                    required
-                                    disabled
-                                >
-                                    <option value="">Select barangay</option>
-                                </select>
+                                <div class="relative">
+                                    <button
+                                        type="button"
+                                        id="barangayDropdown"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        aria-expanded="false"
+                                        aria-controls="barangayOptions"
+                                        aria-labelledby="barangayDropdownLabel"
+                                        aria-required="true"
+                                        class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled
+                                    >
+                                        <span id="barangayDropdownValue" class="text-gray-500">Select municipality / city first</span>
+                                        <i data-lucide="chevron-down" class="ml-3 h-4 w-4 shrink-0 text-gray-400"></i>
+                                    </button>
+
+                                    <div
+                                        id="barangayOptions"
+                                        role="listbox"
+                                        aria-labelledby="barangayDropdownLabel"
+                                        class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                                    ></div>
+
+                                    <p id="barangayError" class="mt-1 hidden text-xs text-red-600">
+                                        Please select a barangay.
+                                    </p>
+
+                                    <select
+                                        id="barangay"
+                                        name="barangay"
+                                        class="sr-only"
+                                        tabindex="-1"
+                                        aria-hidden="true"
+                                        required
+                                        disabled
+                                    >
+                                        <option value="">Select municipality / city first</option>
+                                    </select>
+                                </div>
                             </div>
 
 
@@ -866,6 +962,219 @@
             const oldBarangay =
                 @json(old('barangay'));
 
+            function createAddressDropdown(select) {
+                const trigger =
+                    document.getElementById(`${select.id}Dropdown`);
+
+                const value =
+                    document.getElementById(`${select.id}DropdownValue`);
+
+                const listbox =
+                    document.getElementById(`${select.id}Options`);
+
+                const error =
+                    document.getElementById(`${select.id}Error`);
+
+                const wrapper = trigger.parentElement;
+                let typeahead = '';
+                let typeaheadTimer;
+
+                function options() {
+                    return Array.from(select.options)
+                        .filter(option => option.value);
+                }
+
+                function close(returnFocus = false) {
+                    listbox.classList.add('hidden');
+                    trigger.setAttribute('aria-expanded', 'false');
+
+                    if (returnFocus) {
+                        trigger.focus();
+                    }
+                }
+
+                function focusOption(index) {
+                    const items =
+                        listbox.querySelectorAll('[role="option"]');
+
+                    if (!items.length) {
+                        return;
+                    }
+
+                    const boundedIndex =
+                        Math.max(0, Math.min(index, items.length - 1));
+
+                    items[boundedIndex].focus();
+                }
+
+                function refresh() {
+                    listbox.replaceChildren();
+
+                    const items = options();
+
+                    items.forEach(function (option, index) {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.id = `${select.id}-option-${index}`;
+                        item.setAttribute('role', 'option');
+                        item.setAttribute(
+                            'aria-selected',
+                            option.value === select.value ? 'true' : 'false'
+                        );
+                        item.className =
+                            'block w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#EEF8F3] focus:bg-[#EEF8F3] focus:outline-none';
+                        item.textContent = option.textContent;
+                        item.addEventListener('click', function () {
+                            select.value = option.value;
+                            select.dispatchEvent(
+                                new Event('change', { bubbles: true })
+                            );
+                            error.classList.add('hidden');
+                            trigger.removeAttribute('aria-invalid');
+                            close();
+                            trigger.focus();
+                        });
+
+                        listbox.appendChild(item);
+                    });
+
+                    const selectedOption =
+                        select.options[select.selectedIndex];
+
+                    value.textContent = select.value
+                        ? selectedOption.textContent
+                        : select.options[0]?.textContent || 'Select an option';
+
+                    value.classList.toggle(
+                        'text-gray-500',
+                        !select.value
+                    );
+
+                    trigger.disabled =
+                        select.disabled || items.length === 0;
+
+                    if (trigger.disabled) {
+                        close();
+                    }
+                }
+
+                function open(index) {
+                    if (trigger.disabled) {
+                        return;
+                    }
+
+                    listbox.classList.remove('hidden');
+                    trigger.setAttribute('aria-expanded', 'true');
+                    focusOption(index);
+                }
+
+                trigger.addEventListener('click', function () {
+                    if (trigger.getAttribute('aria-expanded') === 'true') {
+                        close();
+                        return;
+                    }
+
+                    const selectedIndex = options()
+                        .findIndex(option => option.value === select.value);
+
+                    open(Math.max(selectedIndex, 0));
+                });
+
+                trigger.addEventListener('keydown', function (event) {
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        open(
+                            event.key === 'ArrowUp'
+                                ? options().length - 1
+                                : 0
+                        );
+                    }
+                });
+
+                listbox.addEventListener('keydown', function (event) {
+                    const items = Array.from(
+                        listbox.querySelectorAll('[role="option"]')
+                    );
+
+                    const activeIndex =
+                        items.indexOf(document.activeElement);
+
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        focusOption(
+                            activeIndex + (event.key === 'ArrowDown' ? 1 : -1)
+                        );
+                    } else if (event.key === 'Home' || event.key === 'End') {
+                        event.preventDefault();
+                        focusOption(
+                            event.key === 'Home' ? 0 : items.length - 1
+                        );
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        close(true);
+                    } else if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        document.activeElement.click();
+                    } else if (
+                        event.key.length === 1 &&
+                        !event.altKey &&
+                        !event.ctrlKey &&
+                        !event.metaKey
+                    ) {
+                        typeahead += event.key.toLocaleLowerCase();
+                        clearTimeout(typeaheadTimer);
+                        typeaheadTimer = setTimeout(function () {
+                            typeahead = '';
+                        }, 500);
+
+                        for (let offset = 1; offset <= items.length; offset++) {
+                            const index =
+                                (activeIndex + offset + items.length) % items.length;
+
+                            if (items[index].textContent.toLocaleLowerCase().startsWith(typeahead)) {
+                                focusOption(index);
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                select.addEventListener('change', function () {
+                    refresh();
+
+                    if (select.value) {
+                        error.classList.add('hidden');
+                        trigger.removeAttribute('aria-invalid');
+                    }
+                });
+
+                select.addEventListener('invalid', function (event) {
+                    event.preventDefault();
+                    error.classList.remove('hidden');
+                    trigger.setAttribute('aria-invalid', 'true');
+                    trigger.focus();
+                });
+
+                return { refresh, close, wrapper };
+            }
+
+            const addressDropdowns = new Map([
+                ['province', createAddressDropdown(provinceSelect)],
+                ['municipality', createAddressDropdown(municipalitySelect)],
+                ['barangay', createAddressDropdown(barangaySelect)],
+            ]);
+
+            function refreshDropdown(select) {
+                addressDropdowns.get(select.id).refresh();
+            }
+
+            document.addEventListener('click', function (event) {
+                addressDropdowns.forEach(function (dropdown) {
+                    if (!dropdown.wrapper.contains(event.target)) {
+                        dropdown.close();
+                    }
+                });
+            });
 
             function getItems(payload) {
                 if (Array.isArray(payload)) {
@@ -885,17 +1194,19 @@
 
             function resetMunicipalities() {
                 municipalitySelect.innerHTML =
-                    '<option value="">Select municipality / city</option>';
+                    '<option value="">Select province first</option>';
 
                 municipalitySelect.disabled = true;
+                refreshDropdown(municipalitySelect);
             }
 
 
             function resetBarangays() {
                 barangaySelect.innerHTML =
-                    '<option value="">Select barangay</option>';
+                    '<option value="">Select municipality / city first</option>';
 
                 barangaySelect.disabled = true;
+                refreshDropdown(barangaySelect);
             }
 
 
@@ -919,11 +1230,11 @@
 
 
             async function loadProvinces() {
-                provinceSelect.disabled = true;
-
                 provinceSelect.innerHTML =
                     '<option value="">Loading provinces...</option>';
 
+                provinceSelect.disabled = true;
+                refreshDropdown(provinceSelect);
                 resetMunicipalities();
                 resetBarangays();
 
@@ -976,6 +1287,8 @@
                         }
                     }
 
+                    refreshDropdown(provinceSelect);
+
                 } catch (error) {
                     console.error(
                         'Unable to load provinces:',
@@ -986,6 +1299,7 @@
                         '<option value="">Unable to load provinces</option>';
 
                     provinceSelect.disabled = false;
+                    refreshDropdown(provinceSelect);
                 }
             }
 
@@ -996,6 +1310,8 @@
 
                 municipalitySelect.innerHTML =
                     '<option value="">Loading municipalities / cities...</option>';
+
+                refreshDropdown(municipalitySelect);
 
                 try {
                     const municipalities =
@@ -1046,6 +1362,8 @@
                         }
                     }
 
+                    refreshDropdown(municipalitySelect);
+
                 } catch (error) {
                     console.error(
                         'Unable to load municipalities:',
@@ -1056,6 +1374,7 @@
                         '<option value="">Unable to load municipalities / cities</option>';
 
                     municipalitySelect.disabled = false;
+                    refreshDropdown(municipalitySelect);
                 }
             }
 
@@ -1065,6 +1384,8 @@
 
                 barangaySelect.innerHTML =
                     '<option value="">Loading barangays...</option>';
+
+                refreshDropdown(barangaySelect);
 
                 try {
                     const barangays =
@@ -1100,6 +1421,8 @@
                             oldBarangay;
                     }
 
+                    refreshDropdown(barangaySelect);
+
                 } catch (error) {
                     console.error(
                         'Unable to load barangays:',
@@ -1110,6 +1433,7 @@
                         '<option value="">Unable to load barangays</option>';
 
                     barangaySelect.disabled = false;
+                    refreshDropdown(barangaySelect);
                 }
             }
 
@@ -1129,9 +1453,7 @@
                         selectedOption?.dataset?.code;
 
                     if (provinceCode) {
-                        loadMunicipalities(
-                            provinceCode
-                        );
+                        loadMunicipalities(provinceCode);
                     }
                 }
             );
@@ -1159,11 +1481,7 @@
             );
 
 
-            if (
-                provinceSelect &&
-                municipalitySelect &&
-                barangaySelect
-            ) {
+            if (provinceSelect && municipalitySelect && barangaySelect) {
                 loadProvinces();
             }
 
