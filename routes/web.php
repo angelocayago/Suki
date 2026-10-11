@@ -6456,7 +6456,7 @@ Route::post('/logout', function (Request $request) {
     $request->session()->regenerateToken();
 
     return redirect()
-        ->route('buyer.home')
+        ->route('login')
         ->with(
             'success',
             'You have been logged out successfully.'
