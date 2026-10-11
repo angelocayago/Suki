@@ -513,7 +513,7 @@ x-data="{
     <div
 
         x-show="showModal"
-
+        x-cloak
         x-transition
 
         class="

@@ -4,18 +4,21 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Symfony\Component\HttpFoundation\Response;
 
 class SuperAdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check()) {
+        $user = $request->user();
+
+        if (!$user) {
             return redirect()->route('login');
         }
 
 
-        if (!auth()->user()->hasRole('superadmin')) {
+        if (!$user instanceof User || !$user->hasRole('superadmin')) {
             abort(403, 'Unauthorized Access');
         }
 
