@@ -3,89 +3,6 @@
 @section('content')
 
 @php
-    $products = [
-        [
-            'name' => 'Minimalist Shoulder Bag',
-            'slug' => 'shoulder-bag',
-            'price' => '399',
-            'old_price' => '599',
-            'rating' => '4.9',
-            'sold' => '1.2k',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Wireless Headphones',
-            'slug' => 'wireless-headphones',
-            'price' => '899',
-            'old_price' => '1,299',
-            'rating' => '4.8',
-            'sold' => '856',
-            'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Ceramic Home Set',
-            'slug' => 'ceramic-home-set',
-            'price' => '549',
-            'old_price' => '799',
-            'rating' => '4.7',
-            'sold' => '642',
-            'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Everyday Sneakers',
-            'slug' => 'everyday-sneakers',
-            'price' => '799',
-            'old_price' => '1,099',
-            'rating' => '4.9',
-            'sold' => '2.1k',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Skincare Essentials Set',
-            'slug' => 'skincare-essentials',
-            'price' => '459',
-            'old_price' => '699',
-            'rating' => '4.8',
-            'sold' => '934',
-            'category' => 'Beauty',
-            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Classic Analog Watch',
-            'slug' => 'analog-watch',
-            'price' => '699',
-            'old_price' => '999',
-            'rating' => '4.8',
-            'sold' => '721',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Portable Bluetooth Speaker',
-            'slug' => 'bluetooth-speaker',
-            'price' => '649',
-            'old_price' => '899',
-            'rating' => '4.7',
-            'sold' => '534',
-            'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Modern Table Lamp',
-            'slug' => 'table-lamp',
-            'price' => '499',
-            'old_price' => '799',
-            'rating' => '4.6',
-            'sold' => '438',
-            'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80',
-        ],
-    ];
-
     $categories = [
         'All Products',
         'Fashion',
@@ -98,6 +15,9 @@
         'Toys',
         'Automotive',
     ];
+    $searchQuery = is_string(request('search')) ? request('search') : '';
+    $currentSort = request('sort', 'recommended');
+    $currentRating = (string) request('rating', '');
 
     /*
     |--------------------------------------------------------------------------
@@ -217,9 +137,12 @@
         @foreach($categories as $category)
 
             <a
-                href="{{ route('buyer.shop') }}"
+                href="{{ route('buyer.shop', array_merge(
+                    request()->except('category'),
+                    $category === 'All Products' ? [] : ['category' => $category]
+                )) }}"
                 class="shrink-0 px-4 py-2.5 rounded-lg border
-                {{ $category === 'All Products'
+                {{ ($category === 'All Products' && !$selectedCategories) || in_array($category, $selectedCategories, true)
                     ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
                 }}
@@ -248,10 +171,13 @@
         {{-- SIDEBAR --}}
         {{-- ================================================= --}}
 
-        <aside class="hidden lg:block">
+        <aside id="shopFilterPanel" class="hidden lg:block">
 
             <div class="bg-white border border-gray-200 rounded-2xl sticky top-28 overflow-hidden">
 
+                <form method="GET" action="{{ route('buyer.shop') }}">
+                    <input type="hidden" name="search" value="{{ $searchQuery }}">
+                    <input type="hidden" name="sort" value="{{ $currentSort }}">
 
                 {{-- FILTER HEADER --}}
                 <div class="px-5 py-4 border-b border-gray-200">
@@ -271,12 +197,12 @@
 
                         </div>
 
-                        <button
-                            type="button"
+                        <a
+                            href="{{ route('buyer.shop') }}"
                             class="text-xs font-medium text-[#1F6F5B] hover:underline"
                         >
                             Reset
-                        </button>
+                        </a>
 
                     </div>
 
@@ -302,6 +228,10 @@
 
                                         <input
                                             type="checkbox"
+                                            name="category[]"
+                                            value="{{ $category }}"
+                                            @checked(in_array($category, $selectedCategories, true))
+                                            onchange="this.form.requestSubmit()"
                                             class="w-4 h-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
                                         >
 
@@ -333,6 +263,9 @@
 
                         <input
                             type="number"
+                            name="min_price"
+                            min="0"
+                            value="{{ request('min_price') }}"
                             placeholder="Min"
                             class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
                         >
@@ -343,6 +276,9 @@
 
                         <input
                             type="number"
+                            name="max_price"
+                            min="0"
+                            value="{{ request('max_price') }}"
                             placeholder="Max"
                             class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
                         >
@@ -350,7 +286,7 @@
                     </div>
 
                     <button
-                        type="button"
+                        type="submit"
                         class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
                     >
                         Apply Price
@@ -369,16 +305,19 @@
                     <div class="space-y-3">
 
                         @foreach([
-                            '5 stars',
-                            '4 stars & up',
-                            '3 stars & up'
-                        ] as $rating)
+                            '5' => '5 stars',
+                            '4' => '4 stars & up',
+                            '3' => '3 stars & up',
+                        ] as $ratingValue => $ratingLabel)
 
                             <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
 
                                 <input
                                     type="radio"
                                     name="rating"
+                                    value="{{ $ratingValue }}"
+                                    @checked($currentRating === (string) $ratingValue)
+                                    onchange="this.form.requestSubmit()"
                                     class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
                                 >
 
@@ -390,7 +329,7 @@
                                     ></i>
 
                                     <span>
-                                        {{ $rating }}
+                                        {{ $ratingLabel }}
                                     </span>
 
                                 </div>
@@ -403,6 +342,7 @@
 
                 </div>
 
+                </form>
             </div>
 
         </aside>
@@ -439,6 +379,9 @@
 
                         <button
                             type="button"
+                            id="mobileFilterToggle"
+                            aria-controls="shopFilterPanel"
+                            aria-expanded="false"
                             class="lg:hidden inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
                         >
                             <i
@@ -450,23 +393,32 @@
                         </button>
 
 
-                        <div class="flex items-center gap-2">
+                        <form method="GET" action="{{ route('buyer.shop') }}" class="flex items-center gap-2">
+                            <input type="hidden" name="search" value="{{ $searchQuery }}">
+                            @foreach($selectedCategories as $selectedCategory)
+                                <input type="hidden" name="category[]" value="{{ $selectedCategory }}">
+                            @endforeach
+                            <input type="hidden" name="min_price" value="{{ request('min_price') }}">
+                            <input type="hidden" name="max_price" value="{{ request('max_price') }}">
+                            <input type="hidden" name="rating" value="{{ $currentRating }}">
 
                             <span class="hidden sm:block text-xs text-gray-400">
                                 Sort by
                             </span>
 
                             <select
+                                name="sort"
+                                onchange="this.form.submit()"
                                 class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1F6F5B]"
                             >
-                                <option>Recommended</option>
-                                <option>Newest</option>
-                                <option>Best Selling</option>
-                                <option>Price: Low to High</option>
-                                <option>Price: High to Low</option>
+                                <option value="recommended" @selected($currentSort === 'recommended')>Recommended</option>
+                                <option value="newest" @selected($currentSort === 'newest')>Newest</option>
+                                <option value="best_selling" @selected($currentSort === 'best_selling')>Best Selling</option>
+                                <option value="price_asc" @selected($currentSort === 'price_asc')>Price: Low to High</option>
+                                <option value="price_desc" @selected($currentSort === 'price_desc')>Price: High to Low</option>
                             </select>
 
-                        </div>
+                        </form>
 
                     </div>
 
@@ -481,7 +433,7 @@
 
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
 
-                @foreach($products as $product)
+                @forelse($products as $product)
 
                     @php
                         $isWishlisted = in_array(
@@ -583,7 +535,7 @@
 
                             {{-- NAME --}}
                             <h3
-                                class="text-sm font-medium text-gray-800 leading-5 line-clamp-2 min-h-[40px] group-hover:text-[#1F6F5B] transition"
+                                class="text-sm font-medium text-gray-800 leading-5 line-clamp-2 min-h-10 group-hover:text-[#1F6F5B] transition"
                             >
                                 {{ $product['name'] }}
                             </h3>
@@ -644,7 +596,11 @@
 
                     </article>
 
-                @endforeach
+                @empty
+                    <p class="col-span-full py-12 text-center text-sm text-gray-500">
+                        No products match your search or filters.
+                    </p>
+                @endforelse
 
             </div>
 
@@ -707,5 +663,21 @@
     </div>
 
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggle = document.getElementById('mobileFilterToggle');
+        const panel = document.getElementById('shopFilterPanel');
+
+        if (!toggle || !panel) {
+            return;
+        }
+
+        toggle.addEventListener('click', () => {
+            const isHidden = panel.classList.toggle('hidden');
+            toggle.setAttribute('aria-expanded', String(!isHidden));
+        });
+    });
+</script>
 
 @endsection
