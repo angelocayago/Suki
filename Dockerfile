@@ -60,6 +60,10 @@ COPY --from=frontend /app/public/build ./public/build
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+    # Recreate Laravel public storage link inside the container
+RUN rm -rf public/storage \
+    && php artisan storage:link
+
 # Point Apache to Laravel's public directory
 RUN sed -ri \
     -e 's!/var/www/html!/var/www/html/public!g' \
