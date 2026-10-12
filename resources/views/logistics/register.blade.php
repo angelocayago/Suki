@@ -422,6 +422,7 @@
                                 value="{{ old('company_name') }}"
                                 required
                                 maxlength="255"
+                                pattern=".*\S.*"
                                 aria-invalid="{{ $errors->has('company_name') ? 'true' : 'false' }}"
                                 placeholder="Enter registered company name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -438,7 +439,9 @@
                                 name="sec_registration_number"
                                 value="{{ old('sec_registration_number') }}"
                                 required
-                                maxlength="50"
+                                maxlength="11"
+                                pattern="[A-Za-z]{2}[0-9]{9}"
+                                title="Enter exactly 2 letters followed by 9 digits, for example CS202012345."
                                 aria-invalid="{{ $errors->has('sec_registration_number') ? 'true' : 'false' }}"
                                 placeholder="Enter SEC registration number"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -456,7 +459,7 @@
                                 value="{{ old('tin') }}"
                                 required
                                 inputmode="numeric"
-                                maxlength="15"
+                                maxlength="16"
                                 pattern="[0-9]{12}|[0-9]{3}(-[0-9]{3}){3}"
                                 aria-invalid="{{ $errors->has('tin') ? 'true' : 'false' }}"
                                 placeholder="12 digits or 000-000-000-000"

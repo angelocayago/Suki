@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
 use App\Models\ProductImage;
+use App\Models\LogisticsProvider;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Middleware\SuperAdminMiddleware;
 
@@ -6166,12 +6167,30 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
     }
 
     $validated = $request->validate([
-        'company_name' => 'required|string|min:2|max:255',
+        'company_name' => [
+            'bail',
+            'required',
+            'string',
+            'min:2',
+            'max:255',
+            function ($attribute, $value, $fail) {
+                if (
+                    LogisticsProvider::query()
+                        ->whereRaw(
+                            'LOWER(TRIM(name)) = ?',
+                            [mb_strtolower(trim($value))]
+                        )
+                        ->exists()
+                ) {
+                    $fail('Company name is already registered.');
+                }
+            },
+        ],
         'sec_registration_number' => [
             'bail',
             'required',
             'string',
-            'regex:/\A[A-Za-z0-9][A-Za-z0-9\/-]{2,49}\z/',
+            'regex:/\A[A-Za-z]{2}[0-9]{9}\z/',
         ],
         'tin' => [
             'bail',
@@ -6246,7 +6265,7 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
     ], [
         'company_name.required' => 'Company name is required.',
         'sec_registration_number.required' => 'SEC registration number is required.',
-        'sec_registration_number.regex' => 'Enter a valid SEC registration number using letters, numbers, hyphens, or slashes.',
+        'sec_registration_number.regex' => 'SEC registration number must contain exactly 2 letters followed by 9 digits (for example, CS202012345).',
         'tin.required' => 'TIN is required.',
         'tin.regex' => 'TIN must contain 12 digits, optionally displayed as 000-000-000-000.',
         'region.required' => 'Region is required.',
