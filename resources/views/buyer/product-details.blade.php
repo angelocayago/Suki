@@ -383,18 +383,19 @@
                         </button>
 
 
-                        {{-- BUY NOW --}}
-                        <button
-                            type="button"
-                            onclick="buyNow()"
-                            class="h-12 rounded-lg
-                                   bg-[#1F6F5B] text-white
-                                   font-semibold
-                                   hover:bg-[#155244]
-                                   transition"
-                        >
-                            Buy Now
-                        </button>
+                    {{-- BUY NOW --}}
+<button
+    type="submit"
+    formaction="{{ route('buyer.buy-now', ['slug' => $slug]) }}"
+    formmethod="POST"
+    class="h-12 rounded-lg
+           bg-[#1F6F5B] text-white
+           font-semibold
+           hover:bg-[#155244]
+           transition"
+>
+    Buy Now
+</button>
 
                     </div>
 
@@ -759,14 +760,7 @@
     // BUY NOW
     // ==========================================
 
-    function buyNow() {
-
-        alert(
-            "Proceeding to checkout for {{ $product['name'] }} x" +
-            quantity
-        );
-
-    }
+    
 
 </script>
 

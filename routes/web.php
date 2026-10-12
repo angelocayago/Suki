@@ -912,11 +912,123 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 // SHOPPING CART
 // =====================================================
 
-Route::get('/cart', function () use ($requireBuyer) {
+// =====================================================
+// BUY NOW
+// =====================================================
+
+Route::post('/buy-now/{slug}', function (
+    Request $request,
+    $slug
+) use (
+    $products,
+    $requireBuyer
+) {
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
     }
+
+    if (isset($products[$slug])) {
+
+        $product = $products[$slug];
+
+    } else {
+
+        if (!Schema::hasTable('products')) {
+            abort(404);
+        }
+
+        $databaseProduct = Product::with([
+            'variants',
+            'images' => fn ($query) =>
+                $query->orderBy('position'),
+        ])
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$databaseProduct) {
+            abort(404);
+        }
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            abort(404);
+        }
+
+        $firstImage = $databaseProduct->images->first();
+
+        $product = [
+            'name' => $databaseProduct->name,
+
+            'price' => number_format(
+                $variant->price_minor / 100,
+                2,
+                '.',
+                ''
+            ),
+
+            'stock' => (int) $variant->stock,
+
+            'image' => $firstImage
+                ? Storage::disk('s3')->url(
+                    $firstImage->path
+                )
+                : asset('images/suki-logo.png'),
+        ];
+    }
+
+    $maxStock = (int) $product['stock'];
+
+    if ($maxStock < 1) {
+        return redirect()
+            ->back()
+            ->withErrors([
+                'buy_now' =>
+                    'This product is currently out of stock.',
+            ]);
+    }
+
+    $quantity = (int) $request->input(
+        'quantity',
+        1
+    );
+
+    $quantity = max(
+        1,
+        min($quantity, $maxStock)
+    );
+
+    session()->put('buy_now', [
+        'product_slug' => $slug,
+        'product_name' => $product['name'],
+        'price' => (float) $product['price'],
+        'image' => $product['image'] ?? null,
+        'quantity' => $quantity,
+    ]);
+
+    return redirect()
+        ->route('buyer.checkout');
+
+})->name('buyer.buy-now');
+
+ 
+
+
+
+
+
+Route::get('/cart', function () use ($requireBuyer) {
+    
+
+    if ($redirect = $requireBuyer()) {
+        return $redirect;
+    }
+
+    session()->forget('buy_now');
 
     /** @var User $user */
     $user = Auth::user();
@@ -1785,15 +1897,32 @@ Route::get('/checkout', function () use ($requireBuyer) {
     $user = Auth::user();
 
 
-    // =====================================================
-    // GET CART FROM SUPABASE
-    // =====================================================
+   // =====================================================
+// GET CHECKOUT ITEMS
+// =====================================================
 
+$buyNow = session('buy_now');
+
+if ($buyNow) {
+
+    // Buy Now: isang product lang ang checkout.
+    $cartRows = collect([
+        (object) [
+            'product_slug' => $buyNow['product_slug'],
+            'product_name' => $buyNow['product_name'],
+            'price' => (float) $buyNow['price'],
+            'image' => $buyNow['image'],
+            'quantity' => (int) $buyNow['quantity'],
+        ],
+    ]);
+
+} else {
+
+    // Normal checkout: kunin lahat ng cart items.
     $cartRows = $user
         ->cartItems()
         ->orderBy('created_at')
         ->get();
-
 
     if ($cartRows->isEmpty()) {
 
@@ -1804,35 +1933,35 @@ Route::get('/checkout', function () use ($requireBuyer) {
                 'Your cart is empty.'
             );
     }
+}
 
 
-    // =====================================================
-    // CONVERT CART TO EXISTING BLADE FORMAT
-    // =====================================================
+// =====================================================
+// CONVERT TO EXISTING BLADE FORMAT
+// =====================================================
 
-    $cart = [];
+$cart = [];
 
+foreach ($cartRows as $item) {
 
-    foreach ($cartRows as $item) {
+    $cart[$item->product_slug] = [
 
-        $cart[$item->product_slug] = [
+        'slug' =>
+            $item->product_slug,
 
-            'slug' =>
-                $item->product_slug,
+        'name' =>
+            $item->product_name,
 
-            'name' =>
-                $item->product_name,
+        'price' =>
+            (float) $item->price,
 
-            'price' =>
-                (float) $item->price,
+        'image' =>
+            $item->image,
 
-            'image' =>
-                $item->image,
-
-            'quantity' =>
-                (int) $item->quantity,
-        ];
-    }
+        'quantity' =>
+            (int) $item->quantity,
+    ];
+}
 
 
     // =====================================================
@@ -2018,26 +2147,41 @@ Route::post(
                 'required|in:cod,gcash',
         ]);
 
+// =====================================================
+// CHECKOUT ITEMS
+// =====================================================
 
-        // =====================================================
-        // CART FROM SUPABASE
-        // =====================================================
+$buyNow = session('buy_now');
 
-        $cartItems =
-            $user
-                ->cartItems()
-                ->get();
+if ($buyNow) {
 
+    $cartItems = collect([
+        (object) [
+            'product_slug' => $buyNow['product_slug'],
+            'product_name' => $buyNow['product_name'],
+            'price' => (float) $buyNow['price'],
+            'image' => $buyNow['image'],
+            'quantity' => (int) $buyNow['quantity'],
+        ],
+    ]);
 
-        if ($cartItems->isEmpty()) {
+} else {
 
-            return redirect()
-                ->route('buyer.cart')
-                ->with(
-                    'error',
-                    'Your cart is empty.'
-                );
-        }
+    $cartItems =
+        $user
+            ->cartItems()
+            ->get();
+
+    if ($cartItems->isEmpty()) {
+
+        return redirect()
+            ->route('buyer.cart')
+            ->with(
+                'error',
+                'Your cart is empty.'
+            );
+    }
+}
 
 
         // =====================================================
@@ -2167,11 +2311,13 @@ Route::post(
 
                         $discount,
 
-                        $total,
+                      $total,
 
-                        $orderNumber
+$orderNumber,
 
-                    ) {
+$buyNow
+
+) {
 
                         /** @var User $user */
 
@@ -2383,23 +2529,23 @@ Route::post(
 
 
                         // =====================================================
-                        // CLEAR BUYER CART
-                        // =====================================================
+// CLEAR BUYER CART
+// =====================================================
 
-                        $user
-                            ->cartItems()
-                            ->delete();
+if (!$buyNow) {
+    $user
+        ->cartItems()
+        ->delete();
+}
 
+return $order;
 
-                        return $order;
-                    }
-                );
+}
+);
 
+} catch (\Throwable $exception) {
 
-        } catch (\Throwable $exception) {
-
-
-            report($exception);
+    report($exception);
 
 
             return redirect()
@@ -2411,7 +2557,9 @@ Route::post(
                     'Unable to place your order. Please try again.'
                 );
         }
-
+if ($buyNow) {
+    session()->forget('buy_now');
+}
 
         // =====================================================
         // SUCCESS
@@ -3807,6 +3955,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
             $resolvedAddress,
             $requiredDocuments,
             &$storedDocumentPaths
+            
         ) {
             $user = User::create([
                 'role' => 'seller',
