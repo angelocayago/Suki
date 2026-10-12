@@ -1288,15 +1288,63 @@ Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $require
         return $redirect;
     }
 
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
     $user = Auth::user();
 
-    $product = $products[$slug];
+    if (isset($products[$slug])) {
 
-    $wishlistItem = WishlistItem::where('user_id', $user->id)
+        $product = $products[$slug];
+
+    } else {
+
+        if (!Schema::hasTable('products')) {
+            abort(404);
+        }
+
+        $databaseProduct = Product::with([
+            'variants',
+            'images' => fn ($query) =>
+                $query->orderBy('position'),
+        ])
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$databaseProduct) {
+            abort(404);
+        }
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            abort(404);
+        }
+
+        $firstImage = $databaseProduct->images->first();
+
+        $product = [
+            'name' => $databaseProduct->name,
+
+            'price' => number_format(
+                $variant->price_minor / 100,
+                2,
+                '.',
+                ''
+            ),
+
+            'image' => $firstImage
+                ? Storage::disk('s3')->url(
+                    $firstImage->path
+                )
+                : asset('images/suki-logo.png'),
+        ];
+    }
+
+    $wishlistItem = WishlistItem::where(
+        'user_id',
+        $user->id
+    )
         ->where('product_slug', $slug)
         ->first();
 
@@ -1308,7 +1356,8 @@ Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $require
             ->back()
             ->with(
                 'success',
-                $product['name'] . ' removed from your wishlist.'
+                $product['name']
+                . ' removed from your wishlist.'
             );
     }
 
@@ -1324,7 +1373,8 @@ Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $require
         ->back()
         ->with(
             'success',
-            $product['name'] . ' added to your wishlist!'
+            $product['name']
+            . ' added to your wishlist!'
         );
 
 })->name('buyer.wishlist.toggle');
