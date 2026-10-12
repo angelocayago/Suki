@@ -6155,6 +6155,15 @@ Route::get('/logistics/register', function () {
 
 Route::post('/logistics/register', function (Request $request) use ($fetchPsgcData) {
 
+    $submittedEmail = $request->input('email');
+    $normalizedEmail = is_string($submittedEmail)
+        ? strtolower(trim($submittedEmail))
+        : null;
+
+    if ($normalizedEmail !== null) {
+        $request->merge(['email' => $normalizedEmail]);
+    }
+
     $submittedMobile = $request->input('mobile_number');
     $normalizedMobile = null;
 
@@ -6164,6 +6173,10 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
         } elseif (preg_match('/\A\+639[0-9]{9}\z/', $submittedMobile) === 1) {
             $normalizedMobile = '0' . substr($submittedMobile, 3);
         }
+    }
+
+    if ($normalizedMobile !== null) {
+        $request->merge(['mobile_number' => $normalizedMobile]);
     }
 
     $validated = $request->validate([
@@ -6223,7 +6236,23 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
             'regex:/\A\p{L}+(?:[\x20\x27\x2D]\p{L}+)*\z/u',
         ],
         'position' => 'required|string|max:100',
-        'email' => 'required|email|max:255',
+        'email' => [
+            'bail',
+            'required',
+            'string',
+            'email',
+            'max:255',
+            function ($attribute, $value, $fail) use ($normalizedEmail) {
+                if (
+                    $normalizedEmail !== null &&
+                    User::query()
+                        ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                        ->exists()
+                ) {
+                    $fail('Email is already registered.');
+                }
+            },
+        ],
         'mobile_number' => [
             'bail',
             'required',
@@ -6231,6 +6260,17 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
             function ($attribute, $value, $fail) use ($normalizedMobile) {
                 if ($normalizedMobile === null) {
                     $fail('Enter a valid Philippine mobile number in local or +63 format.');
+
+                    return;
+                }
+
+                $internationalMobile = '+63' . substr($normalizedMobile, 1);
+                $mobileAlreadyRegistered = User::query()
+                    ->whereIn('phone', [$normalizedMobile, $internationalMobile])
+                    ->exists();
+
+                if ($mobileAlreadyRegistered) {
+                    $fail('This mobile number is already registered.');
                 }
             },
         ],
@@ -6259,7 +6299,14 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
             'mimes:jpg,jpeg,png,pdf',
             'max:5120',
         ],
-        'password' => 'required|string|min:8|max:255',
+        'password' => [
+            'bail',
+            'required',
+            'string',
+            'min:8',
+            'max:255',
+            'regex:/\A(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[[:punct:]]).*\z/',
+        ],
         'password_confirmation' => 'required|string|same:password',
         'terms' => 'accepted',
     ], [
@@ -6282,6 +6329,11 @@ Route::post('/logistics/register', function (Request $request) use ($fetchPsgcDa
         'email.required' => 'Email is required.',
         'email.email' => 'Enter a valid email address.',
         'mobile_number.required' => 'Mobile number is required.',
+        'password.required' => 'Password is required.',
+        'password.min' => 'Password must be at least 8 characters.',
+        'password.regex' => 'Password must include an uppercase letter, a lowercase letter, a number, and a special character.',
+        'password_confirmation.required' => 'Confirm password is required.',
+        'password_confirmation.same' => 'Password confirmation must match the password.',
         'service_areas.required' => 'Service areas are required.',
         'sec_certificate.required' => 'SEC Certificate is required.',
         'sec_certificate.mimes' => 'SEC Certificate must be a JPG, PNG, or PDF file.',
