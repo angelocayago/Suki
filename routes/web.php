@@ -8,6 +8,9 @@ use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\Category;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Middleware\SuperAdminMiddleware;
 
@@ -3654,7 +3657,49 @@ Route::get('/seller/products', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
+    $seller = Seller::where('user_id', Auth::id())->firstOrFail();
+
+    $products = Product::with([
+        'category',
+        'variants',
+    ])
+        ->where('seller_id', $seller->id)
+        ->latest()
+        ->get()
+        ->mapWithKeys(function (Product $product) {
+
+            $variant = $product->variants->first();
+
+            return [
+                (string) $product->id => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'category' => $product->category?->name ?? 'Uncategorized',
+                    'brand' => null,
+                    'description' => $product->description,
+
+                    'price' => $variant
+                        ? $variant->price_minor / 100
+                        : 0,
+
+                    'stock' => $variant?->stock ?? 0,
+                    'sku' => $variant?->sku,
+
+                    'status' => $product->is_active
+                        ? 'active'
+                        : 'inactive',
+
+                    'sold' => 0,
+
+                    'created_at' => optional($product->created_at)
+                        ->format('Y-m-d H:i:s'),
+
+                    'updated_at' => optional($product->updated_at)
+                        ->format('Y-m-d H:i:s'),
+                ],
+            ];
+        })
+        ->all();
 
     return view('seller.products', [
         'products' => $products,
@@ -3690,55 +3735,72 @@ Route::post('/seller/products', function (
         return $redirect;
     }
 
-    $request->validate([
+    $validated = $request->validate([
         'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
+        'category' => 'required|string|max:100|exists:categories,name',
         'description' => 'required|string|max:3000',
         'price' => 'required|numeric|min:0',
         'stock' => 'required|integer|min:0',
-        'sku' => 'nullable|string|max:50',
+        'sku' => 'nullable|string|max:50|unique:product_variants,sku',
         'status' => 'required|in:active,inactive',
     ]);
 
-    $products = session()->get('seller_products', []);
+    $seller = Seller::where(
+        'user_id',
+        Auth::id()
+    )->firstOrFail();
 
-    $productId = 'P' . str_pad(
-        count($products) + 1,
-        4,
-        '0',
-        STR_PAD_LEFT
-    );
+    $category = Category::where(
+        'name',
+        $validated['category']
+    )->firstOrFail();
 
-    $products[$productId] = [
-        'id' => $productId,
-        'name' => $request->name,
-        'category' => $request->category,
-        'brand' => $request->brand,
-        'description' => $request->description,
+    DB::transaction(function () use (
+        $validated,
+        $seller,
+        $category
+    ) {
 
-        'price' => (float) $request->price,
-        'stock' => (int) $request->stock,
+        $baseSlug = Str::slug($validated['name']);
 
-        'sku' => $request->sku,
-        'status' => $request->status,
+        if ($baseSlug === '') {
+            $baseSlug = 'product';
+        }
 
-        'weight' => $request->weight,
-        'length' => $request->length,
-        'width' => $request->width,
-        'height' => $request->height,
+        $slug = $baseSlug;
+        $counter = 2;
 
-        'variation_names' => $request->variation_name ?? [],
-        'variation_values' => $request->variation_value ?? [],
+        while (Product::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
 
-        'shipping_options' => $request->shipping_options ?? [],
+        $product = Product::create([
+            'seller_id' => $seller->id,
+            'category_id' => $category->id,
+            'name' => $validated['name'],
+            'slug' => $slug,
+            'description' => $validated['description'],
+            'is_active' => $validated['status'] === 'active',
+        ]);
 
-        'sold' => 0,
+        $sku = !empty($validated['sku'])
+            ? $validated['sku']
+            : 'SUKI-' . $seller->id . '-' . $product->id;
 
-        'created_at' => now()->format('Y-m-d H:i:s'),
-        'updated_at' => now()->format('Y-m-d H:i:s'),
-    ];
-
-    session()->put('seller_products', $products);
+        ProductVariant::create([
+            'product_id' => $product->id,
+            'sku' => $sku,
+            'name' => 'Default',
+            'options' => null,
+            'price_minor' => (int) round(
+                ((float) $validated['price']) * 100
+            ),
+            'stock' => (int) $validated['stock'],
+            'weight_grams' => null,
+            'is_active' => $validated['status'] === 'active',
+        ]);
+    });
 
     return redirect()
         ->route('seller.products')
@@ -3748,6 +3810,7 @@ Route::post('/seller/products', function (
         );
 
 })->name('seller.products.store');
+
 
 // =====================================================
 // SELLER EDIT PRODUCT
