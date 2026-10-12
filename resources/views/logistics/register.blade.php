@@ -1,4 +1,6 @@
-@extends('layouts.logistics')
+@extends('layouts.auth')
+
+@section('title', 'Logistics Registration')
 
 @section('content')
 
@@ -35,7 +37,7 @@
 
             <!-- LOGIN -->
             <a
-                href="{{ route('logistics.login') }}"
+                href="{{ route('login') }}"
                 class="text-sm font-medium text-gray-600 transition hover:text-[#1F6F5B]"
             >
                 Log In
@@ -94,6 +96,18 @@
         >
 
             @csrf
+
+            @if (session('status'))
+                <p class="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+                    {{ session('status') }}
+                </p>
+            @endif
+
+            @if ($errors->any())
+                <div class="lg:col-span-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+                    Please correct the highlighted fields below.
+                </div>
+            @endif
 
 
 
@@ -155,9 +169,16 @@
                                 name="first_name"
                                 value="{{ old('first_name') }}"
                                 required
+                                minlength="2"
+                                maxlength="50"
+                                pattern="[\p{L}]+(?:[\x20\x27\x2D][\p{L}]+)*"
+                                aria-invalid="{{ $errors->has('first_name') ? 'true' : 'false' }}"
                                 placeholder="Enter first name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
+                            @error('first_name')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
 
                         </div>
 
@@ -177,62 +198,43 @@
                                 name="last_name"
                                 value="{{ old('last_name') }}"
                                 required
+                                minlength="2"
+                                maxlength="50"
+                                pattern="[\p{L}]+(?:[\x20\x27\x2D][\p{L}]+)*"
+                                aria-invalid="{{ $errors->has('last_name') ? 'true' : 'false' }}"
                                 placeholder="Enter last name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
+                            @error('last_name')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
 
                         </div>
 
 
 
-                        <!-- MIDDLE INITIAL -->
+                        <!-- POSITION -->
                         <div>
 
                             <label class="mb-2 block text-sm font-medium text-gray-700">
 
-                                Middle Initial
-
-                                <span class="text-xs font-normal text-gray-400">
-                                    (optional)
-                                </span>
+                                Position
 
                             </label>
 
                             <input
                                 type="text"
-                                name="middle_initial"
-                                value="{{ old('middle_initial') }}"
-                                maxlength="5"
-                                placeholder="e.g. A."
-                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm uppercase outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                            >
-
-                        </div>
-
-
-
-                        <!-- SEX -->
-                        <div>
-
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
-
-                                Sex
-
-                            </label>
-
-                            <select
-                                name="sex"
+                                name="position"
+                                value="{{ old('position') }}"
                                 required
+                                maxlength="100"
+                                aria-invalid="{{ $errors->has('position') ? 'true' : 'false' }}"
+                                placeholder="Enter your position"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
-
-                                <option value="">Select sex</option>
-
-                                <option value="Male">Male</option>
-
-                                <option value="Female">Female</option>
-
-                            </select>
+                            @error('position')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
 
                         </div>
 
@@ -259,11 +261,16 @@
                                     name="email"
                                     value="{{ old('email') }}"
                                     required
+                                    maxlength="255"
+                                    aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                                     placeholder="you@example.com"
                                     class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 >
 
                             </div>
+                            @error('email')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
 
                         </div>
 
@@ -274,7 +281,7 @@
 
                             <label class="mb-2 block text-sm font-medium text-gray-700">
 
-                                Contact Number
+                                Mobile Number
 
                             </label>
 
@@ -287,61 +294,77 @@
 
                                 <input
                                     type="tel"
-                                    name="phone"
-                                    value="{{ old('phone') }}"
+                                    name="mobile_number"
+                                    value="{{ old('mobile_number') }}"
                                     required
-                                    placeholder="09XXXXXXXXX"
+                                    inputmode="tel"
+                                    maxlength="13"
+                                    pattern="(?:09[0-9]{9}|\+639[0-9]{9})"
+                                    aria-invalid="{{ $errors->has('mobile_number') ? 'true' : 'false' }}"
+                                    placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                                     class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 >
 
-                            </div>
+                                </div>
+                                @error('mobile_number')
+                                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                                @enderror
 
                         </div>
 
 
 
-                        <!-- BIRTHDAY -->
+                        <!-- PASSWORD -->
                         <div>
 
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
+                                <label class="mb-2 block text-sm font-medium text-gray-700">
 
-                                Birthday
+                                    Password
 
-                            </label>
+                                </label>
 
-                            <input
-                                type="date"
-                                name="birthday"
-                                value="{{ old('birthday') }}"
-                                required
-                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                            >
+                                <input
+                                    type="password"
+                                    name="password"
+                                    required
+                                    minlength="8"
+                                    maxlength="255"
+                                    autocomplete="new-password"
+                                    aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+                                    placeholder="At least 8 characters"
+                                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                >
+                                @error('password')
+                                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                                @enderror
 
                         </div>
 
 
 
-                        <!-- AGE -->
+                        <!-- CONFIRM PASSWORD -->
                         <div>
 
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
+                                <label class="mb-2 block text-sm font-medium text-gray-700">
 
-                                Age
+                                    Confirm Password
 
-                                <span class="text-xs font-normal text-gray-400">
-                                    (automatically calculated)
-                                </span>
+                                </label>
 
-                            </label>
-
-                            <input
-                                type="number"
-                                name="age"
-                                value="{{ old('age') }}"
-                                readonly
-                                placeholder="Auto-generated"
-                                class="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none"
-                            >
+                                <input
+                                    type="password"
+                                    name="password_confirmation"
+                                    required
+                                    minlength="8"
+                                    maxlength="255"
+                                    autocomplete="new-password"
+                                    aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}"
+                                    placeholder="Re-enter your password"
+                                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                >
+                                @error('password_confirmation')
+                                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                                @enderror
 
                         </div>
 
@@ -371,13 +394,13 @@
 
                                 <h2 class="text-lg font-semibold text-gray-900">
 
-                                    Logistics Center Information
+                                    Company Details
 
                                 </h2>
 
                                 <p class="mt-1 text-sm text-gray-500">
 
-                                    Provide information about your logistics or sorting center.
+                                    Enter the registered company details.
 
                                 </p>
 
@@ -389,29 +412,60 @@
 
 
 
-                    <div class="space-y-5">
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-
-                        <!-- BUSINESS NAME -->
-                        <div>
-
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
-
-                                Business / Logistics Center Name
-
-                            </label>
-
+                        <div class="sm:col-span-2">
+                            <label class="mb-2 block text-sm font-medium text-gray-700">Company Name</label>
                             <input
                                 type="text"
-                                name="business_name"
-                                value="{{ old('business_name') }}"
+                                name="company_name"
+                                value="{{ old('company_name') }}"
                                 required
-                                placeholder="Enter business or logistics center name"
+                                maxlength="255"
+                                aria-invalid="{{ $errors->has('company_name') ? 'true' : 'false' }}"
+                                placeholder="Enter registered company name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
-
+                            @error('company_name')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
 
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700">SEC Registration No.</label>
+                            <input
+                                type="text"
+                                name="sec_registration_number"
+                                value="{{ old('sec_registration_number') }}"
+                                required
+                                maxlength="50"
+                                aria-invalid="{{ $errors->has('sec_registration_number') ? 'true' : 'false' }}"
+                                placeholder="Enter SEC registration number"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                            >
+                            @error('sec_registration_number')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700">TIN</label>
+                            <input
+                                type="text"
+                                name="tin"
+                                value="{{ old('tin') }}"
+                                required
+                                inputmode="numeric"
+                                maxlength="15"
+                                pattern="[0-9]{12}|[0-9]{3}(-[0-9]{3}){3}"
+                                aria-invalid="{{ $errors->has('tin') ? 'true' : 'false' }}"
+                                placeholder="12 digits or 000-000-000-000"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                            >
+                            @error('tin')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
 
                     </div>
 
@@ -444,7 +498,7 @@
 
                                 <p class="mt-1 text-sm text-gray-500">
 
-                                    Enter the location of your logistics or sorting center.
+                                    Enter the service location address.
 
                                 </p>
 
@@ -455,21 +509,360 @@
                     </div>
 
 
-                    <label class="mb-2 block text-sm font-medium text-gray-700">
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div>
+                            <label for="region" class="mb-2 block text-sm font-medium text-gray-700">Region</label>
+                            <select
+                                id="region"
+                                name="region"
+                                required
+                                aria-invalid="{{ $errors->has('region') ? 'true' : 'false' }}"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                            >
+                                <option value="">Loading regions...</option>
+                            </select>
+                            @error('region')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                        Complete Address
+                        <div>
+                            <label for="province" class="mb-2 block text-sm font-medium text-gray-700">Province</label>
+                            <select
+                                id="province"
+                                name="province"
+                                required
+                                disabled
+                                aria-invalid="{{ $errors->has('province') ? 'true' : 'false' }}"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                                <option value="">Select region first</option>
+                            </select>
+                            @error('province')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                    </label>
+                        <div>
+                            <label for="city_municipality" class="mb-2 block text-sm font-medium text-gray-700">City/Municipality</label>
+                            <select
+                                id="city_municipality"
+                                name="city_municipality"
+                                required
+                                disabled
+                                aria-invalid="{{ $errors->has('city_municipality') ? 'true' : 'false' }}"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                                <option value="">Select province first</option>
+                            </select>
+                            @error('city_municipality')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
 
+                        <div>
+                            <label for="barangay" class="mb-2 block text-sm font-medium text-gray-700">Barangay</label>
+                            <select
+                                id="barangay"
+                                name="barangay"
+                                required
+                                disabled
+                                aria-invalid="{{ $errors->has('barangay') ? 'true' : 'false' }}"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                                <option value="">Select city/municipality first</option>
+                            </select>
+                            @error('barangay')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
 
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700">Street Address</label>
+                            <input
+                                type="text"
+                                name="street_address"
+                                value="{{ old('street_address') }}"
+                                required
+                                maxlength="255"
+                                aria-invalid="{{ $errors->has('street_address') ? 'true' : 'false' }}"
+                                placeholder="House/building number and street"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                            >
+                            @error('street_address')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        @push('scripts')
+                        <script>
+                            const psgcApiBase = '/api/psgc';
+                            const regionSelect = document.getElementById('region');
+                            const provinceSelect = document.getElementById('province');
+                            const citySelect = document.getElementById('city_municipality');
+                            const barangaySelect = document.getElementById('barangay');
+                            const previousAddress = {
+                                region: @json(old('region')),
+                                province: @json(old('province')),
+                                city: @json(old('city_municipality')),
+                                barangay: @json(old('barangay')),
+                            };
+
+                            let regionRequestId = 0;
+                            let cityRequestId = 0;
+                            let barangayRequestId = 0;
+
+                            function setAddressOptions(select, placeholder, items = []) {
+                                select.replaceChildren(new Option(placeholder, ''));
+
+                                items.forEach((item) => {
+                                    select.add(new Option(item.name, item.code));
+                                });
+                            }
+
+                            async function fetchAddressOptions(path) {
+                                const response = await fetch(`${psgcApiBase}/${path}`);
+
+                                if (!response.ok) {
+                                    throw new Error(`Unable to load address data (${response.status}).`);
+                                }
+
+                                const items = await response.json();
+
+                                if (!Array.isArray(items)) {
+                                    throw new Error('The address service returned invalid data.');
+                                }
+
+                                return items;
+                            }
+
+                            function clearCityAndBarangay() {
+                                cityRequestId++;
+                                barangayRequestId++;
+                                setAddressOptions(citySelect, 'Select province first');
+                                citySelect.disabled = true;
+                                setAddressOptions(barangaySelect, 'Select city/municipality first');
+                                barangaySelect.disabled = true;
+                            }
+
+                            async function loadBarangays(cityCode, selectedBarangay = '') {
+                                const requestId = ++barangayRequestId;
+                                setAddressOptions(barangaySelect, 'Loading barangays...');
+                                barangaySelect.disabled = true;
+
+                                try {
+                                    const barangays = await fetchAddressOptions(
+                                        `cities-municipalities/${encodeURIComponent(cityCode)}/barangays`
+                                    );
+
+                                    if (requestId !== barangayRequestId) {
+                                        return;
+                                    }
+
+                                    setAddressOptions(barangaySelect, 'Select barangay', barangays);
+                                    barangaySelect.disabled = false;
+
+                                    if (selectedBarangay && barangays.some((item) => item.code === selectedBarangay)) {
+                                        barangaySelect.value = selectedBarangay;
+                                    }
+                                } catch (error) {
+                                    if (requestId === barangayRequestId) {
+                                        setAddressOptions(barangaySelect, 'Unable to load barangays');
+                                        barangaySelect.disabled = true;
+                                        console.error(error);
+                                    }
+                                }
+                            }
+
+                            async function loadCities(parentCode, regionCode = '', selectedCity = '', selectedBarangay = '') {
+                                const requestId = ++cityRequestId;
+                                barangayRequestId++;
+                                setAddressOptions(citySelect, 'Loading cities/municipalities...');
+                                citySelect.disabled = true;
+                                setAddressOptions(barangaySelect, 'Select city/municipality first');
+                                barangaySelect.disabled = true;
+
+                                const path = parentCode
+                                    ? `provinces/${encodeURIComponent(parentCode)}/cities-municipalities`
+                                    : `regions/${encodeURIComponent(regionCode)}/cities-municipalities`;
+
+                                try {
+                                    const cities = await fetchAddressOptions(path);
+
+                                    if (requestId !== cityRequestId) {
+                                        return;
+                                    }
+
+                                    setAddressOptions(citySelect, 'Select city/municipality', cities);
+                                    citySelect.disabled = false;
+
+                                    if (selectedCity && cities.some((item) => item.code === selectedCity)) {
+                                        citySelect.value = selectedCity;
+                                        await loadBarangays(selectedCity, selectedBarangay);
+                                    }
+                                } catch (error) {
+                                    if (requestId === cityRequestId) {
+                                        setAddressOptions(citySelect, 'Unable to load cities/municipalities');
+                                        citySelect.disabled = true;
+                                        console.error(error);
+                                    }
+                                }
+                            }
+
+                            async function loadProvinces(regionCode, selectedProvince = '', selectedCity = '', selectedBarangay = '') {
+                                const requestId = ++regionRequestId;
+                                clearCityAndBarangay();
+                                setAddressOptions(provinceSelect, 'Loading provinces...');
+                                provinceSelect.disabled = true;
+                                provinceSelect.required = true;
+
+                                if (!regionCode) {
+                                    setAddressOptions(provinceSelect, 'Select region first');
+                                    return;
+                                }
+
+                                try {
+                                    const provinces = await fetchAddressOptions(
+                                        `regions/${encodeURIComponent(regionCode)}/provinces`
+                                    );
+
+                                    if (requestId !== regionRequestId) {
+                                        return;
+                                    }
+
+                                    if (provinces.length === 0) {
+                                        setAddressOptions(provinceSelect, 'Not applicable for this region');
+                                        provinceSelect.required = false;
+                                        await loadCities('', regionCode, selectedCity, selectedBarangay);
+                                        return;
+                                    }
+
+                                    setAddressOptions(provinceSelect, 'Select province', provinces);
+                                    provinceSelect.disabled = false;
+
+                                    if (selectedProvince && provinces.some((item) => item.code === selectedProvince)) {
+                                        provinceSelect.value = selectedProvince;
+                                        await loadCities(selectedProvince, '', selectedCity, selectedBarangay);
+                                    }
+                                } catch (error) {
+                                    if (requestId === regionRequestId) {
+                                        setAddressOptions(provinceSelect, 'Unable to load provinces');
+                                        provinceSelect.disabled = true;
+                                        console.error(error);
+                                    }
+                                }
+                            }
+
+                            async function loadRegions(selectedRegion = '') {
+                                const requestId = ++regionRequestId;
+                                clearCityAndBarangay();
+                                setAddressOptions(provinceSelect, 'Select region first');
+                                provinceSelect.disabled = true;
+                                setAddressOptions(regionSelect, 'Loading regions...');
+                                regionSelect.disabled = true;
+
+                                try {
+                                    const regions = await fetchAddressOptions('regions');
+
+                                    if (requestId !== regionRequestId) {
+                                        return;
+                                    }
+
+                                    setAddressOptions(regionSelect, 'Select region', regions);
+                                    regionSelect.disabled = false;
+
+                                    if (selectedRegion && regions.some((item) => item.code === selectedRegion)) {
+                                        regionSelect.value = selectedRegion;
+                                        await loadProvinces(
+                                            selectedRegion,
+                                            previousAddress.province,
+                                            previousAddress.city,
+                                            previousAddress.barangay
+                                        );
+                                    }
+                                } catch (error) {
+                                    if (requestId === regionRequestId) {
+                                        setAddressOptions(regionSelect, 'Unable to load regions');
+                                        regionSelect.disabled = true;
+                                        console.error(error);
+                                    }
+                                }
+                            }
+
+                            regionSelect.addEventListener('change', () => {
+                                loadProvinces(regionSelect.value);
+                            });
+
+                            provinceSelect.addEventListener('change', () => {
+                                if (provinceSelect.value) {
+                                    loadCities(provinceSelect.value);
+                                } else {
+                                    clearCityAndBarangay();
+                                }
+                            });
+
+                            citySelect.addEventListener('change', () => {
+                                if (citySelect.value) {
+                                    loadBarangays(citySelect.value);
+                                } else {
+                                    barangayRequestId++;
+                                    setAddressOptions(barangaySelect, 'Select city/municipality first');
+                                    barangaySelect.disabled = true;
+                                }
+                            });
+
+                            loadRegions(previousAddress.region);
+                        </script>
+                        @endpush
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700">Postal Code</label>
+                            <input
+                                type="text"
+                                name="postal_code"
+                                value="{{ old('postal_code') }}"
+                                required
+                                inputmode="numeric"
+                                maxlength="4"
+                                pattern="[0-9]{4}"
+                                aria-invalid="{{ $errors->has('postal_code') ? 'true' : 'false' }}"
+                                placeholder="4-digit postal code"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                            >
+                            @error('postal_code')
+                                <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- SERVICE AREAS -->
+                <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="rounded-xl bg-[#E6F4EE] p-2.5 text-[#1F6F5B]">
+                                <i data-lucide="map" class="h-5 w-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Logistics Details</h2>
+                                <p class="mt-1 text-sm text-gray-500">List the locations your company serves.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Service Areas</label>
                     <textarea
-                        name="address"
-                        rows="4"
+                        name="service_areas"
+                        rows="3"
                         required
-                        placeholder="House/Building No., Street, Barangay, Municipality/City, Province"
+                        maxlength="1000"
+                        aria-invalid="{{ $errors->has('service_areas') ? 'true' : 'false' }}"
+                        placeholder="Enter cities, municipalities, or regions served"
                         class="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                    >{{ old('address') }}</textarea>
-
+                    >{{ old('service_areas') }}</textarea>
+                    @error('service_areas')
+                        <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                    @enderror
                 </section>
 
 
@@ -512,93 +905,35 @@
 
 
                     <div class="space-y-5">
-
-
-                        <!-- GOVERNMENT ID -->
-                        <div class="rounded-xl border border-dashed border-gray-300 p-5">
-
-                            <div class="flex items-start gap-4">
-
-                                <div class="rounded-xl bg-[#E6F4EE] p-3 text-[#1F6F5B]">
-
-                                    <i data-lucide="id-card" class="h-5 w-5"></i>
-
+                        @foreach ([
+                            'sec_certificate' => 'SEC Certificate',
+                            'bir_form_2303' => 'BIR Form 2303',
+                            'business_permit' => 'Mayor’s / Business Permit',
+                            'authorized_representative_id' => 'Valid ID of Authorized Representative',
+                        ] as $field => $label)
+                            <div class="rounded-xl border border-dashed border-gray-300 p-5">
+                                <div class="flex items-start gap-4">
+                                    <div class="rounded-xl bg-[#E6F4EE] p-3 text-[#1F6F5B]">
+                                        <i data-lucide="file-check-2" class="h-5 w-5"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold text-gray-900">{{ $label }}</p>
+                                        <p class="mt-1 text-xs text-gray-500">Upload a JPG, PNG, or PDF file no larger than 5 MB.</p>
+                                        <input
+                                            type="file"
+                                            name="{{ $field }}"
+                                            accept=".jpg,.jpeg,.png,.pdf"
+                                            required
+                                            aria-invalid="{{ $errors->has($field) ? 'true' : 'false' }}"
+                                            class="mt-4 block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#E6F4EE] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#1F6F5B] hover:file:bg-[#DDF3EC]"
+                                        >
+                                        @error($field)
+                                            <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                                        @enderror
+                                    </div>
                                 </div>
-
-
-                                <div class="flex-1">
-
-                                    <p class="text-sm font-semibold text-gray-900">
-
-                                        Valid Government ID
-
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-gray-500">
-
-                                        Upload a clear photo or scan of a valid government-issued ID.
-
-                                    </p>
-
-
-                                    <input
-                                        type="file"
-                                        name="government_id"
-                                        accept="image/*,.pdf"
-                                        required
-                                        class="mt-4 block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#E6F4EE] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#1F6F5B] hover:file:bg-[#DDF3EC]"
-                                    >
-
-                                </div>
-
                             </div>
-
-                        </div>
-
-
-
-                        <!-- BUSINESS PERMIT -->
-                        <div class="rounded-xl border border-dashed border-gray-300 p-5">
-
-                            <div class="flex items-start gap-4">
-
-                                <div class="rounded-xl bg-[#E6F4EE] p-3 text-[#1F6F5B]">
-
-                                    <i data-lucide="briefcase-business" class="h-5 w-5"></i>
-
-                                </div>
-
-
-                                <div class="flex-1">
-
-                                    <p class="text-sm font-semibold text-gray-900">
-
-                                        Business / DTI Permit
-
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-gray-500">
-
-                                        Upload your business registration, DTI permit, or supporting business document.
-
-                                    </p>
-
-
-                                    <input
-                                        type="file"
-                                        name="business_permit"
-                                        accept="image/*,.pdf"
-                                        required
-                                        class="mt-4 block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#E6F4EE] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#1F6F5B] hover:file:bg-[#DDF3EC]"
-                                    >
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-
+                        @endforeach
                     </div>
 
                 </section>
@@ -615,19 +950,22 @@
                             name="terms"
                             value="1"
                             required
+                            aria-invalid="{{ $errors->has('terms') ? 'true' : 'false' }}"
                             class="mt-1 h-4 w-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
                         >
 
 
                         <span class="text-sm leading-6 text-gray-600">
 
-                            I confirm that the information and documents provided
-                            are accurate and I agree to the SUKI SHOP Logistics
-                            verification requirements and platform policies.
+                            I confirm that the information and documents provided are accurate,
+                            and I agree to the SUKI SHOP Terms and Privacy Policy.
 
                         </span>
 
                     </label>
+                    @error('terms')
+                        <p class="mt-2 text-xs text-red-600" role="alert">{{ $message }}</p>
+                    @enderror
 
                 </section>
 
@@ -827,40 +1165,5 @@
 </div>
 
 
-<!-- AUTO CALCULATE AGE -->
-<script>
-
-    const birthdayInput = document.querySelector('[name="birthday"]');
-    const ageInput = document.querySelector('[name="age"]');
-
-    birthdayInput?.addEventListener('change', function () {
-
-        if (!this.value) return;
-
-        const birthday = new Date(this.value);
-        const today = new Date();
-
-        let age = today.getFullYear() - birthday.getFullYear();
-
-        const monthDifference =
-            today.getMonth() - birthday.getMonth();
-
-        if (
-            monthDifference < 0 ||
-            (
-                monthDifference === 0 &&
-                today.getDate() < birthday.getDate()
-            )
-        ) {
-
-            age--;
-
-        }
-
-        ageInput.value = age;
-
-    });
-
-</script>
 
 @endsection
