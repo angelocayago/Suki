@@ -6762,6 +6762,51 @@ Route::post('/login', function (Request $request) {
     }
 
     // =====================================================
+// SELLER LOGIN
+// =====================================================
+
+if ($user->hasRole('seller')) {
+
+    $seller = Seller::where('user_id', $user->id)->first();
+
+    if (!$seller) {
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->withErrors([
+                'login' => 'Seller profile could not be found.',
+            ])
+            ->onlyInput('login');
+    }
+
+    $request->session()->put('seller_profile', [
+    'shop_name' => $seller->name,
+    'business_category' => $seller->business_category,
+    'seller_type' => $seller->seller_type,
+    'tin' => $seller->tin,
+
+    'seller_name' => $user->name,
+    'phone' => $user->phone,
+    'email' => $user->email,
+
+    'status' => $seller->status,
+]);
+
+    $request->session()->put('seller_logged_in', true);
+
+    return redirect()
+        ->intended(route('seller.dashboard'))
+        ->with(
+            'success',
+            'Welcome back to the SUKI SHOP Seller Portal!'
+        );
+}
+
+    // =====================================================
     // BUYER LOGIN
     // =====================================================
 
