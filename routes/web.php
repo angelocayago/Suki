@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
+use App\Models\ProductImage;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Middleware\SuperAdminMiddleware;
 
@@ -345,6 +346,8 @@ if (Schema::hasTable('products')) {
         'category',
         'variants',
         'seller',
+         'images' => fn ($query) =>
+        $query->orderBy('position'),
     ])
         ->where('is_active', true)
         ->latest()
@@ -392,7 +395,11 @@ if (Schema::hasTable('products')) {
 
             // Temporary image until product image upload
             // is connected to Supabase Storage.
-            'image' => asset('images/suki-logo.png'),
+            'image' => $databaseProduct->images->first()
+    ? Storage::disk('s3')->url(
+        $databaseProduct->images->first()->path
+    )
+    : asset('images/suki-logo.png'),
 
             'seller' => $databaseProduct->seller?->name
                 ?? 'SUKI Seller',
@@ -3925,6 +3932,9 @@ Route::post('/seller/products', function (
         'stock' => 'required|integer|min:0',
         'sku' => 'nullable|string|max:50|unique:product_variants,sku',
         'status' => 'required|in:active,inactive',
+
+        'images' => 'nullable|array|max:5',
+        'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
     ]);
 
     $seller = Seller::where(
@@ -3937,52 +3947,102 @@ Route::post('/seller/products', function (
         $validated['category']
     )->firstOrFail();
 
-    DB::transaction(function () use (
-        $validated,
-        $seller,
-        $category
-    ) {
+    $uploadedPaths = [];
 
-        $baseSlug = Str::slug($validated['name']);
+    try {
 
-        if ($baseSlug === '') {
-            $baseSlug = 'product';
+        DB::transaction(function () use (
+            $validated,
+            $seller,
+            $category,
+            $request,
+            &$uploadedPaths
+        ) {
+
+            $baseSlug = Str::slug(
+                $validated['name']
+            );
+
+            if ($baseSlug === '') {
+                $baseSlug = 'product';
+            }
+
+            $slug = $baseSlug;
+            $counter = 2;
+
+            while (
+                Product::where('slug', $slug)->exists()
+            ) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+
+            $product = Product::create([
+                'seller_id' => $seller->id,
+                'category_id' => $category->id,
+                'name' => $validated['name'],
+                'slug' => $slug,
+                'description' => $validated['description'],
+                'is_active' => $validated['status'] === 'active',
+            ]);
+
+            $sku = !empty($validated['sku'])
+                ? $validated['sku']
+                : 'SUKI-' . $seller->id . '-' . $product->id;
+
+            ProductVariant::create([
+                'product_id' => $product->id,
+                'sku' => $sku,
+                'name' => 'Default',
+                'options' => null,
+                'price_minor' => (int) round(
+                    ((float) $validated['price']) * 100
+                ),
+                'stock' => (int) $validated['stock'],
+                'weight_grams' => null,
+                'is_active' => $validated['status'] === 'active',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Upload product images to Supabase Storage
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $request->file('images', [])
+                as $position => $image
+            ) {
+
+                $path = Storage::disk('s3')->putFile(
+                    'products/' . $product->id,
+                    $image
+                );
+
+                if (!$path) {
+                    throw new RuntimeException(
+                        'Product image upload failed.'
+                    );
+                }
+
+                $uploadedPaths[] = $path;
+
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'path' => $path,
+                    'position' => $position,
+                ]);
+            }
+        });
+
+    } catch (Throwable $e) {
+
+        foreach ($uploadedPaths as $path) {
+            Storage::disk('s3')->delete($path);
         }
 
-        $slug = $baseSlug;
-        $counter = 2;
-
-        while (Product::where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $counter;
-            $counter++;
-        }
-
-        $product = Product::create([
-            'seller_id' => $seller->id,
-            'category_id' => $category->id,
-            'name' => $validated['name'],
-            'slug' => $slug,
-            'description' => $validated['description'],
-            'is_active' => $validated['status'] === 'active',
-        ]);
-
-        $sku = !empty($validated['sku'])
-            ? $validated['sku']
-            : 'SUKI-' . $seller->id . '-' . $product->id;
-
-        ProductVariant::create([
-            'product_id' => $product->id,
-            'sku' => $sku,
-            'name' => 'Default',
-            'options' => null,
-            'price_minor' => (int) round(
-                ((float) $validated['price']) * 100
-            ),
-            'stock' => (int) $validated['stock'],
-            'weight_grams' => null,
-            'is_active' => $validated['status'] === 'active',
-        ]);
-    });
+        throw $e;
+    }
 
     return redirect()
         ->route('seller.products')
