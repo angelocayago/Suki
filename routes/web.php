@@ -6146,6 +6146,243 @@ $requireLogistics = function () {
     return null;
 };
 
+Route::get('/logistics/register', function () {
+
+    return view('logistics.register');
+
+})->name('logistics.register');
+
+Route::post('/logistics/register', function (Request $request) use ($fetchPsgcData) {
+
+    $submittedMobile = $request->input('mobile_number');
+    $normalizedMobile = null;
+
+    if (is_string($submittedMobile)) {
+        if (preg_match('/\A09[0-9]{9}\z/', $submittedMobile) === 1) {
+            $normalizedMobile = $submittedMobile;
+        } elseif (preg_match('/\A\+639[0-9]{9}\z/', $submittedMobile) === 1) {
+            $normalizedMobile = '0' . substr($submittedMobile, 3);
+        }
+    }
+
+    $validated = $request->validate([
+        'company_name' => 'required|string|min:2|max:255',
+        'sec_registration_number' => [
+            'bail',
+            'required',
+            'string',
+            'regex:/\A[A-Za-z0-9][A-Za-z0-9\/-]{2,49}\z/',
+        ],
+        'tin' => [
+            'bail',
+            'required',
+            'string',
+            'regex:/\A(?:[0-9]{12}|[0-9]{3}(?:-[0-9]{3}){3})\z/',
+        ],
+        'region' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'province' => ['nullable', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'city_municipality' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'barangay' => ['required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'street_address' => 'required|string|max:255',
+        'postal_code' => [
+            'required',
+            'string',
+            'regex:/\A[0-9]{4}\z/',
+        ],
+        'first_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?:[\x20\x27\x2D]\p{L}+)*\z/u',
+        ],
+        'last_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?:[\x20\x27\x2D]\p{L}+)*\z/u',
+        ],
+        'position' => 'required|string|max:100',
+        'email' => 'required|email|max:255',
+        'mobile_number' => [
+            'bail',
+            'required',
+            'string',
+            function ($attribute, $value, $fail) use ($normalizedMobile) {
+                if ($normalizedMobile === null) {
+                    $fail('Enter a valid Philippine mobile number in local or +63 format.');
+                }
+            },
+        ],
+        'service_areas' => 'required|string|max:1000',
+        'sec_certificate' => [
+            'required',
+            'file',
+            'mimes:jpg,jpeg,png,pdf',
+            'max:5120',
+        ],
+        'bir_form_2303' => [
+            'required',
+            'file',
+            'mimes:jpg,jpeg,png,pdf',
+            'max:5120',
+        ],
+        'business_permit' => [
+            'required',
+            'file',
+            'mimes:jpg,jpeg,png,pdf',
+            'max:5120',
+        ],
+        'authorized_representative_id' => [
+            'required',
+            'file',
+            'mimes:jpg,jpeg,png,pdf',
+            'max:5120',
+        ],
+        'password' => 'required|string|min:8|max:255',
+        'password_confirmation' => 'required|string|same:password',
+        'terms' => 'accepted',
+    ], [
+        'company_name.required' => 'Company name is required.',
+        'sec_registration_number.required' => 'SEC registration number is required.',
+        'sec_registration_number.regex' => 'Enter a valid SEC registration number using letters, numbers, hyphens, or slashes.',
+        'tin.required' => 'TIN is required.',
+        'tin.regex' => 'TIN must contain 12 digits, optionally displayed as 000-000-000-000.',
+        'region.required' => 'Region is required.',
+        'province.required' => 'Province is required.',
+        'city_municipality.required' => 'City or municipality is required.',
+        'street_address.required' => 'Street address is required.',
+        'postal_code.required' => 'Postal code is required.',
+        'postal_code.regex' => 'Postal code must contain exactly four digits.',
+        'first_name.required' => 'First name is required.',
+        'first_name.regex' => 'First name must contain letters only, with spaces, hyphens, or apostrophes allowed between words.',
+        'last_name.required' => 'Last name is required.',
+        'last_name.regex' => 'Last name must contain letters only, with spaces, hyphens, or apostrophes allowed between words.',
+        'position.required' => 'Position is required.',
+        'email.required' => 'Email is required.',
+        'email.email' => 'Enter a valid email address.',
+        'mobile_number.required' => 'Mobile number is required.',
+        'service_areas.required' => 'Service areas are required.',
+        'sec_certificate.required' => 'SEC Certificate is required.',
+        'sec_certificate.mimes' => 'SEC Certificate must be a JPG, PNG, or PDF file.',
+        'sec_certificate.max' => 'SEC Certificate may not exceed 5 MB.',
+        'bir_form_2303.required' => 'BIR Form 2303 is required.',
+        'bir_form_2303.mimes' => 'BIR Form 2303 must be a JPG, PNG, or PDF file.',
+        'bir_form_2303.max' => 'BIR Form 2303 may not exceed 5 MB.',
+        'business_permit.required' => 'Mayor’s / Business Permit is required.',
+        'business_permit.mimes' => 'Mayor’s / Business Permit must be a JPG, PNG, or PDF file.',
+        'business_permit.max' => 'Mayor’s / Business Permit may not exceed 5 MB.',
+        'authorized_representative_id.required' => 'Valid ID of the authorized representative is required.',
+        'authorized_representative_id.mimes' => 'Authorized representative ID must be a JPG, PNG, or PDF file.',
+        'authorized_representative_id.max' => 'Authorized representative ID may not exceed 5 MB.',
+        'password.required' => 'Password is required.',
+        'password.min' => 'Password must be at least 8 characters.',
+        'password_confirmation.required' => 'Confirm password is required.',
+        'password_confirmation.same' => 'Password confirmation must match the password.',
+        'terms.accepted' => 'You must agree to the Terms and Privacy Policy.',
+    ], [
+        'city_municipality' => 'city or municipality',
+        'sec_registration_number' => 'SEC registration number',
+        'sec_certificate' => 'SEC Certificate',
+        'bir_form_2303' => 'BIR Form 2303',
+        'business_permit' => 'Mayor’s / Business Permit',
+        'authorized_representative_id' => 'Valid ID of Authorized Representative',
+    ]);
+
+    $regions = $fetchPsgcData('regions');
+
+    if ($regions === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $region = collect($regions)->firstWhere('code', $validated['region']);
+    if ($region === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Select a valid region.',
+        ]);
+    }
+
+    $regionPath = 'regions/' . rawurlencode($region['code']);
+    $provinces = $fetchPsgcData($regionPath . '/provinces');
+
+    if ($provinces === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $locationErrors = [];
+    $province = null;
+
+    if ($provinces !== [] && empty($validated['province'])) {
+        $locationErrors['province'] = 'Select a province.';
+    } elseif ($provinces !== []) {
+        $province = collect($provinces)->firstWhere(
+            'code',
+            $validated['province']
+        );
+
+        if ($province === null) {
+            $locationErrors['province'] = 'Select a province in the selected region.';
+        }
+    } elseif (! empty($validated['province'])) {
+        $locationErrors['province'] = 'This region does not have provinces.';
+    }
+
+    if ($locationErrors !== []) {
+        throw \Illuminate\Validation\ValidationException::withMessages($locationErrors);
+    }
+
+    $municipalityPath = $province !== null
+        ? 'provinces/' . rawurlencode($province['code']) . '/cities-municipalities'
+        : $regionPath . '/cities-municipalities';
+    $municipalities = $fetchPsgcData($municipalityPath);
+
+    if ($municipalities === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'city_municipality' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $municipality = collect($municipalities)->firstWhere(
+        'code',
+        $validated['city_municipality']
+    );
+
+    if ($municipality === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'city_municipality' => 'Select a city or municipality in the selected area.',
+        ]);
+    }
+
+    $barangays = $fetchPsgcData(
+        'cities-municipalities/'
+        . rawurlencode($municipality['code'])
+        . '/barangays'
+    );
+
+    if ($barangays === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    if (collect($barangays)->firstWhere('code', $validated['barangay']) === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Select a barangay in the selected city or municipality.',
+        ]);
+    }
+
+    return back()->with(
+        'status',
+        'All required fields passed validation. Registration processing is not enabled yet.'
+    );
+
+})->name('logistics.register.submit');
+
 Route::get('/logistics', function () use ($requireLogistics) {
 
     if ($redirect = $requireLogistics()) {
