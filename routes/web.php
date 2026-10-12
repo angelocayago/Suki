@@ -953,30 +953,93 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
         return $redirect;
     }
 
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
     $user = Auth::user();
 
-    $product = $products[$slug];
+    if (isset($products[$slug])) {
+
+        $product = $products[$slug];
+
+    } else {
+
+        if (!Schema::hasTable('products')) {
+            abort(404);
+        }
+
+        $databaseProduct = Product::with([
+            'variants',
+            'images' => fn ($query) =>
+                $query->orderBy('position'),
+        ])
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$databaseProduct) {
+            abort(404);
+        }
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            abort(404);
+        }
+
+        $firstImage = $databaseProduct->images->first();
+
+        $product = [
+            'name' => $databaseProduct->name,
+
+            'price' => number_format(
+                $variant->price_minor / 100,
+                2,
+                '.',
+                ''
+            ),
+
+            'stock' => (int) $variant->stock,
+
+            'image' => $firstImage
+                ? Storage::disk('s3')->url(
+                    $firstImage->path
+                )
+                : asset('images/suki-logo.png'),
+        ];
+    }
 
     $maxStock = (int) $product['stock'];
 
-    $requestedQuantity = (int) $request->input('quantity', 1);
+    if ($maxStock < 1) {
+        return redirect()
+            ->back()
+            ->withErrors([
+                'cart' => 'This product is currently out of stock.',
+            ]);
+    }
+
+    $requestedQuantity = (int) $request->input(
+        'quantity',
+        1
+    );
 
     $requestedQuantity = max(
         1,
         min($requestedQuantity, $maxStock)
     );
 
-    $cartItem = CartItem::where('user_id', $user->id)
+    $cartItem = CartItem::where(
+        'user_id',
+        $user->id
+    )
         ->where('product_slug', $slug)
         ->first();
 
     if ($cartItem) {
 
-        $newQuantity = $cartItem->quantity + $requestedQuantity;
+        $newQuantity =
+            $cartItem->quantity
+            + $requestedQuantity;
 
         $newQuantity = min(
             $newQuantity,
@@ -1018,10 +1081,6 @@ Route::post('/cart/increase/{slug}', function ($slug) use ($products, $requireBu
         return $redirect;
     }
 
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
     $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
@@ -1032,7 +1091,35 @@ Route::post('/cart/increase/{slug}', function ($slug) use ($products, $requireBu
         abort(404);
     }
 
-    $maxStock = (int) $products[$slug]['stock'];
+    if (isset($products[$slug])) {
+
+        $maxStock = (int) $products[$slug]['stock'];
+
+    } else {
+
+        if (!Schema::hasTable('products')) {
+            abort(404);
+        }
+
+        $databaseProduct = Product::with('variants')
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$databaseProduct) {
+            abort(404);
+        }
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            abort(404);
+        }
+
+        $maxStock = (int) $variant->stock;
+    }
 
     if ($cartItem->quantity < $maxStock) {
         $cartItem->increment('quantity');
@@ -1115,10 +1202,6 @@ Route::post('/cart/update/{slug}', function ($slug) use ($products, $requireBuye
         return $redirect;
     }
 
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
     $user = Auth::user();
 
     $cartItem = CartItem::where('user_id', $user->id)
@@ -1129,9 +1212,54 @@ Route::post('/cart/update/{slug}', function ($slug) use ($products, $requireBuye
         abort(404);
     }
 
-    $quantity = (int) request()->input('quantity', 1);
+    /*
+    |--------------------------------------------------------------------------
+    | Get stock from static or database product
+    |--------------------------------------------------------------------------
+    */
 
-    $maxStock = (int) $products[$slug]['stock'];
+    if (isset($products[$slug])) {
+
+        $maxStock = (int) $products[$slug]['stock'];
+
+    } else {
+
+        if (!Schema::hasTable('products')) {
+            abort(404);
+        }
+
+        $databaseProduct = Product::with('variants')
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$databaseProduct) {
+            abort(404);
+        }
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            abort(404);
+        }
+
+        $maxStock = (int) $variant->stock;
+    }
+
+    if ($maxStock < 1) {
+        return redirect()
+            ->back()
+            ->withErrors([
+                'cart' => 'This product is currently out of stock.',
+            ]);
+    }
+
+    $quantity = (int) request()->input(
+        'quantity',
+        1
+    );
 
     $quantity = max(
         1,
