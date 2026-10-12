@@ -590,12 +590,114 @@ if (Schema::hasTable('products')) {
 
 Route::get('/product/{slug}', function ($slug) use ($products) {
 
-    if (!isset($products[$slug])) {
+    // Existing hardcoded/static products
+    if (isset($products[$slug])) {
+        return view('buyer.product-details', [
+            'product' => $products[$slug],
+            'slug' => $slug,
+        ]);
+    }
+
+    // Seller products from database
+    if (!Schema::hasTable('products')) {
         abort(404);
     }
 
+    $databaseProduct = Product::with([
+        'category',
+        'variants',
+        'seller',
+        'images' => fn ($query) =>
+            $query->orderBy('position'),
+    ])
+        ->where('slug', $slug)
+        ->where('is_active', true)
+        ->first();
+
+    if (!$databaseProduct) {
+        abort(404);
+    }
+
+    $variant = $databaseProduct->variants
+        ->where('is_active', true)
+        ->first();
+
+    if (!$variant) {
+        abort(404);
+    }
+
+    $price = $variant->price_minor / 100;
+
+    $imageUrls = $databaseProduct->images
+        ->map(
+            fn ($image) =>
+                Storage::disk('s3')->url($image->path)
+        )
+        ->values()
+        ->all();
+
+    if (empty($imageUrls)) {
+        $imageUrls = [
+            asset('images/suki-logo.png'),
+        ];
+    }
+
+    $product = [
+        'name' => $databaseProduct->name,
+
+        'image' => $imageUrls[0],
+        'images' => $imageUrls,
+
+        'category' =>
+            $databaseProduct->category?->name
+            ?? 'Others',
+
+        'rating' => '0.0',
+        'ratings' => '0',
+        'sold' => '0',
+
+        'price' => number_format(
+            $price,
+            2,
+            '.',
+            ','
+        ),
+
+        'old_price' => number_format(
+            $price,
+            2,
+            '.',
+            ','
+        ),
+
+        'discount' => '',
+
+        'colors' => [],
+
+        'stock' => (int) $variant->stock,
+
+        'seller' =>
+            $databaseProduct->seller?->name
+            ?? 'SUKI Seller',
+
+        'seller_rating' => 'New',
+
+        'seller_products' => Product::where(
+            'seller_id',
+            $databaseProduct->seller_id
+        )
+            ->where('is_active', true)
+            ->count(),
+
+        'description' =>
+            $databaseProduct->description
+            ?? '',
+
+        'features' => [],
+    ];
+
     return view('buyer.product-details', [
-        'product' => $products[$slug],
+        'product' => $product,
         'slug' => $slug,
     ]);
 
