@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 
 // =====================================================
@@ -331,67 +332,248 @@ Route::get('/home', function () {
 // =====================================================
 // BUYER SHOP
 // =====================================================
-
 Route::get('/shop', function (Request $request) use ($products) {
+
+    // Keep all existing hardcoded/static products.
+    $shopProducts = $products;
+
+    // Get active seller products from Supabase/database.
+   $databaseProducts = collect();
+
+if (Schema::hasTable('products')) {
+    $databaseProducts = Product::with([
+        'category',
+        'variants',
+        'seller',
+    ])
+        ->where('is_active', true)
+        ->latest()
+        ->get();
+}
+
+    // Append database products to the existing static products.
+    foreach ($databaseProducts as $databaseProduct) {
+
+        $variant = $databaseProduct->variants
+            ->where('is_active', true)
+            ->first();
+
+        if (!$variant) {
+            continue;
+        }
+
+        $price = $variant->price_minor / 100;
+
+        $shopProducts[$databaseProduct->slug] = [
+            'name' => $databaseProduct->name,
+
+            'price' => number_format(
+                $price,
+                2,
+                '.',
+                ','
+            ),
+
+            'old_price' => number_format(
+                $price,
+                2,
+                '.',
+                ','
+            ),
+
+            'discount' => '',
+
+            'rating' => '0.0',
+            'ratings' => '0',
+            'sold' => '0',
+
+            'category' => $databaseProduct->category?->name
+                ?? 'Others',
+
+            // Temporary image until product image upload
+            // is connected to Supabase Storage.
+            'image' => asset('images/suki-logo.png'),
+
+            'seller' => $databaseProduct->seller?->name
+                ?? 'SUKI Seller',
+
+            'seller_rating' => 'New',
+            'seller_products' => 'New',
+        ];
+    }
+
     $selectedCategories = array_values(array_filter(
         (array) $request->query('category', []),
-        fn ($category) => is_string($category) && $category !== ''
+        fn ($category) =>
+            is_string($category)
+            && $category !== ''
     ));
+
     $search = $request->query('search');
-    $search = is_string($search) ? trim($search) : '';
-    $minPrice = is_numeric($request->query('min_price'))
+
+    $search = is_string($search)
+        ? trim($search)
+        : '';
+
+    $minPrice = is_numeric(
+        $request->query('min_price')
+    )
         ? (float) $request->query('min_price')
         : null;
-    $maxPrice = is_numeric($request->query('max_price'))
+
+    $maxPrice = is_numeric(
+        $request->query('max_price')
+    )
         ? (float) $request->query('max_price')
         : null;
-    $rating = in_array((string) $request->query('rating'), ['3', '4', '5'], true)
+
+    $rating = in_array(
+        (string) $request->query('rating'),
+        ['3', '4', '5'],
+        true
+    )
         ? (float) $request->query('rating')
         : null;
-    $sort = $request->query('sort', 'recommended');
-    $sort = in_array($sort, ['recommended', 'newest', 'best_selling', 'price_asc', 'price_desc'], true)
+
+    $sort = $request->query(
+        'sort',
+        'recommended'
+    );
+
+    $sort = in_array(
+        $sort,
+        [
+            'recommended',
+            'newest',
+            'best_selling',
+            'price_asc',
+            'price_desc',
+        ],
+        true
+    )
         ? $sort
         : 'recommended';
 
-    $filteredProducts = collect($products)
-        ->map(fn (array $product, string $slug) => array_merge($product, ['slug' => $slug]))
-        ->filter(function (array $product) use ($selectedCategories, $search, $minPrice, $maxPrice, $rating) {
-            $price = (float) str_replace(',', '', $product['price']);
+    $filteredProducts = collect($shopProducts)
+        ->map(
+            fn (array $product, string $slug) =>
+                array_merge(
+                    $product,
+                    ['slug' => $slug]
+                )
+        )
+        ->filter(function (array $product) use (
+            $selectedCategories,
+            $search,
+            $minPrice,
+            $maxPrice,
+            $rating
+        ) {
 
-            if ($selectedCategories && !in_array($product['category'], $selectedCategories, true)) {
+            $price = (float) str_replace(
+                ',',
+                '',
+                $product['price']
+            );
+
+            if (
+                $selectedCategories
+                && !in_array(
+                    $product['category'],
+                    $selectedCategories,
+                    true
+                )
+            ) {
                 return false;
             }
 
-            if ($search !== '' && stripos($product['name'], $search) === false) {
+            if (
+                $search !== ''
+                && stripos(
+                    $product['name'],
+                    $search
+                ) === false
+            ) {
                 return false;
             }
 
-            if (($minPrice !== null && $price < $minPrice) || ($maxPrice !== null && $price > $maxPrice)) {
+            if (
+                ($minPrice !== null
+                    && $price < $minPrice)
+                ||
+                ($maxPrice !== null
+                    && $price > $maxPrice)
+            ) {
                 return false;
             }
 
-            return $rating === null || (float) $product['rating'] >= $rating;
+            return $rating === null
+                || (float) $product['rating'] >= $rating;
         });
 
     if ($sort === 'newest') {
-        $filteredProducts = $filteredProducts->reverse();
-    } elseif ($sort === 'best_selling') {
-        $filteredProducts = $filteredProducts->sortByDesc(function (array $product) {
-            $sales = strtolower((string) $product['sold']);
-            $multiplier = str_contains($sales, 'k') ? 1000 : 1;
 
-            return (float) preg_replace('/[^0-9.]/', '', $sales) * $multiplier;
-        });
+        $filteredProducts =
+            $filteredProducts->reverse();
+
+    } elseif ($sort === 'best_selling') {
+
+        $filteredProducts =
+            $filteredProducts->sortByDesc(
+                function (array $product) {
+
+                    $sales = strtolower(
+                        (string) $product['sold']
+                    );
+
+                    $multiplier =
+                        str_contains($sales, 'k')
+                            ? 1000
+                            : 1;
+
+                    return (float) preg_replace(
+                        '/[^0-9.]/',
+                        '',
+                        $sales
+                    ) * $multiplier;
+                }
+            );
+
     } elseif ($sort === 'price_asc') {
-        $filteredProducts = $filteredProducts->sortBy(fn (array $product) => (float) str_replace(',', '', $product['price']));
+
+        $filteredProducts =
+            $filteredProducts->sortBy(
+                fn (array $product) =>
+                    (float) str_replace(
+                        ',',
+                        '',
+                        $product['price']
+                    )
+            );
+
     } elseif ($sort === 'price_desc') {
-        $filteredProducts = $filteredProducts->sortByDesc(fn (array $product) => (float) str_replace(',', '', $product['price']));
+
+        $filteredProducts =
+            $filteredProducts->sortByDesc(
+                fn (array $product) =>
+                    (float) str_replace(
+                        ',',
+                        '',
+                        $product['price']
+                    )
+            );
     }
 
     return view('buyer.shop', [
-        'products' => $filteredProducts->values()->all(),
-        'selectedCategories' => $selectedCategories,
+        'products' =>
+            $filteredProducts
+                ->values()
+                ->all(),
+
+        'selectedCategories' =>
+            $selectedCategories,
     ]);
+
 })->name('buyer.shop');
 
 
