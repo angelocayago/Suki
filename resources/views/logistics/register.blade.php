@@ -317,23 +317,35 @@
                         <!-- PASSWORD -->
                         <div>
 
-                                <label class="mb-2 block text-sm font-medium text-gray-700">
+                                <label for="logistics-password" class="mb-2 block text-sm font-medium text-gray-700">
 
                                     Password
 
                                 </label>
 
-                                <input
-                                    type="password"
-                                    name="password"
-                                    required
-                                    minlength="8"
-                                    maxlength="255"
-                                    autocomplete="new-password"
-                                    aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
-                                    placeholder="At least 8 characters"
-                                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                                >
+                                <div class="relative">
+                                    <input
+                                        type="password"
+                                        id="logistics-password"
+                                        name="password"
+                                        required
+                                        minlength="8"
+                                        maxlength="255"
+                                        autocomplete="new-password"
+                                        aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+                                        placeholder="At least 8 characters"
+                                        class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-4 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                    >
+                                    <button
+                                        type="button"
+                                        data-password-toggle="logistics-password"
+                                        aria-label="Show password"
+                                        aria-pressed="false"
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition hover:text-[#1F6F5B] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B]/30"
+                                    >
+                                        <i data-lucide="eye" class="h-5 w-5" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                                 @error('password')
                                     <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
                                 @enderror
@@ -345,23 +357,35 @@
                         <!-- CONFIRM PASSWORD -->
                         <div>
 
-                                <label class="mb-2 block text-sm font-medium text-gray-700">
+                                <label for="logistics-password-confirmation" class="mb-2 block text-sm font-medium text-gray-700">
 
                                     Confirm Password
 
                                 </label>
 
-                                <input
-                                    type="password"
-                                    name="password_confirmation"
-                                    required
-                                    minlength="8"
-                                    maxlength="255"
-                                    autocomplete="new-password"
-                                    aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}"
-                                    placeholder="Re-enter your password"
-                                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-                                >
+                                <div class="relative">
+                                    <input
+                                        type="password"
+                                        id="logistics-password-confirmation"
+                                        name="password_confirmation"
+                                        required
+                                        minlength="8"
+                                        maxlength="255"
+                                        autocomplete="new-password"
+                                        aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}"
+                                        placeholder="Re-enter your password"
+                                        class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-4 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                    >
+                                    <button
+                                        type="button"
+                                        data-password-toggle="logistics-password-confirmation"
+                                        aria-label="Show confirm password"
+                                        aria-pressed="false"
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition hover:text-[#1F6F5B] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B]/30"
+                                    >
+                                        <i data-lucide="eye" class="h-5 w-5" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                                 @error('password_confirmation')
                                     <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
                                 @enderror
@@ -1167,6 +1191,40 @@
 
 </div>
 
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-password-toggle]').forEach(function (toggle) {
+                toggle.addEventListener('click', function () {
+                    const password = document.getElementById(toggle.dataset.passwordToggle);
 
+                    if (!password) {
+                        return;
+                    }
+
+                    const isHidden = password.type === 'password';
+                    password.type = isHidden ? 'text' : 'password';
+                    const fieldLabel = password.name === 'password_confirmation'
+                        ? 'confirm password'
+                        : 'password';
+                    toggle.setAttribute(
+                        'aria-label',
+                        `${isHidden ? 'Hide' : 'Show'} ${fieldLabel}`
+                    );
+                    toggle.setAttribute('aria-pressed', String(isHidden));
+
+                    const icon = toggle.querySelector('[data-lucide]');
+                    if (icon) {
+                        icon.setAttribute('data-lucide', isHidden ? 'eye-off' : 'eye');
+
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+@endpush
 
 @endsection
