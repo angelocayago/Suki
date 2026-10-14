@@ -6,6 +6,7 @@ use App\Enums\ProductModerationStatus;
 use App\Models\Product;
 use App\Models\ProductModerationEvent;
 use App\Models\User;
+use App\Services\SellerCategoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -16,6 +17,8 @@ class ProductModerationService
         'APPROVED' => ['HIDDEN'],
         'HIDDEN' => ['APPROVED'],
     ];
+
+    public function __construct(private readonly SellerCategoryService $categories) {}
 
     public function approve(Product $product, User $actor): Product
     {
@@ -98,7 +101,7 @@ class ProductModerationService
     ): Product {
         return DB::transaction(function () use ($product, $next, $actor, $reason) {
             $this->ensureAdmin($actor);
-            $locked = Product::query()->with('seller.allowedCategories')->lockForUpdate()->findOrFail($product->id);
+            $locked = Product::query()->with('seller.category')->lockForUpdate()->findOrFail($product->id);
             $current = $locked->moderation_status;
 
             if (! in_array($next->value, self::ADMIN_TRANSITIONS[$current->value] ?? [], true)) {
@@ -113,7 +116,7 @@ class ProductModerationService
                 ]);
             }
 
-            if ($next === ProductModerationStatus::Approved && ! $locked->seller->allowedCategories->contains($locked->category_id)) {
+            if ($next === ProductModerationStatus::Approved && ! $this->categories->allows($locked->seller, (int) $locked->category_id)) {
                 throw ValidationException::withMessages([
                     'category' => 'This product category is not approved for the seller.',
                 ]);

@@ -1014,16 +1014,15 @@
                                 </form>
 
 
-                                {{-- CURRENT STOCK --}}
-                                <span
-                                    class="min-w-[42px]
-                                           text-center
-                                           text-sm
-                                           font-semibold
-                                           text-[#24312C]"
-                                >
-                                    {{ $stock }}
-                                </span>
+                                {{-- MANUAL STOCK --}}
+                                <form action="{{ route('seller.inventory.set', $resolvedVariantId) }}" method="POST" class="flex items-center gap-1">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="number" name="stock" value="{{ $stock }}" min="0" required @disabled(! $databaseInventory) aria-label="Set stock" class="h-8 w-16 rounded-lg border border-[#DDE6E1] px-2 text-center text-xs font-semibold text-[#24312C] disabled:bg-[#F5F6F5]">
+                                    <button type="submit" @disabled(! $databaseInventory) title="Set stock" class="flex h-8 w-8 items-center justify-center rounded-lg border border-[#DDE6E1] bg-white text-[#1F6F5B] hover:bg-[#EEF5F1] disabled:cursor-not-allowed disabled:text-[#B6BFBA]">
+                                        <i data-lucide="check" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                </form>
 
 
                                 {{-- INCREASE --}}
@@ -1487,6 +1486,15 @@
 
                             </button>
 
+                        </form>
+
+                        <form action="{{ route('seller.inventory.set', $resolvedVariantId) }}" method="POST" class="flex items-center gap-2">
+                            @csrf
+                            @method('PUT')
+                            <input type="number" name="stock" value="{{ $stock }}" min="0" required @disabled(! $databaseInventory) aria-label="Set stock" class="h-9 w-16 rounded-xl border border-[#DDE6E1] px-2 text-center text-xs font-semibold text-[#24312C] disabled:bg-[#F1F3F2]">
+                            <button type="submit" @disabled(! $databaseInventory) title="Set stock" class="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#1F6F5B] disabled:cursor-not-allowed disabled:text-[#B6BFBA]">
+                                <i data-lucide="check" class="h-4 w-4"></i>
+                            </button>
                         </form>
 
 

@@ -389,7 +389,7 @@
                                             value="{{ $category->id }}"
                                             {{ (string) old('category_id') === (string) $category->id ? 'selected' : '' }}
                                         >
-                                            {{ $category->name }}
+                                            {{ $category->display_name ?? $category->name }}
                                         </option>
 
                                     @endforeach
@@ -408,6 +408,16 @@
                                 ></i>
 
                             </div>
+
+                            <p class="mt-2 text-[10px] leading-5 text-[#728078]">
+                                Assigned category: <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Only this category and its subcategories are available.
+                            </p>
+
+                            @if($categories->isEmpty())
+                                <p class="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-5 text-amber-800">
+                                    Your account has no active assigned category. Contact an administrator before adding a product.
+                                </p>
+                            @endif
 
                         </div>
 
@@ -1059,6 +1069,8 @@
             </section>
 
 
+            @include('seller.partials.additional-variants', ['variants' => []])
+
             {{-- =================================================
                 SHIPPING DETAILS
             ================================================== --}}
@@ -1699,6 +1711,7 @@
                         <button
                             type="submit"
                             id="submitProductButton"
+                            @disabled($categories->isEmpty())
                             class="inline-flex h-11
                                    w-full
                                    items-center

@@ -564,7 +564,7 @@
                                                 $product['category_id'] ?? ''
                                             ) == $category->id ? 'selected' : '' }}
                                         >
-                                            {{ $category->name }}
+                                            {{ $category->display_name ?? $category->name }}
                                         </option>
 
                                     @endforeach
@@ -583,6 +583,10 @@
                                 ></i>
 
                             </div>
+
+                            <p class="mt-2 text-[10px] leading-5 text-[#728078]">
+                                Assigned category: <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Keep the current legacy category or choose within the assigned tree.
+                            </p>
 
                         </div>
 
@@ -1087,6 +1091,8 @@
 
             </section>
 
+
+            @include('seller.partials.additional-variants', ['variants' => $product['variants'] ?? []])
 
             {{-- =================================================
                 SHIPPING

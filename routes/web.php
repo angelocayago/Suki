@@ -3135,6 +3135,10 @@ Route::put('/seller/products/{product}', [SellerProductController::class, 'updat
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.products.update');
 
+Route::delete('/seller/products/{product}', [SellerProductController::class, 'archive'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products.archive');
+
 
 // =====================================================
 // SELLER INVENTORY
@@ -3167,6 +3171,10 @@ Route::post('/seller/inventory/{variant}/increase', [SellerInventoryController::
 Route::post('/seller/inventory/{variant}/decrease', [SellerInventoryController::class, 'decrease'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.inventory.decrease');
+
+Route::put('/seller/inventory/{variant}', [SellerInventoryController::class, 'set'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.inventory.set');
 
 
 // =====================================================

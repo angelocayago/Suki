@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\Product;
 use App\Models\Seller;
 use App\Services\ProductCatalogService;
+use App\Services\SellerCategoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -24,25 +25,38 @@ class ProductController extends Controller
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request, SellerCategoryService $categories): View
     {
-        $this->sellerFor($request);
+        $seller = $this->sellerFor($request);
 
         return view('seller.products-create', [
-            'categories' => $this->categories(),
+            'categories' => $categories->allowedCategories($seller),
+            'assignedCategory' => $seller->category,
         ]);
     }
 
-    public function store(Request $request, ProductCatalogService $catalog): RedirectResponse
+    public function store(
+        Request $request,
+        ProductCatalogService $catalog,
+        SellerCategoryService $categories
+    ): RedirectResponse
     {
-        $catalog->create($this->sellerFor($request), $this->validated($request));
+        $seller = $this->sellerFor($request);
+        $data = $this->validated($request);
+        $this->ensureAllowedCategory($seller, (int) $data['category_id'], $categories);
+        $catalog->create($seller, $data);
 
         return redirect()
             ->route('seller.products')
             ->with('success', 'Product added successfully.');
     }
 
-    public function edit(Request $request, string $product, ProductCatalogService $catalog): View
+    public function edit(
+        Request $request,
+        string $product,
+        ProductCatalogService $catalog,
+        SellerCategoryService $categories
+    ): View
     {
         $seller = $this->sellerFor($request);
         $databaseProduct = $seller->products()
@@ -55,14 +69,25 @@ class ProductController extends Controller
 
             return view('seller.products-edit', [
                 'product' => $legacyProduct,
-                'categories' => $this->categories(),
+                'categories' => $categories->allowedCategories($seller),
+                'assignedCategory' => $seller->category,
                 'legacyProduct' => true,
             ]);
         }
 
+        $allowedCategories = $categories->allowedCategories($seller);
+        if (! $allowedCategories->contains('id', $databaseProduct->category_id) && $databaseProduct->category) {
+            $databaseProduct->category->setAttribute(
+                'display_name',
+                $databaseProduct->category->name.' (current legacy category)'
+            );
+            $allowedCategories->prepend($databaseProduct->category);
+        }
+
         return view('seller.products-edit', [
             'product' => $catalog->sellerItem($databaseProduct),
-            'categories' => $this->categories(),
+            'categories' => $allowedCategories,
+            'assignedCategory' => $seller->category,
             'legacyProduct' => false,
         ]);
     }
@@ -70,7 +95,8 @@ class ProductController extends Controller
     public function update(
         Request $request,
         string $product,
-        ProductCatalogService $catalog
+        ProductCatalogService $catalog,
+        SellerCategoryService $categories
     ): RedirectResponse {
         $seller = $this->sellerFor($request);
         $databaseProduct = $seller->products()->with('variants')->find($product);
@@ -83,11 +109,33 @@ class ProductController extends Controller
             ]);
         }
 
-        $catalog->update($databaseProduct, $this->validated($request, $databaseProduct));
+        $data = $this->validated($request, $databaseProduct);
+        $this->ensureAllowedCategory(
+            $seller,
+            (int) $data['category_id'],
+            $categories,
+            (int) $databaseProduct->category_id
+        );
+        $catalog->update($databaseProduct, $data);
 
         return redirect()
             ->route('seller.products')
             ->with('success', 'Product updated successfully.');
+    }
+
+    public function archive(
+        Request $request,
+        string $product,
+        ProductCatalogService $catalog
+    ): RedirectResponse {
+        $seller = $this->sellerFor($request);
+        $databaseProduct = $seller->products()->findOrFail($product);
+
+        $catalog->archive($databaseProduct);
+
+        return redirect()
+            ->route('seller.products')
+            ->with('success', 'Product archived successfully.');
     }
 
     private function validated(Request $request, ?Product $product = null): array
@@ -123,6 +171,13 @@ class ProductController extends Controller
             'shipping_options.*' => ['string', Rule::in(['suki_rider', 'logistics_partner'])],
             'images' => ['nullable', 'array', 'max:8'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'variants' => ['nullable', 'array', 'max:50'],
+            'variants.*.id' => ['nullable', 'integer', 'distinct'],
+            'variants.*.name' => ['required_with:variants', 'string', 'max:100'],
+            'variants.*.sku' => ['nullable', 'string', 'max:50', 'distinct'],
+            'variants.*.price' => ['required_with:variants', 'numeric', 'min:0', 'max:99999999.99'],
+            'variants.*.stock' => ['required_with:variants', 'integer', 'min:0'],
+            'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
     }
 
@@ -134,12 +189,21 @@ class ProductController extends Controller
             ->firstOrFail();
     }
 
-    private function categories()
+    private function ensureAllowedCategory(
+        Seller $seller,
+        int $categoryId,
+        SellerCategoryService $categories,
+        ?int $currentCategoryId = null
+    ): void
     {
-        return Category::query()
-            ->where('is_active', true)
-            ->orderBy('position')
-            ->orderBy('name')
-            ->get();
+        if ($currentCategoryId !== null && $categoryId === $currentCategoryId) {
+            return;
+        }
+
+        if (! $categories->allows($seller, $categoryId)) {
+            throw ValidationException::withMessages([
+                'category_id' => 'The selected category is outside your assigned category.',
+            ]);
+        }
     }
 }

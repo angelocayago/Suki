@@ -149,6 +149,7 @@ class SellerManagementController extends Controller
             'owner',
             'products',
             'orders',
+            'category',
             'allowedCategories',
         ])->loadCount([
             'violations',
@@ -174,7 +175,7 @@ class SellerManagementController extends Controller
     public function updateAllowedCategories(Request $request, Seller $seller)
     {
         $validated = $request->validate([
-            'categories' => ['nullable', 'array'],
+            'categories' => ['nullable', 'array', 'max:1'],
             'categories.*' => [
                 'integer',
                 'distinct',
@@ -192,10 +193,13 @@ class SellerManagementController extends Controller
                 ],
             ])->all();
 
+            $seller->update([
+                'category_id' => array_key_first($assignments),
+            ]);
             $seller->allowedCategories()->sync($assignments);
         });
 
-        return back()->with('success', 'Seller allowed categories updated.');
+        return back()->with('success', 'Seller assigned category updated.');
     }
 
 

@@ -793,8 +793,8 @@ Seller ID
 
 
 <div class="mt-5 rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-bold text-[#173F35]">Allowed Product Categories</h2>
-    <p class="mt-1 text-sm text-gray-500">Explicitly select categories this seller is approved to list. No registration category is mapped automatically.</p>
+    <h2 class="text-xl font-bold text-[#173F35]">Assigned Product Category</h2>
+    <p class="mt-1 text-sm text-gray-500">Choose one root category. The seller may list within this category and its active subcategories. The legacy compatibility assignment is synchronized automatically.</p>
 
     <form method="POST" action="{{ route('admin.sellers.allowed-categories.update', $seller) }}" class="mt-5">
         @csrf
@@ -802,14 +802,14 @@ Seller ID
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @foreach($categories as $category)
                 <label class="flex items-center gap-3 rounded-xl border border-[#E3EAE6] p-3 text-sm">
-                    <input type="checkbox" name="categories[]" value="{{ $category->id }}"
-                           @checked($seller->allowedCategories->contains($category->id))
-                           class="rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]">
+                    <input type="radio" name="categories[]" value="{{ $category->id }}"
+                           @checked((int) $seller->category_id === (int) $category->id)
+                           class="border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]">
                     <span>{{ $category->name }}</span>
                 </label>
             @endforeach
         </div>
-        <button class="mt-4 rounded-xl bg-[#173F35] px-5 py-2.5 text-sm font-semibold text-white">Save allowed categories</button>
+        <button class="mt-4 rounded-xl bg-[#173F35] px-5 py-2.5 text-sm font-semibold text-white">Save assigned category</button>
     </form>
 </div>
 

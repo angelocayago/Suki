@@ -6,6 +6,7 @@ use App\Enums\ProductModerationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\Admin\ProductModerationService;
+use App\Services\SellerCategoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,11 +40,11 @@ class ProductModerationController extends Controller
         return view('admin.products.index', compact('products', 'stats', 'status'));
     }
 
-    public function show(Product $product): View
+    public function show(Product $product, SellerCategoryService $categories): View
     {
         $product->load([
             'seller.owner',
-            'seller.allowedCategories',
+            'seller.category',
             'category',
             'variants',
             'images',
@@ -51,7 +52,9 @@ class ProductModerationController extends Controller
             'moderationEvents.actor',
         ]);
 
-        return view('admin.products.show', compact('product'));
+        $categoryAllowed = $categories->allows($product->seller, (int) $product->category_id);
+
+        return view('admin.products.show', compact('product', 'categoryAllowed'));
     }
 
     public function approve(

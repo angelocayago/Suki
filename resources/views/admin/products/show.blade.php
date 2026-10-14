@@ -5,7 +5,6 @@
 @section('content')
 @php
     $state = $product->moderation_status;
-    $categoryAllowed = $product->seller->allowedCategories->contains($product->category_id);
 @endphp
 
 <div class="space-y-6">
@@ -73,7 +72,7 @@
             <section class="rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
                 <h2 class="text-lg font-bold text-[#173F35]">Moderation action</h2>
                 <div class="mt-4 rounded-xl {{ $categoryAllowed ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800' }} p-3 text-sm">
-                    {{ $categoryAllowed ? 'Category is approved for this seller.' : 'Assign this category on the seller profile before approval.' }}
+                    {{ $categoryAllowed ? 'Category is within the seller assigned category tree.' : 'Assign a compatible root category on the seller profile before approval.' }}
                 </div>
 
                 @if($state === \App\Enums\ProductModerationStatus::Pending)

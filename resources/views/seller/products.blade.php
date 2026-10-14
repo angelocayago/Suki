@@ -1006,6 +1006,16 @@
                                     ></i>
                                 </a>
 
+                                @if($databaseProducts)
+                                    <form action="{{ route('seller.products.archive', $resolvedProductId) }}" method="POST" onsubmit="return confirm('Archive this product?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" title="Archive product" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 transition hover:bg-red-50">
+                                            <i data-lucide="archive" class="h-4 w-4"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
                             </div>
 
                         </td>
@@ -1290,9 +1300,10 @@
                             </div>
 
 
-                            <a
-                                href="{{ route('seller.products.edit', $resolvedProductId) }}"
-                                class="inline-flex h-9
+                            <div class="flex items-center gap-2">
+                                <a
+                                    href="{{ route('seller.products.edit', $resolvedProductId) }}"
+                                    class="inline-flex h-9
                                        items-center gap-2
                                        rounded-xl
                                        border border-[#DDE6E1]
@@ -1311,9 +1322,20 @@
                                     class="h-3.5 w-3.5"
                                 ></i>
 
-                                Edit
+                                    Edit
 
-                            </a>
+                                </a>
+
+                                @if($databaseProducts)
+                                    <form action="{{ route('seller.products.archive', $resolvedProductId) }}" method="POST" onsubmit="return confirm('Archive this product?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="inline-flex h-9 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-[10px] font-semibold text-red-600 hover:bg-red-50">
+                                            <i data-lucide="archive" class="h-3.5 w-3.5"></i> Archive
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
 
                         </div>
 

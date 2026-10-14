@@ -22,6 +22,7 @@ class PhaseThreeProductUnificationTest extends TestCase
         Storage::fake('public');
         [$user, $seller] = $this->seller('database-seller');
         $category = $this->category('Electronics');
+        $seller->update(['category_id' => $category->id]);
 
         $this->actingAs($user)->post(route('seller.products.store'), [
             'name' => 'Database Headphones',
@@ -62,6 +63,7 @@ class PhaseThreeProductUnificationTest extends TestCase
         [$owner, $seller] = $this->seller('owner-seller');
         [$otherUser] = $this->seller('other-seller');
         $category = $this->category('Fashion');
+        $seller->update(['category_id' => $category->id]);
         $product = $this->product($seller, $category, 'Owned Product', 'OWNED-001');
 
         $payload = [

@@ -30,6 +30,24 @@ class InventoryController extends Controller
         return back()->with('success', 'Product stock updated successfully.');
     }
 
+    public function set(
+        Request $request,
+        string $variant,
+        SellerInventoryService $inventory
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'stock' => ['required', 'integer', 'min:0', 'max:4294967295'],
+        ]);
+
+        $inventory->setStock(
+            $this->sellerFor($request),
+            $this->variantId($variant),
+            (int) $validated['stock']
+        );
+
+        return back()->with('success', 'Product stock set successfully.');
+    }
+
     private function sellerFor(Request $request): Seller
     {
         return $request->user()

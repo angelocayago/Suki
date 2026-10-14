@@ -20,6 +20,7 @@ class PhaseThreeProductModerationTest extends TestCase
     {
         [$sellerUser, $seller] = $this->seller('pending-product-seller');
         $category = $this->category();
+        $seller->update(['category_id' => $category->id]);
 
         $this->actingAs($sellerUser)->post(route('seller.products.store'), $this->payload($category, [
             'name' => 'Pending Marketplace Product',
@@ -64,6 +65,9 @@ class PhaseThreeProductModerationTest extends TestCase
             ])
             ->assertRedirect();
 
+        $this->assertSame($category->id, $seller->fresh()->category_id);
+        $this->assertTrue($seller->fresh()->allowedCategories->contains($category));
+
         $this->actingAs($admin)
             ->post(route('superadmin.products.approve', $product))
             ->assertRedirect()
@@ -103,6 +107,7 @@ class PhaseThreeProductModerationTest extends TestCase
         $admin = $this->userWithRole('admin');
         [, $seller] = $this->seller('decision-seller');
         $category = $this->category();
+        $seller->update(['category_id' => $category->id]);
         $seller->allowedCategories()->attach($category, ['assigned_by' => $admin->id]);
         $pending = $this->product($seller, $category, 'Rejected Product');
 
@@ -140,6 +145,7 @@ class PhaseThreeProductModerationTest extends TestCase
         $admin = $this->userWithRole('admin');
         [$sellerUser, $seller] = $this->seller('editing-seller');
         $category = $this->category();
+        $seller->update(['category_id' => $category->id]);
         $seller->allowedCategories()->attach($category, ['assigned_by' => $admin->id]);
         $product = $this->product($seller, $category, 'Original Product Name');
         $variant = $product->variants()->sole();

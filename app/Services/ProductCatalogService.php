@@ -68,6 +68,7 @@ class ProductCatalogService
             ]);
 
             $product->variants()->create($this->variantAttributes($data, $product));
+            $this->saveAdditionalVariants($product, $data['variants'] ?? []);
             $this->storeImages($product, $data['images'] ?? []);
             $this->moderation->recordInitialSubmission($product, $seller->owner);
 
@@ -79,7 +80,7 @@ class ProductCatalogService
     {
         return DB::transaction(function () use ($product, $data) {
             $variant = $product->variants()->orderBy('id')->first();
-            $before = $this->materialFingerprint($product, $variant);
+            $before = $this->materialFingerprint($product);
             $hasNewImages = collect($data['images'] ?? [])->contains(
                 fn ($image) => $image instanceof UploadedFile
             );
@@ -104,16 +105,27 @@ class ProductCatalogService
                 $product->variants()->create($this->variantAttributes($data, $product));
             }
 
+            $this->saveAdditionalVariants($product, $data['variants'] ?? []);
+
             $this->storeImages($product, $data['images'] ?? []);
 
             $fresh = $product->fresh(['category', 'images', 'variants', 'seller']);
-            if ($hasNewImages || $before !== $this->materialFingerprint($fresh, $fresh->variants->first())) {
+            if ($hasNewImages || $before !== $this->materialFingerprint($fresh)) {
                 $this->moderation->returnToPendingAfterMaterialEdit($fresh, $fresh->seller->owner);
                 $fresh = $fresh->fresh(['category', 'images', 'variants']);
             }
 
             return $fresh;
         });
+    }
+
+    public function archive(Product $product): void
+    {
+        DB::transaction(function () use ($product) {
+            $locked = Product::query()->lockForUpdate()->findOrFail($product->id);
+            $locked->update(['is_active' => false]);
+            $locked->delete();
+        }, 3);
     }
 
     public function sellerItem(Product $product): array
@@ -140,6 +152,14 @@ class ProductCatalogService
             'height' => $variant?->height_mm ? $variant->height_mm / 10 : null,
             'variation_names' => array_keys($options),
             'variation_values' => array_values($options),
+            'variants' => $product->variants->skip(1)->map(fn (ProductVariant $additional) => [
+                'id' => $additional->id,
+                'name' => $additional->name,
+                'sku' => $additional->sku,
+                'price' => $additional->price_minor / 100,
+                'stock' => $additional->stock,
+                'status' => $additional->is_active ? 'active' : 'inactive',
+            ])->values()->all(),
             'shipping_options' => $product->shipping_options ?? [],
             'sold' => 0,
             'image' => $this->imageUrl($product->images->first()?->path),
@@ -226,7 +246,7 @@ class ProductCatalogService
         ];
     }
 
-    private function materialFingerprint(Product $product, ?ProductVariant $variant): array
+    private function materialFingerprint(Product $product): array
     {
         return [
             'name' => $product->name,
@@ -234,7 +254,8 @@ class ProductCatalogService
             'brand' => $product->brand,
             'description' => $product->description,
             'shipping_options' => $product->shipping_options ?? [],
-            'variant' => $variant ? [
+            'variants' => $product->variants->sortBy('id')->map(fn (ProductVariant $variant) => [
+                'id' => $variant->id,
                 'sku' => $variant->sku,
                 'name' => $variant->name,
                 'options' => $variant->options,
@@ -243,8 +264,50 @@ class ProductCatalogService
                 'length_mm' => $variant->length_mm,
                 'width_mm' => $variant->width_mm,
                 'height_mm' => $variant->height_mm,
-            ] : null,
+                'is_active' => $variant->is_active,
+            ])->values()->all(),
         ];
+    }
+
+    private function saveAdditionalVariants(Product $product, array $variants): void
+    {
+        $primaryVariantId = $product->variants()->orderBy('id')->value('id');
+
+        foreach ($variants as $data) {
+            if (filled($data['id'] ?? null) && (int) $data['id'] === (int) $primaryVariantId) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'variants' => 'The default variant cannot be submitted as an additional variant.',
+                ]);
+            }
+
+            $variant = filled($data['id'] ?? null)
+                ? $product->variants()->whereKey($data['id'])->lockForUpdate()->firstOrFail()
+                : new ProductVariant(['product_id' => $product->id]);
+
+            $sku = filled($data['sku'] ?? null)
+                ? trim((string) $data['sku'])
+                : ($variant->sku ?: $this->uniqueSku($product));
+
+            $duplicate = ProductVariant::withTrashed()
+                ->where('sku', $sku)
+                ->when($variant->exists, fn ($query) => $query->whereKeyNot($variant->id))
+                ->exists();
+
+            if ($duplicate) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'variants' => "The variant SKU {$sku} is already in use.",
+                ]);
+            }
+
+            $variant->fill([
+                'sku' => $sku,
+                'name' => trim((string) $data['name']),
+                'price_minor' => (int) round(((float) $data['price']) * 100),
+                'stock' => (int) $data['stock'],
+                'is_active' => ($data['status'] ?? 'active') === 'active',
+            ]);
+            $variant->save();
+        }
     }
 
     private function storeImages(Product $product, array $images): void
