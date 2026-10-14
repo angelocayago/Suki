@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductModerationStatus;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\Product;
@@ -12,11 +13,62 @@ use App\Models\Shipment;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
+    public function cartSummary(User $buyer): array
+    {
+        $items = CartItem::query()
+            ->where('user_id', $buyer->id)
+            ->orderBy('id')
+            ->get()
+            ->mapWithKeys(function (CartItem $cartItem) {
+                $variant = $this->displayVariant($cartItem);
+                $product = $variant?->product;
+                $available = $variant
+                    && $product
+                    && $this->isMarketplaceEligible($variant)
+                    && (int) $cartItem->quantity <= (int) $variant->stock;
+
+                $image = $product?->images->first()?->path ?? $cartItem->image;
+                if ($image && ! Str::startsWith($image, ['http://', 'https://'])) {
+                    $image = Storage::disk('public')->url($image);
+                }
+
+                return [
+                    $cartItem->product_slug => [
+                        'slug' => $cartItem->product_slug,
+                        'name' => $product?->name ?? $cartItem->product_name,
+                        'price' => $variant ? $variant->price_minor / 100 : (float) $cartItem->price,
+                        'image' => $image,
+                        'quantity' => (int) $cartItem->quantity,
+                        'variant' => $variant?->name,
+                        'variation' => $variant?->options,
+                        'stock' => (int) ($variant?->stock ?? 0),
+                        'available' => (bool) $available,
+                    ],
+                ];
+            })
+            ->all();
+
+        $subtotal = collect($items)->sum(
+            fn (array $item) => $item['price'] * $item['quantity']
+        );
+
+        return [
+            'cart' => $items,
+            'subtotal' => $subtotal,
+            'shipping' => 0,
+            'total' => $subtotal,
+            'has_unavailable_items' => collect($items)->contains(
+                fn (array $item) => ! $item['available']
+            ),
+        ];
+    }
+
     public function checkout(
         User $buyer,
         array $address,
@@ -38,6 +90,17 @@ class CheckoutService
             $lines = $cartItems->map(
                 fn (CartItem $cartItem) => $this->resolveLine($cartItem)
             );
+
+            foreach ($lines->groupBy(fn (array $line) => $line['variant']->id) as $variantLines) {
+                $variant = $variantLines->first()['variant'];
+                $requested = $variantLines->sum('quantity');
+
+                if ($variant->stock < $requested) {
+                    throw ValidationException::withMessages([
+                        'cart' => "Insufficient inventory for {$variant->product->name}.",
+                    ]);
+                }
+            }
 
             $subtotalMinor = $lines->sum('line_total_minor');
             $shippingMinor = 0;
@@ -144,26 +207,19 @@ class CheckoutService
     {
         $variant = $this->lockedVariant($cartItem);
         $product = $variant->product;
-        $seller = $product->seller;
         $quantity = (int) $cartItem->quantity;
 
-        if (! $variant->is_active || ! $product->is_active) {
+        if (
+            ! $product
+            || ($cartItem->product_slug && $product->slug !== $cartItem->product_slug)
+            || ! $this->isMarketplaceEligible($variant)
+        ) {
             throw ValidationException::withMessages([
                 'cart' => "{$cartItem->product_name} is no longer available.",
             ]);
         }
 
-        if (
-            ! $seller
-            || $seller->status !== 'approved'
-            || ! $seller->owner
-            || $seller->owner->status !== 'active'
-            || $seller->owner->is_suspended
-        ) {
-            throw ValidationException::withMessages([
-                'cart' => "{$cartItem->product_name} cannot currently be fulfilled by its seller.",
-            ]);
-        }
+        $seller = $product->seller;
 
         if ($quantity < 1 || $variant->stock < $quantity) {
             throw ValidationException::withMessages([
@@ -189,7 +245,7 @@ class CheckoutService
     {
         if ($cartItem->product_variant_id) {
             $variant = ProductVariant::query()
-                ->with(['product.seller.owner', 'product.images'])
+                ->with(['product.category', 'product.seller.owner', 'product.images'])
                 ->lockForUpdate()
                 ->find($cartItem->product_variant_id);
 
@@ -215,6 +271,50 @@ class CheckoutService
         }
 
         return $variants->first()->setRelation('product', $product);
+    }
+
+    private function displayVariant(CartItem $cartItem): ?ProductVariant
+    {
+        if ($cartItem->product_variant_id) {
+            $variant = ProductVariant::query()
+                ->with(['product.category', 'product.seller.owner', 'product.images'])
+                ->find($cartItem->product_variant_id);
+
+            if ($variant?->product?->slug === $cartItem->product_slug) {
+                return $variant;
+            }
+
+            return null;
+        }
+
+        $product = Product::query()
+            ->where('slug', $cartItem->product_slug)
+            ->with(['category', 'seller.owner', 'images'])
+            ->first();
+        $variants = $product?->variants()->where('is_active', true)->get() ?? collect();
+
+        return $variants->count() === 1
+            ? $variants->first()->setRelation('product', $product)
+            : null;
+    }
+
+    private function isMarketplaceEligible(ProductVariant $variant): bool
+    {
+        $product = $variant->product;
+        $seller = $product?->seller;
+
+        return (bool) (
+            $variant->is_active
+            && $product
+            && $product->is_active
+            && $product->moderation_status === ProductModerationStatus::Approved
+            && $product->category?->is_active
+            && $seller
+            && $seller->status === 'approved'
+            && $seller->owner
+            && $seller->owner->status === 'active'
+            && ! $seller->owner->is_suspended
+        );
     }
 
     private function legacySellerUserId(Collection $lines): ?int

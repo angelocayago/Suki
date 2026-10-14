@@ -120,7 +120,9 @@ class FulfillmentController extends Controller
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'source' => 'database',
-            'status' => strtolower($sellerOrder->workflow_status->value),
+            'status' => $sellerOrder->status === 'cancelled'
+                ? 'cancelled'
+                : strtolower($sellerOrder->workflow_status->value),
             'payment_method' => strtolower((string) $order->payment_method),
             'payment_status' => strtolower((string) $order->payment_status),
             'buyer_name' => $order->buyer?->full_name ?? $order->recipient_name,

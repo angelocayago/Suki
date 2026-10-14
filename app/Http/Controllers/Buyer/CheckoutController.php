@@ -8,15 +8,57 @@ use App\Services\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Throwable;
 
 class CheckoutController extends Controller
 {
+    public function index(Request $request, CheckoutService $checkout): View|RedirectResponse
+    {
+        $summary = $checkout->cartSummary($request->user());
+
+        if ($summary['cart'] === []) {
+            return redirect()
+                ->route('buyer.cart')
+                ->with('error', 'Your cart is empty.');
+        }
+
+        $databaseAddresses = Address::query()
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Address $address) => [
+                'id' => $address->id,
+                'name' => $address->recipient,
+                'phone' => $address->phone,
+                'province' => $address->province,
+                'municipality' => $address->city,
+                'barangay' => $address->barangay,
+                'street' => $address->line1,
+                'house_number' => null,
+                'postal_code' => $address->postal_code,
+                'label' => $address->label,
+                'is_default' => $address->is_default,
+            ]);
+
+        $addresses = $databaseAddresses->isNotEmpty()
+            ? $databaseAddresses->all()
+            : $request->session()->get('buyer_addresses', []);
+        $defaultAddress = collect($addresses)->firstWhere('is_default', true)
+            ?? ($addresses[0] ?? null);
+
+        return view('buyer.checkout', array_merge($summary, [
+            'addresses' => $addresses,
+            'defaultAddress' => $defaultAddress,
+        ]));
+    }
+
     public function store(Request $request, CheckoutService $checkout): RedirectResponse
     {
         $validated = $request->validate([
             'address_id' => ['required'],
-            'payment_method' => ['required', 'in:cod,gcash'],
+            'payment_method' => ['required', 'in:cod'],
         ]);
 
         $buyer = $request->user();

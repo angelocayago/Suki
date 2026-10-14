@@ -241,6 +241,16 @@
                                                 ₱{{ number_format($itemPrice, 2) }}
                                             </p>
 
+                                            @if(!empty($item['variant']))
+                                                <p class="mt-1 text-xs text-gray-500">Variant: {{ $item['variant'] }}</p>
+                                            @endif
+
+                                            @if(empty($item['available']))
+                                                <p class="mt-2 text-xs font-semibold text-red-600">
+                                                    Unavailable: this item can no longer be checked out.
+                                                </p>
+                                            @endif
+
                                         </div>
 
 
@@ -533,7 +543,12 @@
                     {{-- CHECKOUT --}}
                     <a
                         href="{{ route('buyer.checkout') }}"
-                        class="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244]"
+                        @class([
+                            'mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold transition',
+                            'bg-[#1F6F5B] text-white hover:bg-[#155244]' => !($has_unavailable_items ?? false),
+                            'cursor-not-allowed bg-gray-200 text-gray-500' => ($has_unavailable_items ?? false),
+                        ])
+                        @if($has_unavailable_items ?? false) aria-disabled="true" onclick="return false;" @endif
                     >
                         Proceed to Checkout
 

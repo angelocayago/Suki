@@ -11,7 +11,9 @@ use App\Models\Rider;
 use App\Models\Role;
 use App\Models\Seller;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\Buyer\CheckoutController;
+use App\Http\Controllers\Buyer\OrderCancellationController;
 use App\Http\Controllers\ComplaintEvidenceController;
 use App\Http\Controllers\ParticipantComplaintController;
 use App\Http\Controllers\Seller\FulfillmentController as SellerFulfillmentController;
@@ -484,33 +486,9 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 // SHOPPING CART
 // =====================================================
 
-Route::get('/cart', function () use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $cart = auth()
-        ->user()
-        ->cartItems()
-        ->get()
-        ->mapWithKeys(function ($item) {
-            return [
-                $item->product_slug => [
-                    'name' => $item->product_name,
-                    'price' => (float) $item->price,
-                    'image' => $item->image,
-                    'quantity' => $item->quantity,
-                ],
-            ];
-        })
-        ->toArray();
-
-    return view('buyer.cart', [
-        'cart' => $cart,
-    ]);
-
-})->name('buyer.cart');
+Route::get('/cart', [CartController::class, 'index'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.cart');
 
 
 // =====================================================
@@ -1021,7 +999,9 @@ $orderToViewArray = function (Order $order): array {
             ->map(fn ($sellerOrder) => [
                 'seller_order_id' => $sellerOrder->id,
                 'seller_name' => $sellerOrder->seller?->name ?? 'Seller',
-                'status' => strtolower($sellerOrder->workflow_status->value),
+                'status' => $sellerOrder->status === 'cancelled'
+                    ? 'cancelled'
+                    : strtolower($sellerOrder->workflow_status->value),
             ])
             ->values()
             ->all(),
@@ -1193,7 +1173,7 @@ $orderToViewArray = function (Order $order): array {
 // CHECKOUT
 // =====================================================
 
-Route::get('/checkout', function () use ($requireBuyer) {
+Route::get('/checkout-legacy', function () use ($requireBuyer) {
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -1387,7 +1367,7 @@ Route::get('/checkout', function () use ($requireBuyer) {
         ]
     );
 
-})->name('buyer.checkout');
+})->name('buyer.checkout.legacy');
 
 
 // =====================================================
@@ -1432,7 +1412,7 @@ Route::post(
                 'required',
 
             'payment_method' =>
-                'required|in:cod,gcash',
+                'required|in:cod',
         ]);
 
 
@@ -1856,6 +1836,10 @@ Route::post('/checkout/place-order', [CheckoutController::class, 'store'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.checkout.place-order');
 
+Route::get('/checkout', [CheckoutController::class, 'index'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.checkout');
+
 
 // =====================================================
 // ORDER SUCCESS
@@ -2043,7 +2027,7 @@ Route::get(
 // =====================================================
 
 Route::post(
-    '/my-orders/{order}/cancel',
+    '/my-orders/{order}/cancel-legacy',
     function (
         Request $request,
         $orderNumber
@@ -2135,8 +2119,12 @@ Route::post(
 
     }
 )->name(
-    'buyer.order.cancel'
+    'buyer.order.cancel.legacy'
 );
+
+Route::post('/my-orders/{order}/cancel', [OrderCancellationController::class, 'store'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.order.cancel');
 
 
 // =====================================================

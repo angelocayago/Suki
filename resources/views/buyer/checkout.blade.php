@@ -2,15 +2,6 @@
 
 @section('content')
 
-@php
-    $subtotal = collect($cart)->sum(function ($item) {
-        return $item['price'] * $item['quantity'];
-    });
-
-    $shipping = 30;
-    $total = $subtotal + $shipping;
-@endphp
-
 <div class="min-h-screen bg-[#F8FAF8]">
 
     {{-- PAGE HEADER --}}
@@ -317,9 +308,19 @@
                                             ₱{{ number_format($item['price'], 2) }} each
                                         </p>
 
+                                        @if(!empty($item['variant']))
+                                            <p class="mt-1 text-xs text-gray-500">Variant: {{ $item['variant'] }}</p>
+                                        @endif
+
                                         <p class="mt-1 text-sm text-gray-500">
                                             Qty: {{ $item['quantity'] }}
                                         </p>
+
+                                        @if(empty($item['available']))
+                                            <p class="mt-2 text-xs font-semibold text-red-600">
+                                                This item is no longer available in the marketplace. Remove it before checkout.
+                                            </p>
+                                        @endif
 
                                     </div>
 
@@ -527,70 +528,6 @@
                             </label>
 
 
-                            {{-- GCASH --}}
-                            <label class="block cursor-pointer">
-
-                                class="payment-option rounded-xl border-2 border-gray-200 bg-white p-4 transition hover:border-[#1F6F5B]"
-
-                                    <div class="flex items-center gap-4">
-
-                                        <input
-                                            type="radio"
-                                            name="payment_method"
-                                            value="gcash"
-                                            class="payment-radio h-4 w-4 accent-[#1F6F5B]"
-                                        >
-
-                                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white">
-                                            <i data-lucide="smartphone" class="h-5 w-5 text-gray-600"></i>
-                                        </div>
-
-                                        <div class="min-w-0 flex-1">
-
-                                            <p class="font-semibold text-gray-900">
-                                                GCash
-                                            </p>
-
-                                            <p class="mt-0.5 text-xs text-gray-500">
-                                                Pay through GCash.
-                                            </p>
-
-                                        </div>
-
-                                    </div>
-
-
-                                    {{-- GCASH DETAILS --}}
-                                    <div class="gcash-details mt-4 hidden rounded-lg border border-[#DDF3EC] bg-[#EEF8F3] px-4 py-3">
-
-                                        <div class="flex items-start gap-3">
-
-                                            <i data-lucide="info" class="mt-0.5 h-4 w-4 shrink-0 text-[#1F6F5B]"></i>
-
-                                            <div class="text-xs text-gray-600">
-
-                                                <p class="font-medium text-gray-800">
-                                                    SUKI SHOP Official GCash
-                                                </p>
-
-                                                <p class="mt-1">
-                                                    09XX XXX XXXX
-                                                </p>
-
-                                                <p class="mt-2 text-gray-500">
-                                                    Send the exact order total and keep your payment receipt.
-                                                </p>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </label>
-
                         </div>
 
                     </section>
@@ -685,6 +622,7 @@
                             {{-- PLACE ORDER --}}
                             <button
                                 type="submit"
+                                @disabled($has_unavailable_items ?? false)
                                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B] focus:ring-offset-2"
                             >
 
@@ -744,12 +682,6 @@ document.addEventListener('DOMContentLoaded', function () {
             '.payment-option'
         );
 
-    const gcashDetails =
-        document.querySelector(
-            '.gcash-details'
-        );
-
-
     function updatePayment() {
 
         paymentOptions.forEach(function (option) {
@@ -796,36 +728,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
         });
-
-
-        const selectedPayment =
-            document.querySelector(
-                'input[name="payment_method"]:checked'
-            );
-
-
-        if (!gcashDetails) {
-            return;
-        }
-
-
-        if (
-            selectedPayment
-            &&
-            selectedPayment.value === 'gcash'
-        ) {
-
-            gcashDetails.classList.remove(
-                'hidden'
-            );
-
-        } else {
-
-            gcashDetails.classList.add(
-                'hidden'
-            );
-
-        }
 
     }
 

@@ -1325,9 +1325,7 @@
                                                text-[#7C8983]"
                                     >
 
-                                        {{ ($order['payment_method'] ?? '') === 'gcash'
-                                            ? 'GCash'
-                                            : 'Cash on Delivery' }}
+                                        {{ ucwords(str_replace('_', ' ', strtolower($order['payment_method'] ?? 'cod'))) }}
 
                                     </span>
 
@@ -1974,9 +1972,7 @@
                                        font-semibold
                                        text-[#52635B]"
                             >
-                                {{ ($order['payment_method'] ?? '') === 'gcash'
-                                    ? 'GCash'
-                                    : 'COD' }}
+                                {{ strtoupper($order['payment_method'] ?? 'cod') }}
                             </p>
 
                         </div>

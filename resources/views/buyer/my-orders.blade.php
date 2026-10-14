@@ -132,11 +132,11 @@
 
                     @php
 
-                        $status = $order['status'] ?? 'order_placed';
+                        $status = $order['status'] ?? 'placed';
 
                         $statusData = match($status) {
 
-                            'order_placed' => [
+                            'placed', 'order_placed' => [
                                 'label' => 'Order Placed',
                                 'icon' => 'package',
                                 'class' => 'bg-[#DDF3EC] text-[#1F6F5B]',
@@ -332,7 +332,7 @@
 
 
                                     {{-- CANCEL --}}
-                                    @if($status === 'order_placed')
+                                    @if(in_array($status, ['placed', 'order_placed'], true))
 
                                         <form
                                             action="{{ route('buyer.order.cancel', $order['id']) }}"
@@ -341,6 +341,7 @@
                                         >
 
                                             @csrf
+                                            <input type="hidden" name="cancel_reason" value="changed_mind">
 
                                             <button
                                                 type="submit"

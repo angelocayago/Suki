@@ -719,11 +719,9 @@
 
                                 <span class="text-sm font-semibold text-gray-700">
 
-                                    {{ match($order['payment_method'] ?? '') {
-                                        'cod' => 'Cash on Delivery',
-                                        'gcash' => 'GCash',
-                                        default => strtoupper($order['payment_method'] ?? 'N/A'),
-                                    } }}
+                                    {{ ($order['payment_method'] ?? '') === 'cod'
+                                        ? 'Cash on Delivery'
+                                        : strtoupper($order['payment_method'] ?? 'N/A') }}
 
                                 </span>
 

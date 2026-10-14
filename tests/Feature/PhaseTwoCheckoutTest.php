@@ -100,7 +100,7 @@ class PhaseTwoCheckoutTest extends TestCase
 
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $address->id,
-            'payment_method' => 'gcash',
+            'payment_method' => 'cod',
         ])->assertSessionHasNoErrors();
 
         $orderItem = $buyer->buyerOrders()->sole()->items()->sole();
@@ -108,7 +108,7 @@ class PhaseTwoCheckoutTest extends TestCase
         $this->assertSame(3200, $orderItem->unit_price_minor);
         $this->assertSame('32.00', $orderItem->unit_price);
         $this->assertSame(2, $item['variant']->fresh()->stock);
-        $this->assertSame(0, $orderItem->sellerOrder->shipment->cod_amount_minor);
+        $this->assertSame(3200, $orderItem->sellerOrder->shipment->cod_amount_minor);
     }
 
     public function test_session_address_fallback_is_saved_as_an_order_snapshot(): void
@@ -180,6 +180,7 @@ class PhaseTwoCheckoutTest extends TestCase
             'name' => str($productSlug)->headline()->toString(),
             'slug' => $productSlug,
             'is_active' => true,
+            'moderation_status' => 'APPROVED',
         ]);
         $variant = ProductVariant::create([
             'product_id' => $product->id,

@@ -39,6 +39,12 @@ class OrderWorkflowService
                 ->lockForUpdate()
                 ->findOrFail($sellerOrder->id);
 
+            if (strtoupper((string) $lockedOrder->order->status) === 'CANCELLED') {
+                throw ValidationException::withMessages([
+                    'order' => 'A cancelled order cannot continue through fulfillment.',
+                ]);
+            }
+
             $currentStatus = $lockedOrder->workflow_status instanceof OrderStatus
                 ? $lockedOrder->workflow_status
                 : OrderStatus::tryFrom(strtoupper($lockedOrder->workflow_status));

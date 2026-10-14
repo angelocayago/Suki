@@ -228,6 +228,7 @@ class PhaseThreeInventoryUnificationTest extends TestCase
             'slug' => str($name)->slug()->append('-'.$seller->id)->toString(),
             'description' => 'Inventory test product.',
             'is_active' => true,
+            'moderation_status' => 'APPROVED',
         ]);
     }
 
