@@ -7363,6 +7363,7 @@ Route::post('/register', function (Request $request) use ($fetchPsgcData) {
         'password.regex' => 'Password must include an uppercase letter, a lowercase letter, a number, and a special character.',
         'password_confirmation.required' => 'Confirm password is required.',
         'password_confirmation.same' => 'Password confirmation must match the password.',
+        'terms.accepted' => "You must agree to SUKI SHOP's Terms & Conditions and Privacy Policy before continuing.",
         'region.required' => 'Region is required.',
         'region.regex' => 'Select a valid region.',
         'province.required_without' => 'Province is required.',

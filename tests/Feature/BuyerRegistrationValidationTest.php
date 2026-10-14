@@ -266,6 +266,70 @@ class BuyerRegistrationValidationTest extends TestCase
         ], ['password_confirmation'], expectedUserCount: 1);
     }
 
+    public function test_terms_must_be_accepted_and_policy_documents_render_separately(): void
+    {
+        $this->fakePsgcData();
+
+        $response = $this->from(route('register.buyer'))
+            ->post(route('register.submit'), array_replace(
+                $this->validBuyerData(),
+                ['terms' => ''],
+            ));
+
+        $response->assertSessionHasErrors([
+            'terms' => "You must agree to SUKI SHOP's Terms & Conditions and Privacy Policy before continuing.",
+        ]);
+        $this->assertDatabaseCount('users', 0);
+
+        $formResponse = $this->get(route('register.buyer'));
+        $formResponse
+            ->assertSee('data-open-policy="termsDialog"', false)
+            ->assertSee('data-open-policy="privacyDialog"', false)
+            ->assertSee('id="termsDialog"', false)
+            ->assertSee('SUKI SHOP Terms and Conditions')
+            ->assertSee('id="privacyDialog"', false)
+            ->assertSee('SUKI SHOP Privacy Policy')
+            ->assertSee('Information Collected')
+            ->assertSee('User Privacy Rights')
+            ->assertSee('showModal()', false)
+            ->assertSee('data-field-error="terms"', false);
+    }
+
+    public function test_buyer_government_id_keeps_backend_file_validation(): void
+    {
+        $this->fakePsgcData();
+
+        $response = $this->from(route('register.buyer'))
+            ->post(route('register.submit'), array_replace(
+                $this->validBuyerData(),
+                [
+                    'government_id' => UploadedFile::fake()->create(
+                        'unsupported.gif',
+                        10,
+                        'image/gif',
+                    ),
+                ],
+            ));
+
+        $response->assertSessionHasErrors(['government_id']);
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_buyer_government_id_preview_has_remove_and_file_reset_behavior(): void
+    {
+        $response = $this->get(route('register.buyer'));
+
+        $response
+            ->assertSee('id="governmentIdPreview"', false)
+            ->assertSee('id="governmentIdPreviewName"', false)
+            ->assertSee('id="removeGovernmentId"', false)
+            ->assertSee('function updateBuyerGovernmentIdPreview(input)', false)
+            ->assertSee('function resetBuyerGovernmentIdPreview()', false)
+            ->assertSee('URL.createObjectURL(file)', false)
+            ->assertSee('URL.revokeObjectURL(preview.src)', false)
+            ->assertSee('Government ID may not exceed 2 MB.', false);
+    }
+
     public function test_contact_and_password_errors_render_beside_their_fields(): void
     {
         $this->fakePsgcData();

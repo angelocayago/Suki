@@ -17,6 +17,11 @@
     >
 
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .buyer-policy-dialog[open] {
+            display: flex;
+        }
+    </style>
 </head>
 
 <body class="min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
@@ -685,15 +690,41 @@
                             Upload Valid ID <span class="text-red-500">*</span>
                         </label>
 
-                        <input
-                            type="file"
-                            id="government_id"
-                            name="government_id"
-                            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                            aria-invalid="{{ $errors->has('government_id') ? 'true' : 'false' }}"
-                            class="block w-full rounded-lg border {{ $errors->has('government_id') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm text-gray-600 file:mr-4 file:border-0 file:bg-[#EEF8F3] file:px-4 file:py-3 file:text-sm file:font-semibold file:text-[#1F6F5B] hover:file:bg-[#DFF2E9]"
-                            required
-                        >
+                        <div class="rounded-lg border {{ $errors->has('government_id') ? 'border-red-500' : 'border-gray-300' }} bg-white p-3">
+                            <input
+                                type="file"
+                                id="government_id"
+                                name="government_id"
+                                accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                                aria-invalid="{{ $errors->has('government_id') ? 'true' : 'false' }}"
+                                aria-describedby="governmentIdPreviewName"
+                                class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#EEF8F3] file:px-4 file:py-3 file:text-sm file:font-semibold file:text-[#1F6F5B] hover:file:bg-[#DFF2E9]"
+                                required
+                            >
+
+                            <div
+                                id="governmentIdPreviewContainer"
+                                class="mt-3 hidden items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-2"
+                            >
+                                <img
+                                    id="governmentIdPreview"
+                                    alt="Selected government ID preview"
+                                    class="hidden h-20 w-20 rounded-md border border-gray-200 bg-white object-contain"
+                                >
+                                <span
+                                    id="governmentIdPreviewName"
+                                    class="min-w-0 flex-1 break-all text-xs font-medium text-gray-600"
+                                ></span>
+                                <button
+                                    type="button"
+                                    id="removeGovernmentId"
+                                    class="shrink-0 rounded-full bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                    aria-label="Remove selected government ID"
+                                >
+                                    X
+                                </button>
+                            </div>
+                        </div>
 
                         <p data-field-error="government_id" class="mt-1 text-xs text-red-600 {{ $errors->has('government_id') ? '' : 'hidden' }}" role="alert">{{ $errors->first('government_id') }}</p>
                         <p class="mt-1.5 text-xs text-gray-400">
@@ -814,30 +845,20 @@
                             required
                         >
 
-                        <label
-                            for="terms"
-                            class="text-xs text-gray-500 leading-relaxed"
-                        >
-
-                            I agree to SUKI SHOP's
-
-                            <a
-                                href="#"
-                                class="text-[#1F6F5B] font-medium hover:underline"
-                            >
-                                Terms & Conditions
-                            </a>
-
+                        <div class="text-xs text-gray-500 leading-relaxed">
+                            <label for="terms">I agree to SUKI SHOP's</label>
+                            <button
+                                type="button"
+                                data-open-policy="termsDialog"
+                                class="font-medium text-[#1F6F5B] hover:underline"
+                            >Terms &amp; Conditions</button>
                             and
-
-                            <a
-                                href="#"
-                                class="text-[#1F6F5B] font-medium hover:underline"
-                            >
-                                Privacy Policy
-                            </a>.
-
-                        </label>
+                            <button
+                                type="button"
+                                data-open-policy="privacyDialog"
+                                class="font-medium text-[#1F6F5B] hover:underline"
+                            >Privacy Policy</button>.
+                        </div>
 
                     </div>
                     <p data-field-error="terms" class="mt-1 text-xs text-red-600 {{ $errors->has('terms') ? '' : 'hidden' }}" role="alert">{{ $errors->first('terms') }}</p>
@@ -852,6 +873,158 @@
                     </button>
 
                 </form>
+
+                <dialog
+                    id="termsDialog"
+                    aria-labelledby="termsDialogTitle"
+                    class="buyer-policy-dialog m-auto h-[90dvh] max-h-[calc(100dvh-2rem)] w-[min(720px,calc(100%-2rem))] flex-col overflow-hidden rounded-2xl border border-[#DDE6E1] bg-white p-0 text-gray-700 shadow-2xl backdrop:bg-[#102C25]/55 backdrop:backdrop-blur-sm"
+                >
+                    <div class="flex shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7">
+                        <div>
+                            <h2 id="termsDialogTitle" class="text-lg font-semibold text-[#173F35]">SUKI SHOP Terms and Conditions</h2>
+                            <p class="mt-1 text-xs text-gray-500">Effective Date: October 2026</p>
+                        </div>
+                        <button
+                            type="button"
+                            data-close-policy
+                            class="rounded-full px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                            aria-label="Close Terms and Conditions"
+                        >X</button>
+                    </div>
+                    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 text-sm leading-6 sm:px-7">
+                        <p>Welcome to SUKI SHOP. These Terms and Conditions govern your use of the SUKI SHOP platform, including browsing, account registration, purchasing products, and interacting with sellers.</p>
+                        <p>By creating an account or using SUKI SHOP, you agree to comply with these Terms and Conditions and our Privacy Policy.</p>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">1. Account Registration</h3>
+                            <p>Users must provide accurate, complete, and updated information when creating an account.</p>
+                            <p>Users are responsible for maintaining the confidentiality of their account credentials and are responsible for all activities performed through their account.</p>
+                            <p>Users must not:</p>
+                            <ul class="list-disc space-y-1 pl-5">
+                                <li>Create false accounts.</li>
+                                <li>Use another person's identity.</li>
+                                <li>Provide misleading information.</li>
+                                <li>Use the platform for unauthorized activities.</li>
+                            </ul>
+                            <p>SUKI SHOP reserves the right to suspend or terminate accounts that violate these Terms.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">2. User Eligibility</h3>
+                            <p>Users must provide accurate personal information and meet the required eligibility requirements to use SUKI SHOP services.</p>
+                            <p>Users are responsible for ensuring that their account information remains correct and updated.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">3. Buying Products</h3>
+                            <p>Buyers may browse products, place orders, and communicate with sellers through the platform.</p>
+                            <p>Before placing an order, buyers should review:</p>
+                            <ul class="list-disc space-y-1 pl-5">
+                                <li>Product descriptions.</li>
+                                <li>Product prices.</li>
+                                <li>Available quantities.</li>
+                                <li>Seller information.</li>
+                            </ul>
+                            <p>Orders submitted through SUKI SHOP are considered a request to purchase and may be subject to seller confirmation and platform processing.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">4. Payments</h3>
+                            <p>Users must complete payments using available payment methods provided by SUKI SHOP.</p>
+                            <p>Users must not:</p>
+                            <ul class="list-disc space-y-1 pl-5">
+                                <li>Use fraudulent payment methods.</li>
+                                <li>Perform unauthorized transactions.</li>
+                                <li>Attempt to bypass payment procedures.</li>
+                            </ul>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">5. Seller Responsibilities</h3>
+                            <p>Sellers are responsible for providing accurate product information, uploading correct product images, maintaining product quality, processing orders properly, and providing truthful business information.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">6. Product Information</h3>
+                            <p>SUKI SHOP requires sellers to provide accurate product information. However, buyers understand that product appearance, availability, and descriptions may vary depending on seller-provided information.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">7. Orders and Delivery</h3>
+                            <p>Users are responsible for providing correct delivery information. SUKI SHOP is not responsible for delays caused by incorrect information provided by users or circumstances beyond reasonable control.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">8. Returns and Disputes</h3>
+                            <p>Users may request assistance for order-related concerns according to SUKI SHOP policies.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">9. Prohibited Activities</h3>
+                            <p>Users must not use SUKI SHOP for illegal activities, upload harmful or unauthorized content, attempt to access another user's account, abuse platform features, submit fraudulent transactions, or manipulate reviews, ratings, or platform systems.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">10. Privacy and Data Protection</h3>
+                            <p>SUKI SHOP collects and processes user information to provide platform services. User information may be used for account management, order processing, customer support, and security and fraud prevention.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">11. Account Suspension or Termination</h3>
+                            <p>SUKI SHOP may suspend or terminate accounts that violate these Terms.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">12. Changes to Terms</h3>
+                            <p>SUKI SHOP may update these Terms and Conditions when necessary.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">13. Contact</h3>
+                            <p>For questions or concerns regarding these Terms and Conditions, users may contact SUKI SHOP customer support.</p>
+                        </section>
+                    </div>
+                    <div class="flex shrink-0 justify-end border-t border-gray-100 px-5 py-4 sm:px-7">
+                        <button type="button" data-close-policy class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#155244]">Close</button>
+                    </div>
+                </dialog>
+
+                <dialog
+                    id="privacyDialog"
+                    aria-labelledby="privacyDialogTitle"
+                    class="buyer-policy-dialog m-auto h-[90dvh] max-h-[calc(100dvh-2rem)] w-[min(720px,calc(100%-2rem))] flex-col overflow-hidden rounded-2xl border border-[#DDE6E1] bg-white p-0 text-gray-700 shadow-2xl backdrop:bg-[#102C25]/55 backdrop:backdrop-blur-sm"
+                >
+                    <div class="flex shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7">
+                        <div>
+                            <h2 id="privacyDialogTitle" class="text-lg font-semibold text-[#173F35]">SUKI SHOP Privacy Policy</h2>
+                            <p class="mt-1 text-xs text-gray-500">Effective Date: October 2026</p>
+                        </div>
+                        <button
+                            type="button"
+                            data-close-policy
+                            class="rounded-full px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                            aria-label="Close Privacy Policy"
+                        >X</button>
+                    </div>
+                    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 text-sm leading-6 sm:px-7">
+                        <p>This Privacy Policy describes information collected through SUKI SHOP buyer registration and how that information is used to operate the platform.</p>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">1. Information Collected</h3>
+                            <p>When you register, SUKI SHOP collects the information you submit, including your name, sex, date of birth, email address, mobile number, government ID, and delivery address.</p>
+                            <p>When you use the platform, information related to orders and transactions may also be processed.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">2. Account Information Usage</h3>
+                            <p>Account information is used to create and manage your account, verify registration information, communicate with you about your account, provide customer support, and protect the platform against unauthorized or fraudulent activity.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">3. Order and Transaction Information</h3>
+                            <p>Order and transaction information is used to process purchases, coordinate fulfillment and delivery, provide order support, and maintain records of platform activity. Relevant delivery details may be shared with the parties involved in fulfilling an order.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">4. Data Security</h3>
+                            <p>SUKI SHOP uses reasonable measures intended to protect information handled through the platform. No method of storage or transmission can be guaranteed to be completely secure.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">5. User Privacy Rights</h3>
+                            <p>You may contact SUKI SHOP to request access to or correction of your account information, or to ask questions about how your information is handled. Requests may be subject to identity verification and applicable recordkeeping requirements.</p>
+                        </section>
+                        <section>
+                            <h3 class="font-semibold text-[#173F35]">6. Contact Information</h3>
+                            <p>For questions or privacy requests, contact SUKI SHOP customer support through the support channels made available on the platform.</p>
+                        </section>
+                    </div>
+                    <div class="flex shrink-0 justify-end border-t border-gray-100 px-5 py-4 sm:px-7">
+                        <button type="button" data-close-policy class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#155244]">Close</button>
+                    </div>
+                </dialog>
 
 
                 <!-- ================================================= -->
@@ -1432,10 +1605,17 @@
                             ? 'Street address may not exceed 255 characters.'
                             : '';
                     case 'government_id': {
+                        if (control.dataset.invalidUploadMessage) {
+                            return control.dataset.invalidUploadMessage;
+                        }
+
                         const file = control.files?.[0];
                         if (!file && showRequired) return 'A valid ID file is required.';
                         if (!file) return '';
-                        if (!/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+                        if (
+                            !['image/jpeg', 'image/png', 'application/pdf'].includes(file.type) ||
+                            !/\.(jpe?g|png|pdf)$/i.test(file.name)
+                        ) {
                             return 'Upload a JPG, JPEG, PNG, or PDF file.';
                         }
                         return file.size > 2 * 1024 * 1024
@@ -1454,7 +1634,7 @@
                             : '';
                     case 'terms':
                         return !control.checked && showRequired
-                            ? 'You must agree to the terms and policies.'
+                            ? "You must agree to SUKI SHOP's Terms & Conditions and Privacy Policy before continuing."
                             : '';
                     default:
                         return '';
@@ -1598,8 +1778,103 @@
                 event.preventDefault();
             }
 
+            function resetBuyerGovernmentIdPreview() {
+                const input = registrationControl('government_id');
+                const container = document.getElementById('governmentIdPreviewContainer');
+                const preview = document.getElementById('governmentIdPreview');
+                const filename = document.getElementById('governmentIdPreviewName');
+
+                if (preview.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(preview.src);
+                }
+
+                preview.removeAttribute('src');
+                preview.classList.add('hidden');
+                filename.textContent = '';
+                container.classList.add('hidden');
+                container.classList.remove('flex');
+                input.value = '';
+                delete input.dataset.invalidUploadMessage;
+            }
+
+            function updateBuyerGovernmentIdPreview(input) {
+                const file = input.files?.[0];
+                const container = document.getElementById('governmentIdPreviewContainer');
+                const preview = document.getElementById('governmentIdPreview');
+                const filename = document.getElementById('governmentIdPreviewName');
+
+                if (!file) {
+                    resetBuyerGovernmentIdPreview();
+                    return;
+                }
+
+                const allowedTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'application/pdf',
+                ];
+                let message = '';
+
+                if (
+                    !allowedTypes.includes(file.type) ||
+                    !/\.(jpe?g|png|pdf)$/i.test(file.name)
+                ) {
+                    message = 'Upload a JPG, JPEG, PNG, or PDF file.';
+                } else if (file.size > 2 * 1024 * 1024) {
+                    message = 'Government ID may not exceed 2 MB.';
+                }
+
+                if (message) {
+                    resetBuyerGovernmentIdPreview();
+                    input.dataset.invalidUploadMessage = message;
+                    interactedFields.add('government_id');
+                    validateRegistrationField('government_id');
+                    return;
+                }
+
+                delete input.dataset.invalidUploadMessage;
+                filename.textContent = file.name;
+                container.classList.remove('hidden');
+                container.classList.add('flex');
+
+                if (preview.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(preview.src);
+                }
+
+                if (file.type.startsWith('image/')) {
+                    preview.src = URL.createObjectURL(file);
+                    preview.classList.remove('hidden');
+                } else {
+                    preview.removeAttribute('src');
+                    preview.classList.add('hidden');
+                }
+
+                interactedFields.add('government_id');
+                validateRegistrationField('government_id');
+            }
+
             if (registrationForm) {
                 registrationForm.noValidate = true;
+
+                document.querySelectorAll('[data-open-policy]').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        document.getElementById(button.dataset.openPolicy).showModal();
+                    });
+                });
+
+                document.querySelectorAll('dialog[id$="Dialog"]').forEach(function (dialog) {
+                    dialog.querySelectorAll('[data-close-policy]').forEach(function (button) {
+                        button.addEventListener('click', function () {
+                            dialog.close();
+                        });
+                    });
+
+                    dialog.addEventListener('click', function (event) {
+                        if (event.target === dialog) {
+                            dialog.close();
+                        }
+                    });
+                });
 
                 ['first_name', 'last_name'].forEach(function (fieldName) {
                     const input = registrationControl(fieldName);
@@ -1639,6 +1914,17 @@
                     interactedFields.add('phone');
                     validateRegistrationField('phone');
                 });
+
+                registrationControl('government_id')
+                    .addEventListener('change', function () {
+                        updateBuyerGovernmentIdPreview(this);
+                    });
+
+                document.getElementById('removeGovernmentId')
+                    .addEventListener('click', function () {
+                        resetBuyerGovernmentIdPreview();
+                        validateRegistrationField('government_id');
+                    });
 
                 registrationFields.forEach(function (fieldName) {
                     const control = registrationControl(fieldName);
