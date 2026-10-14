@@ -394,12 +394,10 @@ if (Schema::hasTable('products')) {
             'category' => $databaseProduct->category?->name
                 ?? 'Others',
 
-            // Temporary image until product image upload
-            // is connected to Supabase Storage.
             'image' => $databaseProduct->images->first()
-    ? Storage::disk('s3')->url(
-        $databaseProduct->images->first()->path
-    )
+    ? config('app.supabase_url')
+        . '/storage/v1/object/public/product-images/'
+        . $databaseProduct->images->first()->path
     : asset('images/suki-logo.png'),
 
             'seller' => $databaseProduct->seller?->name
@@ -628,14 +626,15 @@ Route::get('/product/{slug}', function ($slug) use ($products) {
     }
 
     $price = $variant->price_minor / 100;
-
-    $imageUrls = $databaseProduct->images
-        ->map(
-            fn ($image) =>
-                Storage::disk('s3')->url($image->path)
-        )
-        ->values()
-        ->all();
+$imageUrls = $databaseProduct->images
+    ->map(
+        fn ($image) =>
+            config('app.supabase_url')
+            . '/storage/v1/object/public/product-images/'
+            . $image->path
+    )
+    ->values()
+    ->all();
 
     if (empty($imageUrls)) {
         $imageUrls = [

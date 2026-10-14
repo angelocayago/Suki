@@ -383,19 +383,29 @@
                         </button>
 
 
-                    {{-- BUY NOW --}}
+                  {{-- BUY NOW --}}
+@if($product['stock'] > 0)
+
 <button
     type="submit"
     formaction="{{ route('buyer.buy-now', ['slug' => $slug]) }}"
     formmethod="POST"
-    class="h-12 rounded-lg
-           bg-[#1F6F5B] text-white
-           font-semibold
-           hover:bg-[#155244]
-           transition"
+    class="h-12 rounded-lg bg-[#1F6F5B] text-white font-semibold hover:bg-[#155244] transition"
 >
     Buy Now
 </button>
+
+@else
+
+<button
+    type="button"
+    disabled
+    class="h-12 rounded-lg bg-gray-400 text-white font-semibold cursor-not-allowed"
+>
+    Out of Stock
+</button>
+
+@endif
 
                     </div>
 

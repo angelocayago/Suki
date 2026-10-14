@@ -13,7 +13,9 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+   'name' => env('APP_NAME', 'Laravel'),
+
+'supabase_url' => env('SUPABASE_URL'),
 
     /*
     |--------------------------------------------------------------------------
