@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\BuyerEmailVerification;
 use App\Models\Seller;
 use App\Models\Address;
 use App\Models\SellerDocument;
@@ -20,6 +21,8 @@ use App\Http\Controllers\SuperAdmin\OrderManagementController;
 use App\Http\Controllers\SuperAdmin\CommissionController;
 use App\Http\Controllers\SuperAdmin\ReportController;
 use App\Http\Controllers\SuperAdmin\SettingController;
+use App\Http\Controllers\Auth\BuyerEmailVerificationController;
+use App\Services\BuyerEmailVerificationService;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -439,6 +442,25 @@ $requireBuyer = function () {
 
     /** @var User $user */
     $user = Auth::user();
+
+    if (
+        $user->hasRole('buyer') &&
+        $user->email_verified_at === null &&
+        BuyerEmailVerification::query()
+            ->where('user_id', $user->id)
+            ->exists()
+    ) {
+        $userId = $user->id;
+        Auth::logout();
+
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+        request()->session()->put('buyer_verification_user_id', $userId);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->with('error', 'Please verify your email address before accessing your account.');
+    }
 
     if (
         !$user->hasRole('buyer') ||
@@ -6835,6 +6857,14 @@ Route::post(
                 );
         }
 
+        if ($buyer->email_verified_at === null) {
+            return back()
+                ->with(
+                    'error',
+                    'Buyer email must be verified before the account can be approved.'
+                );
+        }
+
 
         if ($buyer->status === 'active') {
 
@@ -7052,6 +7082,28 @@ Route::post('/login', function (Request $request) {
             ->onlyInput('login');
     }
 
+    if (
+        $user->hasRole('buyer') &&
+        $user->email_verified_at === null &&
+        BuyerEmailVerification::query()
+            ->where('user_id', $user->id)
+            ->exists()
+    ) {
+        $userId = $user->id;
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        $request->session()->put('buyer_verification_user_id', $userId);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->with(
+                'error',
+                'Please verify your email address before logging in.'
+            );
+    }
+
 
     // =====================================================
     // ACCOUNT STATUS CHECK
@@ -7214,12 +7266,31 @@ Route::get('/register/buyer', function () {
 
 })->name('register.buyer');
 
+Route::get(
+    '/buyer/email/verify',
+    [BuyerEmailVerificationController::class, 'show']
+)->name('buyer.verification.show');
+
+Route::post(
+    '/buyer/email/verify',
+    [BuyerEmailVerificationController::class, 'verify']
+)->middleware('throttle:6,1')
+    ->name('buyer.verification.verify');
+
+Route::post(
+    '/buyer/email/verify/resend',
+    [BuyerEmailVerificationController::class, 'resend']
+)->middleware('throttle:6,1')
+    ->name('buyer.verification.resend');
 
 // =====================================================
 // REGISTER SUBMIT
 // =====================================================
 
-Route::post('/register', function (Request $request) use ($fetchPsgcData) {
+Route::post('/register', function (
+    Request $request,
+    BuyerEmailVerificationService $verificationService
+) use ($fetchPsgcData) {
 
     $submittedEmail = $request->input('email');
     $normalizedEmail = is_string($submittedEmail)
@@ -7477,11 +7548,11 @@ Route::post('/register', function (Request $request) use ($fetchPsgcData) {
         ->file('government_id')
         ->store('government-ids', 'public');
 
-    $fullName = trim(
-        $validated['first_name'] . ' ' .
-        ($validated['middle_initial'] ?? '') . ' ' .
-        $validated['last_name']
-    );
+    $fullName = implode(' ', array_filter([
+        $validated['first_name'],
+        $validated['middle_initial'] ?? null,
+        $validated['last_name'],
+    ], fn ($part) => is_string($part) && trim($part) !== ''));
 
     $user = \Illuminate\Support\Facades\DB::transaction(
         function () use ($validated, $addressLocation, $governmentIdPath, $fullName) {
@@ -7497,6 +7568,7 @@ Route::post('/register', function (Request $request) use ($fetchPsgcData) {
                 'email' => $validated['email'],
                 'phone' => $validated['phone'],
                 'status' => 'pending',
+                'email_verified_at' => null,
                 'government_id' => $governmentIdPath,
                 'password' => $validated['password'],
             ]);
@@ -7533,11 +7605,25 @@ Route::post('/register', function (Request $request) use ($fetchPsgcData) {
         }
     );
 
+    $request->session()->put('buyer_verification_user_id', $user->id);
+
+    try {
+        $verificationService->issue($user);
+    } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $exception) {
+        report($exception);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->withErrors([
+                'email' => 'Your account was created, but we could not send a verification code. Please request a new code.',
+            ]);
+    }
+
     return redirect()
-        ->route('login')
+        ->route('buyer.verification.show')
         ->with(
             'success',
-            'Your buyer application has been submitted. Please wait for administrator approval before logging in.'
+            'Your buyer account was created. Verify your email to continue; administrator approval is still required before login.'
         );
 
 })->name('register.submit');

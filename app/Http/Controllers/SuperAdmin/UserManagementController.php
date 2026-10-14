@@ -280,7 +280,16 @@ class UserManagementController extends Controller
 
         ]);
 
-
+        if (
+            $request->status === 'active' &&
+            $user->hasRole('buyer') &&
+            $user->email_verified_at === null
+        ) {
+            return back()->with(
+                'error',
+                'Buyer email must be verified before the account can be activated.'
+            );
+        }
 
 
 

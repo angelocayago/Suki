@@ -2,17 +2,28 @@
 
 namespace Tests\Feature;
 
+use App\Mail\BuyerEmailVerificationMail;
+use App\Models\BuyerEmailVerification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class BuyerRegistrationValidationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Mail::fake();
+    }
 
     public function test_empty_registration_is_rejected_without_creating_an_account(): void
     {
@@ -55,7 +66,7 @@ class BuyerRegistrationValidationTest extends TestCase
             'password_confirmation',
             'terms',
         ] as $field) {
-            $formResponse->assertSee('data-field-error="' . $field . '"', false);
+            $formResponse->assertSee('data-field-error="'.$field.'"', false);
         }
 
         $formResponse->assertSee('novalidate', false)
@@ -63,6 +74,8 @@ class BuyerRegistrationValidationTest extends TestCase
             ->assertSee('/api/psgc', false)
             ->assertSee('text-red-600', false);
         $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('buyer_email_verifications', 0);
+        Mail::assertNothingOutgoing();
     }
 
     public function test_names_accept_unicode_letters_and_reject_numbers_or_symbols(): void
@@ -192,6 +205,7 @@ class BuyerRegistrationValidationTest extends TestCase
         $this->assertBuyerRegistrationFails([
             'email' => 'EXISTING@EXAMPLE.COM',
         ], ['email'], expectedUserCount: 1);
+        $this->assertDatabaseCount('buyer_email_verifications', 0);
 
         User::factory()->create([
             'email' => 'ANOTHER@EXAMPLE.COM',
@@ -200,6 +214,7 @@ class BuyerRegistrationValidationTest extends TestCase
         $this->assertBuyerRegistrationFails([
             'email' => 'another@example.com',
         ], ['email'], expectedUserCount: 2);
+        $this->assertDatabaseCount('buyer_email_verifications', 0);
     }
 
     public function test_philippine_mobile_numbers_are_validated_normalized_and_deduplicated(): void
@@ -295,6 +310,215 @@ class BuyerRegistrationValidationTest extends TestCase
             ->assertSee('data-field-error="terms"', false);
     }
 
+    public function test_registration_creates_pending_buyer_and_sends_hashed_expiring_otp(): void
+    {
+        Storage::fake('public');
+        $this->fakePsgcData();
+
+        $response = $this->post(route('register.submit'), $this->validBuyerData());
+
+        $response->assertRedirect(route('buyer.verification.show'))
+            ->assertSessionHas('buyer_verification_user_id');
+
+        $user = User::query()->where('email', 'buyer@example.com')->firstOrFail();
+        $this->assertSame(
+            $user->id,
+            session('buyer_verification_user_id'),
+        );
+        $this->assertSame('Maria L. DelaCruz', $user->name);
+        $this->assertSame('L.', $user->middle_initial);
+        $this->assertSame('Female', $user->sex);
+        $this->assertSame('1996-01-01', $user->birthday);
+        $this->assertNotNull($user->government_id);
+        Storage::disk('public')->assertExists($user->government_id);
+        $this->assertSame('buyer', $user->role);
+        $this->assertSame('pending', $user->status);
+        $this->assertNull($user->email_verified_at);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseHas('addresses', [
+            'user_id' => $user->id,
+            'label' => 'Home',
+            'is_default' => true,
+        ]);
+
+        $verification = $user->emailVerification()->firstOrFail();
+        $this->assertSame($user->id, $verification->user->id);
+
+        $this->assertNotSame('123456', $verification->otp_hash);
+        $this->assertTrue($verification->expires_at->isFuture());
+        $this->assertTrue($verification->expires_at->isAfter(now()->addMinutes(9)));
+
+        Mail::assertSent(BuyerEmailVerificationMail::class, function ($mail) use ($verification) {
+            $renderedMail = $mail->render();
+
+            return $mail->hasTo('buyer@example.com')
+                && preg_match('/\A[0-9]{6}\z/', $mail->otp) === 1
+                && Hash::check($mail->otp, $verification->otp_hash)
+                && $mail->expiresInMinutes === config('auth.buyer_otp_expiration_minutes')
+                && str_contains($renderedMail, $mail->otp)
+                && str_contains($renderedMail, 'expires in');
+        });
+
+        $verificationPage = $this->get(route('buyer.verification.show'));
+        $verificationPage
+            ->assertOk()
+            ->assertSee('Verify your email address')
+            ->assertSee('buyer@example.com')
+            ->assertSee('name="otp"', false)
+            ->assertSee('RESEND OTP');
+
+        $registrationPage = $this->get(route('register.buyer'));
+        $registrationPage->assertDontSee('name="otp"', false);
+    }
+
+    public function test_buyer_otp_rejects_invalid_and_wrong_codes_then_verifies_email(): void
+    {
+        $this->registerBuyerForVerification();
+
+        foreach ([
+            ['otp' => ''],
+            ['otp' => '12345'],
+            ['otp' => '1234567'],
+            ['otp' => '12AB56'],
+        ] as $invalidCode) {
+            $this->post(route('buyer.verification.verify'), $invalidCode)
+                ->assertSessionHasErrors(['otp']);
+        }
+
+        $mail = Mail::sent(BuyerEmailVerificationMail::class)->sole();
+        $this->post(route('buyer.verification.verify'), [
+            'otp' => $mail->otp === '000000' ? '999999' : '000000',
+        ])->assertSessionHasErrors(['otp' => 'That verification code is incorrect.']);
+
+        $this->get(route('buyer.verification.show'))
+            ->assertSee('That verification code is incorrect.')
+            ->assertSee('text-red-600', false);
+
+        $user = User::query()->where('email', 'buyer@example.com')->firstOrFail();
+        $this->assertNull($user->email_verified_at);
+        $this->assertSame('pending', $user->status);
+
+        $this->post(route('buyer.verification.verify'), ['otp' => $mail->otp])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('success');
+
+        $user->refresh();
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertSame('pending', $user->status);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseMissing('buyer_email_verifications', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_buyer_requires_email_verification_before_admin_approval(): void
+    {
+        $buyer = $this->registerBuyerForVerification();
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $superadmin = User::factory()->create([
+            'role' => 'superadmin',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.buyers.approve', $buyer))
+            ->assertSessionHas('error');
+        $this->assertSame('pending', $buyer->fresh()->status);
+
+        $this->actingAs($superadmin)
+            ->post(route('superadmin.buyers.status', $buyer), [
+                'status' => 'active',
+            ])
+            ->assertSessionHas('error');
+        $this->assertSame('pending', $buyer->fresh()->status);
+
+        $this->actingAs($superadmin)
+            ->post(route('superadmin.users.status', $buyer), [
+                'status' => 'active',
+            ])
+            ->assertSessionHas('error');
+        $this->assertSame('pending', $buyer->fresh()->status);
+
+        $mail = Mail::sent(BuyerEmailVerificationMail::class)->sole();
+        $this->post(route('buyer.verification.verify'), ['otp' => $mail->otp])
+            ->assertRedirect(route('login'));
+
+        $buyer->refresh();
+        $this->assertNotNull($buyer->email_verified_at);
+        $this->assertSame('pending', $buyer->status);
+
+        $this->actingAs($admin)
+            ->post(route('admin.buyers.approve', $buyer))
+            ->assertSessionHas('success');
+
+        $this->assertSame('active', $buyer->fresh()->status);
+    }
+
+    public function test_expired_otp_can_be_resent_and_only_the_latest_code_works(): void
+    {
+        $this->registerBuyerForVerification();
+
+        $user = User::query()->where('email', 'buyer@example.com')->firstOrFail();
+        $originalMail = Mail::sent(BuyerEmailVerificationMail::class)->sole();
+        $verification = BuyerEmailVerification::query()
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+        $verification->update([
+            'expires_at' => now()->subSecond(),
+        ]);
+
+        $this->post(route('buyer.verification.verify'), ['otp' => $originalMail->otp])
+            ->assertSessionHasErrors([
+                'otp' => 'That verification code is invalid or expired. Request a new code.',
+            ]);
+
+        $this->post(route('buyer.verification.resend'))
+            ->assertRedirect(route('buyer.verification.show'))
+            ->assertSessionHas('status');
+
+        $sentMails = Mail::sent(BuyerEmailVerificationMail::class);
+        $this->assertCount(2, $sentMails);
+        $this->assertDatabaseCount('buyer_email_verifications', 1);
+        $latestMail = $sentMails->last();
+        $this->assertNotSame($originalMail->otp, $latestMail->otp);
+
+        $this->post(route('buyer.verification.verify'), ['otp' => $originalMail->otp])
+            ->assertSessionHasErrors(['otp']);
+        $this->assertNull($user->fresh()->email_verified_at);
+
+        $this->post(route('buyer.verification.verify'), ['otp' => $latestMail->otp])
+            ->assertRedirect(route('login'));
+        $this->assertNotNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_unverified_buyer_is_redirected_to_verification_before_login(): void
+    {
+        $user = $this->registerBuyerForVerification();
+        $user->update(['status' => 'active']);
+
+        $this->post(route('login.submit'), [
+            'login' => 'buyer@example.com',
+            'password' => 'Password@1',
+        ])->assertRedirect(route('buyer.verification.show'));
+
+        $this->assertGuest();
+        $this->assertNull($user->fresh()->email_verified_at);
+
+        $mail = Mail::sent(BuyerEmailVerificationMail::class)->sole();
+        $this->post(route('buyer.verification.verify'), ['otp' => $mail->otp])
+            ->assertRedirect(route('login'));
+
+        $this->post(route('login.submit'), [
+            'login' => 'buyer@example.com',
+            'password' => 'Password@1',
+        ])->assertRedirect(route('buyer.home'));
+
+        $this->assertAuthenticatedAs($user->fresh());
+    }
+
     public function test_buyer_government_id_keeps_backend_file_validation(): void
     {
         $this->fakePsgcData();
@@ -335,29 +559,29 @@ class BuyerRegistrationValidationTest extends TestCase
         $this->fakePsgcData();
 
         $response = $this->followingRedirects()
-        ->from(route('register.buyer'))
-        ->post(route('register.submit'), array_replace(
-            $this->validBuyerData(),
-            [
-                'email' => 'invalid email',
-                'phone' => '0917ABC4567',
-                'password' => 'mamimili@2026',
-                'password_confirmation' => 'Mamimili@2027',
-            ],
-        ));
+            ->from(route('register.buyer'))
+            ->post(route('register.submit'), array_replace(
+                $this->validBuyerData(),
+                [
+                    'email' => 'invalid email',
+                    'phone' => '0917ABC4567',
+                    'password' => 'mamimili@2026',
+                    'password_confirmation' => 'Mamimili@2027',
+                ],
+            ));
 
         $response
-        ->assertSee('Enter a valid email address.')
-        ->assertSee('Enter a valid Philippine mobile number in local or +63 format.')
-        ->assertSee('Password must include an uppercase letter, a lowercase letter, a number, and a special character.')
-        ->assertSee('Password confirmation must match the password.')
-        ->assertSee('data-field-error="email"', false)
-        ->assertSee('data-field-error="phone"', false)
-        ->assertSee('data-field-error="password"', false)
-        ->assertSee('data-field-error="password_confirmation"', false)
-        ->assertSee('value="invalid email"', false)
-        ->assertSee('value="0917ABC4567"', false)
-        ->assertSee('aria-invalid="true"', false);
+            ->assertSee('Enter a valid email address.')
+            ->assertSee('Enter a valid Philippine mobile number in local or +63 format.')
+            ->assertSee('Password must include an uppercase letter, a lowercase letter, a number, and a special character.')
+            ->assertSee('Password confirmation must match the password.')
+            ->assertSee('data-field-error="email"', false)
+            ->assertSee('data-field-error="phone"', false)
+            ->assertSee('data-field-error="password"', false)
+            ->assertSee('data-field-error="password_confirmation"', false)
+            ->assertSee('value="invalid email"', false)
+            ->assertSee('value="0917ABC4567"', false)
+            ->assertSee('aria-invalid="true"', false);
 
         $this->assertDatabaseCount('users', 0);
     }
@@ -461,7 +685,7 @@ class BuyerRegistrationValidationTest extends TestCase
 
         $response
             ->assertSessionDoesntHaveErrors()
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('buyer.verification.show'));
 
         $user = User::query()->latest('id')->firstOrFail();
         $this->assertDatabaseHas('addresses', [
@@ -488,7 +712,7 @@ class BuyerRegistrationValidationTest extends TestCase
 
         $response
             ->assertSessionDoesntHaveErrors()
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('buyer.verification.show'));
 
         $user = User::query()->latest('id')->firstOrFail();
 
@@ -537,13 +761,11 @@ class BuyerRegistrationValidationTest extends TestCase
         return [
             'last_name' => 'DelaCruz',
             'first_name' => 'Maria',
-            'middle_initial' => '',
+            'middle_initial' => 'L.',
             'sex' => 'Female',
             'email' => 'buyer@example.com',
             'phone' => '09171234567',
-            'birthday' => Carbon::today('Asia/Manila')
-                ->subYears(30)
-                ->toDateString(),
+            'birthday' => '1996-01-01',
             'region' => '0100000000',
             'province' => '0101000000',
             'municipality' => '0101010000',
@@ -609,5 +831,16 @@ class BuyerRegistrationValidationTest extends TestCase
                 ],
             ]),
         ]);
+    }
+
+    private function registerBuyerForVerification(): User
+    {
+        Storage::fake('public');
+        $this->fakePsgcData();
+
+        $this->post(route('register.submit'), $this->validBuyerData())
+            ->assertRedirect(route('buyer.verification.show'));
+
+        return User::query()->where('email', 'buyer@example.com')->firstOrFail();
     }
 }
