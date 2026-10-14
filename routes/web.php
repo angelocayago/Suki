@@ -7221,16 +7221,98 @@ Route::get('/register/buyer', function () {
 
 Route::post('/register', function (Request $request) {
 
+    $submittedEmail = $request->input('email');
+    $normalizedEmail = is_string($submittedEmail)
+        ? strtolower(trim($submittedEmail))
+        : null;
+
+    if ($normalizedEmail !== null) {
+        $request->merge(['email' => $normalizedEmail]);
+    }
+
+    $submittedPhone = $request->input('phone');
+    $normalizedPhone = null;
+
+    if (is_string($submittedPhone)) {
+        if (preg_match('/\A09[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = $submittedPhone;
+        } elseif (preg_match('/\A\+639[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = '0' . substr($submittedPhone, 3);
+        }
+    }
+
+    if ($normalizedPhone !== null) {
+        $request->merge(['phone' => $normalizedPhone]);
+    }
+
+    $latestAllowedBirthday = \Illuminate\Support\Carbon::today('Asia/Manila')
+        ->subYears(18)
+        ->toDateString();
+
     $validated = $request->validate([
-        'last_name' => 'required|string|max:100',
-        'first_name' => 'required|string|max:100',
+        'last_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?: \p{L}+)*\z/u',
+        ],
+        'first_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?: \p{L}+)*\z/u',
+        ],
         'middle_initial' => 'nullable|string|max:10',
         'sex' => 'required|string|max:20',
 
-        'email' => 'required|email|max:255|unique:users,email',
-        'phone' => 'required|string|max:30|unique:users,phone',
+        'email' => [
+            'bail',
+            'required',
+            'string',
+            'email',
+            'max:255',
+            function ($attribute, $value, $fail) use ($normalizedEmail) {
+                if (
+                    $normalizedEmail !== null &&
+                    User::query()
+                        ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                        ->exists()
+                ) {
+                    $fail('This email address has already been taken.');
+                }
+            },
+        ],
+        'phone' => [
+            'bail',
+            'required',
+            'string',
+            function ($attribute, $value, $fail) use ($normalizedPhone) {
+                if ($normalizedPhone === null) {
+                    $fail('Enter a valid Philippine mobile number in local or +63 format.');
 
-        'birthday' => 'required|date|before:today',
+                    return;
+                }
+
+                $internationalPhone = '+63' . substr($normalizedPhone, 1);
+
+                if (
+                    User::query()
+                        ->whereIn('phone', [$normalizedPhone, $internationalPhone])
+                        ->exists()
+                ) {
+                    $fail('This phone number has already been taken.');
+                }
+            },
+        ],
+
+        'birthday' => [
+            'bail',
+            'required',
+            'date_format:Y-m-d',
+            'before_or_equal:' . $latestAllowedBirthday,
+        ],
 
         'province' => 'required|string|max:255',
         'municipality' => 'required|string|max:255',
@@ -7239,8 +7321,29 @@ Route::post('/register', function (Request $request) {
 
         'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
 
-        'password' => 'required|string|min:8|confirmed',
+        'password' => [
+            'bail',
+            'required',
+            'string',
+            'min:8',
+            'max:255',
+            'regex:/\A(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\p{P}\p{S}]).*\z/u',
+        ],
+        'password_confirmation' => [
+            'required',
+            'string',
+            'same:password',
+        ],
         'terms' => 'accepted',
+    ], [
+        'first_name.required' => 'First name is required.',
+        'first_name.min' => 'First name must be at least 2 characters.',
+        'first_name.max' => 'First name may not exceed 50 characters.',
+        'first_name.regex' => 'First name may contain letters only, with spaces allowed between names.',
+        'last_name.required' => 'Last name is required.',
+        'last_name.min' => 'Last name must be at least 2 characters.',
+        'last_name.max' => 'Last name may not exceed 50 characters.',
+        'last_name.regex' => 'Last name may contain letters only, with spaces allowed between names.',
     ]);
 
     $governmentIdPath = $request

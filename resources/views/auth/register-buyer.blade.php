@@ -163,20 +163,10 @@
                 <!-- Error Messages -->
                 @if ($errors->any())
 
-                    <div class="mb-5 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-
-                        <ul class="text-sm text-red-600 space-y-1">
-
-                            @foreach ($errors->all() as $error)
-
-                                <li>
-                                    {{ $error }}
-                                </li>
-
-                            @endforeach
-
-                        </ul>
-
+                    <div id="registrationErrorSummary" class="mb-5 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+                        <p class="text-sm text-red-600" role="alert">
+                            Please correct the highlighted fields below.
+                        </p>
                     </div>
 
                 @endif
@@ -191,12 +181,22 @@
                     method="POST"
                     enctype="multipart/form-data"
                     class="space-y-4"
+                    novalidate
                 >
 
                     @csrf
 
 
-                    <!-- Personal Information -->
+                    <div class="flex items-start gap-3">
+                        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EEF8F3] text-xs font-bold text-[#1F6F5B]">
+                            01
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-semibold text-[#173F35]">Personal Information</h3>
+                            <p class="mt-1 text-xs text-gray-500">Tell us about yourself.</p>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         <!-- Last Name -->
@@ -214,9 +214,14 @@
                                 name="last_name"
                                 value="{{ old('last_name') }}"
                                 placeholder="Last name"
-                                class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                minlength="2"
+                                pattern="[\p{L}]+(?: [\p{L}]+)*"
+                                title="Use 2 to 50 letters, with spaces between name parts."
+                                aria-invalid="{{ $errors->has('last_name') ? 'true' : 'false' }}"
+                                class="w-full px-4 py-3 rounded-lg border {{ $errors->has('last_name') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
+                            <p data-field-error="last_name" class="mt-1 text-xs text-red-600 {{ $errors->has('last_name') ? '' : 'hidden' }}" role="alert">{{ $errors->first('last_name') }}</p>
                         </div>
 
 
@@ -235,9 +240,14 @@
                                 name="first_name"
                                 value="{{ old('first_name') }}"
                                 placeholder="First name"
-                                class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                minlength="2"
+                                pattern="[\p{L}]+(?: [\p{L}]+)*"
+                                title="Use 2 to 50 letters, with spaces between name parts."
+                                aria-invalid="{{ $errors->has('first_name') ? 'true' : 'false' }}"
+                                class="w-full px-4 py-3 rounded-lg border {{ $errors->has('first_name') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
+                            <p data-field-error="first_name" class="mt-1 text-xs text-red-600 {{ $errors->has('first_name') ? '' : 'hidden' }}" role="alert">{{ $errors->first('first_name') }}</p>
                         </div>
 
 
@@ -257,8 +267,10 @@
                                 value="{{ old('middle_initial') }}"
                                 maxlength="10"
                                 placeholder="e.g. M."
+                                aria-invalid="{{ $errors->has('middle_initial') ? 'true' : 'false' }}"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
+                            <p data-field-error="middle_initial" class="mt-1 text-xs text-red-600 {{ $errors->has('middle_initial') ? '' : 'hidden' }}" role="alert">{{ $errors->first('middle_initial') }}</p>
                         </div>
 
 
@@ -274,6 +286,7 @@
                             <select
                                 id="sex"
                                 name="sex"
+                                aria-invalid="{{ $errors->has('sex') ? 'true' : 'false' }}"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
@@ -281,6 +294,7 @@
                                 <option value="Male" @selected(old('sex') === 'Male')>Male</option>
                                 <option value="Female" @selected(old('sex') === 'Female')>Female</option>
                             </select>
+                            <p data-field-error="sex" class="mt-1 text-xs text-red-600 {{ $errors->has('sex') ? '' : 'hidden' }}" role="alert">{{ $errors->first('sex') }}</p>
                         </div>
 
 
@@ -298,10 +312,12 @@
                                 id="birthday"
                                 name="birthday"
                                 value="{{ old('birthday') }}"
-                                max="{{ now()->subDay()->format('Y-m-d') }}"
+                                max="{{ now('Asia/Manila')->subYears(18)->format('Y-m-d') }}"
+                                aria-invalid="{{ $errors->has('birthday') ? 'true' : 'false' }}"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
+                            <p data-field-error="birthday" class="mt-1 text-xs text-red-600 {{ $errors->has('birthday') ? '' : 'hidden' }}" role="alert">{{ $errors->first('birthday') }}</p>
                         </div>
 
 
@@ -327,7 +343,16 @@
                     </div>
 
 
-                    <!-- Contact Information -->
+                    <div class="flex items-start gap-3 border-t border-gray-100 pt-5">
+                        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EEF8F3] text-xs font-bold text-[#1F6F5B]">
+                            02
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-semibold text-[#173F35]">Contact Information</h3>
+                            <p class="mt-1 text-xs text-gray-500">We’ll use these details for important account updates.</p>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         <!-- Phone Number -->
@@ -346,15 +371,19 @@
                                 ></i>
 
                                 <input
-                                    type="text"
+                                    type="tel"
                                     id="phone"
                                     name="phone"
                                     value="{{ old('phone') }}"
                                     placeholder="Enter contact number"
-                                    class="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                    inputmode="tel"
+                                    pattern="(?:09[0-9]{9}|\+639[0-9]{9})"
+                                    aria-invalid="{{ $errors->has('phone') ? 'true' : 'false' }}"
+                                    class="w-full pl-11 pr-4 py-3 rounded-lg border {{ $errors->has('phone') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
                                 >
                             </div>
+                            <p data-field-error="phone" class="mt-1 text-xs text-red-600 {{ $errors->has('phone') ? '' : 'hidden' }}" role="alert">{{ $errors->first('phone') }}</p>
                         </div>
 
 
@@ -379,10 +408,12 @@
                                     name="email"
                                     value="{{ old('email') }}"
                                     placeholder="Enter email address"
-                                    class="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                    aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
+                                    class="w-full pl-11 pr-4 py-3 rounded-lg border {{ $errors->has('email') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
                                 >
                             </div>
+                            <p data-field-error="email" class="mt-1 text-xs text-red-600 {{ $errors->has('email') ? '' : 'hidden' }}" role="alert">{{ $errors->first('email') }}</p>
                         </div>
 
                     </div>
@@ -390,13 +421,14 @@
 
                     <!-- Address -->
                     <div class="pt-2">
-                        <div class="mb-4">
-                            <p class="text-sm font-semibold text-[#173F35]">
-                                Address
-                            </p>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Select your location and enter your complete street address.
-                            </p>
+                        <div class="mb-4 flex items-start gap-3 border-t border-gray-100 pt-5">
+                            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EEF8F3] text-xs font-bold text-[#1F6F5B]">
+                                03
+                            </span>
+                            <div>
+                                <h3 class="text-sm font-semibold text-[#173F35]">Address Information</h3>
+                                <p class="mt-1 text-xs text-gray-500">Select your location and enter your complete street address.</p>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 gap-4">
@@ -421,6 +453,7 @@
                                         aria-controls="provinceOptions"
                                         aria-labelledby="provinceDropdownLabel"
                                         aria-required="true"
+                                        aria-invalid="{{ $errors->has('province') ? 'true' : 'false' }}"
                                         class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
                                         disabled
                                     >
@@ -435,9 +468,7 @@
                                         class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                                     ></div>
 
-                                    <p id="provinceError" class="mt-1 hidden text-xs text-red-600">
-                                        Please select a province.
-                                    </p>
+                                    <p id="provinceError" data-field-error="province" class="mt-1 text-xs text-red-600 {{ $errors->has('province') ? '' : 'hidden' }}" role="alert">{{ $errors->first('province') }}</p>
 
                                     <select
                                         id="province"
@@ -473,6 +504,7 @@
                                         aria-controls="municipalityOptions"
                                         aria-labelledby="municipalityDropdownLabel"
                                         aria-required="true"
+                                        aria-invalid="{{ $errors->has('municipality') ? 'true' : 'false' }}"
                                         class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
                                         disabled
                                     >
@@ -487,9 +519,7 @@
                                         class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                                     ></div>
 
-                                    <p id="municipalityError" class="mt-1 hidden text-xs text-red-600">
-                                        Please select a municipality or city.
-                                    </p>
+                                    <p id="municipalityError" data-field-error="municipality" class="mt-1 text-xs text-red-600 {{ $errors->has('municipality') ? '' : 'hidden' }}" role="alert">{{ $errors->first('municipality') }}</p>
 
                                     <select
                                         id="municipality"
@@ -526,6 +556,7 @@
                                         aria-controls="barangayOptions"
                                         aria-labelledby="barangayDropdownLabel"
                                         aria-required="true"
+                                        aria-invalid="{{ $errors->has('barangay') ? 'true' : 'false' }}"
                                         class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
                                         disabled
                                     >
@@ -540,9 +571,7 @@
                                         class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                                     ></div>
 
-                                    <p id="barangayError" class="mt-1 hidden text-xs text-red-600">
-                                        Please select a barangay.
-                                    </p>
+                                    <p id="barangayError" data-field-error="barangay" class="mt-1 text-xs text-red-600 {{ $errors->has('barangay') ? '' : 'hidden' }}" role="alert">{{ $errors->first('barangay') }}</p>
 
                                     <select
                                         id="barangay"
@@ -574,16 +603,28 @@
                                     name="street_address"
                                     value="{{ old('street_address') }}"
                                     placeholder="House no., street, subdivision"
-                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                    maxlength="255"
+                                    aria-invalid="{{ $errors->has('street_address') ? 'true' : 'false' }}"
+                                    class="w-full px-4 py-3 rounded-lg border {{ $errors->has('street_address') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
                                 >
+                                <p data-field-error="street_address" class="mt-1 text-xs text-red-600 {{ $errors->has('street_address') ? '' : 'hidden' }}" role="alert">{{ $errors->first('street_address') }}</p>
                             </div>
 
                         </div>
                     </div>
 
 
-                    <!-- Government ID -->
+                    <div class="flex items-start gap-3 border-t border-gray-100 pt-5">
+                        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EEF8F3] text-xs font-bold text-[#1F6F5B]">
+                            04
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-semibold text-[#173F35]">Account Information</h3>
+                            <p class="mt-1 text-xs text-gray-500">Upload a valid ID and set up your sign-in details.</p>
+                        </div>
+                    </div>
+
                     <div>
                         <label
                             for="government_id"
@@ -597,10 +638,12 @@
                             id="government_id"
                             name="government_id"
                             accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                            class="block w-full rounded-lg border border-gray-300 bg-white text-sm text-gray-600 file:mr-4 file:border-0 file:bg-[#EEF8F3] file:px-4 file:py-3 file:text-sm file:font-semibold file:text-[#1F6F5B] hover:file:bg-[#DFF2E9]"
+                            aria-invalid="{{ $errors->has('government_id') ? 'true' : 'false' }}"
+                            class="block w-full rounded-lg border {{ $errors->has('government_id') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm text-gray-600 file:mr-4 file:border-0 file:bg-[#EEF8F3] file:px-4 file:py-3 file:text-sm file:font-semibold file:text-[#1F6F5B] hover:file:bg-[#DFF2E9]"
                             required
                         >
 
+                        <p data-field-error="government_id" class="mt-1 text-xs text-red-600 {{ $errors->has('government_id') ? '' : 'hidden' }}" role="alert">{{ $errors->first('government_id') }}</p>
                         <p class="mt-1.5 text-xs text-gray-400">
                             JPG, JPEG, PNG, or PDF. Maximum file size: 2 MB.
                         </p>
@@ -629,7 +672,11 @@
                                 id="password"
                                 name="password"
                                 placeholder="Create a password"
-                                class="w-full pl-11 pr-12 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                minlength="8"
+                                maxlength="255"
+                                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\p{P}\p{S}]).{8,255}"
+                                aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+                                class="w-full pl-11 pr-12 py-3 rounded-lg border {{ $errors->has('password') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
 
@@ -649,6 +696,7 @@
                             </button>
 
                         </div>
+                        <p data-field-error="password" class="mt-1 text-xs text-red-600 {{ $errors->has('password') ? '' : 'hidden' }}" role="alert">{{ $errors->first('password') }}</p>
 
                     </div>
 
@@ -675,7 +723,8 @@
                                 id="password_confirmation"
                                 name="password_confirmation"
                                 placeholder="Confirm your password"
-                                class="w-full pl-11 pr-12 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                aria-invalid="{{ $errors->has('password_confirmation') ? 'true' : 'false' }}"
+                                class="w-full pl-11 pr-12 py-3 rounded-lg border {{ $errors->has('password_confirmation') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
 
@@ -695,6 +744,7 @@
                             </button>
 
                         </div>
+                        <p data-field-error="password_confirmation" class="mt-1 text-xs text-red-600 {{ $errors->has('password_confirmation') ? '' : 'hidden' }}" role="alert">{{ $errors->first('password_confirmation') }}</p>
 
                     </div>
 
@@ -707,6 +757,7 @@
                             id="terms"
                             name="terms"
                             value="1"
+                            aria-invalid="{{ $errors->has('terms') ? 'true' : 'false' }}"
                             class="mt-1 w-4 h-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
                             required
                         >
@@ -737,6 +788,7 @@
                         </label>
 
                     </div>
+                    <p data-field-error="terms" class="mt-1 text-xs text-red-600 {{ $errors->has('terms') ? '' : 'hidden' }}" role="alert">{{ $errors->first('terms') }}</p>
 
 
                     <!-- Create Account -->
@@ -1163,6 +1215,348 @@
                 ['municipality', createAddressDropdown(municipalitySelect)],
                 ['barangay', createAddressDropdown(barangaySelect)],
             ]);
+
+            const registrationForm = document.querySelector('form');
+            const registrationFields = [
+                'last_name',
+                'first_name',
+                'middle_initial',
+                'sex',
+                'birthday',
+                'phone',
+                'email',
+                'province',
+                'municipality',
+                'barangay',
+                'street_address',
+                'government_id',
+                'password',
+                'password_confirmation',
+                'terms',
+            ];
+            const namePattern = /^\p{L}+(?: \p{L}+)*$/u;
+            const mobilePattern = /^(?:09[0-9]{9}|\+639[0-9]{9})$/;
+            const passwordPattern =
+                /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\p{P}\p{S}]).{8,255}$/u;
+            const interactedFields = new Set();
+            let submitted = false;
+
+            function registrationControl(fieldName) {
+                return registrationForm?.elements.namedItem(fieldName);
+            }
+
+            function setFieldError(fieldName, message) {
+                const error = registrationForm?.querySelector(
+                    `[data-field-error="${fieldName}"]`
+                );
+                const control = registrationControl(fieldName);
+                const ariaControl = addressDropdowns.has(fieldName)
+                    ? document.getElementById(`${fieldName}Dropdown`)
+                    : control;
+
+                if (error) {
+                    error.textContent = message;
+                    error.classList.toggle('hidden', !message);
+                }
+
+                if (ariaControl) {
+                    ariaControl.setAttribute(
+                        'aria-invalid',
+                        message ? 'true' : 'false'
+                    );
+                    ariaControl.classList.toggle('border-red-500', Boolean(message));
+                    ariaControl.classList.toggle('border-gray-300', !message);
+                }
+
+                const summary = document.getElementById('registrationErrorSummary');
+                if (summary) {
+                    const hasVisibleFieldErrors = Array.from(
+                        registrationForm.querySelectorAll('[data-field-error]')
+                    ).some(fieldError => !fieldError.classList.contains('hidden'));
+                    summary.classList.toggle('hidden', !hasVisibleFieldErrors);
+                }
+            }
+
+            function fieldMessage(fieldName, showRequired) {
+                const control = registrationControl(fieldName);
+                const value = String(control?.value || '');
+
+                switch (fieldName) {
+                    case 'first_name':
+                    case 'last_name': {
+                        const name = fieldName === 'first_name'
+                            ? 'First name'
+                            : 'Last name';
+                        const length = Array.from(value).length;
+
+                        if (!value.trim() && showRequired) {
+                            return `${name} is required.`;
+                        }
+                        if (!value.trim()) {
+                            return '';
+                        }
+                        if (length < 2) {
+                            return `${name} must be at least 2 characters.`;
+                        }
+                        if (length > 50) {
+                            return `${name} may not exceed 50 characters.`;
+                        }
+                        if (!namePattern.test(value)) {
+                            return `${name} may contain letters only, with spaces allowed between names.`;
+                        }
+                        return '';
+                    }
+                    case 'middle_initial':
+                        return Array.from(value).length > 10
+                            ? 'Middle initial may not exceed 10 characters.'
+                            : '';
+                    case 'sex':
+                        if (!value && showRequired) return 'Select your sex.';
+                        return value && !['Male', 'Female'].includes(value)
+                            ? 'Select a valid sex.'
+                            : '';
+                    case 'birthday':
+                        if (!value && showRequired) return 'Birthday is required.';
+                        if (value && control.validity.badInput) {
+                            return 'Enter a valid birthday.';
+                        }
+                        if (value && control.max && value > control.max) {
+                            return 'You must be at least 18 years old to register.';
+                        }
+                        return '';
+                    case 'phone':
+                        if (!value && showRequired) return 'Contact number is required.';
+                        return value && !mobilePattern.test(value)
+                            ? 'Enter a valid Philippine mobile number in local or +63 format.'
+                            : '';
+                    case 'email':
+                        if (!value && showRequired) return 'Email is required.';
+                        if (Array.from(value).length > 255) {
+                            return 'Email may not exceed 255 characters.';
+                        }
+                        return value && control.validity.typeMismatch
+                            ? 'Enter a valid email address.'
+                            : '';
+                    case 'province':
+                    case 'municipality':
+                    case 'barangay':
+                        if (!value && showRequired) {
+                            return fieldName === 'province'
+                                ? 'Please select a province.'
+                                : fieldName === 'municipality'
+                                    ? 'Please select a municipality or city.'
+                                    : 'Please select a barangay.';
+                        }
+                        return '';
+                    case 'street_address':
+                        if (!value.trim() && showRequired) {
+                            return 'Street address is required.';
+                        }
+                        return Array.from(value).length > 255
+                            ? 'Street address may not exceed 255 characters.'
+                            : '';
+                    case 'government_id': {
+                        const file = control.files?.[0];
+                        if (!file && showRequired) return 'A valid ID file is required.';
+                        if (!file) return '';
+                        if (!/\.(jpe?g|png|pdf)$/i.test(file.name)) {
+                            return 'Upload a JPG, JPEG, PNG, or PDF file.';
+                        }
+                        return file.size > 2 * 1024 * 1024
+                            ? 'Government ID may not exceed 2 MB.'
+                            : '';
+                    }
+                    case 'password':
+                        if (!value && showRequired) return 'Password is required.';
+                        return value && !passwordPattern.test(value)
+                            ? 'Password must be at least 8 characters and include uppercase and lowercase letters, a number, and a special character.'
+                            : '';
+                    case 'password_confirmation':
+                        if (!value && showRequired) return 'Confirm password is required.';
+                        return value && value !== registrationControl('password').value
+                            ? 'Password confirmation must match the password.'
+                            : '';
+                    case 'terms':
+                        return !control.checked && showRequired
+                            ? 'You must agree to the terms and policies.'
+                            : '';
+                    default:
+                        return '';
+                }
+            }
+
+            function validateRegistrationField(
+                fieldName,
+                showRequired = submitted || interactedFields.has(fieldName)
+            ) {
+                const message = fieldMessage(fieldName, showRequired);
+                setFieldError(fieldName, message);
+                return !message;
+            }
+
+            function filterNameInput(input) {
+                const originalValue = input.value;
+                const cursor = input.selectionStart ?? originalValue.length;
+                const allowedCharacters = /[^\p{L} ]/gu;
+                const filteredValue = originalValue.replace(allowedCharacters, '');
+                const filteredPrefix = originalValue
+                    .slice(0, cursor)
+                    .replace(allowedCharacters, '');
+                const filteredCharacters = Array.from(filteredValue).slice(0, 50);
+                const nextValue = filteredCharacters.join('');
+                const nextCursor = filteredCharacters
+                    .slice(0, Array.from(filteredPrefix).length)
+                    .join('')
+                    .length;
+
+                if (nextValue !== originalValue) {
+                    input.value = nextValue;
+                    input.setSelectionRange(nextCursor, nextCursor);
+                }
+            }
+
+            function filterNameInsertion(input, event) {
+                if (
+                    !event.data ||
+                    !event.inputType.startsWith('insert') ||
+                    event.isComposing
+                ) {
+                    return;
+                }
+
+                const start = input.selectionStart ?? input.value.length;
+                const end = input.selectionEnd ?? start;
+                const currentLength =
+                    Array.from(input.value.slice(0, start)).length +
+                    Array.from(input.value.slice(end)).length;
+                const availableLength = Math.max(0, 50 - currentLength);
+                const insertedText = Array.from(event.data)
+                    .filter(character => /\p{L}| /u.test(character))
+                    .slice(0, availableLength)
+                    .join('');
+                const resultingLength = currentLength +
+                    Array.from(insertedText).length;
+
+                if (
+                    insertedText === event.data &&
+                    resultingLength <= 50
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (insertedText) {
+                    input.setRangeText(insertedText, start, end, 'end');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            if (registrationForm) {
+                registrationForm.noValidate = true;
+
+                ['first_name', 'last_name'].forEach(function (fieldName) {
+                    const input = registrationControl(fieldName);
+
+                    input.addEventListener('beforeinput', function (event) {
+                        filterNameInsertion(input, event);
+                    });
+
+                    input.addEventListener('input', function (event) {
+                        if (event.isComposing) {
+                            return;
+                        }
+
+                        filterNameInput(input);
+                        interactedFields.add(fieldName);
+                        validateRegistrationField(fieldName);
+                    });
+
+                    input.addEventListener('compositionend', function () {
+                        filterNameInput(input);
+                        interactedFields.add(fieldName);
+                        validateRegistrationField(fieldName);
+                    });
+
+                    input.addEventListener('blur', function () {
+                        interactedFields.add(fieldName);
+                        validateRegistrationField(fieldName);
+                    });
+                });
+
+                registrationFields.forEach(function (fieldName) {
+                    const control = registrationControl(fieldName);
+
+                    if (['first_name', 'last_name'].includes(fieldName)) {
+                        const serverError = registrationForm.querySelector(
+                            `[data-field-error="${fieldName}"]`
+                        );
+                        if (serverError && !serverError.classList.contains('hidden')) {
+                            setFieldError(fieldName, serverError.textContent.trim());
+                        }
+                        return;
+                    }
+
+                    const eventName = fieldName === 'terms' ||
+                        ['sex', 'birthday', 'province', 'municipality', 'barangay', 'government_id'].includes(fieldName)
+                        ? 'change'
+                        : 'input';
+
+                    control?.addEventListener(eventName, function () {
+                        interactedFields.add(fieldName);
+                        validateRegistrationField(fieldName);
+
+                        if (fieldName === 'password') {
+                            validateRegistrationField('password_confirmation');
+                        }
+                        if (fieldName === 'province') {
+                            validateRegistrationField('municipality');
+                            validateRegistrationField('barangay');
+                        }
+                        if (fieldName === 'municipality') {
+                            validateRegistrationField('barangay');
+                        }
+                    });
+
+                    control?.addEventListener('blur', function () {
+                        interactedFields.add(fieldName);
+                        validateRegistrationField(fieldName);
+                    });
+
+                    const serverError = registrationForm.querySelector(
+                        `[data-field-error="${fieldName}"]`
+                    );
+                    if (serverError && !serverError.classList.contains('hidden')) {
+                        setFieldError(fieldName, serverError.textContent.trim());
+                    }
+                });
+
+                registrationForm.addEventListener('submit', function (event) {
+                    submitted = true;
+                    const isValid = registrationFields
+                        .map(fieldName => validateRegistrationField(fieldName, true))
+                        .every(Boolean);
+
+                    if (!isValid) {
+                        event.preventDefault();
+
+                        const firstInvalidField = registrationFields.find(fieldName => (
+                            registrationForm.querySelector(
+                                `[data-field-error="${fieldName}"]:not(.hidden)`
+                            )
+                        ));
+                        const focusTarget = addressDropdowns.has(firstInvalidField)
+                            ? document.getElementById(`${firstInvalidField}Dropdown`)
+                            : registrationControl(firstInvalidField);
+
+                        focusTarget?.focus();
+                        focusTarget?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                        });
+                    }
+                });
+            }
 
             function refreshDropdown(select) {
                 addressDropdowns.get(select.id).refresh();
