@@ -15,6 +15,7 @@ use App\Models\ProductImage;
 use App\Models\LogisticsProvider;
 use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Middleware\SuperAdminMiddleware;
+use App\Models\Cart;
 
 use App\Http\Controllers\SuperAdmin\UserManagementController;
 use App\Http\Controllers\SuperAdmin\BuyerManagementController;
@@ -1033,20 +1034,23 @@ Route::get('/cart', function () use ($requireBuyer) {
     /** @var User $user */
     $user = Auth::user();
 
-    $cart = $user
-        ->cartItems()
-        ->get()
-        ->mapWithKeys(function ($item) {
-            return [
-                $item->product_slug => [
-                    'name' => $item->product_name,
-                    'price' => (float) $item->price,
-                    'image' => $item->image,
-                    'quantity' => $item->quantity,
-                ],
-            ];
-        })
-        ->toArray();
+   $cart = $user
+    ->cartItems()
+    ->get()
+    ->mapWithKeys(function ($item) {
+        return [
+            $item->product_slug => [
+                'name' => $item->product_name,
+                'price' => (float) $item->price,
+                'image' => $item->image,
+                'quantity' => $item->quantity,
+
+                'selected' => $item->selected,
+                'variant_id' => $item->product_variant_id,
+            ],
+        ];
+    })
+    ->toArray();
 
     return view('buyer.cart', [
         'cart' => $cart,
@@ -1054,6 +1058,39 @@ Route::get('/cart', function () use ($requireBuyer) {
 
 })->name('buyer.cart');
 
+// ============================================
+// UPDATE CART SELECTION
+// ============================================
+
+Route::post('/cart/select/{slug}', function ($slug) use ($requireBuyer) {
+
+    if ($redirect = $requireBuyer()) {
+        return $redirect;
+    }
+
+    $cart = Cart::firstOrCreate([
+    'user_id' => Auth::id(),
+]);
+
+$cartItem = CartItem::where(
+    'cart_id',
+    $cart->id
+)
+->where(
+    'product_slug',
+    $slug
+)
+->first();
+
+    if ($cartItem) {
+        $cartItem->update([
+            'selected' => ! $cartItem->selected,
+        ]);
+    }
+
+    return back();
+
+})->name('buyer.cart.select');
 
 // =====================================================
 // ADD TO CART
@@ -1061,13 +1098,15 @@ Route::get('/cart', function () use ($requireBuyer) {
 
 Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($products, $requireBuyer) {
 
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
+   $user = Auth::user();
 
-    $user = Auth::user();
+$cart = Cart::firstOrCreate([
+    'user_id' => $user->id,
+]);
 
-    if (isset($products[$slug])) {
+if (isset($products[$slug])) {
+
+    
 
         $product = $products[$slug];
 
@@ -1111,25 +1150,18 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
             ),
 
             'stock' => (int) $variant->stock,
-
-            'image' => $firstImage
-                ? Storage::disk('s3')->url(
-                    $firstImage->path
-                )
-                : asset('images/suki-logo.png'),
+'image' => $firstImage
+    ? config('app.supabase_url')
+        . '/storage/v1/object/public/product-images/'
+        . $firstImage->path
+    : asset('images/suki-logo.png'),
         ];
     }
 
     $maxStock = (int) $product['stock'];
 
-    if ($maxStock < 1) {
-        return redirect()
-            ->back()
-            ->withErrors([
-                'cart' => 'This product is currently out of stock.',
-            ]);
-    }
-
+   
+        
     $requestedQuantity = (int) $request->input(
         'quantity',
         1
@@ -1140,12 +1172,15 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
         min($requestedQuantity, $maxStock)
     );
 
-    $cartItem = CartItem::where(
-        'user_id',
-        $user->id
-    )
-        ->where('product_slug', $slug)
-        ->first();
+   $cartItem = CartItem::where(
+    'cart_id',
+    $cart->id
+)
+->where(
+    'product_variant_id',
+    $variant->id
+)
+->first();
 
     if ($cartItem) {
 
@@ -1159,19 +1194,23 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
         );
 
         $cartItem->update([
-            'quantity' => $newQuantity,
-        ]);
+    'quantity' => $newQuantity,
+    'selected' => true,
+]);
 
     } else {
 
         CartItem::create([
-            'user_id' => $user->id,
-            'product_slug' => $slug,
-            'product_name' => $product['name'],
-            'price' => $product['price'],
-            'image' => $product['image'] ?? null,
-            'quantity' => $requestedQuantity,
-        ]);
+    'user_id' => $user->id,
+    'cart_id' => $cart->id,
+    'product_variant_id' => $variant->id,
+    'product_slug' => $slug,
+    'product_name' => $product['name'],
+    'price' => $product['price'],
+    'image' => $product['image'] ?? null,
+    'quantity' => $requestedQuantity,
+    'selected' => true,
+]);
     }
 
     return redirect()

@@ -146,12 +146,17 @@
 
         @php
             $subtotal = 0;
-            $totalItems = 0;
+$totalItems = 0;
 
-            foreach ($cart as $item) {
-                $subtotal += (float) $item['price'] * (int) $item['quantity'];
-                $totalItems += (int) $item['quantity'];
-            }
+foreach ($cart as $item) {
+
+    if (!($item['selected'] ?? false)) {
+        continue;
+    }
+
+    $subtotal += (float) $item['price'] * (int) $item['quantity'];
+    $totalItems += (int) $item['quantity'];
+}
         @endphp
 
 
@@ -203,6 +208,20 @@
 
                             <div class="flex gap-4 sm:gap-5">
 
+                                {{-- CHECKBOX --}}
+<div class="flex items-center shrink-0">
+   <form action="{{ route('buyer.cart.select', ['slug' => $slug]) }}" method="POST">
+    @csrf
+
+    <input
+        type="checkbox"
+        onchange="this.form.submit()"
+        {{ $item['selected'] ? 'checked' : '' }}
+        class="h-5 w-5 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
+    >
+</form>
+</div>
+
                                 {{-- =================================
                                    PRODUCT IMAGE
                                 ================================== --}}
@@ -218,6 +237,8 @@
                                     >
 
                                 </a>
+
+                                
 
 
                                 {{-- =================================
