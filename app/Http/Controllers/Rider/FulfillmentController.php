@@ -73,6 +73,11 @@ class FulfillmentController extends Controller
             ])],
         ]);
 
+        if (strtoupper($validated['status']) === 'DELIVERED') {
+            app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $request->user(), $request->all());
+            return back()->with('success', 'Delivery proof saved and COD collection recorded. Awaiting buyer receipt.');
+        }
+
         $workflow->transition(
             $sellerOrder,
             $request->user(),

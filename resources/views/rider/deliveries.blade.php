@@ -4,6 +4,13 @@
 
 @section('content')
 
+@if(session('success'))
+    <div class="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">{{ session('success') }}</div>
+@endif
+@if($errors->any())
+    <div class="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+@endif
+
 @php
     /*
     |--------------------------------------------------------------------------
@@ -462,6 +469,8 @@
 
                                 <form
                                     method="POST"
+                                    enctype="multipart/form-data"
+                                    onsubmit="return confirm('Confirm delivery and COD collection?');"
                                     action="{{ ($order['source'] ?? 'session') === 'database'
                                         ? route('rider.database.order.status', $orderId)
                                         : route('rider.order.status', $orderId) }}"
@@ -473,6 +482,15 @@
                                         name="status"
                                         value="delivered"
                                     >
+
+                                    @if(($order['source'] ?? '') === 'database')
+                                        <label class="mb-2 block text-xs font-semibold text-gray-600">Delivery proof (JPG, PNG or WebP, up to 5 MB)
+                                            <input type="file" name="proof_photo" accept="image/jpeg,image/png,image/webp" required class="mt-1 block w-full text-xs">
+                                        </label>
+                                        <input name="received_by" required maxlength="150" placeholder="Received by" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                                        <input name="delivery_note" maxlength="1000" placeholder="Delivery note (optional)" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                                        <label class="mb-3 block text-sm"><input type="checkbox" name="cod_collected" value="1" required> COD collected: ₱{{ number_format($order['total'], 2) }}</label>
+                                    @endif
 
                                     <button
                                         type="submit"

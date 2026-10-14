@@ -86,7 +86,11 @@ class OrderWorkflowServiceTest extends TestCase
             'rider' => $deliveryRider,
         ]);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
-        $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::Delivered);
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, [
+            'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+            'received_by' => 'Buyer', 'cod_collected' => '1',
+        ]);
         $workflow->transition($sellerOrder, $buyer, OrderStatus::Completed);
 
         $this->assertSame(OrderStatus::Completed, $sellerOrder->fresh()->workflow_status);

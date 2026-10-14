@@ -42,6 +42,9 @@
             </p>
 
             @foreach(($order['seller_orders'] ?? []) as $sellerOrder)
+                @if(!empty($sellerOrder['has_proof']))
+                    <a href="{{ route('shipments.delivery-proof', $sellerOrder['shipment_id']) }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B]">View delivery proof · {{ $sellerOrder['seller_name'] }}</a>
+                @endif
                 @if(in_array($sellerOrder['status'] ?? '', ['assigned_to_rider', 'out_for_delivery'], true))
                     <a href="{{ route('buyer.seller-order.track', [$order['id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
                 @endif
@@ -825,6 +828,8 @@
 
                     {{-- CONFIRM ORDER RECEIVED --}}
                     @if($status === 'delivered')
+
+                        <p class="mt-4 text-xs text-gray-500">Confirm receipt when your parcel arrives. Delivered parcels are automatically completed after three days.</p>
 
                         <form
                             action="{{ route('order.status.update', $order['id']) }}"

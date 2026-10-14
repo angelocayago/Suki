@@ -109,7 +109,11 @@ class SystemFunctionalStabilizationTest extends TestCase
 
         foreach ([OrderStatus::OutForDelivery, OrderStatus::Delivered] as $status) {
             $this->actingAs($deliveryUser)
-                ->post(route('rider.database.order.status', $sellerOrder), ['status' => $status->value])
+                ->post(route('rider.database.order.status', $sellerOrder), [
+                    'status' => $status->value,
+                    'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+                    'received_by' => 'Buyer', 'cod_collected' => '1',
+                ])
                 ->assertSessionHasNoErrors();
         }
 

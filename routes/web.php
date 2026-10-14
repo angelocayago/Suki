@@ -14,6 +14,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Controllers\Buyer\OrderCancellationController;
+use App\Http\Controllers\DeliveryProofController;
 use App\Http\Controllers\Buyer\ShipmentTrackingController as BuyerShipmentTrackingController;
 use App\Http\Controllers\ComplaintEvidenceController;
 use App\Http\Controllers\ParticipantComplaintController;
@@ -1001,6 +1002,8 @@ $orderToViewArray = function (Order $order): array {
         'seller_orders' => $order->sellerOrders
             ->map(fn ($sellerOrder) => [
                 'seller_order_id' => $sellerOrder->id,
+                'shipment_id' => $sellerOrder->shipment?->id,
+                'has_proof' => (bool) $sellerOrder->shipment?->proof_path,
                 'seller_name' => $sellerOrder->seller?->name ?? 'Seller',
                 'status' => $sellerOrder->status === 'cancelled'
                     ? 'cancelled'
@@ -1843,6 +1846,10 @@ Route::get('/checkout', [CheckoutController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.checkout');
 
+Route::get('/shipments/{shipment}/delivery-proof', [DeliveryProofController::class, 'show'])
+    ->middleware(['auth', 'not_suspended', 'approved'])
+    ->name('shipments.delivery-proof');
+
 Route::get('/my-orders/{order}/seller-orders/{sellerOrder}/track', [BuyerShipmentTrackingController::class, 'show'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.seller-order.track');
@@ -2354,11 +2361,15 @@ Route::post(
             $order->sellerOrders()->exists()
         ) {
             DB::transaction(function () use ($order, $user) {
+                Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
                 $sellerOrders = $order->sellerOrders()
                     ->lockForUpdate()
                     ->get();
 
                 foreach ($sellerOrders as $sellerOrder) {
+                    if ($sellerOrder->workflow_status === \App\Enums\OrderStatus::Completed) {
+                        continue;
+                    }
                     app(\App\Services\OrderWorkflowService::class)->transition(
                         $sellerOrder,
                         $user,

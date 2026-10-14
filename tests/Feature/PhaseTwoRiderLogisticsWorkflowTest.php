@@ -88,7 +88,10 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($deliveryUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'delivered'])
+            ->post(route('rider.database.order.status', $sellerOrder), [
+                'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+                'received_by' => 'Buyer', 'cod_collected' => '1',
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
@@ -99,7 +102,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'delivered'])
-            ->assertSessionHasErrors('status');
+            ->assertSessionHasNoErrors();
         $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
 
         app(OrderWorkflowService::class)
@@ -279,6 +282,155 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->assertNull($shipment->fresh()->pickup_rider_id);
         $this->assertSame(OrderStatus::ReadyForPickup, $sellerOrder->fresh()->workflow_status);
+    }
+
+    public function test_delivery_requires_private_image_and_cod_and_is_idempotent(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        extract($this->workflowContext());
+        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $shipment->update(['rider_id' => $deliveryRider->id, 'logistics_provider_id' => $provider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $url = route('rider.database.order.status', $sellerOrder);
+        $this->actingAs($deliveryUser)->post($url, ['status' => 'delivered'])->assertSessionHasErrors(['proof_photo', 'received_by', 'cod_collected']);
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
+        $this->actingAs($deliveryUser)->post($url, [
+            'status' => 'delivered', 'proof_photo' => \Illuminate\Http\UploadedFile::fake()->create('bad.svg', 1, 'image/svg+xml'),
+            'received_by' => 'Recipient', 'cod_collected' => '1',
+        ])->assertSessionHasErrors('proof_photo');
+        $this->actingAs($pickupUser)->post($url, ['status' => 'delivered'])->assertForbidden();
+        $this->actingAs($deliveryUser)->post($url, [
+            'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+            'received_by' => 'Recipient', 'cod_collected' => '1', 'cod_amount_minor' => 1,
+        ])->assertSessionHasNoErrors();
+        $shipment->refresh();
+        $this->assertSame(11000, $shipment->cod_collected_minor);
+        $this->assertSame('PAID', $order->fresh()->payment_status);
+        $this->assertNotNull($shipment->proof_delivered_at);
+        \Illuminate\Support\Facades\Storage::disk('delivery_proofs')->assertExists($shipment->proof_path);
+        $this->assertCount(1, $shipment->events()->where('status', 'COD_COLLECTED')->get());
+        $this->actingAs($deliveryUser)->post($url, ['status' => 'delivered'])->assertSessionHasNoErrors();
+        $this->assertSame(1, $shipment->events()->where('status', 'COD_COLLECTED')->count());
+        $this->assertCount(1, \Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
+
+        $proofUrl = route('shipments.delivery-proof', $shipment);
+        foreach ([$buyer, $sellerUser, $logisticsUser, $deliveryUser] as $viewer) {
+            $this->actingAs($viewer)->get($proofUrl)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        }
+        $otherBuyer = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
+        $this->actingAs($otherBuyer)->get($proofUrl)->assertForbidden();
+        $this->actingAs($buyer)->get(route('buyer.order-details', $order->order_number))->assertOk()->assertSee('View delivery proof');
+        $this->actingAs($buyer)->post(route('order.status.update', $order->order_number), ['status' => 'completed'])->assertSessionHasNoErrors();
+        $this->assertSame('COMPLETED', $order->fresh()->status);
+    }
+
+    public function test_automatic_completion_requires_three_days_and_is_repeat_safe(): void
+    {
+        extract($this->workflowContext());
+        $sellerOrder->update(['workflow_status' => OrderStatus::Delivered, 'delivered_at' => now()->subDays(3)->addSecond()]);
+        $shipment->update(['workflow_status' => OrderStatus::Delivered]);
+        $order->update(['status' => 'DELIVERED']);
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
+        $this->travel(2)->seconds();
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $this->assertSame('COMPLETED', $order->fresh()->status);
+        $this->assertSame(OrderStatus::Completed, $shipment->fresh()->workflow_status);
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $event = $shipment->events()->where('status', 'COMPLETED')->sole();
+        $this->assertNull($event->user_id);
+        $this->assertStringContainsString('Automatically', $event->note);
+    }
+
+    public function test_cancelled_parcel_cannot_record_delivery_or_failure_and_rolls_back_files(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        extract($this->workflowContext());
+        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $order->update(['status' => 'CANCELLED']);
+        $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), [
+            'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+            'received_by' => 'Buyer', 'cod_collected' => '1',
+        ])->assertSessionHasErrors('order');
+        $this->actingAs($deliveryUser)->post(route('rider.database.delivery.failed', $sellerOrder), ['failure_reason' => 'Absent'])->assertForbidden();
+        $this->assertSame(0, $shipment->fresh()->attempts);
+        $this->assertFalse($shipment->fresh()->cod_collected);
+        $this->assertEmpty(\Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
+    }
+
+    public function test_partial_multiseller_cod_does_not_mark_parent_paid_or_completed(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        extract($this->workflowContext());
+        $otherSellerOrder = $sellerOrder->replicate();
+        $otherSeller = Seller::create(['user_id' => $sellerUser->id, 'name' => 'Other Store', 'slug' => 'other-cod-store', 'status' => 'approved']);
+        $otherSellerOrder->seller_id = $otherSeller->id;
+        $otherSellerOrder->workflow_status = OrderStatus::OutForDelivery;
+        $otherSellerOrder->save();
+        $otherShipment = $shipment->replicate();
+        $otherShipment->seller_order_id = $otherSellerOrder->id;
+        $otherShipment->tracking_code = 'SECOND-PARCEL';
+        $otherShipment->workflow_status = OrderStatus::OutForDelivery;
+        $otherShipment->save();
+        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, [
+            'proof_photo' => \Tests\Support\DeliveryProofFile::image(), 'received_by' => 'Buyer', 'cod_collected' => true,
+        ]);
+        $this->assertSame('UNPAID', $order->fresh()->payment_status);
+        $this->assertSame('OUT_FOR_DELIVERY', $order->fresh()->status);
+        $sellerOrder->update(['delivered_at' => now()->subDays(3)]);
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $this->assertSame(OrderStatus::Completed, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame('OUT_FOR_DELIVERY', $order->fresh()->status);
+        $this->assertFalse($otherShipment->fresh()->cod_collected);
+    }
+
+    public function test_failed_delivery_transaction_removes_uploaded_proof_and_rolls_back_cod(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        extract($this->workflowContext());
+        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        \App\Models\DeliveryEvent::creating(function ($event) {
+            if ($event->status === 'COD_COLLECTED') {
+                throw new \RuntimeException('Simulated database failure');
+            }
+        });
+        try {
+            app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, [
+                'proof_photo' => \Tests\Support\DeliveryProofFile::image(), 'received_by' => 'Buyer', 'cod_collected' => '1',
+            ]);
+            $this->fail('Expected transaction failure');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Simulated database failure', $e->getMessage());
+        } finally {
+            \App\Models\DeliveryEvent::flushEventListeners();
+        }
+        $this->assertNull($shipment->fresh()->proof_path);
+        $this->assertFalse($shipment->fresh()->cod_collected);
+        $this->assertSame('UNPAID', $order->fresh()->payment_status);
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
+        $this->assertEmpty(\Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
+    }
+
+    public function test_oversized_proof_and_unconfirmed_cod_are_rejected_and_rider_cannot_complete(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
+        extract($this->workflowContext());
+        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), [
+            'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image()->size(5121),
+            'received_by' => 'Buyer', 'cod_collected' => false,
+        ])->assertSessionHasErrors(['proof_photo', 'cod_collected']);
+        $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'completed'])->assertSessionHasErrors('status');
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
+        $this->assertEmpty(\Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
     }
 
     private function workflowContext(): array

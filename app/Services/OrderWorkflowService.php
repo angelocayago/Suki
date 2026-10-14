@@ -19,7 +19,7 @@ class OrderWorkflowService
 {
     public function transition(
         SellerOrder $sellerOrder,
-        User $actor,
+        ?User $actor,
         OrderStatus|string $requestedStatus,
         array $context = []
     ): SellerOrder {
@@ -34,6 +34,7 @@ class OrderWorkflowService
         }
 
         return DB::transaction(function () use ($sellerOrder, $actor, $nextStatus, $context) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $lockedOrder = SellerOrder::query()
                 ->with(['order', 'seller', 'shipment'])
                 ->lockForUpdate()
@@ -60,6 +61,10 @@ class OrderWorkflowService
             }
 
             $this->authorizeTransition($lockedOrder, $actor, $currentStatus, $nextStatus);
+
+            if ($nextStatus === OrderStatus::Delivered && (! $lockedOrder->shipment?->proof_path || ($lockedOrder->order->payment_method === 'cod' && ! $lockedOrder->shipment->cod_collected))) {
+                throw ValidationException::withMessages(['proof_photo' => 'Delivery proof and COD collection confirmation are required.']);
+            }
 
             if ($currentStatus->rank() >= OrderStatus::ReadyForPickup->rank()) {
                 $shipmentStatus = $lockedOrder->shipment?->workflow_status;
@@ -294,7 +299,7 @@ class OrderWorkflowService
     ): DeliveryEvent {
         return DB::transaction(function () use ($sellerOrder, $actor, $reason) {
             $lockedOrder = SellerOrder::query()
-                ->with(['shipment.rider.user'])
+                ->with(['order', 'shipment.rider.user'])
                 ->lockForUpdate()
                 ->findOrFail($sellerOrder->id);
 
@@ -304,6 +309,10 @@ class OrderWorkflowService
 
             if (
                 $status !== OrderStatus::OutForDelivery
+                || $lockedOrder->order->status === 'CANCELLED'
+                || $actor->status !== 'active'
+                || $actor->is_suspended
+                || ! $lockedOrder->shipment?->rider?->is_active
                 || ! $actor->hasRole('rider')
                 || $lockedOrder->shipment?->rider?->user_id !== $actor->id
             ) {
@@ -334,10 +343,19 @@ class OrderWorkflowService
 
     private function authorizeTransition(
         SellerOrder $sellerOrder,
-        User $actor,
+        ?User $actor,
         OrderStatus $currentStatus,
         OrderStatus $nextStatus
     ): void {
+        if ($actor === null) {
+            if ($currentStatus === OrderStatus::Delivered && $nextStatus === OrderStatus::Completed && $sellerOrder->delivered_at && $sellerOrder->delivered_at->lte(now()->subDays(3))) {
+                return;
+            }
+            throw new AuthorizationException('Automatic completion requires three days in delivered status.');
+        }
+        if ($actor->status !== 'active' || $actor->is_suspended) {
+            throw new AuthorizationException('Only active accounts may change fulfillment status.');
+        }
         $allowed = match ([$currentStatus, $nextStatus]) {
             [OrderStatus::Placed, OrderStatus::Confirmed],
             [OrderStatus::Confirmed, OrderStatus::Preparing],
@@ -395,7 +413,7 @@ class OrderWorkflowService
         $order->update($updates);
     }
 
-    private function recordEvent(Shipment $shipment, string $status, User $actor, ?string $note = null): void
+    private function recordEvent(Shipment $shipment, string $status, ?User $actor, ?string $note = null): void
     {
         DeliveryEvent::firstOrCreate(
             [
@@ -404,8 +422,8 @@ class OrderWorkflowService
                 'attempt' => 0,
             ],
             [
-                'user_id' => $actor->id,
-                'note' => $note,
+                'user_id' => $actor?->id,
+                'note' => $actor === null ? 'Automatically completed three days after delivery.' : $note,
                 'occurred_at' => now(),
             ]
         );
