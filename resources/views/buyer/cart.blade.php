@@ -145,11 +145,18 @@
     @else
 
         @php
-            $subtotal = 0;
+    
+
+$subtotal = 0;
 $totalItems = 0;
+$cartCount = 0;
 
 foreach ($cart as $item) {
 
+    // count all cart items
+    $cartCount += (int) $item['quantity'];
+
+    // subtotal only selected items
     if (!($item['selected'] ?? false)) {
         continue;
     }
@@ -161,300 +168,350 @@ foreach ($cart as $item) {
 
 
         {{-- =================================================
-           CART CONTENT
-        ================================================== --}}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+   CART CONTENT
+================================================== --}}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
 
 
-            {{-- =============================================
-               CART ITEMS
-            ============================================== --}}
-            <div class="lg:col-span-2">
-
-                {{-- ITEMS HEADER --}}
-                <div class="flex items-center justify-between mb-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <h2 class="text-base md:text-lg font-bold text-gray-900">
-                            Cart Items
-                        </h2>
-
-                        <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-[#EEF8F3] text-[#1F6F5B] text-xs font-bold">
-                            {{ $totalItems }}
-                        </span>
-
-                    </div>
-
-                    <span class="text-xs md:text-sm text-gray-500">
-                        {{ $totalItems == 1 ? '1 item' : $totalItems . ' items' }}
-                    </span>
-
-                </div>
+    {{-- =============================================
+       CART ITEMS
+    ============================================== --}}
+    <div class="lg:col-span-2 min-w-0">
 
 
-                {{-- PRODUCT ITEMS --}}
-                <div class="space-y-4">
+        {{-- ITEMS HEADER --}}
+        <div class="flex items-center justify-between mb-3">
 
-                    @foreach($cart as $slug => $item)
+            <div class="flex items-center gap-2">
 
-                        @php
-                            $itemPrice = (float) $item['price'];
-                            $quantity = (int) $item['quantity'];
-                            $itemTotal = $itemPrice * $quantity;
-                        @endphp
+                <h2 class="text-base md:text-lg font-bold text-gray-900">
+                    Cart Items
+                </h2>
 
-                        <div class="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+                <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-[#EEF8F3] text-[#1F6F5B] text-xs font-bold">
+                    {{ $cartCount }}
+                </span>
 
-                            <div class="flex gap-4 sm:gap-5">
+            </div>
 
-                                {{-- CHECKBOX --}}
-<div class="flex items-center shrink-0">
-   <form action="{{ route('buyer.cart.select', ['slug' => $slug]) }}" method="POST">
-    @csrf
 
-    <input
-        type="checkbox"
-        onchange="this.form.submit()"
-        {{ $item['selected'] ? 'checked' : '' }}
-        class="h-5 w-5 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-    >
-</form>
-</div>
+            <span class="text-xs md:text-sm text-gray-500">
+                {{ $cartCount == 1 ? '1 item' : $cartCount . ' items' }}
+            </span>
 
-                                {{-- =================================
-                                   PRODUCT IMAGE
-                                ================================== --}}
-                                <a
-                                    href="{{ route('buyer.product', ['slug' => $slug]) }}"
-                                    class="group relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-                                >
+        </div>
 
-                                    <img
-                                        src="{{ $item['image'] }}"
-                                        alt="{{ $item['name'] }}"
-                                        class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+
+
+        {{-- PRODUCT ITEMS --}}
+        <div class="flex flex-col gap-4">
+
+
+            @foreach($cart as $slug => $item)
+
+
+                @php
+                    $itemPrice = (float) $item['price'];
+                    $quantity = (int) $item['quantity'];
+                    $itemTotal = $itemPrice * $quantity;
+                @endphp
+
+
+
+                <div class="w-full rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 overflow-hidden">
+
+
+                    <div class="flex w-full items-start gap-4 sm:gap-5 min-w-0 flex-nowrap">
+
+
+                        {{-- CHECKBOX --}}
+                        <div class="flex items-center shrink-0">
+
+                            <form
+                                action="{{ route('buyer.cart.select', ['slug' => $slug]) }}"
+                                method="POST"
+                            >
+
+                                @csrf
+<input
+    type="checkbox"
+    onchange="this.form.submit()"
+    @if($item['stock'] <= 0)
+        disabled
+    @endif
+    {{ $item['selected'] ? 'checked' : '' }}
+    class="h-5 w-5 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B] disabled:opacity-40 disabled:cursor-not-allowed"
+>
+                            </form>
+
+                        </div>
+
+
+
+                        {{-- PRODUCT IMAGE --}}
+                        <a
+                            href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                            class="group relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-xl bg-gray-100"
+                        >
+
+                            <img
+                                src="{{ $item['image'] }}"
+                                alt="{{ $item['name'] }}"
+                                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            >
+
+                        </a>
+
+
+
+                        {{-- PRODUCT INFORMATION --}}
+                        <div class="min-w-0 flex-1">
+
+
+                            {{-- TOP ROW --}}
+                            <div class="flex items-start justify-between gap-3">
+
+
+                                <div class="min-w-0">
+
+                                    <a
+                                        href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                                        class="line-clamp-2 text-sm sm:text-base font-semibold leading-6 text-gray-900"
                                     >
-
-                                </a>
-
-                                
+                                        {{ $item['name'] }}
+                                    </a>
 
 
-                                {{-- =================================
-                                   PRODUCT INFORMATION
-                                ================================== --}}
-                                <div class="min-w-0 flex-1">
-
-                                    {{-- TOP ROW --}}
-                                    <div class="flex items-start justify-between gap-3">
-
-                                        <div class="min-w-0">
-
-                                            <a
-                                                href="{{ route('buyer.product', ['slug' => $slug]) }}"
-                                                class="line-clamp-2 text-sm sm:text-base font-semibold leading-6 text-gray-900 transition hover:text-[#1F6F5B]"
-                                            >
-                                                {{ $item['name'] }}
-                                            </a>
-
-                                            <p class="mt-1 text-sm font-medium text-[#1F6F5B]">
-                                                ₱{{ number_format($itemPrice, 2) }}
-                                            </p>
-
-                                        </div>
-
-
-                                        {{-- REMOVE --}}
-                                        <form
-                                            action="{{ route('buyer.cart.remove', ['slug' => $slug]) }}"
-                                            method="POST"
-                                            class="shrink-0"
-                                        >
-                                            @csrf
-
-                                            <button
-                                                type="submit"
-                                                class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                                                title="Remove item"
-                                                aria-label="Remove {{ $item['name'] }}"
-                                            >
-                                                <i
-                                                    data-lucide="trash-2"
-                                                    class="w-4.5 h-4.5"
-                                                ></i>
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-
-                                    {{-- PRODUCT META --}}
-                                    <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-
-                                        <span class="inline-flex items-center gap-1">
-                                            <i
-                                                data-lucide="package"
-                                                class="w-3.5 h-3.5"
-                                            ></i>
-                                            Ready to ship
-                                        </span>
-
-                                        <span class="text-gray-300">
-                                            |
-                                        </span>
-
-                                        <span class="inline-flex items-center gap-1 text-[#1F6F5B]">
-                                            <i
-                                                data-lucide="truck"
-                                                class="w-3.5 h-3.5"
-                                            ></i>
-                                            Free shipping
-                                        </span>
-
-                                    </div>
-
-
-                                    {{-- BOTTOM CONTROLS --}}
-                                    <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
-
-                                        {{-- QUANTITY --}}
-                                        <div>
-
-                                            <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                                                Quantity
-                                            </p>
-
-                                            <div class="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
-
-                                                {{-- DECREASE --}}
-                                                <form
-                                                    action="{{ route('buyer.cart.decrease', ['slug' => $slug]) }}"
-                                                    method="POST"
-                                                >
-                                                    @csrf
-
-                                                    <button
-                                                        type="submit"
-                                                        class="flex h-9 w-9 items-center justify-center text-gray-600 transition hover:bg-gray-50 hover:text-[#1F6F5B]"
-                                                        title="Decrease quantity"
-                                                        aria-label="Decrease quantity"
-                                                    >
-                                                        <i
-                                                            data-lucide="minus"
-                                                            class="w-4 h-4"
-                                                        ></i>
-                                                    </button>
-
-                                                </form>
-
-
-                                                {{-- QUANTITY --}}
-                                                <span class="flex h-9 min-w-10 items-center justify-center border-x border-gray-200 px-2 text-sm font-semibold text-gray-900">
-                                                    {{ $quantity }}
-                                                </span>
-
-
-                                                {{-- INCREASE --}}
-                                                <form
-                                                    action="{{ route('buyer.cart.increase', ['slug' => $slug]) }}"
-                                                    method="POST"
-                                                >
-                                                    @csrf
-
-                                                    <button
-                                                        type="submit"
-                                                        class="flex h-9 w-9 items-center justify-center text-gray-600 transition hover:bg-gray-50 hover:text-[#1F6F5B]"
-                                                        title="Increase quantity"
-                                                        aria-label="Increase quantity"
-                                                    >
-                                                        <i
-                                                            data-lucide="plus"
-                                                            class="w-4 h-4"
-                                                        ></i>
-                                                    </button>
-
-                                                </form>
-
-                                            </div>
-
-                                        </div>
-
-
-                                        {{-- MOVE TO WISHLIST --}}
-                                        <form
-                                            action="{{ route('buyer.wishlist.add', ['slug' => $slug]) }}"
-                                            method="POST"
-                                        >
-                                            @csrf
-
-                                            <button
-                                                type="submit"
-                                                class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-500 transition hover:text-[#1F6F5B]"
-                                            >
-                                                <i
-                                                    data-lucide="heart"
-                                                    class="w-4 h-4"
-                                                ></i>
-
-                                                Move to Wishlist
-                                            </button>
-
-                                        </form>
-
-
-                                        {{-- ITEM TOTAL --}}
-                                        <div class="text-right">
-
-                                            <p class="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                                                Item Total
-                                            </p>
-
-                                            <p class="mt-0.5 text-base sm:text-lg font-bold text-gray-900">
-                                                ₱{{ number_format($itemTotal, 2) }}
-                                            </p>
-
-                                        </div>
-
-                                    </div>
+                                    <p class="mt-1 text-sm font-medium text-[#1F6F5B]">
+                                        ₱{{ number_format($itemPrice,2) }}
+                                    </p>
 
                                 </div>
 
+
+
+                                {{-- REMOVE --}}
+                                <form
+                                    action="{{ route('buyer.cart.remove', ['slug' => $slug]) }}"
+                                    method="POST"
+                                    class="shrink-0"
+                                >
+
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                    >
+
+                                        <i
+                                            data-lucide="trash-2"
+                                            class="w-4 h-4"
+                                        ></i>
+
+                                    </button>
+
+                                </form>
+
+
                             </div>
+
+
+
+
+                            {{-- STATUS --}}
+                            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+
+
+                                <span class="inline-flex items-center gap-1">
+
+                                    <i
+                                        data-lucide="package"
+                                        class="w-3.5 h-3.5"
+                                    ></i>
+
+
+                                    @if($item['stock'] <= 0)
+
+                                        <span class="text-red-500 font-medium">
+                                            Out of Stock
+                                        </span>
+
+                                    @else
+
+                                        Ready to ship
+
+                                    @endif
+
+
+                                </span>
+
+
+                                <span class="text-gray-300">
+                                    |
+                                </span>
+
+
+                                <span class="inline-flex items-center gap-1 text-[#1F6F5B]">
+
+                                    <i
+                                        data-lucide="truck"
+                                        class="w-3.5 h-3.5"
+                                    ></i>
+
+                                    Free shipping
+
+                                </span>
+
+
+                            </div>
+
+
+
+
+                            {{-- BOTTOM CONTROLS --}}
+                            <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+
+
+                                {{-- QUANTITY --}}
+                                <div>
+
+                                    <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                        Quantity
+                                    </p>
+
+
+                                    <div class="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+
+
+                                        <form
+                                            action="{{ route('buyer.cart.decrease', ['slug'=>$slug]) }}"
+                                            method="POST"
+                                        >
+
+                                            @csrf
+
+                                            <button
+                                                type="submit"
+                                                @if($item['stock'] <=0) disabled @endif
+                                                class="flex h-9 w-9 items-center justify-center disabled:opacity-40"
+                                            >
+
+                                                <i
+                                                    data-lucide="minus"
+                                                    class="w-4 h-4"
+                                                ></i>
+
+                                            </button>
+
+                                        </form>
+
+
+
+                                        <span class="flex h-9 min-w-10 items-center justify-center border-x border-gray-200 px-2">
+                                            {{ $quantity }}
+                                        </span>
+
+
+
+                                        <form
+                                            action="{{ route('buyer.cart.increase', ['slug'=>$slug]) }}"
+                                            method="POST"
+                                        >
+
+                                            @csrf
+
+                                            <button
+                                                type="submit"
+                                                @if($item['stock'] <=0) disabled @endif
+                                                class="flex h-9 w-9 items-center justify-center disabled:opacity-40"
+                                            >
+
+                                                <i
+                                                    data-lucide="plus"
+                                                    class="w-4 h-4"
+                                                ></i>
+
+                                            </button>
+
+                                        </form>
+
+
+                                    </div>
+
+
+                                </div>
+
+
+
+
+                                {{-- ITEM TOTAL --}}
+                                <div class="text-right">
+
+                                    <p class="text-[11px] uppercase text-gray-400">
+                                        Item Total
+                                    </p>
+
+
+                                    <p class="font-bold text-gray-900">
+                                        ₱{{ number_format($itemTotal,2) }}
+                                    </p>
+
+                                </div>
+
+
+
+                            </div>
+
 
                         </div>
 
-                    @endforeach
+
+                    </div>
+
 
                 </div>
 
 
-                {{-- CART NOTE --}}
-                <div class="mt-5 rounded-xl border border-[#1F6F5B]/15 bg-[#EEF8F3] px-4 py-3.5">
+            @endforeach
 
-                    <div class="flex items-start gap-3">
 
-                        <i
-                            data-lucide="shield-check"
-                            class="mt-0.5 w-5 h-5 shrink-0 text-[#1F6F5B]"
-                        ></i>
+        </div>
 
-                        <div>
-                            <p class="text-sm font-semibold text-[#155244]">
-                                Shop with confidence
-                            </p>
 
-                            <p class="mt-0.5 text-xs leading-5 text-gray-600">
-                                Your order is protected through SUKI SHOP's secure checkout process.
-                            </p>
-                        </div>
 
-                    </div>
+
+        {{-- CART NOTE --}}
+        <div class="mt-5 rounded-xl border border-[#1F6F5B]/15 bg-[#EEF8F3] px-4 py-3.5">
+
+            <div class="flex items-start gap-3">
+
+                <i
+                    data-lucide="shield-check"
+                    class="w-5 h-5 text-[#1F6F5B]"
+                ></i>
+
+
+                <div>
+
+                    <p class="text-sm font-semibold text-[#155244]">
+                        Shop with confidence
+                    </p>
+
+
+                    <p class="text-xs text-gray-600">
+                        Your order is protected through SUKI SHOP's secure checkout process.
+                    </p>
 
                 </div>
 
             </div>
+
+        </div>
+
+
+    </div>
 
 
             {{-- =============================================

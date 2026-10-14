@@ -1032,9 +1032,21 @@ Route::get('/cart', function () use ($requireBuyer) {
     session()->forget('buy_now');
 
     /** @var User $user */
-    $user = Auth::user();
+$user = Auth::user();
 
-   $cart = $user
+
+// AUTO UNSELECT OUT OF STOCK ITEMS
+$user->cartItems()
+    ->whereHas('productVariant', function ($query) {
+        $query->where('stock', '<=', 0);
+    })
+    ->where('selected', true)
+    ->update([
+        'selected' => false,
+    ]);
+
+
+$cart = $user
     ->cartItems()
     ->get()
     ->mapWithKeys(function ($item) {
@@ -1047,6 +1059,8 @@ Route::get('/cart', function () use ($requireBuyer) {
 
                 'selected' => $item->selected,
                 'variant_id' => $item->product_variant_id,
+
+                'stock' => $item->productVariant?->stock ?? 0,
             ],
         ];
     })
@@ -1083,10 +1097,23 @@ $cartItem = CartItem::where(
 ->first();
 
     if ($cartItem) {
+
+    // Check stock before selecting
+    $variant = ProductVariant::find($cartItem->product_variant_id);
+
+    if ($variant && $variant->stock <= 0) {
+
         $cartItem->update([
-            'selected' => ! $cartItem->selected,
+            'selected' => false,
         ]);
+
+        return back();
     }
+
+    $cartItem->update([
+        'selected' => ! $cartItem->selected,
+    ]);
+}
 
     return back();
 
