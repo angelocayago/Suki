@@ -378,6 +378,7 @@
                                     placeholder="Enter contact number"
                                     inputmode="tel"
                                     pattern="(?:09[0-9]{9}|\+639[0-9]{9})"
+                                    maxlength="13"
                                     aria-invalid="{{ $errors->has('phone') ? 'true' : 'false' }}"
                                     class="w-full pl-11 pr-4 py-3 rounded-lg border {{ $errors->has('phone') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
@@ -408,6 +409,7 @@
                                     name="email"
                                     value="{{ old('email') }}"
                                     placeholder="Enter email address"
+                                    maxlength="255"
                                     aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                                     class="w-full pl-11 pr-4 py-3 rounded-lg border {{ $errors->has('email') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
@@ -433,6 +435,56 @@
 
                         <div class="grid grid-cols-1 gap-4">
 
+                            <!-- Region -->
+                            <div>
+                                <label
+                                    for="regionDropdown"
+                                    id="regionDropdownLabel"
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                >
+                                    Region <span class="text-red-500">*</span>
+                                </label>
+
+                                <div class="relative">
+                                    <button
+                                        type="button"
+                                        id="regionDropdown"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        aria-expanded="false"
+                                        aria-controls="regionOptions"
+                                        aria-labelledby="regionDropdownLabel"
+                                        aria-required="true"
+                                        aria-invalid="{{ $errors->has('region') ? 'true' : 'false' }}"
+                                        class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled
+                                    >
+                                        <span id="regionDropdownValue" class="text-gray-500">Loading regions...</span>
+                                        <i data-lucide="chevron-down" class="ml-3 h-4 w-4 shrink-0 text-gray-400"></i>
+                                    </button>
+
+                                    <div
+                                        id="regionOptions"
+                                        role="listbox"
+                                        aria-labelledby="regionDropdownLabel"
+                                        class="absolute left-0 top-full z-50 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                                    ></div>
+
+                                    <p id="regionError" data-field-error="region" class="mt-1 text-xs text-red-600 {{ $errors->has('region') ? '' : 'hidden' }}" role="alert">{{ $errors->first('region') }}</p>
+
+                                    <select
+                                        id="region"
+                                        name="region"
+                                        class="sr-only"
+                                        tabindex="-1"
+                                        aria-hidden="true"
+                                        required
+                                    >
+                                        <option value="">Loading regions...</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <!-- Province -->
                             <div>
                                 <label
@@ -440,7 +492,7 @@
                                     id="provinceDropdownLabel"
                                     class="block text-sm font-medium text-gray-700 mb-2"
                                 >
-                                    Province <span class="text-red-500">*</span>
+                                    Province <span id="provinceRequiredMark" class="text-red-500">*</span>
                                 </label>
 
                                 <div class="relative">
@@ -457,7 +509,7 @@
                                         class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
                                         disabled
                                     >
-                                        <span id="provinceDropdownValue" class="text-gray-500">Loading provinces...</span>
+                                        <span id="provinceDropdownValue" class="text-gray-500">Select region first</span>
                                         <i data-lucide="chevron-down" class="ml-3 h-4 w-4 shrink-0 text-gray-400"></i>
                                     </button>
 
@@ -994,7 +1046,10 @@
             // =====================================================
 
             const API_BASE =
-                'https://psgc.cloud/api/v2';
+                '/api/psgc';
+
+            const regionSelect =
+                document.getElementById('region');
 
             const provinceSelect =
                 document.getElementById('province');
@@ -1004,6 +1059,9 @@
 
             const barangaySelect =
                 document.getElementById('barangay');
+
+            const oldRegion =
+                @json(old('region'));
 
             const oldProvince =
                 @json(old('province'));
@@ -1211,6 +1269,7 @@
             }
 
             const addressDropdowns = new Map([
+                ['region', createAddressDropdown(regionSelect)],
                 ['province', createAddressDropdown(provinceSelect)],
                 ['municipality', createAddressDropdown(municipalitySelect)],
                 ['barangay', createAddressDropdown(barangaySelect)],
@@ -1225,6 +1284,7 @@
                 'birthday',
                 'phone',
                 'email',
+                'region',
                 'province',
                 'municipality',
                 'barangay',
@@ -1236,10 +1296,16 @@
             ];
             const namePattern = /^\p{L}+(?: \p{L}+)*$/u;
             const mobilePattern = /^(?:09[0-9]{9}|\+639[0-9]{9})$/;
+            const emailDomainPattern =
+                /^[^@\s]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/u;
             const passwordPattern =
                 /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\p{P}\p{S}]).{8,255}$/u;
             const interactedFields = new Set();
             let submitted = false;
+            let provinceRequired = true;
+            let regionLoadId = 0;
+            let municipalityLoadId = 0;
+            let barangayLoadId = 0;
 
             function registrationControl(fieldName) {
                 return registrationForm?.elements.namedItem(fieldName);
@@ -1334,12 +1400,22 @@
                         if (Array.from(value).length > 255) {
                             return 'Email may not exceed 255 characters.';
                         }
-                        return value && control.validity.typeMismatch
-                            ? 'Enter a valid email address.'
+                        return value && (
+                            control.validity.typeMismatch ||
+                            !emailDomainPattern.test(value)
+                        )
+                            ? 'Enter a valid email address with a domain extension.'
+                            : '';
+                    case 'region':
+                        return !value && showRequired
+                            ? 'Please select a region.'
                             : '';
                     case 'province':
                     case 'municipality':
                     case 'barangay':
+                        if (fieldName === 'province' && !provinceRequired) {
+                            return '';
+                        }
                         if (!value && showRequired) {
                             return fieldName === 'province'
                                 ? 'Please select a province.'
@@ -1452,6 +1528,76 @@
                 }
             }
 
+            function filterPhoneInput(input) {
+                const originalValue = input.value;
+                const cursor = input.selectionStart ?? originalValue.length;
+                let filteredValue = '';
+                let filteredPrefix = '';
+
+                Array.from(originalValue).forEach((character, index) => {
+                    const allowed = /[0-9]/.test(character) ||
+                        (character === '+' && index === 0);
+
+                    if (allowed) {
+                        filteredValue += character;
+                        if (index < cursor) {
+                            filteredPrefix += character;
+                        }
+                    }
+                });
+
+                const maxLength = filteredValue.startsWith('+') ? 13 : 11;
+                filteredValue = Array.from(filteredValue)
+                    .slice(0, maxLength)
+                    .join('');
+                const nextCursor = Math.min(
+                    Array.from(filteredPrefix).length,
+                    Array.from(filteredValue).length
+                );
+
+                if (filteredValue !== originalValue) {
+                    input.value = filteredValue;
+                    input.setSelectionRange(nextCursor, nextCursor);
+                }
+            }
+
+            function allowPhoneInsertion(input, event) {
+                if (
+                    !event.data ||
+                    !event.inputType.startsWith('insert') ||
+                    event.isComposing
+                ) {
+                    return;
+                }
+
+                const start = input.selectionStart ?? input.value.length;
+                const end = input.selectionEnd ?? start;
+                const nextValue =
+                    input.value.slice(0, start) +
+                    event.data +
+                    input.value.slice(end);
+                const maxLength = nextValue.startsWith('+') ? 13 : 11;
+                const insertedCharactersAreValid = Array.from(event.data)
+                    .every((character, index) => (
+                        /[0-9]/.test(character) ||
+                        (
+                            character === '+' &&
+                            start === 0 &&
+                            index === 0 &&
+                            !input.value.includes('+')
+                        )
+                    ));
+
+                if (
+                    insertedCharactersAreValid &&
+                    Array.from(nextValue).length <= maxLength
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+            }
+
             if (registrationForm) {
                 registrationForm.noValidate = true;
 
@@ -1484,6 +1630,16 @@
                     });
                 });
 
+                const phoneInput = registrationControl('phone');
+                phoneInput.addEventListener('beforeinput', function (event) {
+                    allowPhoneInsertion(phoneInput, event);
+                });
+                phoneInput.addEventListener('input', function () {
+                    filterPhoneInput(phoneInput);
+                    interactedFields.add('phone');
+                    validateRegistrationField('phone');
+                });
+
                 registrationFields.forEach(function (fieldName) {
                     const control = registrationControl(fieldName);
 
@@ -1498,7 +1654,7 @@
                     }
 
                     const eventName = fieldName === 'terms' ||
-                        ['sex', 'birthday', 'province', 'municipality', 'barangay', 'government_id'].includes(fieldName)
+                        ['sex', 'birthday', 'region', 'province', 'municipality', 'barangay', 'government_id'].includes(fieldName)
                         ? 'change'
                         : 'input';
 
@@ -1509,7 +1665,11 @@
                         if (fieldName === 'password') {
                             validateRegistrationField('password_confirmation');
                         }
-                        if (fieldName === 'province') {
+                        if (fieldName === 'region') {
+                            validateRegistrationField('province');
+                            validateRegistrationField('municipality');
+                            validateRegistrationField('barangay');
+                        } else if (fieldName === 'province') {
                             validateRegistrationField('municipality');
                             validateRegistrationField('barangay');
                         }
@@ -1586,10 +1746,22 @@
             }
 
 
-            function resetMunicipalities() {
-                municipalitySelect.innerHTML =
-                    '<option value="">Select province first</option>';
+            function resetProvince() {
+                provinceRequired = true;
+                provinceSelect.required = true;
+                document.getElementById('provinceDropdown')
+                    .setAttribute('aria-required', 'true');
+                document.getElementById('provinceRequiredMark').classList.remove('hidden');
+                provinceSelect.innerHTML =
+                    '<option value="">Select region first</option>';
+                provinceSelect.disabled = true;
+                refreshDropdown(provinceSelect);
+            }
 
+
+            function resetMunicipalities(placeholder = 'Select province first') {
+                municipalitySelect.innerHTML =
+                    `<option value="">${placeholder}</option>`;
                 municipalitySelect.disabled = true;
                 refreshDropdown(municipalitySelect);
             }
@@ -1598,285 +1770,276 @@
             function resetBarangays() {
                 barangaySelect.innerHTML =
                     '<option value="">Select municipality / city first</option>';
-
                 barangaySelect.disabled = true;
                 refreshDropdown(barangaySelect);
             }
 
 
-            async function fetchItems(url) {
-                const response = await fetch(url, {
-                    headers: {
-                        'Accept': 'application/json'
+            async function fetchItems(path) {
+                const response = await fetch(
+                    `${API_BASE}/${path}`,
+                    {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     }
-                });
+                );
 
                 if (!response.ok) {
-                    throw new Error(
-                        `Request failed: ${response.status}`
-                    );
+                    throw new Error(`Request failed: ${response.status}`);
                 }
 
-                return getItems(
-                    await response.json()
-                );
+                return getItems(await response.json());
             }
 
 
-            async function loadProvinces() {
+            function setSelectOptions(select, placeholder, items) {
+                select.innerHTML = '';
+
+                const placeholderOption = document.createElement('option');
+                placeholderOption.value = '';
+                placeholderOption.textContent = placeholder;
+                select.appendChild(placeholderOption);
+
+                items
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .forEach(function (item) {
+                        const option = document.createElement('option');
+                        option.value = item.code;
+                        option.textContent = item.name;
+                        select.appendChild(option);
+                    });
+
+                select.disabled = false;
+                refreshDropdown(select);
+            }
+
+
+            async function loadRegions(selectedRegion = '') {
+                const loadId = ++regionLoadId;
+                resetProvince();
+                resetMunicipalities();
+                resetBarangays();
+                regionSelect.innerHTML =
+                    '<option value="">Loading regions...</option>';
+                regionSelect.disabled = true;
+                refreshDropdown(regionSelect);
+
+                try {
+                    const regions = await fetchItems('regions');
+
+                    if (loadId !== regionLoadId) {
+                        return;
+                    }
+
+                    setSelectOptions(regionSelect, 'Select region', regions);
+
+                    if (selectedRegion && regions.some(region => region.code === selectedRegion)) {
+                        regionSelect.value = selectedRegion;
+                        refreshDropdown(regionSelect);
+                        await loadProvinces(
+                            selectedRegion,
+                            oldProvince,
+                            oldMunicipality,
+                            oldBarangay
+                        );
+                    }
+                } catch (error) {
+                    if (loadId === regionLoadId) {
+                        console.error('Unable to load regions:', error);
+                        regionSelect.innerHTML =
+                            '<option value="">Unable to load regions</option>';
+                        regionSelect.disabled = true;
+                        refreshDropdown(regionSelect);
+                    }
+                }
+            }
+
+
+            async function loadProvinces(
+                regionCode,
+                selectedProvince = '',
+                selectedMunicipality = '',
+                selectedBarangay = ''
+            ) {
+                const loadId = ++regionLoadId;
+                municipalityLoadId++;
+                barangayLoadId++;
+                resetProvince();
+                resetMunicipalities();
+                resetBarangays();
+
+                if (!regionCode) {
+                    return;
+                }
+
                 provinceSelect.innerHTML =
                     '<option value="">Loading provinces...</option>';
-
-                provinceSelect.disabled = true;
                 refreshDropdown(provinceSelect);
-                resetMunicipalities();
-                resetBarangays();
 
                 try {
-                    const provinces =
-                        await fetchItems(
-                            `${API_BASE}/provinces`
-                        );
-
-                    provinces.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
+                    const provinces = await fetchItems(
+                        `regions/${encodeURIComponent(regionCode)}/provinces`
                     );
 
-                    provinceSelect.innerHTML =
-                        '<option value="">Select province</option>';
-
-                    provinces.forEach(function (province) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            province.name;
-
-                        option.textContent =
-                            province.name;
-
-                        option.dataset.code =
-                            province.code;
-
-                        provinceSelect.appendChild(option);
-                    });
-
-                    provinceSelect.disabled = false;
-
-                    if (oldProvince) {
-                        const matchingProvince =
-                            provinces.find(
-                                province =>
-                                    province.name === oldProvince
-                            );
-
-                        if (matchingProvince) {
-                            provinceSelect.value =
-                                matchingProvince.name;
-
-                            await loadMunicipalities(
-                                matchingProvince.code
-                            );
-                        }
+                    if (loadId !== regionLoadId) {
+                        return;
                     }
 
-                    refreshDropdown(provinceSelect);
+                    if (provinces.length === 0) {
+                        provinceRequired = false;
+                        provinceSelect.required = false;
+                        document.getElementById('provinceDropdown')
+                            .setAttribute('aria-required', 'false');
+                        provinceSelect.disabled = true;
+                        provinceSelect.innerHTML =
+                            '<option value="">Not applicable for this region</option>';
+                        document.getElementById('provinceRequiredMark').classList.add('hidden');
+                        refreshDropdown(provinceSelect);
+                        validateRegistrationField('province');
+                        await loadMunicipalities(
+                            '',
+                            regionCode,
+                            selectedMunicipality,
+                            selectedBarangay
+                        );
+                        return;
+                    }
 
+                    provinceRequired = true;
+                    provinceSelect.required = true;
+                    document.getElementById('provinceDropdown')
+                        .setAttribute('aria-required', 'true');
+                    document.getElementById('provinceRequiredMark').classList.remove('hidden');
+                    setSelectOptions(provinceSelect, 'Select province', provinces);
+
+                    if (selectedProvince && provinces.some(province => province.code === selectedProvince)) {
+                        provinceSelect.value = selectedProvince;
+                        refreshDropdown(provinceSelect);
+                        await loadMunicipalities(
+                            selectedProvince,
+                            '',
+                            selectedMunicipality,
+                            selectedBarangay
+                        );
+                    }
                 } catch (error) {
-                    console.error(
-                        'Unable to load provinces:',
-                        error
-                    );
-
-                    provinceSelect.innerHTML =
-                        '<option value="">Unable to load provinces</option>';
-
-                    provinceSelect.disabled = false;
-                    refreshDropdown(provinceSelect);
+                    if (loadId === regionLoadId) {
+                        console.error('Unable to load provinces:', error);
+                        provinceSelect.innerHTML =
+                            '<option value="">Unable to load provinces</option>';
+                        provinceSelect.disabled = true;
+                        refreshDropdown(provinceSelect);
+                    }
                 }
             }
 
 
-            async function loadMunicipalities(provinceCode) {
-                resetMunicipalities();
+            async function loadMunicipalities(
+                provinceCode,
+                regionCode = '',
+                selectedMunicipality = '',
+                selectedBarangay = ''
+            ) {
+                const loadId = ++municipalityLoadId;
+                resetMunicipalities('Loading municipalities / cities...');
                 resetBarangays();
+                barangayLoadId++;
 
-                municipalitySelect.innerHTML =
-                    '<option value="">Loading municipalities / cities...</option>';
-
-                refreshDropdown(municipalitySelect);
+                const path = provinceCode
+                    ? `provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
+                    : `regions/${encodeURIComponent(regionCode)}/cities-municipalities`;
 
                 try {
-                    const municipalities =
-                        await fetchItems(
-                            `${API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
-                        );
+                    const municipalities = await fetchItems(path);
 
-                    municipalities.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
-                    );
-
-                    municipalitySelect.innerHTML =
-                        '<option value="">Select municipality / city</option>';
-
-                    municipalities.forEach(function (municipality) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            municipality.name;
-
-                        option.textContent =
-                            municipality.name;
-
-                        option.dataset.code =
-                            municipality.code;
-
-                        municipalitySelect.appendChild(option);
-                    });
-
-                    municipalitySelect.disabled = false;
-
-                    if (oldMunicipality) {
-                        const matchingMunicipality =
-                            municipalities.find(
-                                municipality =>
-                                    municipality.name === oldMunicipality
-                            );
-
-                        if (matchingMunicipality) {
-                            municipalitySelect.value =
-                                matchingMunicipality.name;
-
-                            await loadBarangays(
-                                matchingMunicipality.code
-                            );
-                        }
+                    if (loadId !== municipalityLoadId) {
+                        return;
                     }
 
-                    refreshDropdown(municipalitySelect);
-
-                } catch (error) {
-                    console.error(
-                        'Unable to load municipalities:',
-                        error
+                    setSelectOptions(
+                        municipalitySelect,
+                        'Select municipality / city',
+                        municipalities
                     );
 
-                    municipalitySelect.innerHTML =
-                        '<option value="">Unable to load municipalities / cities</option>';
-
-                    municipalitySelect.disabled = false;
-                    refreshDropdown(municipalitySelect);
+                    if (selectedMunicipality && municipalities.some(item => item.code === selectedMunicipality)) {
+                        municipalitySelect.value = selectedMunicipality;
+                        refreshDropdown(municipalitySelect);
+                        await loadBarangays(selectedMunicipality, selectedBarangay);
+                    }
+                } catch (error) {
+                    if (loadId === municipalityLoadId) {
+                        console.error('Unable to load municipalities:', error);
+                        municipalitySelect.innerHTML =
+                            '<option value="">Unable to load municipalities / cities</option>';
+                        municipalitySelect.disabled = true;
+                        refreshDropdown(municipalitySelect);
+                    }
                 }
             }
 
 
-            async function loadBarangays(municipalityCode) {
-                resetBarangays();
-
+            async function loadBarangays(municipalityCode, selectedBarangay = '') {
+                const loadId = ++barangayLoadId;
                 barangaySelect.innerHTML =
                     '<option value="">Loading barangays...</option>';
-
+                barangaySelect.disabled = true;
                 refreshDropdown(barangaySelect);
 
                 try {
-                    const barangays =
-                        await fetchItems(
-                            `${API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
-                        );
-
-                    barangays.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
+                    const barangays = await fetchItems(
+                        `cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
                     );
 
-                    barangaySelect.innerHTML =
-                        '<option value="">Select barangay</option>';
-
-                    barangays.forEach(function (barangay) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            barangay.name;
-
-                        option.textContent =
-                            barangay.name;
-
-                        barangaySelect.appendChild(option);
-                    });
-
-                    barangaySelect.disabled = false;
-
-                    if (oldBarangay) {
-                        barangaySelect.value =
-                            oldBarangay;
+                    if (loadId !== barangayLoadId) {
+                        return;
                     }
 
-                    refreshDropdown(barangaySelect);
+                    setSelectOptions(barangaySelect, 'Select barangay', barangays);
 
+                    if (selectedBarangay && barangays.some(item => item.code === selectedBarangay)) {
+                        barangaySelect.value = selectedBarangay;
+                        refreshDropdown(barangaySelect);
+                    }
                 } catch (error) {
-                    console.error(
-                        'Unable to load barangays:',
-                        error
-                    );
-
-                    barangaySelect.innerHTML =
-                        '<option value="">Unable to load barangays</option>';
-
-                    barangaySelect.disabled = false;
-                    refreshDropdown(barangaySelect);
+                    if (loadId === barangayLoadId) {
+                        console.error('Unable to load barangays:', error);
+                        barangaySelect.innerHTML =
+                            '<option value="">Unable to load barangays</option>';
+                        barangaySelect.disabled = true;
+                        refreshDropdown(barangaySelect);
+                    }
                 }
             }
 
 
-            provinceSelect?.addEventListener(
-                'change',
-                function () {
+            regionSelect?.addEventListener('change', function () {
+                loadProvinces(this.value);
+            });
+
+            provinceSelect?.addEventListener('change', function () {
+                if (this.value) {
+                    loadMunicipalities(this.value);
+                } else {
+                    municipalityLoadId++;
+                    barangayLoadId++;
                     resetMunicipalities();
                     resetBarangays();
-
-                    const selectedOption =
-                        provinceSelect.options[
-                            provinceSelect.selectedIndex
-                        ];
-
-                    const provinceCode =
-                        selectedOption?.dataset?.code;
-
-                    if (provinceCode) {
-                        loadMunicipalities(provinceCode);
-                    }
                 }
-            );
+            });
 
-
-            municipalitySelect?.addEventListener(
-                'change',
-                function () {
+            municipalitySelect?.addEventListener('change', function () {
+                if (this.value) {
+                    loadBarangays(this.value);
+                } else {
+                    barangayLoadId++;
                     resetBarangays();
-
-                    const selectedOption =
-                        municipalitySelect.options[
-                            municipalitySelect.selectedIndex
-                        ];
-
-                    const municipalityCode =
-                        selectedOption?.dataset?.code;
-
-                    if (municipalityCode) {
-                        loadBarangays(
-                            municipalityCode
-                        );
-                    }
                 }
-            );
+            });
 
-
-            if (provinceSelect && municipalitySelect && barangaySelect) {
-                loadProvinces();
+            if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
+                loadRegions(oldRegion);
             }
 
         });

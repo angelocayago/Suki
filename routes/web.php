@@ -7219,7 +7219,7 @@ Route::get('/register/buyer', function () {
 // REGISTER SUBMIT
 // =====================================================
 
-Route::post('/register', function (Request $request) {
+Route::post('/register', function (Request $request) use ($fetchPsgcData) {
 
     $submittedEmail = $request->input('email');
     $normalizedEmail = is_string($submittedEmail)
@@ -7272,6 +7272,7 @@ Route::post('/register', function (Request $request) {
             'required',
             'string',
             'email',
+            'regex:/\A[^@\s]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}\z/',
             'max:255',
             function ($attribute, $value, $fail) use ($normalizedEmail) {
                 if (
@@ -7314,9 +7315,16 @@ Route::post('/register', function (Request $request) {
             'before_or_equal:' . $latestAllowedBirthday,
         ],
 
-        'province' => 'required|string|max:255',
-        'municipality' => 'required|string|max:255',
-        'barangay' => 'required|string|max:255',
+        'region' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'province' => [
+            'bail',
+            'required_without:region',
+            'nullable',
+            'string',
+            'regex:/\A[0-9]{10}\z/',
+        ],
+        'municipality' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'barangay' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
         'street_address' => 'required|string|max:255',
 
         'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -7344,7 +7352,125 @@ Route::post('/register', function (Request $request) {
         'last_name.min' => 'Last name must be at least 2 characters.',
         'last_name.max' => 'Last name may not exceed 50 characters.',
         'last_name.regex' => 'Last name may contain letters only, with spaces allowed between names.',
+        'email.required' => 'Email is required.',
+        'email.email' => 'Enter a valid email address.',
+        'email.regex' => 'Enter a valid email address with a domain extension.',
+        'email.max' => 'Email may not exceed 255 characters.',
+        'phone.required' => 'Contact number is required.',
+        'password.required' => 'Password is required.',
+        'password.min' => 'Password must be at least 8 characters.',
+        'password.max' => 'Password may not exceed 255 characters.',
+        'password.regex' => 'Password must include an uppercase letter, a lowercase letter, a number, and a special character.',
+        'password_confirmation.required' => 'Confirm password is required.',
+        'password_confirmation.same' => 'Password confirmation must match the password.',
+        'region.required' => 'Region is required.',
+        'region.regex' => 'Select a valid region.',
+        'province.required_without' => 'Province is required.',
+        'province.regex' => 'Select a valid province.',
+        'municipality.required' => 'Municipality or city is required.',
+        'municipality.regex' => 'Select a valid municipality or city.',
+        'barangay.required' => 'Barangay is required.',
+        'barangay.regex' => 'Select a valid barangay.',
     ]);
+
+    $regions = $fetchPsgcData('regions');
+
+    if ($regions === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $region = collect($regions)->firstWhere('code', $validated['region']);
+
+    if (! is_array($region) || ! is_string($region['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Select a valid region.',
+        ]);
+    }
+
+    $regionPath = 'regions/' . rawurlencode($region['code']);
+    $provinces = $fetchPsgcData($regionPath . '/provinces');
+
+    if ($provinces === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'province' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $province = null;
+    $locationErrors = [];
+
+    if ($provinces !== [] && empty($validated['province'])) {
+        $locationErrors['province'] = 'Province is required.';
+    } elseif ($provinces !== []) {
+        $province = collect($provinces)->firstWhere(
+            'code',
+            $validated['province']
+        );
+
+        if (! is_array($province) || ! is_string($province['name'] ?? null)) {
+            $locationErrors['province'] = 'Select a province in the selected region.';
+        }
+    } elseif (! empty($validated['province'])) {
+        $locationErrors['province'] = 'This region does not have provinces.';
+    }
+
+    if ($locationErrors !== []) {
+        throw \Illuminate\Validation\ValidationException::withMessages($locationErrors);
+    }
+
+    $municipalityPath = $province !== null
+        ? 'provinces/' . rawurlencode($province['code']) . '/cities-municipalities'
+        : $regionPath . '/cities-municipalities';
+    $municipalities = $fetchPsgcData($municipalityPath);
+
+    if ($municipalities === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'municipality' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $municipality = collect($municipalities)->firstWhere(
+        'code',
+        $validated['municipality']
+    );
+
+    if (! is_array($municipality) || ! is_string($municipality['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'municipality' => 'Select a municipality or city in the selected area.',
+        ]);
+    }
+
+    $barangays = $fetchPsgcData(
+        'cities-municipalities/'
+        . rawurlencode($municipality['code'])
+        . '/barangays'
+    );
+
+    if ($barangays === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $barangay = collect($barangays)->firstWhere(
+        'code',
+        $validated['barangay']
+    );
+
+    if (! is_array($barangay) || ! is_string($barangay['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Select a barangay in the selected municipality or city.',
+        ]);
+    }
+
+    $addressLocation = [
+        'region' => $region['name'],
+        'province' => $province['name'] ?? null,
+        'municipality' => $municipality['name'],
+        'barangay' => $barangay['name'],
+    ];
 
     $governmentIdPath = $request
         ->file('government_id')
@@ -7357,7 +7483,7 @@ Route::post('/register', function (Request $request) {
     );
 
     $user = \Illuminate\Support\Facades\DB::transaction(
-        function () use ($validated, $governmentIdPath, $fullName) {
+        function () use ($validated, $addressLocation, $governmentIdPath, $fullName) {
 
             $user = User::create([
                 'role' => 'buyer',
@@ -7394,9 +7520,10 @@ Route::post('/register', function (Request $request) {
                 'recipient' => $fullName,
                 'phone' => $validated['phone'],
                 'line1' => $validated['street_address'],
-                'barangay' => $validated['barangay'],
-                'city' => $validated['municipality'],
-                'province' => $validated['province'],
+                'barangay' => $addressLocation['barangay'],
+                'city' => $addressLocation['municipality'],
+                'province' => $addressLocation['province'],
+                'region' => $addressLocation['region'],
                 'postal_code' => null,
                 'is_default' => true,
             ]);

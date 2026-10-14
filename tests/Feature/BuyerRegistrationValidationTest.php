@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -25,6 +26,7 @@ class BuyerRegistrationValidationTest extends TestCase
             'email',
             'phone',
             'birthday',
+            'region',
             'province',
             'municipality',
             'barangay',
@@ -43,6 +45,7 @@ class BuyerRegistrationValidationTest extends TestCase
             'email',
             'phone',
             'birthday',
+            'region',
             'province',
             'municipality',
             'barangay',
@@ -56,6 +59,8 @@ class BuyerRegistrationValidationTest extends TestCase
         }
 
         $formResponse->assertSee('novalidate', false)
+            ->assertSee('name="region"', false)
+            ->assertSee('/api/psgc', false)
             ->assertSee('text-red-600', false);
         $this->assertDatabaseCount('users', 0);
     }
@@ -150,12 +155,29 @@ class BuyerRegistrationValidationTest extends TestCase
 
     public function test_email_format_is_validated_and_email_is_trimmed_and_lowercased(): void
     {
-        $this->assertBuyerRegistrationFails([
-            'email' => 'not-an-email',
-        ], ['email']);
+        foreach ([
+            'juanexample.com',
+            'juan@',
+            '@example.com',
+            'juan example@email.com',
+            'aso@gmaicom',
+            'aso@gmailcom',
+        ] as $invalidEmail) {
+            $this->assertBuyerRegistrationFails([
+                'email' => $invalidEmail,
+            ], ['email']);
+        }
+
+        $this->assertBuyerRegistrationSucceeds([
+            'email' => 'buyer.test01@example.com',
+            'phone' => '09171234568',
+        ], [
+            'email' => 'buyer.test01@example.com',
+        ]);
 
         $this->assertBuyerRegistrationSucceeds([
             'email' => '  BUYER@Example.COM  ',
+            'phone' => '09171234569',
         ], [
             'email' => 'buyer@example.com',
         ]);
@@ -164,12 +186,20 @@ class BuyerRegistrationValidationTest extends TestCase
     public function test_email_duplicates_are_case_insensitive(): void
     {
         User::factory()->create([
-            'email' => 'EXISTING@EXAMPLE.COM',
+            'email' => 'existing@example.com',
         ]);
 
         $this->assertBuyerRegistrationFails([
-            'email' => 'existing@example.com',
+            'email' => 'EXISTING@EXAMPLE.COM',
         ], ['email'], expectedUserCount: 1);
+
+        User::factory()->create([
+            'email' => 'ANOTHER@EXAMPLE.COM',
+        ]);
+
+        $this->assertBuyerRegistrationFails([
+            'email' => 'another@example.com',
+        ], ['email'], expectedUserCount: 2);
     }
 
     public function test_philippine_mobile_numbers_are_validated_normalized_and_deduplicated(): void
@@ -188,21 +218,35 @@ class BuyerRegistrationValidationTest extends TestCase
             'phone' => '09285551234',
         ], ['phone'], expectedUserCount: 2);
 
+        User::factory()->create([
+            'phone' => '09185551234',
+        ]);
+
+        $this->assertBuyerRegistrationFails([
+            'phone' => '+639185551234',
+        ], ['phone'], expectedUserCount: 3);
+
         foreach ([
             '0917123456',
             '08171234567',
             '0917ABC4567',
+            '0917-123-4567',
             '+638171234567',
             '639171234567',
         ] as $phone) {
             $this->assertBuyerRegistrationFails([
                 'phone' => $phone,
-            ], ['phone'], expectedUserCount: 2);
+            ], ['phone'], expectedUserCount: 3);
         }
     }
 
     public function test_password_requires_all_character_types_and_confirmation_match(): void
     {
+        $this->assertBuyerRegistrationSucceeds([
+            'password' => 'Mamimili@2026',
+            'password_confirmation' => 'Mamimili@2026',
+        ]);
+
         foreach ([
             'password@1',
             'PASSWORD@1',
@@ -213,13 +257,45 @@ class BuyerRegistrationValidationTest extends TestCase
             $this->assertBuyerRegistrationFails([
                 'password' => $password,
                 'password_confirmation' => $password,
-            ], ['password']);
+            ], ['password'], expectedUserCount: 1);
         }
 
         $this->assertBuyerRegistrationFails([
             'password' => 'Password@1',
             'password_confirmation' => 'Password@2',
-        ], ['password_confirmation']);
+        ], ['password_confirmation'], expectedUserCount: 1);
+    }
+
+    public function test_contact_and_password_errors_render_beside_their_fields(): void
+    {
+        $this->fakePsgcData();
+
+        $response = $this->followingRedirects()
+        ->from(route('register.buyer'))
+        ->post(route('register.submit'), array_replace(
+            $this->validBuyerData(),
+            [
+                'email' => 'invalid email',
+                'phone' => '0917ABC4567',
+                'password' => 'mamimili@2026',
+                'password_confirmation' => 'Mamimili@2027',
+            ],
+        ));
+
+        $response
+        ->assertSee('Enter a valid email address.')
+        ->assertSee('Enter a valid Philippine mobile number in local or +63 format.')
+        ->assertSee('Password must include an uppercase letter, a lowercase letter, a number, and a special character.')
+        ->assertSee('Password confirmation must match the password.')
+        ->assertSee('data-field-error="email"', false)
+        ->assertSee('data-field-error="phone"', false)
+        ->assertSee('data-field-error="password"', false)
+        ->assertSee('data-field-error="password_confirmation"', false)
+        ->assertSee('value="invalid email"', false)
+        ->assertSee('value="0917ABC4567"', false)
+        ->assertSee('aria-invalid="true"', false);
+
+        $this->assertDatabaseCount('users', 0);
     }
 
     public function test_registration_form_keeps_showing_validation_errors(): void
@@ -252,7 +328,11 @@ class BuyerRegistrationValidationTest extends TestCase
             ->assertSee('beforeinput', false)
             ->assertSee('function filterNameInsertion(input, event)', false)
             ->assertSee('function filterNameInput(input)', false)
-            ->assertSee('const namePattern = /^\\p{L}+(?: \\p{L}+)*$/u;', false);
+            ->assertSee('const namePattern = /^\\p{L}+(?: \\p{L}+)*$/u;', false)
+            ->assertSee('function allowPhoneInsertion(input, event)', false)
+            ->assertSee('function filterPhoneInput(input)', false)
+            ->assertSee('maxlength="13"', false)
+            ->assertSee('maxlength="255"', false);
     }
 
     public function test_initial_registration_form_does_not_show_validation_errors(): void
@@ -292,11 +372,49 @@ class BuyerRegistrationValidationTest extends TestCase
         }
     }
 
+    public function test_address_selection_must_follow_the_psgc_hierarchy(): void
+    {
+        $this->assertBuyerRegistrationFails([
+            'province' => '0199000000',
+        ], ['province']);
+    }
+
+    public function test_province_is_not_required_for_regions_without_provinces(): void
+    {
+        Storage::fake('public');
+        $this->fakePsgcData(provinceLessRegion: true);
+
+        $response = $this->from(route('register.buyer'))
+            ->post(route('register.submit'), array_replace(
+                $this->validBuyerData(),
+                [
+                    'region' => '1300000000',
+                    'province' => '',
+                    'municipality' => '1300100000',
+                    'barangay' => '1300100001',
+                ],
+            ));
+
+        $response
+            ->assertSessionDoesntHaveErrors()
+            ->assertRedirect(route('login'));
+
+        $user = User::query()->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('addresses', [
+            'user_id' => $user->id,
+            'region' => 'National Capital Region',
+            'province' => null,
+            'city' => 'Test City',
+            'barangay' => 'Test Barangay',
+        ]);
+    }
+
     private function assertBuyerRegistrationSucceeds(
         array $overrides = [],
         array $expectedAttributes = [],
     ): void {
         Storage::fake('public');
+        $this->fakePsgcData();
 
         $response = $this->from(route('register.buyer'))
             ->post(route('register.submit'), array_replace(
@@ -320,6 +438,15 @@ class BuyerRegistrationValidationTest extends TestCase
                 'phone' => $expectedAttributes['phone'],
             ]);
         }
+
+        $this->assertDatabaseHas('addresses', [
+            'user_id' => $user->id,
+            'region' => 'Region I',
+            'province' => 'Test Province',
+            'city' => 'Test City',
+            'barangay' => 'Test Barangay',
+            'line1' => '123 Test Street',
+        ]);
     }
 
     private function assertBuyerRegistrationFails(
@@ -328,6 +455,7 @@ class BuyerRegistrationValidationTest extends TestCase
         int $expectedUserCount = 0,
     ): void {
         Storage::fake('public');
+        $this->fakePsgcData();
 
         $response = $this->from(route('register.buyer'))
             ->post(route('register.submit'), array_replace(
@@ -352,9 +480,10 @@ class BuyerRegistrationValidationTest extends TestCase
             'birthday' => Carbon::today('Asia/Manila')
                 ->subYears(30)
                 ->toDateString(),
-            'province' => 'Test Province',
-            'municipality' => 'Test City',
-            'barangay' => 'Test Barangay',
+            'region' => '0100000000',
+            'province' => '0101000000',
+            'municipality' => '0101010000',
+            'barangay' => '0101010001',
             'street_address' => '123 Test Street',
             'government_id' => UploadedFile::fake()->create(
                 'government-id.pdf',
@@ -365,5 +494,56 @@ class BuyerRegistrationValidationTest extends TestCase
             'password_confirmation' => 'Password@1',
             'terms' => '1',
         ];
+    }
+
+    private function fakePsgcData(bool $provinceLessRegion = false): void
+    {
+        if ($provinceLessRegion) {
+            Http::fake([
+                'https://psgc.cloud/api/v2/regions' => Http::response([
+                    'data' => [
+                        ['code' => '1300000000', 'name' => 'National Capital Region'],
+                    ],
+                ]),
+                'https://psgc.cloud/api/v2/regions/1300000000/provinces' => Http::response([
+                    'data' => [],
+                ]),
+                'https://psgc.cloud/api/v2/regions/1300000000/cities-municipalities' => Http::response([
+                    'data' => [
+                        ['code' => '1300100000', 'name' => 'Test City'],
+                    ],
+                ]),
+                'https://psgc.cloud/api/v2/cities-municipalities/1300100000/barangays' => Http::response([
+                    'data' => [
+                        ['code' => '1300100001', 'name' => 'Test Barangay'],
+                    ],
+                ]),
+            ]);
+
+            return;
+        }
+
+        Http::fake([
+            'https://psgc.cloud/api/v2/regions' => Http::response([
+                'data' => [
+                    ['code' => '0100000000', 'name' => 'Region I'],
+                ],
+            ]),
+            'https://psgc.cloud/api/v2/regions/0100000000/provinces' => Http::response([
+                'data' => [
+                    ['code' => '0101000000', 'name' => 'Test Province'],
+                ],
+            ]),
+            'https://psgc.cloud/api/v2/provinces/0101000000/cities-municipalities' => Http::response([
+                'data' => [
+                    ['code' => '0101010000', 'name' => 'Test City'],
+                ],
+            ]),
+            'https://psgc.cloud/api/v2/cities-municipalities/0101010000/barangays' => Http::response([
+                'data' => [
+                    ['code' => '0101010001', 'name' => 'Test Barangay'],
+                ],
+            ]),
+        ]);
     }
 }
