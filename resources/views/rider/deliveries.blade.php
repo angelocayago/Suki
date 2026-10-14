@@ -80,6 +80,8 @@
         ->where('status', 'assigned_to_rider')
         ->count();
 
+    $liveTrackedDelivery = $myOrders->first(fn ($order) => in_array(strtolower($order['status'] ?? ''), ['assigned_to_rider', 'out_for_delivery'], true) && !empty($order['shipment_id']));
+
     $pickedUpCount = $myOrders
         ->where('status', 'picked_up')
         ->count();
@@ -96,6 +98,23 @@
         ->whereIn('status', ['delivered', 'completed'])
         ->count();
 @endphp
+
+@if($liveTrackedDelivery)
+    <div id="live-tracking-state" class="mb-4 rounded-xl border border-[#DDF3EC] bg-[#EEF8F3] px-4 py-3 text-sm text-[#155244]">
+        Live location is preparing for your active delivery.
+    </div>
+    @push('scripts')
+    <script>
+    (() => {
+      const state = document.getElementById('live-tracking-state');
+      const endpoint = @json(route('rider.shipments.location.store', $liveTrackedDelivery['shipment_id']));
+      const send = position => fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content}, body:JSON.stringify({latitude:position.coords.latitude, longitude:position.coords.longitude})}).then(r => { if (!r.ok) throw new Error(); state.textContent='Live location is active for this delivery.'; }).catch(() => state.textContent='Location update unavailable. Check permission and connection.');
+      if (!navigator.geolocation) { state.textContent='This device does not support live location.'; return; }
+      navigator.geolocation.watchPosition(send, () => state.textContent='Location permission is required to share active delivery updates.', {enableHighAccuracy:true, maximumAge:10000, timeout:15000});
+    })();
+    </script>
+    @endpush
+@endif
 
 
 {{-- ============================================================

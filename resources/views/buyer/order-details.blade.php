@@ -40,6 +40,12 @@
             <p class="mt-1 text-sm text-gray-500">
                 Order #{{ $order['id'] }}
             </p>
+
+            @foreach(($order['seller_orders'] ?? []) as $sellerOrder)
+                @if(in_array($sellerOrder['status'] ?? '', ['assigned_to_rider', 'out_for_delivery'], true))
+                    <a href="{{ route('buyer.seller-order.track', [$order['id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
+                @endif
+            @endforeach
         </div>
 
         {{-- ========================================================= --}}

@@ -129,6 +129,7 @@ class FulfillmentController extends Controller
 
         return [
             'id' => $sellerOrder->id,
+            'shipment_id' => $shipment?->id,
             'source' => 'database',
             'status' => strtolower($sellerOrder->workflow_status->value),
             'order_number' => $order->order_number,

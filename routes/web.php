@@ -14,6 +14,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Controllers\Buyer\OrderCancellationController;
+use App\Http\Controllers\Buyer\ShipmentTrackingController as BuyerShipmentTrackingController;
 use App\Http\Controllers\ComplaintEvidenceController;
 use App\Http\Controllers\ParticipantComplaintController;
 use App\Http\Controllers\Seller\FulfillmentController as SellerFulfillmentController;
@@ -21,7 +22,9 @@ use App\Http\Controllers\Seller\InventoryController as SellerInventoryController
 use App\Http\Controllers\Seller\ProductController as SellerProductController;
 use App\Http\Controllers\Seller\RegistrationController as SellerRegistrationController;
 use App\Http\Controllers\Rider\FulfillmentController as RiderFulfillmentController;
+use App\Http\Controllers\Rider\ShipmentTrackingController as RiderShipmentTrackingController;
 use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
+use App\Http\Controllers\ShipmentWaybillController;
 use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
 use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
@@ -1839,6 +1842,19 @@ Route::post('/checkout/place-order', [CheckoutController::class, 'store'])
 Route::get('/checkout', [CheckoutController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.checkout');
+
+Route::get('/my-orders/{order}/seller-orders/{sellerOrder}/track', [BuyerShipmentTrackingController::class, 'show'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.seller-order.track');
+Route::get('/my-orders/{order}/seller-orders/{sellerOrder}/tracking-data', [BuyerShipmentTrackingController::class, 'latest'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer', 'throttle:60,1'])
+    ->name('buyer.seller-order.tracking-data');
+Route::get('/shipments/{shipment}/waybill', [ShipmentWaybillController::class, 'show'])
+    ->middleware(['auth', 'not_suspended', 'approved'])
+    ->name('shipments.waybill');
+Route::post('/rider/shipments/{shipment}/location', [RiderShipmentTrackingController::class, 'store'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:rider', 'throttle:30,1'])
+    ->name('rider.shipments.location.store');
 
 
 // =====================================================

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'maptiler' => [
+        // A full MapTiler-compatible style URL. Keep keys in .env, never in source.
+        'style_url' => env('MAPTILER_STYLE_URL'),
+    ],
+
 ];
