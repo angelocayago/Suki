@@ -344,6 +344,26 @@
                 </a>
 
 
+                {{-- MESSAGES --}}
+                <a
+                    href="{{ route('rider.messages.index') }}"
+                    class="
+                        flex items-center gap-3
+                        rounded-xl
+                        px-3 py-2.5
+                        text-[13px]
+                        font-medium
+                        transition
+                        {{ request()->routeIs('rider.messages.*')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
+                    "
+                >
+                    <i data-lucide="message-circle" class="h-[18px] w-[18px]"></i>
+                    <span>Messages</span>
+                </a>
+
+
                 {{-- EARNINGS --}}
                 <a
                     href="{{ route('rider.earnings') }}"

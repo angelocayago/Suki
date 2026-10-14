@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
@@ -26,11 +26,15 @@ class User extends Authenticatable
         'role',
         'first_name',
         'last_name',
+        'middle_initial',
+        'sex',
+        'birthday',
         'name',
         'email',
         'phone',
         'status',
         'is_suspended',
+        'government_id',
         'password',
     ];
 
@@ -49,6 +53,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'birthday' => 'date',
             'password' => 'hashed',
             'is_suspended' => 'boolean',
         ];
@@ -87,6 +92,17 @@ class User extends Authenticatable
             ->exists();
     }
 
+    public function hasAnyRole(array $roles): bool
+    {
+        foreach ($roles as $role) {
+            if ($this->hasRole($role)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isBuyer(): bool
     {
         return $this->hasRole('buyer');
@@ -109,7 +125,97 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->hasAnyRole(['admin', 'superadmin']);
+    }
+
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
+
+    public function accountStatusEvents(): HasMany
+    {
+        return $this->hasMany(AccountStatusEvent::class);
+    }
+
+    public function accountStatusActions(): HasMany
+    {
+        return $this->hasMany(AccountStatusEvent::class, 'actor_id');
+    }
+
+    public function createdSellerViolations(): HasMany
+    {
+        return $this->hasMany(SellerViolation::class, 'created_by');
+    }
+
+    public function resolvedSellerViolations(): HasMany
+    {
+        return $this->hasMany(SellerViolation::class, 'resolved_by');
+    }
+
+    public function issuedSellerWarnings(): HasMany
+    {
+        return $this->hasMany(SellerWarning::class, 'issued_by');
+    }
+
+    public function sellerComplianceActions(): HasMany
+    {
+        return $this->hasMany(SellerComplianceEvent::class, 'actor_id');
+    }
+
+    public function uploadedSellerViolationEvidence(): HasMany
+    {
+        return $this->hasMany(SellerViolationEvidence::class, 'uploaded_by');
+    }
+
+    public function filedComplaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'complainant_id');
+    }
+
+    public function buyerComplaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'buyer_id');
+    }
+
+    public function assignedComplaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'assigned_to');
+    }
+
+    public function resolvedComplaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'resolved_by');
+    }
+
+    public function complaintEvents(): HasMany
+    {
+        return $this->hasMany(ComplaintEvent::class, 'actor_id');
+    }
+
+    public function uploadedComplaintEvidence(): HasMany
+    {
+        return $this->hasMany(ComplaintEvidence::class, 'uploaded_by');
+    }
+
+    public function createdConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'created_by');
+    }
+
+    public function conversationParticipations(): HasMany
+    {
+        return $this->hasMany(ConversationParticipant::class);
+    }
+
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    public function logisticsProvider(): HasOne
+    {
+        return $this->hasOne(LogisticsProvider::class);
     }
 
     /**
@@ -162,7 +268,7 @@ class User extends Authenticatable
     public function getFullNameAttribute(): string
     {
         return trim(
-            ($this->first_name ?? '') . ' ' .
+            ($this->first_name ?? '').' '.
             ($this->last_name ?? '')
         );
     }

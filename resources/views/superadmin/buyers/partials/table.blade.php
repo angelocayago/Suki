@@ -135,6 +135,7 @@ gap-2
 >
 
 @csrf
+@method('PATCH')
 
 
 
@@ -184,6 +185,14 @@ Suspend
 
 
 </select>
+
+<input
+type="text"
+name="reason"
+maxlength="1000"
+placeholder="Reason if restricting"
+class="w-[170px] border border-[#D6DFDA] rounded-lg px-3 py-2 text-xs bg-white"
+>
 
 
 

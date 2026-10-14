@@ -4,6 +4,8 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Notifications\ApplicationDecisionNotification;
+use App\Services\Admin\AccountStatusService;
 use Illuminate\Http\Request;
 
 
@@ -115,16 +117,17 @@ class ApplicationController extends Controller
 
 
 
-    public function approve(Application $application)
+    public function approve(
+        Application $application,
+        AccountStatusService $accountStatusService
+    )
     {
+        $application = $accountStatusService->approveApplication(
+            $application,
+            auth()->user()
+        );
 
-        $application->update([
-
-            'status' => 'approved',
-
-            'reviewed_at' => now(),
-
-        ]);
+        $application->user->notify(new ApplicationDecisionNotification($application));
 
 
         return back()
@@ -144,7 +147,8 @@ class ApplicationController extends Controller
 
     public function reject(
         Request $request,
-        Application $application
+        Application $application,
+        AccountStatusService $accountStatusService
     )
     {
 
@@ -152,25 +156,26 @@ class ApplicationController extends Controller
         $request->validate([
 
             'rejection_reason'
-                => 'required|string|max:500'
+                => 'required|string|max:500',
+
+            'custom_reason'
+                => 'nullable|required_if:rejection_reason,Other|string|max:500',
 
         ]);
 
 
 
-        $application->update([
-
-            'status' => 'rejected',
-
-            'rejection_reason'
-        => $request->rejection_reason === 'Other'
+        $reason = $request->rejection_reason === 'Other'
             ? $request->custom_reason
-            : $request->rejection_reason,
+            : $request->rejection_reason;
 
-            'reviewed_at'
-                => now(),
+        $application = $accountStatusService->rejectApplication(
+            $application,
+            auth()->user(),
+            $reason
+        );
 
-        ]);
+        $application->user->notify(new ApplicationDecisionNotification($application));
 
 
 

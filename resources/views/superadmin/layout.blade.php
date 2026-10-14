@@ -11,7 +11,7 @@
     >
 
     <title>
-        @yield('title', 'SUKI Super Admin')
+        @yield('title', 'SUKI Admin Portal')
     </title>
 
     @vite([
@@ -102,7 +102,7 @@
                     text-lg
                 "
             >
-                Super Admin Portal
+                Admin Portal
             </h1>
 
             <p
@@ -233,6 +233,101 @@
 
 
 
+    <!-- PRODUCT MODERATION -->
+
+    <a
+        href="{{ route('superadmin.products.index') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.products.*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Product Moderation
+    </a>
+
+
+
+    <!-- SELLER COMPLIANCE -->
+
+    <a
+        href="{{ route('superadmin.compliance.index') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.compliance.*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Seller Compliance
+    </a>
+
+
+
+    <!-- COMPLAINTS -->
+
+    <a
+        href="{{ route('superadmin.complaints.index') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.complaints.*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Complaints &amp; Disputes
+    </a>
+
+
+
+
+
+    <!-- MESSAGES -->
+
+    <a
+        href="{{ route('superadmin.messages.index') }}"
+        class="
+            block
+            px-4
+            py-3
+            rounded-xl
+            text-sm
+            font-medium
+            transition
+
+            {{ request()->routeIs('superadmin.messages.*')
+                ? 'bg-[#10b981] text-white'
+                : 'text-green-100 hover:bg-[#047857] hover:text-white'
+            }}
+        "
+    >
+        Messages
+    </a>
 
 
     <!-- APPLICATIONS -->
@@ -380,7 +475,7 @@
 
             <form
                 method="POST"
-                action="{{ route('logout') }}"
+                action="{{ route('admin.logout') }}"
             >
 
                 @csrf

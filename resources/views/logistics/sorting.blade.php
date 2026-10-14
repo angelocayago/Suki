@@ -26,7 +26,7 @@
     |
     */
 
-    $orders = collect(session('orders', []));
+    $orders = collect($orders ?? session('orders', []));
 
     $sortingParcels = $orders
         ->filter(function ($order) {
@@ -57,30 +57,14 @@
         ->count();
 
 
-    $areas = [
+    $areas = $areas ?? [
         'Area A',
         'Area B',
         'Area C'
     ];
 
 
-    $riders = [
-        [
-            'id' => 1,
-            'name' => 'Rider 01',
-            'area' => 'Area A'
-        ],
-        [
-            'id' => 2,
-            'name' => 'Rider 02',
-            'area' => 'Area B'
-        ],
-        [
-            'id' => 3,
-            'name' => 'Rider 03',
-            'area' => 'Area C'
-        ],
-    ];
+    $riders = $riders ?? [];
 
 
     $statusLabels = [
@@ -531,6 +515,8 @@
                         $parcel['delivery_area']
                         ?? 'Unassigned';
 
+                    $isDatabase = ($parcel['source'] ?? 'session') === 'database';
+
 
                 @endphp
 
@@ -671,15 +657,23 @@
                         @if($status === 'at_sorting_center')
 
 
-                            <form
-                                method="POST"
-                                action="#"
-                            >
+                            <form method="POST" action="{{ $isDatabase
+                                ? (empty($parcel['logistics_provider_id'])
+                                    ? route('logistics.database.orders.receive', $parcelId)
+                                    : route('logistics.database.order.status', $parcelId))
+                                : route('logistics.order.status', $parcelId) }}">
 
                                 @csrf
 
+                                @if(!$isDatabase || !empty($parcel['logistics_provider_id']))
+                                    <input type="hidden" name="status" value="sorted">
+                                    <select name="{{ $isDatabase ? 'sorting_area' : 'area' }}" required class="mr-2 rounded-lg border border-gray-200 px-2 py-2 text-[10px]">
+                                        <option value="">Area</option>
+                                        @foreach($areas as $sortingArea)<option value="{{ $sortingArea }}">{{ $sortingArea }}</option>@endforeach
+                                    </select>
+                                @endif
                                 <button
-                                    type="button"
+                                    type="submit"
                                     class="inline-flex
                                            h-9
                                            items-center
@@ -698,7 +692,7 @@
                                         class="h-3.5 w-3.5"
                                     ></i>
 
-                                    Scan Parcel
+                                    {{ $isDatabase && empty($parcel['logistics_provider_id']) ? 'Receive Parcel' : 'Sort Parcel' }}
 
                                 </button>
 
@@ -709,8 +703,17 @@
                         @elseif($status === 'sorted')
 
 
+                            <form method="POST" action="{{ $isDatabase
+                                ? route('logistics.database.order.status', $parcelId)
+                                : route('logistics.order.status', $parcelId) }}" class="flex gap-2">
+                                @csrf
+                                <input type="hidden" name="status" value="assigned_to_rider">
+                                <select name="{{ $isDatabase ? 'rider_id' : 'rider_index' }}" required class="rounded-lg border border-gray-200 px-2 text-[10px]">
+                                    <option value="">Rider</option>
+                                    @foreach($riders as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@endforeach
+                                </select>
                             <button
-                                type="button"
+                                type="submit"
                                 class="inline-flex
                                        h-9
                                        items-center
@@ -732,6 +735,7 @@
                                 Assign Rider
 
                             </button>
+                            </form>
 
 
 

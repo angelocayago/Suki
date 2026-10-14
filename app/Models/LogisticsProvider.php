@@ -18,6 +18,9 @@ class LogisticsProvider extends Model
         'status',
         'rejection_reason',
         'contact_phone',
+        'address',
+        'government_id_path',
+        'business_permit_path',
     ];
 
     /**
@@ -53,5 +56,15 @@ class LogisticsProvider extends Model
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class);
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function conversationParticipations(): HasMany
+    {
+        return $this->hasMany(ConversationParticipant::class);
     }
 }

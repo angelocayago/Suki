@@ -68,4 +68,10 @@ class CartItem extends Model
     {
         return $this->belongsTo(ProductVariant::class);
     }
+
+    public function resolvedProduct(): ?Product
+    {
+        return $this->productVariant?->product
+            ?? Product::query()->where('slug', $this->product_slug)->first();
+    }
 }

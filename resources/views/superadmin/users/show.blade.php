@@ -185,6 +185,7 @@ items-start
 action="{{ route('superadmin.users.status',$user) }}">
 
 @csrf
+@method('PATCH')
 
 <input type="hidden"
 name="status"
@@ -218,14 +219,35 @@ Activate
 
 @if($user->status !== 'suspended')
 
+@if($user->sellers->isNotEmpty())
+
+<a
+href="{{ route('superadmin.compliance.create', ['seller_id' => $user->sellers->first()->id]) }}"
+class="px-4 py-2 rounded-xl bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200"
+>
+Open Compliance Case to Suspend
+</a>
+
+@else
+
 <form method="POST"
 action="{{ route('superadmin.users.status',$user) }}">
 
 @csrf
+@method('PATCH')
 
 <input type="hidden"
 name="status"
 value="suspended">
+
+<textarea
+name="reason"
+required
+maxlength="1000"
+rows="2"
+placeholder="Suspension reason"
+class="border rounded-xl px-3 py-2 text-sm"
+></textarea>
 
 
 <button
@@ -248,6 +270,8 @@ Suspend
 
 @endif
 
+@endif
+
 
 
 
@@ -259,10 +283,20 @@ Suspend
 action="{{ route('superadmin.users.status',$user) }}">
 
 @csrf
+@method('PATCH')
 
 <input type="hidden"
 name="status"
 value="inactive">
+
+<textarea
+name="reason"
+required
+maxlength="1000"
+rows="2"
+placeholder="Deactivation reason"
+class="border rounded-xl px-3 py-2 text-sm"
+></textarea>
 
 
 <button
@@ -659,16 +693,29 @@ text-[#173F35]
 mb-5
 ">
 
-Recent Activity
+Account Status History
 
 </h2>
 
 
 
-<div class="text-gray-500 text-sm">
-
-Activity logs are not available yet.
-
+<div class="space-y-3">
+@forelse($user->accountStatusEvents as $event)
+    <div class="border border-[#E3EAE6] rounded-xl p-4 text-sm">
+        <div class="font-semibold text-[#173F35]">
+            {{ ucfirst($event->previous_status) }} → {{ ucfirst($event->new_status) }}
+        </div>
+        <div class="text-gray-500 mt-1">
+            {{ $event->created_at->format('M d, Y h:i A') }}
+            · by {{ $event->actor->name ?? 'System' }}
+        </div>
+        @if($event->reason)
+            <div class="text-gray-600 mt-2">{{ $event->reason }}</div>
+        @endif
+    </div>
+@empty
+    <div class="text-gray-500 text-sm">No account status changes recorded yet.</div>
+@endforelse
 </div>
 
 

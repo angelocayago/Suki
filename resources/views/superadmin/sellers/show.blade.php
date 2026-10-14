@@ -207,43 +207,12 @@ font-medium
 
 @if($seller->status === 'approved')
 
-
-<form
-method="POST"
-action="{{ route('superadmin.sellers.status',$seller) }}"
+<a
+href="{{ route('superadmin.compliance.create', ['seller_id' => $seller->id]) }}"
+class="inline-block px-5 py-3 rounded-xl bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition"
 >
-
-
-@csrf
-
-
-<input
-type="hidden"
-name="status"
-value="suspended"
->
-
-
-<button
-class="
-px-5
-py-3
-rounded-xl
-bg-red-100
-text-red-700
-text-sm
-font-semibold
-hover:bg-red-200
-transition
-"
->
-
-Suspend Seller
-
-</button>
-
-
-</form>
+Open Compliance Case to Suspend
+</a>
 
 
 
@@ -258,6 +227,7 @@ action="{{ route('superadmin.sellers.status',$seller) }}"
 
 
 @csrf
+@method('PATCH')
 
 
 <input
@@ -293,6 +263,36 @@ Activate Seller
 
 
 
+</div>
+
+
+
+<div class="mt-5 rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-[#173F35]">Seller Compliance</h2>
+            <p class="mt-1 text-sm text-gray-500">Review this seller's violation and warning history.</p>
+        </div>
+        <a href="{{ route('superadmin.compliance.create', ['seller_id' => $seller->id]) }}"
+           class="rounded-xl bg-[#173F35] px-5 py-2.5 text-center text-sm font-semibold text-white">
+            Create compliance case
+        </a>
+    </div>
+
+    <div class="mt-5 grid gap-3 sm:grid-cols-3">
+        <a href="{{ route('superadmin.compliance.index', ['seller_id' => $seller->id]) }}" class="rounded-xl bg-[#F6F9F7] p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">All cases</div>
+            <div class="mt-2 text-2xl font-bold text-[#173F35]">{{ $seller->violations_count }}</div>
+        </a>
+        <a href="{{ route('superadmin.compliance.index', ['seller_id' => $seller->id, 'status' => 'OPEN']) }}" class="rounded-xl bg-amber-50 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Open cases</div>
+            <div class="mt-2 text-2xl font-bold text-amber-800">{{ $seller->open_violations_count }}</div>
+        </a>
+        <div class="rounded-xl bg-[#F6F9F7] p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Warnings</div>
+            <div class="mt-2 text-2xl font-bold text-[#173F35]">{{ $seller->warnings_count }}</div>
+        </div>
+    </div>
 </div>
 
 
@@ -789,6 +789,29 @@ Seller ID
 </div>
 
 
+
+
+
+<div class="mt-5 rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
+    <h2 class="text-xl font-bold text-[#173F35]">Allowed Product Categories</h2>
+    <p class="mt-1 text-sm text-gray-500">Explicitly select categories this seller is approved to list. No registration category is mapped automatically.</p>
+
+    <form method="POST" action="{{ route('superadmin.sellers.allowed-categories.update', $seller) }}" class="mt-5">
+        @csrf
+        @method('PUT')
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach($categories as $category)
+                <label class="flex items-center gap-3 rounded-xl border border-[#E3EAE6] p-3 text-sm">
+                    <input type="checkbox" name="categories[]" value="{{ $category->id }}"
+                           @checked($seller->allowedCategories->contains($category->id))
+                           class="rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]">
+                    <span>{{ $category->name }}</span>
+                </label>
+            @endforeach
+        </div>
+        <button class="mt-4 rounded-xl bg-[#173F35] px-5 py-2.5 text-sm font-semibold text-white">Save allowed categories</button>
+    </form>
+</div>
 
 
 

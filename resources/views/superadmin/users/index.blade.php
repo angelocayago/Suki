@@ -594,6 +594,7 @@ x-data="{
             >
 
                 @csrf
+                @method('PATCH')
 
 
                 <input
@@ -605,6 +606,23 @@ x-data="{
                     x-bind:value="selectedStatus"
 
                 >
+
+                <div
+                    x-show="selectedStatus === 'suspended' || selectedStatus === 'inactive'"
+                    class="mt-4"
+                >
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Reason
+                    </label>
+                    <textarea
+                        name="reason"
+                        x-bind:required="selectedStatus === 'suspended' || selectedStatus === 'inactive'"
+                        maxlength="1000"
+                        rows="3"
+                        class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                        placeholder="Explain why this account is being restricted"
+                    ></textarea>
+                </div>
 
 
 

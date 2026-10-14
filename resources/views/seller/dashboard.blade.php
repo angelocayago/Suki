@@ -16,9 +16,9 @@
     |--------------------------------------------------------------------------
     */
 
-    $orders = session('orders', []);
+    $orders = $orders ?? session('orders', []);
 
-    $products = session('seller_products', []);
+    $products = $products ?? session('seller_products', []);
 
 
     /*

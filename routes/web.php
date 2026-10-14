@@ -5,6 +5,37 @@ use App\Models\CartItem;
 use App\Models\WishlistItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Application;
+use App\Models\LogisticsProvider;
+use App\Models\Rider;
+use App\Models\Role;
+use App\Models\Seller;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Buyer\CheckoutController;
+use App\Http\Controllers\ComplaintEvidenceController;
+use App\Http\Controllers\ParticipantComplaintController;
+use App\Http\Controllers\Seller\FulfillmentController as SellerFulfillmentController;
+use App\Http\Controllers\Seller\InventoryController as SellerInventoryController;
+use App\Http\Controllers\Seller\ProductController as SellerProductController;
+use App\Http\Controllers\Rider\FulfillmentController as RiderFulfillmentController;
+use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
+use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
+use App\Http\Controllers\Messaging\ContextConversationController;
+use App\Http\Controllers\Messaging\ConversationReadController;
+use App\Http\Controllers\Messaging\MessageController as MessagingMessageController;
+use App\Http\Controllers\SuperAdmin\ApplicationController as AdminApplicationController;
+use App\Http\Controllers\SuperAdmin\BuyerManagementController;
+use App\Http\Controllers\SuperAdmin\CommissionController;
+use App\Http\Controllers\SuperAdmin\ComplaintController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\OrderManagementController;
+use App\Http\Controllers\SuperAdmin\ProductModerationController;
+use App\Http\Controllers\SuperAdmin\ReportController;
+use App\Http\Controllers\SuperAdmin\SellerComplianceController;
+use App\Http\Controllers\SuperAdmin\SellerComplianceEvidenceController;
+use App\Http\Controllers\SuperAdmin\SellerManagementController;
+use App\Http\Controllers\SuperAdmin\SettingController;
+use App\Http\Controllers\SuperAdmin\UserManagementController;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -13,6 +44,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 
 // =====================================================
@@ -291,6 +323,18 @@ $products = [
     ],
 ];
 
+$legacyProducts = $products;
+
+$resolveProductCatalog = static function () use ($legacyProducts): array {
+    try {
+        $databaseProducts = app(\App\Services\ProductCatalogService::class)
+            ->marketplaceProducts();
+
+        return $databaseProducts !== [] ? $databaseProducts : $legacyProducts;
+    } catch (\Throwable) {
+        return $legacyProducts;
+    }
+};
 
 // =====================================================
 // PUBLIC SUKI SHOP LANDING PAGE
@@ -305,40 +349,24 @@ Route::get('/', function () {
 // BUYER HOME
 // =====================================================
 
-Route::get('/home', function () {
-    return view('buyer.home');
-})->name('buyer.home');
+Route::get('/home', [ProductController::class, 'home'])
+    ->name('buyer.home');
 
 
 // =====================================================
 // BUYER SHOP
 // =====================================================
 
-Route::get('/shop', function () use ($products) {
-
-    return view('buyer.shop', [
-        'products' => $products,
-    ]);
-
-})->name('buyer.shop');
+Route::get('/shop', [ProductController::class, 'shop'])
+    ->name('buyer.shop');
 
 
 // =====================================================
 // PRODUCT DETAILS
 // =====================================================
 
-Route::get('/product/{slug}', function ($slug) use ($products) {
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    return view('buyer.product-details', [
-        'product' => $products[$slug],
-        'slug' => $slug,
-    ]);
-
-})->name('buyer.product');
+Route::get('/product/{slug}', [ProductController::class, 'show'])
+    ->name('buyer.product');
 
 
 // =====================================================
@@ -371,7 +399,8 @@ $requireBuyer = function () {
 
     if (
         $user->role !== 'buyer' ||
-        $user->status !== 'active'
+        $user->status !== 'active' ||
+        $user->is_suspended
     ) {
         auth()->logout();
 
@@ -486,7 +515,9 @@ Route::get('/cart', function () use ($requireBuyer) {
 // ADD TO CART
 // =====================================================
 
-Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($products, $requireBuyer) {
+Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -524,6 +555,7 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
 
         $cartItem->update([
             'quantity' => $newQuantity,
+            'product_variant_id' => $product['variant_id'] ?? $cartItem->product_variant_id,
         ]);
 
     } else {
@@ -535,6 +567,7 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
             'price' => $product['price'],
             'image' => $product['image'] ?? null,
             'quantity' => $requestedQuantity,
+            'product_variant_id' => $product['variant_id'] ?? null,
         ]);
     }
 
@@ -551,7 +584,9 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($product
 // INCREASE CART QUANTITY
 // =====================================================
 
-Route::post('/cart/increase/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/cart/increase/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -648,7 +683,9 @@ Route::post('/cart/remove/{slug}', function ($slug) use ($requireBuyer) {
 // UPDATE CART QUANTITY
 // =====================================================
 
-Route::post('/cart/update/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/cart/update/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -749,7 +786,9 @@ Route::get('/wishlist', function () use ($requireBuyer) {
 // ADD TO WISHLIST
 // =====================================================
 
-Route::post('/wishlist/add/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/wishlist/add/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -819,7 +858,9 @@ Route::post('/wishlist/remove/{slug}', function ($slug) use ($requireBuyer) {
 // TOGGLE WISHLIST
 // =====================================================
 
-Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/wishlist/toggle/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -870,7 +911,9 @@ Route::post('/wishlist/toggle/{slug}', function ($slug) use ($products, $require
 // MOVE WISHLIST ITEM TO CART
 // =====================================================
 
-Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $requireBuyer) {
+Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+
+    $products = $resolveProductCatalog();
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -913,6 +956,10 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $r
             $cartItem->increment('quantity');
         }
 
+        if (! $cartItem->product_variant_id && isset($product['variant_id'])) {
+            $cartItem->update(['product_variant_id' => $product['variant_id']]);
+        }
+
     } else {
 
         // Wala pa sa cart, gumawa ng bagong cart item.
@@ -923,6 +970,7 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($products, $r
             'price' => $wishlistItem->price,
             'image' => $wishlistItem->image,
             'quantity' => 1,
+            'product_variant_id' => $product['variant_id'] ?? null,
         ]);
     }
 
@@ -966,6 +1014,15 @@ $orderToViewArray = function (Order $order): array {
 
     return [
         'id' => $order->order_number,
+
+        'seller_orders' => $order->sellerOrders
+            ->map(fn ($sellerOrder) => [
+                'seller_order_id' => $sellerOrder->id,
+                'seller_name' => $sellerOrder->seller?->name ?? 'Seller',
+                'status' => strtolower($sellerOrder->workflow_status->value),
+            ])
+            ->values()
+            ->all(),
 
         'items' => $items,
 
@@ -1336,7 +1393,7 @@ Route::get('/checkout', function () use ($requireBuyer) {
 // =====================================================
 
 Route::post(
-    '/checkout/place-order',
+    '/checkout/place-order-legacy',
     function (
         Request $request
     ) use (
@@ -1790,8 +1847,12 @@ Route::post(
 
     }
 )->name(
-    'buyer.checkout.place-order'
+    'buyer.checkout.place-order.legacy'
 );
+
+Route::post('/checkout/place-order', [CheckoutController::class, 'store'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.checkout.place-order');
 
 
 // =====================================================
@@ -1813,7 +1874,7 @@ Route::get(
 
 
         $order =
-            Order::with('items')
+            Order::with(['items', 'sellerOrders.seller'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -1872,7 +1933,7 @@ Route::get(
 
 
         $databaseOrders =
-            Order::with('items')
+            Order::with(['items', 'sellerOrders.seller'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -1933,7 +1994,7 @@ Route::get(
 
 
         $order =
-            Order::with('items')
+            Order::with(['items', 'sellerOrders.seller'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -2217,6 +2278,26 @@ Route::post(
                 $request->status
             );
 
+        $user = auth()->user();
+        $allowedTransition = false;
+
+        if ($user->hasRole('buyer')) {
+            abort_unless((int) $order->buyer_id === (int) $user->id, 403);
+            $allowedTransition = $currentStatus === 'delivered' && $newStatus === 'completed';
+        } elseif ($user->hasRole('seller')) {
+            abort_unless((int) $order->seller_id === (int) $user->id, 403);
+            $sellerTransitions = [
+                'placed' => 'confirmed',
+                'confirmed' => 'preparing',
+                'preparing' => 'ready_for_pickup',
+            ];
+            $allowedTransition = ($sellerTransitions[$currentStatus] ?? null) === $newStatus;
+        } else {
+            abort(403, 'This role cannot update orders through this endpoint.');
+        }
+
+        abort_unless($allowedTransition, 422, 'Invalid order status transition for this account.');
+
 
         $timestampFields = [
 
@@ -2257,6 +2338,35 @@ Route::post(
                 'returned_at',
         ];
 
+        // Database-backed orders must complete through the centralized ERP
+        // workflow so every seller order, shipment, and the parent order stay
+        // synchronized. Keep the direct parent update below for legacy orders
+        // that do not have seller-order fulfillment records.
+        if (
+            $user->hasRole('buyer') &&
+            $newStatus === 'completed' &&
+            $order->sellerOrders()->exists()
+        ) {
+            DB::transaction(function () use ($order, $user) {
+                $sellerOrders = $order->sellerOrders()
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($sellerOrders as $sellerOrder) {
+                    app(\App\Services\OrderWorkflowService::class)->transition(
+                        $sellerOrder,
+                        $user,
+                        \App\Enums\OrderStatus::Completed
+                    );
+                }
+            });
+
+            return back()->with(
+                'success',
+                'Order status updated successfully.'
+            );
+        }
+
 
         $updates = [
 
@@ -2296,7 +2406,8 @@ Route::post(
             );
 
     }
-)->name(
+)->middleware(['auth', 'not_suspended', 'approved'])
+->name(
     'order.status.update'
 );
 
@@ -2311,8 +2422,10 @@ Route::post(
         $orderNumber
     ) use (
         $requireBuyer,
-        $products
+        $resolveProductCatalog
     ) {
+
+        $products = $resolveProductCatalog();
 
         if ($redirect = $requireBuyer()) {
             return $redirect;
@@ -2404,6 +2517,10 @@ Route::post(
 
                     'quantity' =>
                         $newQuantity,
+
+                    'product_variant_id' =>
+                        $products[$item->product_slug]['variant_id']
+                        ?? $cartItem->product_variant_id,
                 ]);
 
 
@@ -2432,6 +2549,10 @@ Route::post(
                             $item->quantity,
                             $maxStock
                         ),
+
+                    'product_variant_id' =>
+                        $products[$item->product_slug]['variant_id']
+                        ?? null,
                 ]);
             }
         }
@@ -2490,11 +2611,19 @@ Route::post('/my-account/profile', function (
         return $redirect;
     }
 
-    $request->validate([
+    $validated = $request->validate([
         'first_name' => 'required|string|max:100',
         'last_name' => 'required|string|max:100',
-        'email' => 'required|email|max:255',
-        'phone' => 'required|string|max:30',
+        'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore(auth()->id())],
+        'phone' => ['required', 'string', 'max:30', Rule::unique('users')->ignore(auth()->id())],
+    ]);
+
+    auth()->user()->update([
+        'first_name' => $validated['first_name'],
+        'last_name' => $validated['last_name'],
+        'name' => trim($validated['first_name'].' '.$validated['last_name']),
+        'email' => $validated['email'],
+        'phone' => $validated['phone'],
     ]);
 
     session()->put('buyer_profile', [
@@ -2527,9 +2656,17 @@ Route::post('/my-account/password', function (
     }
 
     $request->validate([
-        'current_password' => 'required|string',
+        'current_password' => 'required|string|current_password',
         'password' => 'required|string|min:8|confirmed',
     ]);
+
+    if (Hash::check($request->password, auth()->user()->password)) {
+        return back()->withErrors([
+            'password' => 'The new password must be different from your current password.',
+        ]);
+    }
+
+    auth()->user()->update(['password' => $request->password]);
 
     return redirect()
         ->route('buyer.account')
@@ -2732,7 +2869,7 @@ Route::post('/my-account/addresses/{address}/delete', function (
 
 $requireSeller = function () {
 
-    if (!session('seller_logged_in')) {
+    if (!auth()->check()) {
 
         $intendedUrl = request()->isMethod('GET')
             ? request()->fullUrl()
@@ -2745,11 +2882,17 @@ $requireSeller = function () {
         session()->put('url.intended', $intendedUrl);
 
         return redirect()
-            ->route('seller.register')
+            ->route('login')
             ->with(
                 'error',
-                'Please register or log in as a seller to continue.'
+                'Please log in as an approved seller to continue.'
             );
+    }
+
+    $user = auth()->user();
+
+    if (! $user->hasRole('seller') || $user->status !== 'active' || $user->is_suspended) {
+        abort(403, 'This account does not have approved Seller portal access.');
     }
 
     return null;
@@ -2759,7 +2902,7 @@ $requireSeller = function () {
 // SELLER ORDERS
 // =====================================================
 
-Route::get('/seller/orders', function () {
+Route::get('/seller/orders-legacy', function () {
 
     $orders = session('orders', []);
 
@@ -2769,7 +2912,16 @@ Route::get('/seller/orders', function () {
         'orders' => $orders,
     ]);
 
-})->name('seller.orders');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.orders.legacy');
+
+Route::get('/seller/orders', [SellerFulfillmentController::class, 'orders'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.orders');
+
+Route::post('/seller/orders/{sellerOrder}/status', [SellerFulfillmentController::class, 'update'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.orders.status');
 
 
 // =====================================================
@@ -2785,7 +2937,7 @@ Route::get('/seller/register', function () {
 
 Route::post('/seller/register', function (Request $request) {
 
-    $request->validate([
+    $validated = $request->validate([
 
     'first_name' => 'required|string|max:100',
 
@@ -2795,11 +2947,11 @@ Route::post('/seller/register', function (Request $request) {
 
     'sex' => 'required|string',
 
-    'birthday' => 'required|date',
+    'birthday' => 'required|date|before:today',
 
-    'phone' => 'required|string|max:30',
+    'phone' => 'required|string|max:30|unique:users,phone',
 
-    'email' => 'required|email|max:255',
+    'email' => 'required|email|max:255|unique:users,email',
 
 
     'province' => 'required|string|max:100',
@@ -2823,7 +2975,7 @@ Route::post('/seller/register', function (Request $request) {
 
     'password' => 'required|string|min:8|confirmed',
 
-    'terms' => 'required',
+    'terms' => 'accepted',
 
 ]);
 
@@ -2831,48 +2983,79 @@ Route::post('/seller/register', function (Request $request) {
 
 $validIdPath = $request
     ->file('valid_id')
-    ->store('seller-documents', 'public');
+    ->store('application-documents/sellers');
 
 
 $permitPath = $request
     ->file('business_permit')
-    ->store('seller-documents', 'public');
+    ->store('application-documents/sellers');
 
 
 
 
-    session()->put('seller_profile', [
-    'shop_name' => $request->business_name,
+    DB::transaction(function () use ($validated, $validIdPath, $permitPath) {
+        $fullName = trim($validated['first_name'].' '.($validated['middle_initial'] ?? '').' '.$validated['last_name']);
 
-    'business_category' => $request->business_category,
+        $user = User::create([
+            'role' => 'seller',
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'middle_initial' => $validated['middle_initial'] ?? null,
+            'sex' => $validated['sex'],
+            'birthday' => $validated['birthday'],
+            'name' => $fullName,
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'status' => 'pending',
+            'password' => $validated['password'],
+        ]);
 
-    'seller_name' => $request->first_name . ' ' . $request->last_name,
+        $role = Role::firstOrCreate(['name' => 'seller']);
+        $user->roles()->syncWithoutDetaching([$role->id]);
 
-    'phone' => $request->phone,
+        $address = $user->addresses()->create([
+            'label' => 'Business',
+            'recipient' => $fullName,
+            'phone' => $validated['phone'],
+            'line1' => $validated['address'],
+            'barangay' => $validated['barangay'],
+            'city' => $validated['municipality'],
+            'province' => $validated['province'],
+            'is_default' => true,
+        ]);
 
-    'email' => $request->email,
+        Seller::create([
+            'user_id' => $user->id,
+            'name' => $validated['business_name'],
+            'slug' => Str::slug($validated['business_name']).'-'.$user->id,
+            'business_category' => $validated['business_category'],
+            'status' => 'pending',
+            'commission_bps' => 1000,
+            'pickup_address_id' => $address->id,
+            'valid_id_path' => $validIdPath,
+            'business_permit_path' => $permitPath,
+        ]);
 
-    'province' => $request->province,
-    'municipality' => $request->municipality,
-    'barangay' => $request->barangay,
-    'address' => $request->address,
-
-    'valid_id' => $validIdPath,
-    'business_permit' => $permitPath,
-
-    'password_hash' => Hash::make($request->password),
-
-    'status' => 'approved',
-    'created_at' => now()->format('Y-m-d H:i:s'),
-]);
-
-    session()->put('seller_logged_in', true);
+        Application::create([
+            'user_id' => $user->id,
+            'application_type' => 'seller',
+            'status' => 'pending',
+            'application_data' => [
+                'business_name' => $validated['business_name'],
+                'business_category' => $validated['business_category'],
+            ],
+            'documents' => [
+                'valid_id' => $validIdPath,
+                'business_permit' => $permitPath,
+            ],
+        ]);
+    });
 
     return redirect()
-        ->route('seller.dashboard')
+        ->route('login')
         ->with(
             'success',
-            'Your SUKI SHOP Seller account has been created successfully!'
+            'Your seller application has been submitted. Please wait for administrator approval.'
         );
 
 })->name('seller.register.submit');
@@ -2882,7 +3065,7 @@ $permitPath = $request
 // SELLER DASHBOARD
 // =====================================================
 
-Route::get('/seller', function () use ($requireSeller) {
+Route::get('/seller-legacy', function () use ($requireSeller) {
 
     if ($redirect = $requireSeller()) {
         return $redirect;
@@ -2890,7 +3073,11 @@ Route::get('/seller', function () use ($requireSeller) {
 
     return view('seller.dashboard');
 
-})->name('seller.dashboard');
+})->name('seller.dashboard.legacy');
+
+Route::get('/seller', [SellerFulfillmentController::class, 'dashboard'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.dashboard');
 
 
 // =====================================================
@@ -3007,27 +3194,12 @@ Route::post('/seller/store-profile/password', function (
     }
 
     $request->validate([
-        'current_password' => 'required|string',
+        'current_password' => 'required|string|current_password',
         'password' => 'required|string|min:8|confirmed',
     ]);
 
-    $profile = session('seller_profile', []);
-
-    $currentPasswordHash = $profile['password_hash'] ?? null;
-
     if (
-        ! $currentPasswordHash ||
-        ! Hash::check($request->current_password, $currentPasswordHash)
-    ) {
-        return back()
-            ->withErrors([
-                'current_password' => 'The current password is incorrect.',
-            ])
-            ->withInput();
-    }
-
-    if (
-        Hash::check($request->password, $currentPasswordHash)
+        Hash::check($request->password, auth()->user()->password)
     ) {
         return back()
             ->withErrors([
@@ -3036,9 +3208,7 @@ Route::post('/seller/store-profile/password', function (
             ->withInput();
     }
 
-    $profile['password_hash'] = Hash::make($request->password);
-
-    session()->put('seller_profile', $profile);
+    auth()->user()->update(['password' => $request->password]);
 
     return redirect(route('seller.store.profile') . '#security')
         ->with('success', 'Password updated successfully.');
@@ -3050,201 +3220,50 @@ Route::post('/seller/store-profile/password', function (
 // SELLER PRODUCTS
 // =====================================================
 
-Route::get('/seller/products', function () use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $products = session()->get('seller_products', []);
-
-    return view('seller.products', [
-        'products' => $products,
-    ]);
-
-})->name('seller.products');
+Route::get('/seller/products', [SellerProductController::class, 'index'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products');
 
 
 // =====================================================
 // SELLER ADD PRODUCT
 // =====================================================
 
-Route::get('/seller/products/create', function () {
-
-    return view('seller.products-create');
-
-})->name('seller.products.create');
+Route::get('/seller/products/create', [SellerProductController::class, 'create'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products.create');
 
 
 // =====================================================
 // SELLER STORE PRODUCT
 // =====================================================
 
-Route::post('/seller/products', function (
-    Request $request
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $request->validate([
-        'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
-        'description' => 'required|string|max:3000',
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
-        'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
-    ]);
-
-    $products = session()->get('seller_products', []);
-
-    $productId = 'P' . str_pad(
-        count($products) + 1,
-        4,
-        '0',
-        STR_PAD_LEFT
-    );
-
-    $products[$productId] = [
-        'id' => $productId,
-        'name' => $request->name,
-        'category' => $request->category,
-        'brand' => $request->brand,
-        'description' => $request->description,
-
-        'price' => (float) $request->price,
-        'stock' => (int) $request->stock,
-
-        'sku' => $request->sku,
-        'status' => $request->status,
-
-        'weight' => $request->weight,
-        'length' => $request->length,
-        'width' => $request->width,
-        'height' => $request->height,
-
-        'variation_names' => $request->variation_name ?? [],
-        'variation_values' => $request->variation_value ?? [],
-
-        'shipping_options' => $request->shipping_options ?? [],
-
-        'sold' => 0,
-
-        'created_at' => now()->format('Y-m-d H:i:s'),
-        'updated_at' => now()->format('Y-m-d H:i:s'),
-    ];
-
-    session()->put('seller_products', $products);
-
-    return redirect()
-        ->route('seller.products')
-        ->with(
-            'success',
-            'Product added successfully.'
-        );
-
-})->name('seller.products.store');
+Route::post('/seller/products', [SellerProductController::class, 'store'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products.store');
 
 // =====================================================
 // SELLER EDIT PRODUCT
 // =====================================================
 
-Route::get('/seller/products/{product}/edit', function (
-    $productId
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    return view('seller.products-edit', [
-        'product' => $products[$productId],
-    ]);
-
-})->name('seller.products.edit');
+Route::get('/seller/products/{product}/edit', [SellerProductController::class, 'edit'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products.edit');
 
 // =====================================================
 // SELLER UPDATE PRODUCT
 // =====================================================
 
-Route::put('/seller/products/{product}', function (
-    Request $request,
-    $productId
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $request->validate([
-        'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
-        'description' => 'required|string|max:3000',
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
-        'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
-    ]);
-
-    $products[$productId] = array_merge(
-        $products[$productId],
-        [
-            'name' => $request->name,
-            'category' => $request->category,
-            'brand' => $request->brand,
-            'description' => $request->description,
-
-            'price' => (float) $request->price,
-            'stock' => (int) $request->stock,
-
-            'sku' => $request->sku,
-            'status' => $request->status,
-
-            'weight' => $request->weight,
-            'length' => $request->length,
-            'width' => $request->width,
-            'height' => $request->height,
-
-            'variation_names' => $request->variation_name ?? [],
-            'variation_values' => $request->variation_value ?? [],
-
-            'shipping_options' => $request->shipping_options ?? [],
-
-            'updated_at' => now()->format('Y-m-d H:i:s'),
-        ]
-    );
-
-    session()->put('seller_products', $products);
-
-    return redirect()
-        ->route('seller.products')
-        ->with(
-            'success',
-            'Product updated successfully.'
-        );
-
-})->name('seller.products.update');
+Route::put('/seller/products/{product}', [SellerProductController::class, 'update'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.products.update');
 
 
 // =====================================================
 // SELLER INVENTORY
 // =====================================================
 
-Route::get('/seller/inventory', function () use ($requireSeller) {
+Route::get('/seller/inventory-legacy', function () use ($requireSeller) {
 
     if ($redirect = $requireSeller()) {
         return $redirect;
@@ -3256,71 +3275,21 @@ Route::get('/seller/inventory', function () use ($requireSeller) {
         'products' => $products,
     ]);
 
-})->name('seller.inventory');
+})->name('seller.inventory.legacy');
+
+Route::get('/seller/inventory', [SellerFulfillmentController::class, 'inventory'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.inventory');
 
 
-Route::post('/seller/inventory/{product}/increase', function (
-    $productId
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $products[$productId]['stock'] =
-        (int) ($products[$productId]['stock'] ?? 0) + 1;
-
-    $products[$productId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    session()->put('seller_products', $products);
-
-    return back()->with(
-        'success',
-        'Product stock increased successfully.'
-    );
-
-})->name('seller.inventory.increase');
+Route::post('/seller/inventory/{variant}/increase', [SellerInventoryController::class, 'increase'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.inventory.increase');
 
 
-Route::post('/seller/inventory/{product}/decrease', function (
-    $productId
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $currentStock =
-        (int) ($products[$productId]['stock'] ?? 0);
-
-    if ($currentStock > 0) {
-        $products[$productId]['stock'] = $currentStock - 1;
-    }
-
-    $products[$productId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    session()->put('seller_products', $products);
-
-    return back()->with(
-        'success',
-        'Product stock updated successfully.'
-    );
-
-})->name('seller.inventory.decrease');
+Route::post('/seller/inventory/{variant}/decrease', [SellerInventoryController::class, 'decrease'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.inventory.decrease');
 
 
 // =====================================================
@@ -3446,7 +3415,8 @@ Route::get('/seller/reports', function () {
 
     return view('seller.reports');
 
-})->name('seller.reports');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.reports');
 
 
 // =====================================================
@@ -3470,8 +3440,8 @@ Route::post('/rider/apply', function (Request $request) {
 
         'first_name' => 'required|string|max:100',
         'last_name' => 'required|string|max:100',
-        'phone' => 'required|string|max:30',
-        'email' => 'required|email|max:255',
+        'phone' => 'required|string|max:30|unique:users,phone',
+        'email' => 'required|email|max:255|unique:users,email',
         'address' => 'required|string|max:1000',
 
         'vehicle_type' => 'required|in:Motorcycle,E-bike,Bicycle',
@@ -3507,7 +3477,7 @@ Route::post('/rider/apply', function (Request $request) {
 
         $governmentIdPath = $request
             ->file('government_id')
-            ->store('rider-documents/government-ids', 'public');
+            ->store('application-documents/riders/government-ids');
 
     }
 
@@ -3516,7 +3486,7 @@ Route::post('/rider/apply', function (Request $request) {
 
         $driversLicensePath = $request
             ->file('drivers_license')
-            ->store('rider-documents/drivers-licenses', 'public');
+            ->store('application-documents/riders/drivers-licenses');
 
     }
 
@@ -3525,82 +3495,50 @@ Route::post('/rider/apply', function (Request $request) {
 
         $vehicleDocumentPath = $request
             ->file('vehicle_document')
-            ->store('rider-documents/vehicle-documents', 'public');
+            ->store('application-documents/riders/vehicle-documents');
 
     }
 
 
-    // =====================================================
-    // GET EXISTING RIDER APPLICATIONS
-    // =====================================================
+    DB::transaction(function () use (
+        $validated,
+        $governmentIdPath,
+        $driversLicensePath,
+        $vehicleDocumentPath
+    ) {
+        $fullName = trim($validated['first_name'].' '.$validated['last_name']);
 
-    $riderApplications = session('rider_applications', []);
+        $user = User::create([
+            'role' => 'rider',
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'name' => $fullName,
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'status' => 'pending',
+            'password' => $validated['password'],
+        ]);
 
+        $role = Role::firstOrCreate(['name' => 'rider']);
+        $user->roles()->syncWithoutDetaching([$role->id]);
 
-    if (!is_array($riderApplications)) {
-
-        $riderApplications = [];
-
-    }
-
-
-    // =====================================================
-    // CREATE NEW RIDER APPLICATION
-    // =====================================================
-
-    $newRider = [
-
-        'first_name' => $validated['first_name'],
-
-        'last_name' => $validated['last_name'],
-
-        'phone' => $validated['phone'],
-
-        'email' => $validated['email'],
-
-        'address' => $validated['address'],
-
-        'vehicle_type' => $validated['vehicle_type'],
-
-        'plate_number' => $validated['plate_number'] ?? '',
-
-        'license_number' => $validated['license_number'],
-
-        // Login password
-        'password' => $validated['password'],
-
-
-        // =====================================================
-        // DOCUMENT PATHS
-        // =====================================================
-
-        'government_id' => $governmentIdPath,
-
-        'drivers_license' => $driversLicensePath,
-
-        'vehicle_document' => $vehicleDocumentPath,
-
-
-        // =====================================================
-        // APPLICATION STATUS
-        // =====================================================
-
-        'status' => 'pending',
-
-        'created_at' => now()->format('Y-m-d H:i:s'),
-
-    ];
-
-
-    // Add rider to applications list
-    $riderApplications[] = $newRider;
-
-
-    // Save ALL rider applications
-    session()->put(
-        'rider_applications',
-        $riderApplications
-    );
+        Application::create([
+            'user_id' => $user->id,
+            'application_type' => 'courier',
+            'status' => 'pending',
+            'application_data' => [
+                'address' => $validated['address'],
+                'vehicle_type' => $validated['vehicle_type'],
+                'plate_number' => $validated['plate_number'] ?? null,
+                'license_number' => $validated['license_number'],
+            ],
+            'documents' => [
+                'government_id' => $governmentIdPath,
+                'drivers_license' => $driversLicensePath,
+                'vehicle_document' => $vehicleDocumentPath,
+            ],
+        ]);
+    });
 
 
     return redirect()
@@ -3622,118 +3560,247 @@ Route::get('/rider/application-pending', function () {
 
 })->name('rider.application.pending');
 
+Route::get('/logistics/register', function () {
+    return view('logistics.register');
+})->name('logistics.register');
+
+Route::post('/logistics/register', function (Request $request) {
+    $validated = $request->validate([
+        'first_name' => 'required|string|max:100',
+        'last_name' => 'required|string|max:100',
+        'middle_initial' => 'nullable|string|max:5',
+        'sex' => 'required|string|max:20',
+        'birthday' => 'required|date|before:today',
+        'email' => 'required|email|max:255|unique:users,email',
+        'phone' => 'required|string|max:30|unique:users,phone',
+        'business_name' => 'required|string|max:150',
+        'address' => 'required|string|max:1000',
+        'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        'password' => 'required|string|min:8|confirmed',
+        'terms' => 'accepted',
+    ]);
+
+    $governmentIdPath = $request->file('government_id')
+        ->store('application-documents/logistics/government-ids');
+    $permitPath = $request->file('business_permit')
+        ->store('application-documents/logistics/business-permits');
+
+    DB::transaction(function () use ($validated, $governmentIdPath, $permitPath) {
+        $fullName = trim($validated['first_name'].' '.($validated['middle_initial'] ?? '').' '.$validated['last_name']);
+
+        $user = User::create([
+            'role' => 'logistics',
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'middle_initial' => $validated['middle_initial'] ?? null,
+            'sex' => $validated['sex'],
+            'birthday' => $validated['birthday'],
+            'name' => $fullName,
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'status' => 'pending',
+            'password' => $validated['password'],
+        ]);
+
+        $role = Role::firstOrCreate(['name' => 'logistics']);
+        $user->roles()->syncWithoutDetaching([$role->id]);
+
+        LogisticsProvider::create([
+            'user_id' => $user->id,
+            'name' => $validated['business_name'],
+            'slug' => Str::slug($validated['business_name']).'-'.$user->id,
+            'status' => 'pending',
+            'contact_phone' => $validated['phone'],
+            'address' => $validated['address'],
+            'government_id_path' => $governmentIdPath,
+            'business_permit_path' => $permitPath,
+        ]);
+
+        Application::create([
+            'user_id' => $user->id,
+            'application_type' => 'logistics',
+            'status' => 'pending',
+            'application_data' => [
+                'business_name' => $validated['business_name'],
+                'address' => $validated['address'],
+            ],
+            'documents' => [
+                'government_id' => $governmentIdPath,
+                'business_permit' => $permitPath,
+            ],
+        ]);
+    });
+
+    return redirect()->route('login')->with(
+        'success',
+        'Your logistics application has been submitted. Please wait for administrator approval.'
+    );
+})->name('logistics.register.submit');
+
+Route::get('/logistics/login', function () {
+    return redirect()->route('login');
+})->name('logistics.login');
+
+$requireLogistics = function () {
+    if (! auth()->check()) {
+        return redirect()->route('login')->with('error', 'Please log in as Logistics.');
+    }
+
+    $user = auth()->user();
+
+    if (! $user->hasRole('logistics') || $user->status !== 'active' || $user->is_suspended) {
+        abort(403, 'This account does not have approved Logistics portal access.');
+    }
+
+    return null;
+};
+
 // =====================================================
 // RIDER MANAGEMENT
 // =====================================================
 
-Route::get('/logistics/riders', function () {
+Route::get('/logistics/riders', function () use ($requireLogistics) {
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
+    }
 
-    $riders = session('rider_applications', []);
+    $applications = Application::with('user')
+        ->where('application_type', 'courier')
+        ->latest()
+        ->get()
+        ->mapWithKeys(function (Application $application) {
+            $data = $application->application_data ?? [];
+
+            return [$application->id => array_merge($data, [
+                'first_name' => $application->user->first_name,
+                'last_name' => $application->user->last_name,
+                'phone' => $application->user->phone,
+                'email' => $application->user->email,
+                'status' => $application->status,
+                'documents' => $application->documents ?? [],
+                'created_at' => optional($application->created_at)->format('Y-m-d H:i:s'),
+            ])];
+        })
+        ->all();
 
     return view('logistics.riders', [
-        'riders' => $riders,
+        'applications' => $applications,
+        'riders' => $applications,
     ]);
-
-})->name('logistics.riders');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders');
 
 // =====================================================
 // RIDER REVIEW
 // =====================================================
 
-Route::get('/logistics/riders/{rider}/review', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return redirect()
-            ->route('logistics.riders')
-            ->with('error', 'Rider application not found.');
+Route::get('/logistics/riders/{rider}/review', function ($riderId) use ($requireLogistics) {
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
     }
 
-    return view('logistics.rider-review', [
-        'rider' => $riders[$riderId],
-        'riderId' => $riderId,
+    $application = Application::with('user')
+        ->where('application_type', 'courier')
+        ->findOrFail($riderId);
+    $rider = array_merge($application->application_data ?? [], [
+        'first_name' => $application->user->first_name,
+        'last_name' => $application->user->last_name,
+        'phone' => $application->user->phone,
+        'email' => $application->user->email,
+        'status' => $application->status,
+        'documents' => $application->documents ?? [],
     ]);
 
-})->name('logistics.riders.review');
+    return view('logistics.rider-review', compact('rider', 'riderId'));
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.review');
 
 // =====================================================
 // APPROVE RIDER
 // =====================================================
 
-Route::post('/logistics/riders/{riderId}/approve', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return back()
-            ->with('error', 'Rider application not found.');
+Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($requireLogistics) {
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
     }
 
-    // Update status
-    $riders[$riderId]['status'] = 'approved';
+    $application = Application::with('user')
+        ->where('application_type', 'courier')
+        ->where('status', 'pending')
+        ->findOrFail($riderId);
+    $provider = auth()->user()->logisticsProvider;
 
-    // Save approval date
-    $riders[$riderId]['approved_at'] =
-        now()->format('Y-m-d H:i:s');
+    abort_unless($provider && $provider->status === 'approved', 403, 'An approved logistics provider is required.');
 
-    $riders[$riderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
+    DB::transaction(function () use ($application, $provider) {
+        $data = $application->application_data ?? [];
+        $documents = $application->documents ?? [];
 
-
-    // Save back to session
-    session()->put('rider_applications', $riders);
-
-
-    return redirect()
-        ->route('logistics.riders')
-        ->with(
-            'success',
-            'Rider application approved successfully!'
+        Rider::updateOrCreate(
+            ['user_id' => $application->user_id],
+            [
+                'logistics_provider_id' => $provider->id,
+                'vehicle_type' => $data['vehicle_type'] ?? 'Unspecified',
+                'plate_no' => $data['plate_number'] ?? 'N/A',
+                'license_number' => $data['license_number'] ?? null,
+                'government_id_path' => $documents['government_id'] ?? null,
+                'drivers_license_path' => $documents['drivers_license'] ?? null,
+                'vehicle_document_path' => $documents['vehicle_document'] ?? null,
+                'is_active' => true,
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]
         );
 
-})->name('logistics.riders.approve');
+        $application->user->update(['status' => 'active']);
+        $application->update([
+            'status' => 'approved',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'rejection_reason' => null,
+        ]);
+    });
+
+    $application->user->notify(new \App\Notifications\ApplicationDecisionNotification($application->fresh()));
+
+    return redirect()->route('logistics.riders')->with('success', 'Rider application approved successfully!');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.approve');
 
 
 // =====================================================
 // DISAPPROVE RIDER
 // =====================================================
 
-Route::post('/logistics/riders/{riderId}/disapprove', function ($riderId) {
-
-    $riders = session('rider_applications', []);
-
-    if (!isset($riders[$riderId])) {
-
-        return back()
-            ->with('error', 'Rider application not found.');
+Route::post('/logistics/riders/{riderId}/disapprove', function (Request $request, $riderId) use ($requireLogistics) {
+    if ($redirect = $requireLogistics()) {
+        return $redirect;
     }
 
-    // Update status
-    $riders[$riderId]['status'] = 'disapproved';
+    $validated = $request->validate([
+        'rejection_reason' => 'nullable|string|max:500',
+    ]);
+    $application = Application::with('user')
+        ->where('application_type', 'courier')
+        ->where('status', 'pending')
+        ->findOrFail($riderId);
 
-    // Save disapproval date
-    $riders[$riderId]['disapproved_at'] =
-        now()->format('Y-m-d H:i:s');
+    DB::transaction(function () use ($application, $validated) {
+        $application->user->update(['status' => 'rejected']);
+        $application->update([
+            'status' => 'rejected',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'rejection_reason' => $validated['rejection_reason'] ?? 'Application requirements were not approved.',
+        ]);
+    });
 
-    $riders[$riderId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
+    $application->user->notify(new \App\Notifications\ApplicationDecisionNotification($application->fresh()));
 
-
-    // Save back to session
-    session()->put('rider_applications', $riders);
-
-
-    return redirect()
-        ->route('logistics.riders')
-        ->with(
-            'success',
-            'Rider application has been disapproved.'
-        );
-
-})->name('logistics.riders.disapprove');
+    return redirect()->route('logistics.riders')->with('success', 'Rider application has been rejected.');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.disapprove');
 
 // =====================================================
 // RIDER LOGIN PAGE
@@ -3751,110 +3818,43 @@ Route::get('/rider/login', function () {
 // =====================================================
 
 Route::post('/rider/login', function (Request $request) {
-
-    $request->validate([
+    $validated = $request->validate([
         'login' => 'required|string',
         'password' => 'required|string',
     ]);
 
-    // Get all rider applications
-    $riders = session('rider_applications', []);
+    $loginField = filter_var($validated['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+    $authenticated = auth()->attempt([
+        $loginField => $validated['login'],
+        'password' => $validated['password'],
+        'role' => 'rider',
+        'status' => 'active',
+    ]);
 
+    if (! $authenticated || auth()->user()->is_suspended || ! auth()->user()->rider?->is_active) {
+        auth()->logout();
 
-    // Make sure we have an array of riders
-    if (empty($riders)) {
-
-        return back()
-            ->withInput()
-            ->with(
-                'error',
-                'No rider account found. Please apply as a SUKI Rider first.'
-            );
+        return back()->withInput()->with('error', 'Invalid credentials or the rider account is not approved and active.');
     }
 
-
-    // Find rider using email OR phone number
-    $riderIndex = null;
-    $rider = null;
-
-
-    foreach ($riders as $index => $application) {
-
-        if (
-
-            $request->login === ($application['email'] ?? '') ||
-
-            $request->login === ($application['phone'] ?? '')
-
-        ) {
-
-            $riderIndex = $index;
-            $rider = $application;
-
-            break;
-
-        }
-
-    }
-
-
-    // Rider not found
-    if (!$rider) {
-
-        return back()
-            ->withInput()
-            ->with(
-                'error',
-                'No rider account was found using that email or phone number.'
-            );
-
-    }
-
-
-    // Check password
-    if ($request->password !== ($rider['password'] ?? '')) {
-
-        return back()
-            ->withInput()
-            ->with(
-                'error',
-                'Invalid password.'
-            );
-
-    }
-
-
-    // IMPORTANT:
-    // Only approved riders can log in
-
-    if (($rider['status'] ?? 'pending') !== 'approved') {
-
-        return back()
-            ->withInput()
-            ->with(
-                'error',
-                'Your SUKI Rider application is still pending approval from the SUKI Logistics Center.'
-            );
-
-    }
-
-
-    // Save logged-in rider
+    $request->session()->regenerate();
+    $rider = auth()->user()->rider;
     session()->put('rider_logged_in', true);
+    session()->put('logged_in_rider_index', $rider->id);
+    session()->put('rider_applications.'.$rider->id, [
+        'first_name' => auth()->user()->first_name,
+        'last_name' => auth()->user()->last_name,
+        'phone' => auth()->user()->phone,
+        'email' => auth()->user()->email,
+        'vehicle_type' => $rider->vehicle_type,
+        'plate_number' => $rider->plate_no,
+        'status' => 'approved',
+    ]);
 
-    session()->put(
-        'logged_in_rider_index',
-        $riderIndex
+    return redirect()->route('rider.dashboard')->with(
+        'success',
+        'Welcome back, '.(auth()->user()->first_name ?? 'Rider').'!'
     );
-
-
-    // Redirect to Rider Dashboard
-    return redirect()
-        ->route('rider.dashboard')
-        ->with(
-            'success',
-            'Welcome back, ' . ($rider['first_name'] ?? 'Rider') . '!'
-        );
 
 })->name('rider.login.submit');
 
@@ -3930,7 +3930,8 @@ Route::get('/rider/dashboard', function () {
         'application' => $application,
     ]);
 
-})->name('rider.dashboard');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.dashboard');
 
 // =====================================================
 // RIDER DELIVERIES
@@ -3984,7 +3985,8 @@ Route::get('/rider/deliveries', function () {
         'orders' => $riderOrders,
     ]);
 
-})->name('rider.deliveries');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.deliveries');
 
 
 // =====================================================
@@ -4165,7 +4167,8 @@ Route::post(
         );
 
     }
-)->name('rider.pickup.accept');
+)->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.pickup.accept');
 
 
 // =====================================================
@@ -4304,7 +4307,8 @@ Route::get('/rider/earnings', function () {
         ]
     );
 
-})->name('rider.earnings');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.earnings');
 
 // =====================================================
 // RIDER DELIVERY HISTORY
@@ -4418,7 +4422,8 @@ Route::get('/rider/history', function () {
         ]
     );
 
-})->name('rider.history');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.history');
 
 // =====================================================
 // RIDER ORDER STATUS ACTIONS
@@ -4891,7 +4896,8 @@ Route::post(
         );
 
     }
-)->name('rider.order.status');
+)->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.order.status');
 
 // =====================================================
 // SUKI LOGISTICS DASHBOARD
@@ -4911,7 +4917,8 @@ Route::get('/logistics', function () {
             $application['partner'] ?? null,
     ]);
 
-})->name('logistics.dashboard');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.dashboard');
 
 // =====================================================
 // LOGISTICS PARCEL SORTING
@@ -4921,7 +4928,8 @@ Route::get('/logistics/sorting', function () {
 
     return view('logistics.sorting');
 
-})->name('logistics.sorting');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.sorting');
 
 
 // =====================================================
@@ -4932,7 +4940,8 @@ Route::get('/logistics/assignments', function () {
 
     return view('logistics.assignments');
 
-})->name('logistics.assignments');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.assignments');
 
 
 // =====================================================
@@ -4943,7 +4952,8 @@ Route::get('/logistics/monitoring', function () {
 
     return view('logistics.monitoring');
 
-})->name('logistics.monitoring');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.monitoring');
 
 
 // =====================================================
@@ -4954,7 +4964,8 @@ Route::get('/logistics/reports', function () {
 
     return view('logistics.reports');
 
-})->name('logistics.reports');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.reports');
 
 // =====================================================
 // LOGISTICS PARCELS
@@ -4968,7 +4979,8 @@ Route::get('/logistics/parcels', function () {
         'orders' => $orders,
     ]);
 
-})->name('logistics.parcels');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.parcels');
 
 
 // =====================================================
@@ -5006,7 +5018,8 @@ Route::get('/logistics/shipments', function () {
             $shipments,
     ]);
 
-})->name('logistics.shipments');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.shipments');
 
 
 // =====================================================
@@ -5189,11 +5202,135 @@ Route::post('/logistics/orders/{order}/status', function (
         'This order cannot be updated by Logistics at its current status.'
     );
 
-})->name('logistics.order.status');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.order.status');
+
+// Phase 2 database-backed fulfillment routes. The legacy session closures above
+// remain available as controller fallbacks when no database records exist.
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(function () {
+    Route::get('/rider/dashboard', [RiderFulfillmentController::class, 'dashboard'])->name('rider.dashboard');
+    Route::get('/rider/deliveries', [RiderFulfillmentController::class, 'deliveries'])->name('rider.deliveries');
+    Route::get('/rider/history', [RiderFulfillmentController::class, 'history'])->name('rider.history');
+    Route::post('/rider/erp-orders/{sellerOrder}/accept-pickup', [RiderFulfillmentController::class, 'accept'])
+        ->name('rider.database.pickup.accept');
+    Route::post('/rider/erp-orders/{sellerOrder}/status', [RiderFulfillmentController::class, 'update'])
+        ->name('rider.database.order.status');
+    Route::post('/rider/erp-orders/{sellerOrder}/failed-delivery', [RiderFulfillmentController::class, 'failed'])
+        ->name('rider.database.delivery.failed');
+    Route::post('/rider/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'riderShipment'])
+        ->middleware('throttle:20,1')
+        ->name('rider.messages.context.shipment.store');
+    Route::get('/rider/erp-orders/{sellerOrder}/complaints/create', [ParticipantComplaintController::class, 'createForSellerOrder'])
+        ->name('rider.complaints.create');
+    Route::post('/rider/erp-orders/{sellerOrder}/complaints', [ParticipantComplaintController::class, 'storeForSellerOrder'])
+        ->name('rider.complaints.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->group(function () {
+    Route::get('/logistics', [LogisticsFulfillmentController::class, 'dashboard'])->name('logistics.dashboard');
+    Route::get('/logistics/parcels', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.parcels');
+    Route::get('/logistics/sorting', [LogisticsFulfillmentController::class, 'sorting'])->name('logistics.sorting');
+    Route::get('/logistics/assignments', [LogisticsFulfillmentController::class, 'assignments'])->name('logistics.assignments');
+    Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
+    Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
+        ->name('logistics.database.orders.receive');
+    Route::post('/logistics/erp-orders/{sellerOrder}/status', [LogisticsFulfillmentController::class, 'update'])
+        ->name('logistics.database.order.status');
+    Route::post('/logistics/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'logisticsShipment'])
+        ->middleware('throttle:20,1')
+        ->name('logistics.messages.context.shipment.store');
+    Route::get('/logistics/erp-orders/{sellerOrder}/complaints/create', [ParticipantComplaintController::class, 'createForSellerOrder'])
+        ->name('logistics.complaints.create');
+    Route::post('/logistics/erp-orders/{sellerOrder}/complaints', [ParticipantComplaintController::class, 'storeForSellerOrder'])
+        ->name('logistics.complaints.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->group(function () {
+    Route::get('/my-orders/{order:order_number}/complaints/create', [ParticipantComplaintController::class, 'createForOrder'])
+        ->name('buyer.complaints.create');
+    Route::post('/my-orders/{order:order_number}/complaints', [ParticipantComplaintController::class, 'storeForOrder'])
+        ->name('buyer.complaints.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:seller'])->group(function () {
+    Route::get('/seller/orders/{sellerOrder}/complaints/create', [ParticipantComplaintController::class, 'createForSellerOrder'])
+        ->name('seller.complaints.create');
+    Route::post('/seller/orders/{sellerOrder}/complaints', [ParticipantComplaintController::class, 'storeForSellerOrder'])
+        ->name('seller.complaints.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer,seller,rider,logistics'])->group(function () {
+    Route::get('/complaints', [ParticipantComplaintController::class, 'index'])->name('complaints.mine.index');
+    Route::get('/complaints/{complaint}', [ParticipantComplaintController::class, 'show'])->name('complaints.mine.show');
+    Route::post('/complaints/{complaint}/evidence', [ComplaintEvidenceController::class, 'store'])->name('complaints.evidence.store');
+    Route::get('/complaints/{complaint}/evidence/{evidence}', [ComplaintEvidenceController::class, 'show'])->name('complaints.evidence.show');
+    Route::get('/complaints/{complaint}/evidence/{evidence}/download', [ComplaintEvidenceController::class, 'download'])->name('complaints.evidence.download');
+    Route::post('/complaints/{complaint}/conversation', [ContextConversationController::class, 'complaint'])
+        ->middleware('throttle:20,1')
+        ->name('complaints.messages.context.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->group(function () {
+    Route::post('/buyer/messages/context/products/{product}', [ContextConversationController::class, 'productInquiry'])
+        ->middleware('throttle:20,1')
+        ->name('buyer.messages.context.product.store');
+    Route::post('/buyer/messages/context/seller-orders/{sellerOrder}', [ContextConversationController::class, 'buyerSellerOrder'])
+        ->middleware('throttle:20,1')
+        ->name('buyer.messages.context.seller-order.store');
+});
+
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:seller'])->group(function () {
+    Route::post('/seller/messages/context/seller-orders/{sellerOrder}', [ContextConversationController::class, 'sellerOrder'])
+        ->middleware('throttle:20,1')
+        ->name('seller.messages.context.seller-order.store');
+});
+
+// Phase 3.4 database-backed messaging interface. Conversation creation entry
+// points remain intentionally separate for the next integration stage.
+$registerMessagingRoutes = function (
+    string $uriPrefix,
+    string $namePrefix,
+    string $role,
+    string $portal
+): void {
+    Route::prefix($uriPrefix)
+        ->name($namePrefix.'.messages.')
+        ->middleware(['auth', 'not_suspended', 'approved', 'role:'.$role])
+        ->group(function () use ($portal) {
+            Route::get('/messages', [MessagingConversationController::class, 'index'])
+                ->defaults('messaging_portal', $portal)
+                ->name('index');
+            Route::get('/messages/{conversation:reference}/poll', [MessagingMessageController::class, 'index'])
+                ->middleware('throttle:120,1')
+                ->defaults('messaging_portal', $portal)
+                ->name('poll');
+            Route::post('/messages/{conversation:reference}/send', [MessagingMessageController::class, 'store'])
+                ->middleware('throttle:30,1')
+                ->defaults('messaging_portal', $portal)
+                ->name('store');
+            Route::post('/messages/{conversation:reference}/read', [ConversationReadController::class, 'store'])
+                ->middleware('throttle:60,1')
+                ->defaults('messaging_portal', $portal)
+                ->name('read');
+            Route::get('/messages/{conversation:reference}', [MessagingConversationController::class, 'show'])
+                ->defaults('messaging_portal', $portal)
+                ->name('show');
+        });
+};
+
+$registerMessagingRoutes('buyer', 'buyer', 'buyer', 'buyer');
+$registerMessagingRoutes('seller', 'seller', 'seller', 'seller');
+$registerMessagingRoutes('rider', 'rider', 'rider', 'rider');
+$registerMessagingRoutes('logistics', 'logistics', 'logistics', 'logistics');
+$registerMessagingRoutes('superadmin', 'superadmin', 'admin,superadmin', 'superadmin');
 
 // =====================================================
 // LOGISTICS RIDER MANAGEMENT
 // =====================================================
+
+// Retained temporarily for reference while the Phase 1 database-backed
+// approval routes above replace the legacy session implementation.
+if (false) {
 
 Route::get('/logistics/riders', function () {
 
@@ -5287,7 +5424,8 @@ Route::get('/logistics/riders', function () {
 
     ]);
 
-})->name('logistics.riders');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders');
 
 // =====================================================
 // LOGISTICS RIDER REVIEW
@@ -5318,7 +5456,8 @@ Route::get('/logistics/riders/{rider}/review', function ($rider) {
 
     ]);
 
-})->name('logistics.riders.review');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.review');
 
 
 
@@ -5366,7 +5505,8 @@ Route::post('/logistics/riders/{rider}/approve', function ($rider) {
             'Rider application approved successfully!'
         );
 
-})->name('logistics.riders.approve');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.approve');
 
 
 
@@ -5420,7 +5560,91 @@ Route::post('/logistics/riders/{rider}/disapprove', function (
             'Rider application has been disapproved.'
         );
 
-})->name('logistics.riders.disapprove');
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->name('logistics.riders.disapprove');
+
+}
+
+Route::prefix('superadmin')
+    ->name('superadmin.')
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:admin,superadmin'])
+    ->group(function () {
+        Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/users', [UserManagementController::class, 'index'])->name('users');
+        Route::get('/users/search', [UserManagementController::class, 'search'])->name('users.search');
+        Route::get('/users/{user}', [UserManagementController::class, 'show'])->name('users.show');
+        Route::patch('/users/{user}/status', [UserManagementController::class, 'updateStatus'])->name('users.status');
+
+        Route::get('/buyers', [BuyerManagementController::class, 'index'])->name('buyers');
+        Route::get('/buyers/search', [BuyerManagementController::class, 'search'])->name('buyers.search');
+        Route::patch('/buyers/{buyer}/status', [BuyerManagementController::class, 'updateStatus'])->name('buyers.status');
+
+        Route::get('/sellers', [SellerManagementController::class, 'index'])->name('sellers');
+        Route::get('/sellers/search', [SellerManagementController::class, 'search'])->name('sellers.search');
+        Route::get('/sellers/{seller}', [SellerManagementController::class, 'show'])->name('sellers.show');
+        Route::patch('/sellers/{seller}/status', [SellerManagementController::class, 'updateStatus'])->name('sellers.status');
+        Route::put('/sellers/{seller}/allowed-categories', [SellerManagementController::class, 'updateAllowedCategories'])
+            ->name('sellers.allowed-categories.update');
+
+        Route::get('/products', [ProductModerationController::class, 'index'])->name('products.index');
+        Route::get('/products/{product}', [ProductModerationController::class, 'show'])->name('products.show');
+        Route::post('/products/{product}/approve', [ProductModerationController::class, 'approve'])->name('products.approve');
+        Route::post('/products/{product}/reject', [ProductModerationController::class, 'reject'])->name('products.reject');
+        Route::post('/products/{product}/hide', [ProductModerationController::class, 'hide'])->name('products.hide');
+        Route::post('/products/{product}/restore', [ProductModerationController::class, 'restore'])->name('products.restore');
+
+        Route::get('/compliance', [SellerComplianceController::class, 'index'])->name('compliance.index');
+        Route::get('/compliance/create', [SellerComplianceController::class, 'create'])->name('compliance.create');
+        Route::post('/compliance', [SellerComplianceController::class, 'store'])->name('compliance.store');
+        Route::get('/compliance/{violation}', [SellerComplianceController::class, 'show'])->name('compliance.show');
+        Route::patch('/compliance/{violation}/severity', [SellerComplianceController::class, 'updateSeverity'])->name('compliance.severity');
+        Route::post('/compliance/{violation}/warnings', [SellerComplianceController::class, 'storeWarning'])->name('compliance.warnings.store');
+        Route::post('/compliance/{violation}/evidence', [SellerComplianceEvidenceController::class, 'store'])->name('compliance.evidence.store');
+        Route::get('/compliance/{violation}/evidence/{evidence}', [SellerComplianceEvidenceController::class, 'show'])->name('compliance.evidence.show');
+        Route::get('/compliance/{violation}/evidence/{evidence}/download', [SellerComplianceEvidenceController::class, 'download'])->name('compliance.evidence.download');
+        Route::post('/compliance/{violation}/resolve', [SellerComplianceController::class, 'resolve'])->name('compliance.resolve');
+        Route::post('/compliance/{violation}/dismiss', [SellerComplianceController::class, 'dismiss'])->name('compliance.dismiss');
+        Route::post('/compliance/{violation}/suspend-seller', [SellerComplianceController::class, 'suspendSeller'])->name('compliance.suspend-seller');
+
+        Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+        Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
+        Route::patch('/complaints/{complaint}/assignment', [ComplaintController::class, 'assign'])->name('complaints.assignment');
+        Route::patch('/complaints/{complaint}/status', [ComplaintController::class, 'updateStatus'])->name('complaints.status');
+        Route::post('/complaints/{complaint}/resolve', [ComplaintController::class, 'resolve'])->name('complaints.resolve');
+        Route::post('/complaints/{complaint}/dismiss', [ComplaintController::class, 'dismiss'])->name('complaints.dismiss');
+        Route::post('/complaints/{complaint}/conversation', [ContextConversationController::class, 'complaint'])
+            ->middleware('throttle:20,1')
+            ->name('messages.context.complaint.store');
+        Route::post('/complaints/{complaint}/evidence', [ComplaintEvidenceController::class, 'store'])->name('complaints.evidence.store');
+        Route::get('/complaints/{complaint}/evidence/{evidence}', [ComplaintEvidenceController::class, 'show'])->name('complaints.evidence.show');
+        Route::get('/complaints/{complaint}/evidence/{evidence}/download', [ComplaintEvidenceController::class, 'download'])->name('complaints.evidence.download');
+
+        Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications');
+        Route::get('/applications/{application}/documents/{document}', function (Application $application, string $document) {
+            $documents = $application->documents ?? [];
+            abort_unless(isset($documents[$document]) && Storage::exists($documents[$document]), 404);
+
+            return Storage::download($documents[$document]);
+        })->name('applications.documents.show');
+        Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
+        Route::post('/applications/{application}/approve', [AdminApplicationController::class, 'approve'])->name('applications.approve');
+        Route::post('/applications/{application}/reject', [AdminApplicationController::class, 'reject'])->name('applications.reject');
+
+        Route::get('/orders', [OrderManagementController::class, 'index'])->name('orders');
+        Route::get('/orders/{order}', [OrderManagementController::class, 'show'])->name('orders.show');
+        Route::get('/commission', [CommissionController::class, 'index'])->name('commission');
+        Route::patch('/commission/{seller}', [CommissionController::class, 'updateRate'])->name('commission.rate');
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+
+        Route::get('/settings', [SettingController::class, 'index'])->name('settings');
+        Route::patch('/settings/platform', [SettingController::class, 'updatePlatform'])->name('settings.platform');
+        Route::patch('/settings/marketplace', [SettingController::class, 'updateMarketplace'])->name('settings.marketplace');
+        Route::patch('/settings/policies', [SettingController::class, 'updatePolicies'])->name('settings.policies');
+        Route::post('/settings/announcements', [SettingController::class, 'storeAnnouncement'])->name('settings.announcement.store');
+        Route::patch('/settings/announcements/{announcement}', [SettingController::class, 'updateAnnouncement'])->name('settings.announcement.update');
+        Route::delete('/settings/announcements/{announcement}', [SettingController::class, 'deleteAnnouncement'])->name('settings.announcement.delete');
+    });
 
 // =====================================================
 // ADMIN AUTH CHECK
@@ -5441,8 +5665,9 @@ $requireAdmin = function () {
     $user = auth()->user();
 
     if (
-        $user->role !== 'admin' ||
-        $user->status !== 'active'
+        ! $user->isAdmin() ||
+        $user->status !== 'active' ||
+        $user->is_suspended
     ) {
 
         return redirect()
@@ -5465,7 +5690,9 @@ Route::get('/admin/login', function () {
 
     if (
         auth()->check() &&
-        auth()->user()->role === 'admin'
+        auth()->user()->isAdmin() &&
+        auth()->user()->status === 'active' &&
+        ! auth()->user()->is_suspended
     ) {
 
         return redirect()
@@ -5499,12 +5726,15 @@ Route::post('/admin/login', function (Request $request) {
     $loggedIn = auth()->attempt([
         $loginField => $validated['login'],
         'password' => $validated['password'],
-        'role' => 'admin',
         'status' => 'active',
     ]);
 
-
-    if (!$loggedIn) {
+    if (
+        ! $loggedIn ||
+        ! auth()->user()->isAdmin() ||
+        auth()->user()->is_suspended
+    ) {
+        auth()->logout();
 
         return back()
             ->withErrors([
@@ -5539,148 +5769,7 @@ Route::get('/admin', function () use ($requireAdmin) {
         return $redirect;
     }
 
-
-    // =====================================================
-    // BUYER STATISTICS
-    // =====================================================
-
-    $pendingBuyers = User::where('role', 'buyer')
-        ->where('status', 'pending')
-        ->count();
-
-    $activeBuyers = User::where('role', 'buyer')
-        ->where('status', 'active')
-        ->count();
-
-    $rejectedBuyers = User::where('role', 'buyer')
-        ->where('status', 'rejected')
-        ->count();
-
-    $totalBuyers = User::where('role', 'buyer')
-        ->count();
-
-
-    // =====================================================
-    // ORDER STATISTICS
-    // =====================================================
-
-    $totalOrders = Order::count();
-
-    $placedOrders = Order::where(
-        'status',
-        'PLACED'
-    )->count();
-
-    $processingOrders = Order::whereIn(
-        'status',
-        [
-            'CONFIRMED',
-            'PREPARING',
-            'READY_FOR_PICKUP',
-            'PICKED_UP',
-            'AT_SORTING_CENTER',
-            'SORTED',
-            'ASSIGNED_TO_RIDER',
-        ]
-    )->count();
-
-    $deliveryOrders = Order::whereIn(
-        'status',
-        [
-            'OUT_FOR_DELIVERY',
-            'DELIVERED',
-        ]
-    )->count();
-
-    $completedOrders = Order::where(
-        'status',
-        'COMPLETED'
-    )->count();
-
-
-    // =====================================================
-    // COMPLETED ORDER VALUE
-    // =====================================================
-
-    $completedOrderValue = Order::where(
-        'status',
-        'COMPLETED'
-    )->sum('total_amount');
-
-
-    // =====================================================
-    // LAST 7 DAYS ORDER TREND
-    // =====================================================
-
-    $orderTrend = [];
-
-    for ($i = 6; $i >= 0; $i--) {
-
-        $date = now()
-            ->subDays($i);
-
-        $orderTrend[] = [
-
-            'label' =>
-                $date->format('D'),
-
-            'date' =>
-                $date->format('M d'),
-
-            'count' =>
-                Order::whereDate(
-                    'created_at',
-                    $date->toDateString()
-                )->count(),
-        ];
-    }
-
-
-    // =====================================================
-    // RECENT BUYERS
-    // =====================================================
-
-    $recentBuyers = User::where(
-        'role',
-        'buyer'
-    )
-        ->latest()
-        ->take(5)
-        ->get();
-
-
-    // =====================================================
-    // RECENT ORDERS
-    // =====================================================
-
-    $recentOrders = Order::with('buyer')
-        ->latest()
-        ->take(5)
-        ->get();
-
-
-    return view(
-        'admin.dashboard',
-        compact(
-            'pendingBuyers',
-            'activeBuyers',
-            'rejectedBuyers',
-            'totalBuyers',
-
-            'totalOrders',
-            'placedOrders',
-            'processingOrders',
-            'deliveryOrders',
-            'completedOrders',
-
-            'completedOrderValue',
-
-            'orderTrend',
-
-            'recentBuyers',
-            'recentOrders'
-        )
-    );
+    return redirect()->route('superadmin.dashboard');
 
 })->name('admin.dashboard');
 
@@ -5696,20 +5785,7 @@ Route::get(
             return $redirect;
         }
 
-
-        $buyers =
-            User::where('role', 'buyer')
-                ->latest()
-                ->get();
-
-
-        return view(
-            'admin.buyers',
-            [
-                'buyers' =>
-                    $buyers,
-            ]
-        );
+        return redirect()->route('superadmin.buyers');
 
     }
 )->name('admin.buyers');
@@ -5731,38 +5807,22 @@ Route::post(
             return $redirect;
         }
 
+        abort_unless($buyer->isBuyer(), 404);
 
-        if ($buyer->role !== 'buyer') {
+        $application = $buyer->applications()
+            ->where('application_type', 'buyer')
+            ->where('status', 'pending')
+            ->latest()
+            ->firstOrFail();
 
-            return back()
-                ->with(
-                    'error',
-                    'Invalid buyer account.'
-                );
-        }
+        $application = app(\App\Services\Admin\AccountStatusService::class)
+            ->approveApplication($application, auth()->user());
 
+        $buyer->notify(new \App\Notifications\ApplicationDecisionNotification($application));
 
-        if ($buyer->status === 'active') {
-
-            return back()
-                ->with(
-                    'error',
-                    'Buyer account is already approved.'
-                );
-        }
-
-
-        $buyer->update([
-            'status' => 'active',
-        ]);
-
-
-        return back()
-            ->with(
-                'success',
-                $buyer->full_name .
-                ' has been approved successfully.'
-            );
+        return redirect()
+            ->route('superadmin.applications.show', $application)
+            ->with('success', $buyer->full_name . ' has been approved successfully.');
 
     }
 )->name('admin.buyers.approve');
@@ -5775,6 +5835,7 @@ Route::post(
 Route::post(
     '/admin/buyers/{buyer}/reject',
     function (
+        Request $request,
         User $buyer
     ) use (
         $requireAdmin
@@ -5784,38 +5845,23 @@ Route::post(
             return $redirect;
         }
 
+        abort_unless($buyer->isBuyer(), 404);
 
-        if ($buyer->role !== 'buyer') {
+        $application = $buyer->applications()
+            ->where('application_type', 'buyer')
+            ->where('status', 'pending')
+            ->latest()
+            ->firstOrFail();
 
-            return back()
-                ->with(
-                    'error',
-                    'Invalid buyer account.'
-                );
-        }
+        $reason = $request->input('reason', 'Application rejected by administrator.');
+        $application = app(\App\Services\Admin\AccountStatusService::class)
+            ->rejectApplication($application, auth()->user(), $reason);
 
+        $buyer->notify(new \App\Notifications\ApplicationDecisionNotification($application));
 
-        if ($buyer->status === 'rejected') {
-
-            return back()
-                ->with(
-                    'error',
-                    'Buyer account is already rejected.'
-                );
-        }
-
-
-        $buyer->update([
-            'status' => 'rejected',
-        ]);
-
-
-        return back()
-            ->with(
-                'success',
-                $buyer->full_name .
-                ' has been rejected.'
-            );
+        return redirect()
+            ->route('superadmin.applications.show', $application)
+            ->with('success', $buyer->full_name . ' has been rejected.');
 
     }
 )->name('admin.buyers.reject');
@@ -5870,7 +5916,7 @@ Route::get('/login', function () {
         $user = auth()->user();
 
         if (
-            $user->role === 'admin' &&
+            $user->isAdmin() &&
             $user->status === 'active'
         ) {
             return redirect()
@@ -5883,6 +5929,18 @@ Route::get('/login', function () {
         ) {
             return redirect()
                 ->route('buyer.home');
+        }
+
+        if ($user->hasRole('seller') && $user->status === 'active') {
+            return redirect()->route('seller.dashboard');
+        }
+
+        if ($user->hasRole('rider') && $user->status === 'active') {
+            return redirect()->route('rider.dashboard');
+        }
+
+        if ($user->hasRole('logistics') && $user->status === 'active') {
+            return redirect()->route('logistics.dashboard');
         }
     }
 
@@ -6009,7 +6067,7 @@ Route::post('/login', function (Request $request) {
     // ADMIN LOGIN
     // =====================================================
 
-    if ($user->role === 'admin') {
+    if ($user->isAdmin()) {
 
         return redirect()
             ->route('admin.dashboard')
@@ -6049,6 +6107,57 @@ Route::post('/login', function (Request $request) {
                 'success',
                 'Welcome back to SUKI SHOP!'
             );
+    }
+
+    if ($user->hasRole('seller')) {
+        $seller = $user->sellers()->first();
+        $address = $seller?->pickupAddress;
+
+        $request->session()->put('seller_logged_in', true);
+        $request->session()->put('seller_profile', [
+            'shop_name' => $seller?->name,
+            'business_category' => $seller?->business_category,
+            'seller_name' => $user->full_name,
+            'phone' => $user->phone,
+            'email' => $user->email,
+            'province' => $address?->province,
+            'municipality' => $address?->city,
+            'barangay' => $address?->barangay,
+            'address' => $address?->line1,
+            'status' => $seller?->status,
+        ]);
+
+        return redirect()->intended(route('seller.dashboard'))->with('success', 'Welcome to the Seller portal.');
+    }
+
+    if ($user->hasRole('rider')) {
+        $rider = $user->rider;
+
+        if (! $rider || ! $rider->is_active) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['login' => 'This rider account is not active.']);
+        }
+
+        $request->session()->put('rider_logged_in', true);
+        $request->session()->put('logged_in_rider_index', $rider->id);
+        $request->session()->put('rider_applications.'.$rider->id, [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'phone' => $user->phone,
+            'email' => $user->email,
+            'vehicle_type' => $rider->vehicle_type,
+            'plate_number' => $rider->plate_no,
+            'status' => 'approved',
+        ]);
+
+        return redirect()->intended(route('rider.dashboard'))->with('success', 'Welcome to the Rider portal.');
+    }
+
+    if ($user->hasRole('logistics')) {
+        return redirect()->intended(route('logistics.dashboard'))->with('success', 'Welcome to the Logistics portal.');
     }
 
 
@@ -6124,7 +6233,7 @@ Route::post('/register', function (Request $request) {
 
     $governmentIdPath = $request
         ->file('government_id')
-        ->store('government-ids', 'public');
+        ->store('application-documents/buyers');
 
     $fullName = trim(
         $validated['first_name'] . ' ' .
@@ -6177,6 +6286,16 @@ Route::post('/register', function (Request $request) {
                 'is_default' => true,
             ]);
 
+            Application::create([
+                'user_id' => $user->id,
+                'application_type' => 'buyer',
+                'status' => 'pending',
+                'application_data' => [],
+                'documents' => [
+                    'government_id' => $governmentIdPath,
+                ],
+            ]);
+
             return $user;
         }
     );
@@ -6197,6 +6316,13 @@ Route::post('/register', function (Request $request) {
 
 Route::post('/logout', function (Request $request) {
 
+    $user = $request->user();
+    $redirectRoute = match (true) {
+        $user?->isAdmin() => 'admin.login',
+        $user?->hasAnyRole(['seller', 'rider', 'logistics']) => 'login',
+        default => 'buyer.home',
+    };
+
     auth()->logout();
 
     $request->session()->forget([
@@ -6209,7 +6335,7 @@ Route::post('/logout', function (Request $request) {
     $request->session()->regenerateToken();
 
     return redirect()
-        ->route('buyer.home')
+        ->route($redirectRoute)
         ->with(
             'success',
             'You have been logged out successfully.'

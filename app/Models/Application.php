@@ -17,6 +17,10 @@ class Application extends Model
 
         'application_type',
 
+        'application_data',
+
+        'documents',
+
         'status',
 
         'reviewed_by',
@@ -32,6 +36,10 @@ class Application extends Model
     protected $casts = [
 
         'reviewed_at' => 'datetime',
+
+        'application_data' => 'array',
+
+        'documents' => 'array',
 
     ];
 

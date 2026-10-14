@@ -831,6 +831,12 @@
                                         {{ $product['name'] ?? 'Unnamed Product' }}
                                     </p>
 
+                                    @if(!empty($product['moderation_status']))
+                                        <p class="mt-1 text-[9px] font-semibold text-[#1F6F5B]">
+                                            Review: {{ $product['moderation_status'] }}
+                                        </p>
+                                    @endif
+
 
                                     @if(!empty($product['sku']))
 
@@ -1198,6 +1204,12 @@
                                 >
                                     {{ $product['name'] ?? 'Unnamed Product' }}
                                 </h3>
+
+                                @if(!empty($product['moderation_status']))
+                                    <p class="mt-1 text-[9px] font-semibold text-[#1F6F5B]">
+                                        Review: {{ $product['moderation_status'] }}
+                                    </p>
+                                @endif
 
                                 <p
                                     class="mt-1

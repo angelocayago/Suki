@@ -1061,6 +1061,11 @@
                             $orderId =
                                 $order['id'] ?? 'N/A';
 
+                            $statusUpdateUrl =
+                                ($order['source'] ?? null) === 'database'
+                                    ? route('seller.orders.status', $orderId)
+                                    : route('order.status.update', $orderId);
+
                             $recipient =
                                 $order['shipping_address']['name']
                                 ?? 'Customer';
@@ -1397,10 +1402,7 @@
                                     @if($status === 'placed')
 
                                         <form
-                                            action="{{ route(
-                                                'order.status.update',
-                                                $orderId
-                                            ) }}"
+                                            action="{{ $statusUpdateUrl }}"
                                             method="POST"
                                         >
 
@@ -1442,10 +1444,7 @@
                                     @elseif($status === 'confirmed')
 
                                         <form
-                                            action="{{ route(
-                                                'order.status.update',
-                                                $orderId
-                                            ) }}"
+                                            action="{{ $statusUpdateUrl }}"
                                             method="POST"
                                         >
 
@@ -1487,10 +1486,7 @@
                                     @elseif($status === 'preparing')
 
                                         <form
-                                            action="{{ route(
-                                                'order.status.update',
-                                                $orderId
-                                            ) }}"
+                                            action="{{ $statusUpdateUrl }}"
                                             method="POST"
                                         >
 
@@ -1634,6 +1630,14 @@
 
                                     @endif
 
+                                    @if(($order['source'] ?? null) === 'database')
+                                        <form method="POST" action="{{ route('seller.messages.context.seller-order.store', $orderId) }}" class="ml-2 inline-flex">
+                                            @csrf
+                                            <button type="submit" class="inline-flex h-9 items-center rounded-xl border border-[#1F6F5B] px-3 text-[10px] font-semibold text-[#1F6F5B] hover:bg-[#DDF3EC]">Message Buyer</button>
+                                        </form>
+                                        <a href="{{ route('seller.complaints.create', $orderId) }}" class="ml-2 inline-flex h-9 items-center rounded-xl border border-[#DCE5E0] px-3 text-[10px] font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Complaint</a>
+                                    @endif
+
                                 </div>
 
                             </td>
@@ -1670,6 +1674,11 @@
 
                     $orderId =
                         $order['id'] ?? 'N/A';
+
+                    $statusUpdateUrl =
+                        ($order['source'] ?? null) === 'database'
+                            ? route('seller.orders.status', $orderId)
+                            : route('order.status.update', $orderId);
 
                     $recipient =
                         $order['shipping_address']['name']
@@ -2006,16 +2015,23 @@
                     </div>
 
 
+                    @if(($order['source'] ?? null) === 'database')
+                        <form method="POST" action="{{ route('seller.messages.context.seller-order.store', $orderId) }}" class="mt-4">
+                            @csrf
+                            <button type="submit" class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#1F6F5B] px-4 text-xs font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]">
+                                <i data-lucide="message-circle" class="h-4 w-4"></i>
+                                Message Buyer
+                            </button>
+                        </form>
+                    @endif
+
                     {{-- ACTION --}}
                     <div class="mt-4">
 
                         @if($status === 'placed')
 
                             <form
-                                action="{{ route(
-                                    'order.status.update',
-                                    $orderId
-                                ) }}"
+                                action="{{ $statusUpdateUrl }}"
                                 method="POST"
                             >
 
@@ -2059,10 +2075,7 @@
                         @elseif($status === 'confirmed')
 
                             <form
-                                action="{{ route(
-                                    'order.status.update',
-                                    $orderId
-                                ) }}"
+                                action="{{ $statusUpdateUrl }}"
                                 method="POST"
                             >
 
@@ -2106,10 +2119,7 @@
                         @elseif($status === 'preparing')
 
                             <form
-                                action="{{ route(
-                                    'order.status.update',
-                                    $orderId
-                                ) }}"
+                                action="{{ $statusUpdateUrl }}"
                                 method="POST"
                             >
 

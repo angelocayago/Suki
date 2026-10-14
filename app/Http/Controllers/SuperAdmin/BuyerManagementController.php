@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Admin\AccountStatusService;
 use Illuminate\Http\Request;
 
 class BuyerManagementController extends Controller
@@ -212,7 +213,8 @@ class BuyerManagementController extends Controller
 
     public function updateStatus(
         Request $request,
-        User $buyer
+        User $buyer,
+        AccountStatusService $accountStatusService
     )
     {
 
@@ -221,22 +223,21 @@ class BuyerManagementController extends Controller
             'status' => [
                 'required',
                 'in:active,suspended,inactive'
-            ]
+            ],
+            'reason' => 'nullable|required_if:status,suspended,inactive|string|max:1000',
 
         ]);
 
 
 
-        $buyer->update([
+        abort_unless($buyer->isBuyer(), 404);
 
-            'status' =>
-                $request->status,
-
-
-            'is_suspended' =>
-                $request->status === 'suspended'
-
-        ]);
+        $accountStatusService->changeStatus(
+            $buyer,
+            $request->string('status')->toString(),
+            $request->user(),
+            $request->input('reason')
+        );
 
 
 

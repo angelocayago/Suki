@@ -682,9 +682,9 @@ Submitted Documents
 
 
 
-@if($application->user->government_id)
+@if(!empty($application->documents))
 
-
+@foreach($application->documents as $documentName => $documentPath)
 <div
 class="
 flex
@@ -692,7 +692,7 @@ justify-between
 items-center
 bg-[#F8FAF9]
 rounded-2xl
-p-5
+p-5 mb-3
 ">
 
 
@@ -700,7 +700,7 @@ p-5
 
 <p class="font-semibold text-[#173F35]">
 
-Government ID
+{{ str($documentName)->replace('_', ' ')->title() }}
 
 </p>
 
@@ -716,7 +716,7 @@ Uploaded document
 
 
 <a
-href="{{ asset('storage/'.$application->user->government_id) }}"
+href="{{ route('superadmin.applications.documents.show', [$application, $documentName]) }}"
 target="_blank"
 class="
 px-5
@@ -735,6 +735,7 @@ View Document
 
 
 </div>
+@endforeach
 
 
 @else

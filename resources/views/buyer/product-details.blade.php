@@ -472,15 +472,30 @@
                     View Shop
                 </button>
 
-                <button
-                    type="button"
-                    class="px-4 py-2 rounded-lg
-                           bg-[#1F6F5B] text-white
-                           text-sm font-medium
-                           hover:bg-[#155244]"
-                >
-                    Chat
-                </button>
+                @if(($product['source'] ?? 'legacy') === 'database' && !empty($product['id']))
+                    <form method="POST" action="{{ route('buyer.messages.context.product.store', $product['id']) }}">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="px-4 py-2 rounded-lg
+                                   bg-[#1F6F5B] text-white
+                                   text-sm font-medium
+                                   hover:bg-[#155244]"
+                        >
+                            Chat
+                        </button>
+                    </form>
+                @else
+                    <button
+                        type="button"
+                        disabled
+                        class="cursor-not-allowed px-4 py-2 rounded-lg
+                               bg-gray-300 text-gray-500
+                               text-sm font-medium"
+                    >
+                        Chat
+                    </button>
+                @endif
 
             </div>
 

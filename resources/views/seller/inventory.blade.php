@@ -9,6 +9,8 @@
 
     $products = $products ?? session('seller_products', []);
 
+    $databaseInventory = $databaseInventory ?? false;
+
     $totalProducts = count($products);
 
     $inStock = collect($products)
@@ -793,7 +795,10 @@
                     @php
 
                         $resolvedProductId =
-                            $product['id'] ?? $productId;
+                            $product['product_id'] ?? $product['id'] ?? $productId;
+
+                        $resolvedVariantId =
+                            $product['variant_id'] ?? $product['id'] ?? $productId;
 
                         $stock =
                             (int) ($product['stock'] ?? 0);
@@ -971,7 +976,7 @@
                                 <form
                                     action="{{ route(
                                         'seller.inventory.decrease',
-                                        $resolvedProductId
+                                        $resolvedVariantId
                                     ) }}"
                                     method="POST"
                                 >
@@ -981,6 +986,7 @@
 
                                     <button
                                         type="submit"
+                                        @disabled(! $databaseInventory)
                                         title="Decrease stock"
                                         {{ $stock <= 0 ? 'disabled' : '' }}
                                         class="flex h-8 w-8
@@ -1024,7 +1030,7 @@
                                 <form
                                     action="{{ route(
                                         'seller.inventory.increase',
-                                        $resolvedProductId
+                                        $resolvedVariantId
                                     ) }}"
                                     method="POST"
                                 >
@@ -1034,6 +1040,7 @@
 
                                     <button
                                         type="submit"
+                                        @disabled(! $databaseInventory)
                                         title="Increase stock"
                                         class="flex h-8 w-8
                                                items-center justify-center
@@ -1241,7 +1248,10 @@
             @php
 
                 $resolvedProductId =
-                    $product['id'] ?? $productId;
+                    $product['product_id'] ?? $product['id'] ?? $productId;
+
+                $resolvedVariantId =
+                    $product['variant_id'] ?? $product['id'] ?? $productId;
 
                 $stock =
                     (int) ($product['stock'] ?? 0);
@@ -1443,7 +1453,7 @@
                         <form
                             action="{{ route(
                                 'seller.inventory.decrease',
-                                $resolvedProductId
+                                $resolvedVariantId
                             ) }}"
                             method="POST"
                         >
@@ -1453,6 +1463,7 @@
 
                             <button
                                 type="submit"
+                            @disabled(! $databaseInventory)
                                 title="Decrease stock"
                                 {{ $stock <= 0 ? 'disabled' : '' }}
                                 class="flex h-9 w-9
@@ -1483,7 +1494,7 @@
                         <form
                             action="{{ route(
                                 'seller.inventory.increase',
-                                $resolvedProductId
+                                $resolvedVariantId
                             ) }}"
                             method="POST"
                         >
@@ -1493,6 +1504,7 @@
 
                             <button
                                 type="submit"
+                            @disabled(! $databaseInventory)
                                 title="Increase stock"
                                 class="flex h-9 w-9
                                        items-center justify-center

@@ -3,7 +3,7 @@
 @section('content')
 
 @php
-    $products = [
+    $legacyProducts = [
         [
             'name' => 'Minimalist Shoulder Bag',
             'slug' => 'shoulder-bag',
@@ -85,6 +85,10 @@
             'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80',
         ],
     ];
+
+    $products = !empty($products)
+        ? array_values($products)
+        : $legacyProducts;
 
     $categories = [
         'All Products',

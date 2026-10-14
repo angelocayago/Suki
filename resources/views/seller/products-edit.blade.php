@@ -226,6 +226,7 @@
 <form
     action="{{ route('seller.products.update', $productId) }}"
     method="POST"
+    enctype="multipart/form-data"
     id="editProductForm"
 >
 
@@ -539,7 +540,7 @@
 
                                 <select
                                     id="category"
-                                    name="category"
+                                    name="category_id"
                                     required
                                     class="h-11 w-full
                                            appearance-none
@@ -554,29 +555,16 @@
                                            focus:ring-[#DDF3EC]/70"
                                 >
 
-                                    @foreach([
-                                        'Electronics',
-                                        'Fashion',
-                                        'Beauty',
-                                        'Home & Living',
-                                        'Groceries',
-                                        'Health',
-                                        'Sports',
-                                        'Toys & Hobbies',
-                                        'Automotive',
-                                        'Pet Supplies',
-                                        'Books & Stationery',
-                                        'Others'
-                                    ] as $category)
+                                    @foreach($categories as $category)
 
                                         <option
-                                            value="{{ $category }}"
+                                            value="{{ $category->id }}"
                                             {{ old(
-                                                'category',
-                                                $product['category'] ?? ''
-                                            ) === $category ? 'selected' : '' }}
+                                                'category_id',
+                                                $product['category_id'] ?? ''
+                                            ) == $category->id ? 'selected' : '' }}
                                         >
-                                            {{ $category }}
+                                            {{ $category->name }}
                                         </option>
 
                                     @endforeach

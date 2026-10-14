@@ -16,7 +16,13 @@ class Rider extends Model
         'logistics_provider_id',
         'vehicle_type',
         'plate_no',
+        'license_number',
+        'government_id_path',
+        'drivers_license_path',
+        'vehicle_document_path',
         'is_active',
+        'approved_by',
+        'approved_at',
     ];
 
     /**
@@ -26,6 +32,7 @@ class Rider extends Model
     {
         return [
             'is_active' => 'boolean',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -51,5 +58,20 @@ class Rider extends Model
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class);
+    }
+
+    public function pickupShipments(): HasMany
+    {
+        return $this->hasMany(Shipment::class, 'pickup_rider_id');
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function conversationParticipations(): HasMany
+    {
+        return $this->hasMany(ConversationParticipant::class);
     }
 }

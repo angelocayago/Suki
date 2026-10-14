@@ -868,6 +868,30 @@
 
                     @endif
 
+                    @foreach(($order['seller_orders'] ?? []) as $sellerOrder)
+                        <form
+                            action="{{ route('buyer.messages.context.seller-order.store', $sellerOrder['seller_order_id']) }}"
+                            method="POST"
+                            class="mt-3"
+                        >
+                            @csrf
+                            <button
+                                type="submit"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl border border-[#1F6F5B] bg-white px-5 py-3 text-sm font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]"
+                            >
+                                <i data-lucide="message-circle" class="h-4 w-4"></i>
+                                Message {{ $sellerOrder['seller_name'] }}
+                            </button>
+                        </form>
+                    @endforeach
+
+                    <a
+                        href="{{ route('buyer.complaints.create', $order['id']) }}"
+                        class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#DCE5E0] bg-white px-5 py-3 text-sm font-semibold text-[#1F6F5B] transition hover:bg-[#F6F9F7]"
+                    >
+                        Submit a complaint
+                    </a>
+
                     {{-- PREPARING NOTICE --}}
                     @if(in_array($status, ['confirmed', 'preparing', 'ready_for_pickup']))
 

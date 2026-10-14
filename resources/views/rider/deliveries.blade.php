@@ -11,7 +11,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $riderName = session('logged_in_rider_name', 'SUKI Rider');
+    $riderName = $riderName ?? session('logged_in_rider_name', 'SUKI Rider');
 
     /*
     |--------------------------------------------------------------------------
@@ -19,7 +19,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $allOrders = session('suki_orders', collect());
+    $allOrders = collect($orders ?? session('suki_orders', session('orders', [])));
 
     if (!($allOrders instanceof \Illuminate\Support\Collection)) {
         $allOrders = collect($allOrders);
@@ -37,7 +37,7 @@
     $availablePickups = $allOrders
         ->filter(function ($order) {
             return ($order['status'] ?? '') === 'ready_for_pickup'
-                && empty($order['rider_name']);
+                && empty($order['pickup_rider_index']);
         });
 
     /*
@@ -50,18 +50,20 @@
     |
     */
 
-    $riderIndex = session('logged_in_rider_index');
+    $riderIndex = $riderId ?? session('logged_in_rider_index');
 
     $myOrders = $allOrders
         ->filter(function ($order) use ($riderIndex, $riderName) {
 
-            // Primary check: actual rider index
-            if (
-                $riderIndex !== null &&
-                isset($order['rider_index'])
-            ) {
-                return (string) $order['rider_index']
-                    === (string) $riderIndex;
+            $status = strtolower($order['status'] ?? '');
+            $pickupStatuses = ['ready_for_pickup', 'picked_up', 'at_sorting_center'];
+
+            if (in_array($status, $pickupStatuses, true) && isset($order['pickup_rider_index'])) {
+                return (string) $order['pickup_rider_index'] === (string) $riderIndex;
+            }
+
+            if (isset($order['rider_index'])) {
+                return (string) $order['rider_index'] === (string) $riderIndex;
             }
 
             // Fallback for older orders created before rider_index
@@ -195,7 +197,7 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <h3 class="font-bold text-gray-800">
-                                    Order #{{ $orderId }}
+                                    Order #{{ $order['order_number'] ?? $orderId }}
                                 </h3>
 
                                 <span class="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">
@@ -219,15 +221,11 @@
 
                         <form
                             method="POST"
-                            action="{{ route('rider.order.status', $orderId) }}"
+                            action="{{ ($order['source'] ?? 'session') === 'database'
+                                ? route('rider.database.pickup.accept', $orderId)
+                                : route('rider.pickup.accept', $orderId) }}"
                         >
                             @csrf
-
-                            <input
-                                type="hidden"
-                                name="status"
-                                value="assigned_to_rider"
-                            >
 
                             <button
                                 type="submit"
@@ -309,6 +307,7 @@
 
                     $statusLabels = [
                         'assigned_to_rider' => 'Assigned to Rider',
+                        'ready_for_pickup' => 'Pickup Accepted',
                         'picked_up' => 'Picked Up',
                         'at_sorting_center' => 'At Sorting Center',
                         'out_for_delivery' => 'Out for Delivery',
@@ -331,7 +330,7 @@
                             <div class="flex flex-wrap items-center gap-2">
 
                                 <h3 class="font-bold text-gray-800">
-                                    Order #{{ $orderId }}
+                                    Order #{{ $order['order_number'] ?? $orderId }}
                                 </h3>
 
                                 <span class="px-2.5 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
@@ -371,25 +370,39 @@
 
                         <div class="w-full lg:w-auto">
 
-                            @if ($status === 'assigned_to_rider')
+                            @if ($status === 'ready_for_pickup')
+
+                                <form method="POST" action="{{ ($order['source'] ?? 'session') === 'database'
+                                    ? route('rider.database.order.status', $orderId)
+                                    : route('rider.order.status', $orderId) }}">
+                                    @csrf
+                                    <input type="hidden" name="status" value="picked_up">
+                                    <button type="submit" class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto">
+                                        Confirm Parcel Collection
+                                    </button>
+                                </form>
+
+                            @elseif ($status === 'assigned_to_rider')
 
                                 <form
                                     method="POST"
-                                    action="{{ route('rider.order.status', $orderId) }}"
+                                    action="{{ ($order['source'] ?? 'session') === 'database'
+                                        ? route('rider.database.order.status', $orderId)
+                                        : route('rider.order.status', $orderId) }}"
                                 >
                                     @csrf
 
                                     <input
                                         type="hidden"
                                         name="status"
-                                        value="picked_up"
+                                        value="out_for_delivery"
                                     >
 
                                     <button
                                         type="submit"
                                         class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
                                     >
-                                        Mark as Picked Up
+                                        Mark Out for Delivery
                                     </button>
                                 </form>
 
@@ -398,7 +411,9 @@
 
                                 <form
                                     method="POST"
-                                    action="{{ route('rider.order.status', $orderId) }}"
+                                    action="{{ ($order['source'] ?? 'session') === 'database'
+                                        ? route('rider.database.order.status', $orderId)
+                                        : route('rider.order.status', $orderId) }}"
                                 >
                                     @csrf
 
@@ -428,7 +443,9 @@
 
                                 <form
                                     method="POST"
-                                    action="{{ route('rider.order.status', $orderId) }}"
+                                    action="{{ ($order['source'] ?? 'session') === 'database'
+                                        ? route('rider.database.order.status', $orderId)
+                                        : route('rider.order.status', $orderId) }}"
                                 >
                                     @csrf
 
@@ -446,28 +463,20 @@
                                     </button>
                                 </form>
 
+                                @if (($order['source'] ?? 'session') === 'database')
+                                    <form method="POST" action="{{ route('rider.database.delivery.failed', $orderId) }}" class="mt-2 flex gap-2">
+                                        @csrf
+                                        <input name="failure_reason" required maxlength="1000" placeholder="Failed delivery reason" class="rounded-lg border border-gray-200 px-3 py-2 text-xs">
+                                        <button type="submit" class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white">Record Failure</button>
+                                    </form>
+                                @endif
+
 
                             @elseif ($status === 'delivered')
 
-                                <form
-                                    method="POST"
-                                    action="{{ route('rider.order.status', $orderId) }}"
-                                >
-                                    @csrf
-
-                                    <input
-                                        type="hidden"
-                                        name="status"
-                                        value="completed"
-                                    >
-
-                                    <button
-                                        type="submit"
-                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition lg:w-auto"
-                                    >
-                                        Complete Delivery
-                                    </button>
-                                </form>
+                                <span class="inline-flex px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg">
+                                    Awaiting Buyer Confirmation
+                                </span>
 
 
                             @elseif ($status === 'completed')
@@ -476,6 +485,14 @@
                                     Delivery Completed
                                 </span>
 
+                            @endif
+
+                            @if (($order['source'] ?? 'session') === 'database')
+                                <form method="POST" action="{{ route('rider.messages.context.shipment.store', $orderId) }}" class="mt-2 inline-flex w-full lg:w-auto">
+                                    @csrf
+                                    <button type="submit" class="w-full rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Message Support</button>
+                                </form>
+                                <a href="{{ route('rider.complaints.create', $orderId) }}" class="mt-2 inline-flex w-full items-center justify-center rounded-lg border border-[#DCE5E0] px-4 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7] lg:w-auto">Submit Complaint</a>
                             @endif
 
                         </div>

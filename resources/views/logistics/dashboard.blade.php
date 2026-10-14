@@ -17,10 +17,7 @@
     |
     */
 
-    $orders =
-        collect(
-            session('orders', [])
-        );
+    $orders = collect($orders ?? session('orders', []));
 
 
     /*

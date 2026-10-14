@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +21,18 @@ class SellerOrder extends Model
         'shipping_fee_minor',
         'commission_minor',
         'status',
+        'workflow_status',
+        'status_changed_at',
+        'confirmed_at',
+        'preparing_at',
+        'ready_for_pickup_at',
+        'picked_up_at',
+        'at_sorting_center_at',
+        'sorted_at',
+        'assigned_to_rider_at',
+        'out_for_delivery_at',
         'delivered_at',
+        'completed_at',
         'note',
     ];
 
@@ -33,7 +45,18 @@ class SellerOrder extends Model
             'subtotal_minor' => 'integer',
             'shipping_fee_minor' => 'integer',
             'commission_minor' => 'integer',
+            'workflow_status' => OrderStatus::class,
+            'status_changed_at' => 'datetime',
+            'confirmed_at' => 'datetime',
+            'preparing_at' => 'datetime',
+            'ready_for_pickup_at' => 'datetime',
+            'picked_up_at' => 'datetime',
+            'at_sorting_center_at' => 'datetime',
+            'sorted_at' => 'datetime',
+            'assigned_to_rider_at' => 'datetime',
+            'out_for_delivery_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -78,5 +101,15 @@ class SellerOrder extends Model
     public function shipment(): HasOne
     {
         return $this->hasOne(Shipment::class);
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
     }
 }

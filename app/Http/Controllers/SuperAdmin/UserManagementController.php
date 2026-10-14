@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Admin\AccountStatusService;
 use Illuminate\Http\Request;
 
 class UserManagementController extends Controller
@@ -269,14 +270,18 @@ class UserManagementController extends Controller
 
     public function updateStatus(
         Request $request,
-        User $user
+        User $user,
+        AccountStatusService $accountStatusService
     )
     {
 
         $request->validate([
 
             'status' =>
-                'required|in:active,suspended,inactive'
+                'required|in:active,suspended,inactive',
+
+            'reason' =>
+                'nullable|required_if:status,suspended,inactive|string|max:1000',
 
         ]);
 
@@ -284,16 +289,12 @@ class UserManagementController extends Controller
 
 
 
-        $user->update([
-
-            'status' =>
-                $request->status,
-
-
-            'is_suspended' =>
-                $request->status === 'suspended',
-
-        ]);
+        $accountStatusService->changeStatus(
+            $user,
+            $request->string('status')->toString(),
+            $request->user(),
+            $request->input('reason')
+        );
 
 
 
@@ -323,6 +324,12 @@ class UserManagementController extends Controller
 
     public function show(User $user)
     {
+        $user->load([
+            'sellers',
+            'accountStatusEvents' => function ($query) {
+                $query->with('actor')->latest()->limit(25);
+            },
+        ]);
 
         return view(
             'superadmin.users.show',

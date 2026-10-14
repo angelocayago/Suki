@@ -605,6 +605,32 @@
 
 
 
+                <!-- ACCOUNT SECURITY -->
+                <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold text-gray-900">Account Security</h2>
+                        <p class="mt-1 text-sm text-gray-500">Create the password you will use after administrator approval.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div>
+                            <label for="password" class="mb-2 block text-sm font-medium text-gray-700">Password</label>
+                            <input id="password" type="password" name="password" required minlength="8"
+                                class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#1F6F5B]/10">
+                            @error('password')
+                                <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="password_confirmation" class="mb-2 block text-sm font-medium text-gray-700">Confirm Password</label>
+                            <input id="password_confirmation" type="password" name="password_confirmation" required minlength="8"
+                                class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#1F6F5B]/10">
+                        </div>
+                    </div>
+                </section>
+
+
                 <!-- AGREEMENT -->
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
 

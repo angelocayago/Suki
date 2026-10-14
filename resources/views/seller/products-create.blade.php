@@ -364,7 +364,7 @@
 
                                 <select
                                     id="category"
-                                    name="category"
+                                    name="category_id"
                                     required
                                     class="h-11 w-full
                                            appearance-none
@@ -383,26 +383,13 @@
                                         Select category
                                     </option>
 
-                                    @foreach([
-                                        'Electronics',
-                                        'Fashion',
-                                        'Beauty',
-                                        'Home & Living',
-                                        'Groceries',
-                                        'Health',
-                                        'Sports',
-                                        'Toys & Hobbies',
-                                        'Automotive',
-                                        'Pet Supplies',
-                                        'Books & Stationery',
-                                        'Others'
-                                    ] as $category)
+                                    @foreach($categories as $category)
 
                                         <option
-                                            value="{{ $category }}"
-                                            {{ old('category') === $category ? 'selected' : '' }}
+                                            value="{{ $category->id }}"
+                                            {{ (string) old('category_id') === (string) $category->id ? 'selected' : '' }}
                                         >
-                                            {{ $category }}
+                                            {{ $category->name }}
                                         </option>
 
                                     @endforeach

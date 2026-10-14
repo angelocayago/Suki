@@ -1,0 +1,252 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\OrderStatus;
+use App\Models\CartItem;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\SellerOrder;
+use App\Models\Shipment;
+use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+class CheckoutService
+{
+    public function checkout(
+        User $buyer,
+        array $address,
+        string $paymentMethod
+    ): Order {
+        return DB::transaction(function () use ($buyer, $address, $paymentMethod) {
+            $cartItems = CartItem::query()
+                ->where('user_id', $buyer->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($cartItems->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Your cart is empty.',
+                ]);
+            }
+
+            $lines = $cartItems->map(
+                fn (CartItem $cartItem) => $this->resolveLine($cartItem)
+            );
+
+            $subtotalMinor = $lines->sum('line_total_minor');
+            $shippingMinor = 0;
+            $discountMinor = 0;
+            $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
+            $orderNumber = $this->orderNumber();
+            $now = now();
+
+            $order = Order::create([
+                'order_number' => $orderNumber,
+                'reference' => $orderNumber,
+                'buyer_id' => $buyer->id,
+                'seller_id' => $this->legacySellerUserId($lines),
+                'status' => OrderStatus::Placed->value,
+                'payment_method' => $paymentMethod,
+                'payment_status' => 'UNPAID',
+                'shipping_method' => 'suki_logistics',
+                'subtotal' => $this->decimal($subtotalMinor),
+                'shipping_fee' => $this->decimal($shippingMinor),
+                'discount_amount' => $this->decimal($discountMinor),
+                'total_amount' => $this->decimal($totalMinor),
+                'total_minor' => $totalMinor,
+                'recipient_name' => $address['recipient_name'],
+                'recipient_phone' => $address['recipient_phone'],
+                'province' => $address['province'],
+                'municipality' => $address['municipality'],
+                'barangay' => $address['barangay'],
+                'street_address' => $address['street_address'],
+                'house_number' => $address['house_number'] ?? null,
+                'postal_code' => $address['postal_code'] ?? null,
+                'address_label' => $address['address_label'] ?? null,
+                'delivery_notes' => $address['delivery_notes'] ?? null,
+                'shipping_address' => $address,
+                'placed_at' => $now,
+            ]);
+
+            foreach ($lines->groupBy(fn (array $line) => $line['seller']->id) as $sellerLines) {
+                $seller = $sellerLines->first()['seller'];
+                $sellerSubtotalMinor = $sellerLines->sum('line_total_minor');
+
+                $sellerOrder = SellerOrder::create([
+                    'order_id' => $order->id,
+                    'seller_id' => $seller->id,
+                    'logistics_provider_id' => null,
+                    'subtotal_minor' => $sellerSubtotalMinor,
+                    'shipping_fee_minor' => 0,
+                    'commission_minor' => (int) round(
+                        $sellerSubtotalMinor * ((int) $seller->commission_bps / 10000)
+                    ),
+                    'status' => OrderStatus::Placed->legacySellerStatus(),
+                    'workflow_status' => OrderStatus::Placed->value,
+                    'status_changed_at' => $now,
+                ]);
+
+                Shipment::create([
+                    'seller_order_id' => $sellerOrder->id,
+                    'logistics_provider_id' => null,
+                    'pickup_rider_id' => null,
+                    'rider_id' => null,
+                    'tracking_code' => $this->trackingCode(),
+                    'status' => OrderStatus::Placed->legacyShipmentStatus(),
+                    'workflow_status' => OrderStatus::Placed->value,
+                    'fee_minor' => 0,
+                    'cod_amount_minor' => $paymentMethod === 'cod' ? $sellerSubtotalMinor : 0,
+                    'cod_collected' => false,
+                    'attempts' => 0,
+                    'status_changed_at' => $now,
+                ]);
+
+                foreach ($sellerLines as $line) {
+                    $variant = $line['variant'];
+                    $product = $line['product'];
+                    $cartItem = $line['cart_item'];
+
+                    $order->items()->create([
+                        'seller_id' => $seller->user_id,
+                        'seller_order_id' => $sellerOrder->id,
+                        'product_id' => $product->id,
+                        'product_variant_id' => $variant->id,
+                        'product_slug' => $product->slug,
+                        'product_name' => $product->name,
+                        'image' => $product->images->first()?->path ?? $cartItem->image,
+                        'variation' => $variant->options,
+                        'variant_name' => $variant->name,
+                        'unit_price' => $this->decimal($variant->price_minor),
+                        'unit_price_minor' => $variant->price_minor,
+                        'quantity' => $line['quantity'],
+                        'line_total' => $this->decimal($line['line_total_minor']),
+                    ]);
+
+                    $variant->decrement('stock', $line['quantity']);
+                }
+            }
+
+            CartItem::query()
+                ->whereIn('id', $cartItems->pluck('id'))
+                ->delete();
+
+            return $order->fresh(['sellerOrders.items', 'sellerOrders.shipment', 'items']);
+        }, 3);
+    }
+
+    private function resolveLine(CartItem $cartItem): array
+    {
+        $variant = $this->lockedVariant($cartItem);
+        $product = $variant->product;
+        $seller = $product->seller;
+        $quantity = (int) $cartItem->quantity;
+
+        if (! $variant->is_active || ! $product->is_active) {
+            throw ValidationException::withMessages([
+                'cart' => "{$cartItem->product_name} is no longer available.",
+            ]);
+        }
+
+        if (
+            ! $seller
+            || $seller->status !== 'approved'
+            || ! $seller->owner
+            || $seller->owner->status !== 'active'
+            || $seller->owner->is_suspended
+        ) {
+            throw ValidationException::withMessages([
+                'cart' => "{$cartItem->product_name} cannot currently be fulfilled by its seller.",
+            ]);
+        }
+
+        if ($quantity < 1 || $variant->stock < $quantity) {
+            throw ValidationException::withMessages([
+                'cart' => "Insufficient inventory for {$product->name}.",
+            ]);
+        }
+
+        if (! $cartItem->product_variant_id) {
+            $cartItem->update(['product_variant_id' => $variant->id]);
+        }
+
+        return [
+            'cart_item' => $cartItem,
+            'product' => $product,
+            'variant' => $variant,
+            'seller' => $seller,
+            'quantity' => $quantity,
+            'line_total_minor' => $variant->price_minor * $quantity,
+        ];
+    }
+
+    private function lockedVariant(CartItem $cartItem): ProductVariant
+    {
+        if ($cartItem->product_variant_id) {
+            $variant = ProductVariant::query()
+                ->with(['product.seller.owner', 'product.images'])
+                ->lockForUpdate()
+                ->find($cartItem->product_variant_id);
+
+            if ($variant) {
+                return $variant;
+            }
+        }
+
+        $product = Product::query()
+            ->where('slug', $cartItem->product_slug)
+            ->with(['seller.owner', 'images'])
+            ->first();
+
+        $variants = $product?->variants()
+            ->where('is_active', true)
+            ->lockForUpdate()
+            ->get() ?? collect();
+
+        if ($variants->count() !== 1) {
+            throw ValidationException::withMessages([
+                'cart' => "{$cartItem->product_name} must be reselected before checkout.",
+            ]);
+        }
+
+        return $variants->first()->setRelation('product', $product);
+    }
+
+    private function legacySellerUserId(Collection $lines): ?int
+    {
+        $sellerUserIds = $lines
+            ->pluck('seller.user_id')
+            ->unique()
+            ->values();
+
+        return $sellerUserIds->count() === 1 ? $sellerUserIds->first() : null;
+    }
+
+    private function decimal(int $minor): string
+    {
+        return number_format($minor / 100, 2, '.', '');
+    }
+
+    private function orderNumber(): string
+    {
+        do {
+            $number = 'SKI-'.now()->format('YmdHis').'-'.Str::upper(Str::random(6));
+        } while (Order::query()->where('order_number', $number)->exists());
+
+        return $number;
+    }
+
+    private function trackingCode(): string
+    {
+        do {
+            $code = 'SUKI-'.now()->format('YmdHis').'-'.Str::upper(Str::random(8));
+        } while (Shipment::query()->where('tracking_code', $code)->exists());
+
+        return $code;
+    }
+}

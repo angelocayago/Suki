@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,9 +15,14 @@ class Shipment extends Model
     protected $fillable = [
         'seller_order_id',
         'logistics_provider_id',
+        'pickup_rider_id',
         'rider_id',
         'tracking_code',
         'status',
+        'workflow_status',
+        'sorting_area',
+        'pickup_accepted_at',
+        'status_changed_at',
         'fee_minor',
         'cod_amount_minor',
         'cod_collected',
@@ -33,6 +39,9 @@ class Shipment extends Model
             'cod_amount_minor' => 'integer',
             'cod_collected' => 'boolean',
             'attempts' => 'integer',
+            'workflow_status' => OrderStatus::class,
+            'pickup_accepted_at' => 'datetime',
+            'status_changed_at' => 'datetime',
         ];
     }
 
@@ -63,6 +72,11 @@ class Shipment extends Model
         return $this->belongsTo(Rider::class);
     }
 
+    public function pickupRider(): BelongsTo
+    {
+        return $this->belongsTo(Rider::class, 'pickup_rider_id');
+    }
+
     /**
      * Delivery timeline events for this shipment.
      */
@@ -70,5 +84,15 @@ class Shipment extends Model
     {
         return $this->hasMany(DeliveryEvent::class)
             ->orderBy('occurred_at');
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
     }
 }

@@ -1548,6 +1548,16 @@
 
                                 @endif
 
+                                @if(($order['source'] ?? null) === 'database')
+                                    @if(!empty($order['logistics_provider_id']))
+                                        <form method="POST" action="{{ route('logistics.messages.context.shipment.store', $resolvedOrderId) }}" class="ml-2 inline-flex">
+                                            @csrf
+                                            <button type="submit" class="inline-flex h-9 items-center rounded-xl border border-[#1F6F5B] px-3 text-[9px] font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Message Support</button>
+                                        </form>
+                                    @endif
+                                    <a href="{{ route('logistics.complaints.create', $resolvedOrderId) }}" class="ml-2 inline-flex h-9 items-center rounded-xl border border-[#DCE5E0] px-3 text-[9px] font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Complaint</a>
+                                @endif
+
                             </td>
 
                         </tr>
@@ -1937,6 +1947,16 @@
 
                             </div>
 
+                        @endif
+
+                        @if(($order['source'] ?? null) === 'database')
+                            @if(!empty($order['logistics_provider_id']))
+                                <form method="POST" action="{{ route('logistics.messages.context.shipment.store', $resolvedOrderId) }}" class="mt-2">
+                                    @csrf
+                                    <button type="submit" class="inline-flex h-10 w-full items-center justify-center rounded-xl border border-[#1F6F5B] text-[10px] font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Message Support</button>
+                                </form>
+                            @endif
+                            <a href="{{ route('logistics.complaints.create', $resolvedOrderId) }}" class="mt-2 inline-flex h-10 w-full items-center justify-center rounded-xl border border-[#DCE5E0] text-[10px] font-semibold text-[#1F6F5B] hover:bg-[#F6F9F7]">Submit Complaint</a>
                         @endif
 
                     </div>

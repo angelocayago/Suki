@@ -13,8 +13,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $orders =
-        session('orders', []);
+    $orders = $orders ?? session('orders', []);
 
     if (!is_array($orders)) {
         $orders = [];
@@ -36,8 +35,7 @@
         $riderName = 'Rider';
     }
 
-    $riderIndex =
-        session('logged_in_rider_index');
+    $riderIndex = $riderId ?? session('logged_in_rider_index');
 
 
     /*

@@ -377,6 +377,19 @@
 
                                 </a>
 
+                                <a
+                                    href="{{ route('buyer.messages.index') }}"
+                                    class="flex items-center gap-3
+                                           rounded-xl
+                                           px-3 py-2.5
+                                           text-sm text-[#52635B]
+                                           hover:bg-[#F3F7F5]
+                                           hover:text-[#173F35]"
+                                >
+                                    <i data-lucide="message-circle" class="h-4 w-4"></i>
+                                    Messages
+                                </a>
+
 
                                 <a
                                     href="{{ route('buyer.wishlist') }}"
@@ -549,6 +562,16 @@
                            hover:text-[#173F35]"
                 >
                     My orders
+                </a>
+
+                <a
+                    href="{{ route('buyer.messages.index') }}"
+                    class="whitespace-nowrap transition
+                    {{ request()->routeIs('buyer.messages.*')
+                        ? 'text-[#173F35]'
+                        : 'text-[#6E7D76] hover:text-[#173F35]' }}"
+                >
+                    Messages
                 </a>
 
             @endif

@@ -38,6 +38,14 @@ return [
             'report' => false,
         ],
 
+        'seller_documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/seller-documents'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

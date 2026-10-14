@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Seller;
+use App\Services\Admin\AccountStatusService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 
 class SellerManagementController extends Controller
@@ -144,16 +148,54 @@ class SellerManagementController extends Controller
         $seller->load([
             'owner',
             'products',
-            'orders'
+            'orders',
+            'allowedCategories',
+        ])->loadCount([
+            'violations',
+            'warnings',
+            'violations as open_violations_count' => fn ($query) => $query->where('status', 'OPEN'),
         ]);
+
+        $categories = Category::query()
+            ->where('is_active', true)
+            ->orderBy('position')
+            ->orderBy('name')
+            ->get();
 
 
 
         return view(
             'superadmin.sellers.show',
-            compact('seller')
+            compact('seller', 'categories')
         );
 
+    }
+
+    public function updateAllowedCategories(Request $request, Seller $seller)
+    {
+        $validated = $request->validate([
+            'categories' => ['nullable', 'array'],
+            'categories.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('categories', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
+        ]);
+
+        DB::transaction(function () use ($request, $seller, $validated) {
+            $now = now();
+            $assignments = collect($validated['categories'] ?? [])->mapWithKeys(fn ($categoryId) => [
+                (int) $categoryId => [
+                    'assigned_by' => $request->user()->id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+            ])->all();
+
+            $seller->allowedCategories()->sync($assignments);
+        });
+
+        return back()->with('success', 'Seller allowed categories updated.');
     }
 
 
@@ -170,25 +212,30 @@ class SellerManagementController extends Controller
 
     public function updateStatus(
         Request $request,
-        Seller $seller
+        Seller $seller,
+        AccountStatusService $accountStatusService
     ) {
 
 
         $request->validate([
 
             'status'
-                => 'required|in:active,pending,suspended'
+                => 'required|in:approved,suspended,inactive',
+
+            'reason'
+                => 'nullable|required_if:status,suspended,inactive|string|max:1000',
 
         ]);
 
 
 
-        $seller->update([
-
-            'status'
-                => $request->status
-
-        ]);
+        $accountStatusService->changeStatus(
+            $seller->owner,
+            $request->status === 'approved' ? 'active' : $request->status,
+            $request->user(),
+            $request->input('reason'),
+            'seller_management'
+        );
 
 
 

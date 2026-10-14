@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Services\ProductCatalogService;
 
 class ProductController extends Controller
 {
@@ -324,24 +324,38 @@ class ProductController extends Controller
     }
 
 
-    public function shop()
+    public function home(ProductCatalogService $catalog)
     {
-        $products = $this->products();
+        $products = $catalog->marketplaceProducts() ?: $this->products();
+
+        return view('buyer.home', compact('products'));
+    }
+
+
+    public function shop(ProductCatalogService $catalog)
+    {
+        $products = $catalog->marketplaceProducts() ?: $this->products();
 
         return view('buyer.shop', compact('products'));
     }
 
 
-    public function show($slug)
+    public function show(string $slug, ProductCatalogService $catalog)
     {
-        $products = $this->products();
+        $product = $catalog->marketplaceProduct($slug);
 
-        $product = collect($products)->firstWhere('slug', $slug);
+        if (! $product) {
+            $product = collect($this->products())->firstWhere('slug', $slug);
+
+            if ($product) {
+                $product['source'] = 'legacy';
+            }
+        }
 
         if (!$product) {
             abort(404);
         }
 
-        return view('buyer.products-details', compact('product', 'slug'));
+        return view('buyer.product-details', compact('product', 'slug'));
     }
 }

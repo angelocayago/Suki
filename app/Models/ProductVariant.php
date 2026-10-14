@@ -22,6 +22,9 @@ class ProductVariant extends Model
         'price_minor',
         'stock',
         'weight_grams',
+        'length_mm',
+        'width_mm',
+        'height_mm',
         'is_active',
     ];
 
@@ -35,6 +38,9 @@ class ProductVariant extends Model
             'price_minor' => 'integer',
             'stock' => 'integer',
             'weight_grams' => 'integer',
+            'length_mm' => 'integer',
+            'width_mm' => 'integer',
+            'height_mm' => 'integer',
             'is_active' => 'boolean',
         ];
     }

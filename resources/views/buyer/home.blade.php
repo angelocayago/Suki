@@ -60,7 +60,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $products = [
+    $legacyProducts = [
 
         [
             'name' => 'Minimalist Shoulder Bag',
@@ -118,6 +118,10 @@
         ],
 
     ];
+
+    $products = !empty($products)
+        ? array_values($products)
+        : $legacyProducts;
 
 @endphp
 
