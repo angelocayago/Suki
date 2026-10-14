@@ -4562,13 +4562,6 @@ Route::post('/seller/products', function (
         'sku' => $request->sku,
         'status' => $isDraft ? 'draft' : $request->status,
 
-            $baseSlug = Str::slug(
-                $validated['name']
-            );
-
-            if ($baseSlug === '') {
-                $baseSlug = 'product';
-            }
         'has_variations' => $request->boolean('has_variations'),
         'variation_names' => $request->boolean('has_variations')
             ? array_values(array_filter($request->variation_name ?? []))
@@ -4577,24 +4570,37 @@ Route::post('/seller/products', function (
             ? array_values(array_filter($request->variation_value ?? []))
             : [],
 
-            $slug = $baseSlug;
-            $counter = 2;
+           ];
 
-            while (
-                Product::where('slug', $slug)->exists()
-            ) {
-                $slug = $baseSlug . '-' . $counter;
-                $counter++;
-            }
+            
 
-            $product = Product::create([
-                'seller_id' => $seller->id,
-                'category_id' => $category->id,
-                'name' => $validated['name'],
-                'slug' => $slug,
-                'description' => $validated['description'],
-                'is_active' => $validated['status'] === 'active',
-            ]);
+$baseSlug = Str::slug(
+    $validated['name']
+);
+
+if ($baseSlug === '') {
+    $baseSlug = 'product';
+}
+
+$slug = $baseSlug;
+$counter = 2;
+
+while (
+    Product::where('slug', $slug)->exists()
+) {
+    $slug = $baseSlug . '-' . $counter;
+    $counter++;
+}
+
+
+$product = Product::create([
+    'seller_id' => $seller->id,
+    'category_id' => $category->id,
+    'name' => $validated['name'],
+    'slug' => $slug,
+    'description' => $validated['description'],
+    'is_active' => $validated['status'] === 'active',
+]);
 
             $sku = !empty($validated['sku'])
                 ? $validated['sku']
