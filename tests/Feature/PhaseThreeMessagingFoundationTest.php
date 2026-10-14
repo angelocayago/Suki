@@ -683,7 +683,7 @@ class PhaseThreeMessagingFoundationTest extends TestCase
         ]);
 
         $participantRoute = route('complaints.messages.context.store', $complaint);
-        $adminRoute = route('superadmin.messages.context.complaint.store', $complaint);
+        $adminRoute = route('admin.messages.context.complaint.store', $complaint);
 
         $this->actingAs($fixture['buyer'])
             ->get(route('complaints.mine.show', $complaint))
@@ -695,18 +695,18 @@ class PhaseThreeMessagingFoundationTest extends TestCase
         $participantResponse->assertRedirect(route('buyer.messages.show', $conversation));
 
         $this->actingAs($assignedAdmin)
-            ->get(route('superadmin.complaints.show', $complaint))
+            ->get(route('admin.complaints.show', $complaint))
             ->assertOk()
             ->assertSee($adminRoute, false);
         $this->actingAs($assignedAdmin)
             ->post($adminRoute)
-            ->assertRedirect(route('superadmin.messages.show', $conversation));
+            ->assertRedirect(route('admin.messages.show', $conversation));
 
         $this->actingAs($fixture['buyer'])
             ->post(route('buyer.messages.store', $conversation), ['body' => 'Buyer complaint message'])
             ->assertRedirect();
         $this->actingAs($assignedAdmin)
-            ->post(route('superadmin.messages.store', $conversation), ['body' => 'Assigned admin response'])
+            ->post(route('admin.messages.store', $conversation), ['body' => 'Assigned admin response'])
             ->assertRedirect();
 
         $this->assertDatabaseCount('conversations', 1);
@@ -719,13 +719,13 @@ class PhaseThreeMessagingFoundationTest extends TestCase
 
         $complaint->update(['assigned_to' => $replacementAdmin->id, 'assigned_at' => now()]);
         $this->actingAs($assignedAdmin)
-            ->get(route('superadmin.messages.show', $conversation))
+            ->get(route('admin.messages.show', $conversation))
             ->assertForbidden();
         $this->actingAs($assignedAdmin)->post($adminRoute)->assertForbidden();
 
         $this->actingAs($replacementAdmin)
             ->post($adminRoute)
-            ->assertRedirect(route('superadmin.messages.show', $conversation));
+            ->assertRedirect(route('admin.messages.show', $conversation));
         $this->assertDatabaseCount('conversations', 1);
         $this->assertSame(ComplaintStatus::Open, $complaint->fresh()->status);
     }

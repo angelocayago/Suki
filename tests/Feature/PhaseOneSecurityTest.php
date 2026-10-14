@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Application;
+use App\Models\Category;
 use App\Models\LogisticsProvider;
 use App\Models\Order;
 use App\Models\Rider;
@@ -58,7 +59,13 @@ class PhaseOneSecurityTest extends TestCase
 
     public function test_seller_registration_creates_pending_persistent_application(): void
     {
-        Storage::fake('local');
+        Storage::fake('seller_documents');
+        $category = Category::query()->create([
+            'name' => 'Fashion',
+            'slug' => 'fashion',
+            'position' => 1,
+            'is_active' => true,
+        ]);
 
         $response = $this->post(route('seller.register.submit'), [
             'first_name' => 'Sela',
@@ -73,7 +80,9 @@ class PhaseOneSecurityTest extends TestCase
             'barangay' => 'Poblacion',
             'address' => '10 Market Street',
             'business_name' => 'Sela Store',
-            'business_category' => 'Fashion',
+            'category_id' => $category->id,
+            'seller_type' => 'business',
+            'tin' => '123-456-789-000',
             'valid_id' => UploadedFile::fake()->create('id.jpg', 100, 'image/jpeg'),
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
             'password' => 'password123',

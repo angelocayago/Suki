@@ -208,7 +208,7 @@ class PhaseThreeAdminPortalTest extends TestCase
         Notification::assertSentTo($logisticsUser, ApplicationDecisionNotification::class);
     }
 
-    public function test_legacy_admin_urls_retain_compatibility_with_the_canonical_portal(): void
+    public function test_admin_urls_are_canonical_and_legacy_superadmin_urls_remain_available(): void
     {
         Notification::fake();
         $admin = $this->userWithRole('admin');
@@ -221,15 +221,20 @@ class PhaseThreeAdminPortalTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
-            ->assertRedirect(route('superadmin.dashboard'));
+            ->assertOk()
+            ->assertSee('Admin Dashboard');
 
         $this->actingAs($admin)
             ->get(route('admin.buyers'))
-            ->assertRedirect(route('superadmin.buyers'));
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->get(route('superadmin.dashboard'))
+            ->assertOk();
 
         $this->actingAs($admin)
             ->post(route('admin.buyers.approve', $buyer))
-            ->assertRedirect(route('superadmin.applications.show', $application));
+            ->assertRedirect(route('admin.applications.show', $application));
 
         $this->assertSame('active', $buyer->fresh()->status);
         $this->assertSame('approved', $application->fresh()->status);

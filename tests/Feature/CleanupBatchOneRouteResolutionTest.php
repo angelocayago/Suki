@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\BuyerManagementController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
 use App\Http\Controllers\Rider\FulfillmentController as RiderFulfillmentController;
 use Illuminate\Http\Request;
@@ -35,21 +37,27 @@ class CleanupBatchOneRouteResolutionTest extends TestCase
         }
     }
 
-    public function test_legacy_admin_urls_keep_their_compatibility_route_resolution(): void
+    public function test_admin_urls_are_canonical_controller_routes_and_legacy_urls_remain_compatible(): void
     {
         $expectations = [
-            ['GET', '/admin', 'admin.dashboard'],
-            ['GET', '/admin/buyers', 'admin.buyers'],
-            ['POST', '/admin/buyers/123/approve', 'admin.buyers.approve'],
-            ['POST', '/admin/buyers/123/reject', 'admin.buyers.reject'],
+            ['GET', '/admin', 'admin.dashboard', AdminDashboardController::class.'@index'],
+            ['GET', '/admin/buyers', 'admin.buyers', BuyerManagementController::class.'@index'],
+            ['GET', '/superadmin', 'superadmin.dashboard', AdminDashboardController::class.'@index'],
+            ['GET', '/superadmin/buyers', 'superadmin.buyers', BuyerManagementController::class.'@index'],
         ];
 
-        foreach ($expectations as [$method, $uri, $name]) {
+        foreach ($expectations as [$method, $uri, $name, $action]) {
             $route = $this->resolve($method, $uri);
 
             $this->assertSame($name, $route->getName());
-            $this->assertSame('Closure', $route->getActionName());
+            $this->assertSame($action, $route->getActionName());
+            $this->assertContains('role:admin,superadmin', $route->gatherMiddleware());
         }
+
+        $this->assertSame(
+            'admin.buyers.approve',
+            $this->resolve('POST', '/admin/buyers/123/approve')->getName()
+        );
     }
 
     private function resolve(string $method, string $uri): Route

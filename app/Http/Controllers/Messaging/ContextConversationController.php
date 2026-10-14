@@ -76,7 +76,9 @@ class ContextConversationController extends Controller
         $conversation = $messaging->createComplaintConversation($request->user(), $complaint);
 
         $route = $request->user()->isAdmin()
-            ? 'superadmin.messages.show'
+            ? (str_starts_with((string) $request->route()?->getName(), 'superadmin.')
+                ? 'superadmin.messages.show'
+                : 'admin.messages.show')
             : match (strtoupper((string) $complaint->complainant_role)) {
                 'BUYER' => 'buyer.messages.show',
                 'SELLER' => 'seller.messages.show',

@@ -22,7 +22,9 @@ class AuthenticationLogoutRegressionTest extends TestCase
             'password' => 'password',
         ])->assertRedirect(route('seller.dashboard'));
 
-        $this->get(route('seller.dashboard'))->assertOk();
+        $this->get(route('seller.dashboard'))
+            ->assertOk()
+            ->assertSee('data-confirm-logout', false);
         $this->post(route('logout'))->assertRedirect(route('login'));
         $this->assertGuest();
         $this->get(route('seller.dashboard'))->assertRedirect(route('login'));
@@ -37,10 +39,13 @@ class AuthenticationLogoutRegressionTest extends TestCase
             'password' => 'password',
         ])->assertRedirect(route('admin.dashboard'));
 
-        $this->get(route('admin.dashboard'))->assertRedirect(route('superadmin.dashboard'));
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('data-confirm-logout', false);
         $this->get(route('superadmin.dashboard'))->assertOk();
         $this->post(route('admin.logout'))->assertRedirect(route('admin.login'));
         $this->assertGuest();
+        $this->get(route('admin.dashboard'))->assertRedirect(route('login'));
         $this->get(route('superadmin.dashboard'))->assertRedirect(route('login'));
     }
 
@@ -52,6 +57,10 @@ class AuthenticationLogoutRegressionTest extends TestCase
             'login' => 'buyer@test.com',
             'password' => 'password',
         ])->assertRedirect(route('buyer.home'));
+
+        $this->get(route('buyer.home'))
+            ->assertOk()
+            ->assertSee('data-confirm-logout', false);
 
         $this->post(route('logout'))->assertRedirect(route('buyer.home'));
         $this->assertGuest();
@@ -66,7 +75,9 @@ class AuthenticationLogoutRegressionTest extends TestCase
             'password' => 'password',
         ])->assertRedirect(route('rider.dashboard'));
 
-        $this->get(route('rider.dashboard'))->assertOk();
+        $this->get(route('rider.dashboard'))
+            ->assertOk()
+            ->assertSee('data-confirm-logout', false);
         $this->post(route('logout'))->assertRedirect(route('login'));
         $this->assertGuest();
         $this->get(route('rider.dashboard'))->assertRedirect(route('login'));
@@ -81,7 +92,9 @@ class AuthenticationLogoutRegressionTest extends TestCase
             'password' => 'password',
         ])->assertRedirect(route('logistics.dashboard'));
 
-        $this->get(route('logistics.dashboard'))->assertOk();
+        $this->get(route('logistics.dashboard'))
+            ->assertOk()
+            ->assertSee('data-confirm-logout', false);
         $this->post(route('logout'))->assertRedirect(route('login'));
         $this->assertGuest();
         $this->get(route('logistics.dashboard'))->assertRedirect(route('login'));
@@ -123,7 +136,7 @@ class AuthenticationLogoutRegressionTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['buyer_logged_in' => true, 'seller_logged_in' => true])
-            ->get(route('superadmin.dashboard'))
+            ->get(route('admin.dashboard'))
             ->assertOk();
 
         $response = $this->post(route('admin.logout'));
@@ -132,7 +145,7 @@ class AuthenticationLogoutRegressionTest extends TestCase
         $this->assertGuest();
         $response->assertSessionMissing('buyer_logged_in');
         $response->assertSessionMissing('seller_logged_in');
-        $this->get(route('superadmin.dashboard'))->assertRedirect(route('login'));
+        $this->get(route('admin.dashboard'))->assertRedirect(route('login'));
     }
 
     public function test_shared_logout_also_routes_admin_to_admin_login(): void

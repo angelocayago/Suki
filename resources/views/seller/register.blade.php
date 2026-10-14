@@ -383,6 +383,7 @@
             <input
                 type="text"
                 name="first_name"
+                value="{{ old('first_name') }}"
                 required
                 placeholder="First name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -402,6 +403,7 @@
             <input
                 type="text"
                 name="last_name"
+                value="{{ old('last_name') }}"
                 required
                 placeholder="Last name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -421,6 +423,7 @@
             <input
                 type="text"
                 name="middle_initial"
+                value="{{ old('middle_initial') }}"
                 placeholder="M"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
@@ -446,11 +449,11 @@
                     Select sex
                 </option>
 
-                <option value="Male">
+                <option value="Male" @selected(old('sex') === 'Male')>
                     Male
                 </option>
 
-                <option value="Female">
+                <option value="Female" @selected(old('sex') === 'Female')>
                     Female
                 </option>
 
@@ -470,6 +473,8 @@
             <input
                 type="date"
                 name="birthday"
+                value="{{ old('birthday') }}"
+                max="{{ now()->subYears(18)->toDateString() }}"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
@@ -512,6 +517,7 @@
         <input
             type="text"
             name="phone"
+            value="{{ old('phone') }}"
             required
             placeholder="09XXXXXXXXX"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -622,6 +628,7 @@
         <input
             type="text"
             name="address"
+            value="{{ old('address') }}"
             required
             placeholder="Enter complete address"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -659,6 +666,7 @@
             <input
                 type="text"
                 name="business_name"
+                value="{{ old('business_name') }}"
                 required
                 placeholder="Business name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -676,7 +684,7 @@
             </label>
 
             <select
-                name="business_category"
+                name="category_id"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
@@ -685,21 +693,11 @@
                     Select category
                 </option>
 
-                <option value="Food">
-                    Food
-                </option>
-
-                <option value="Clothing">
-                    Clothing
-                </option>
-
-                <option value="Electronics">
-                    Electronics
-                </option>
-
-                <option value="Others">
-                    Others
-                </option>
+                @foreach($categories as $category)
+                    <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                        {{ $category->name }}
+                    </option>
+                @endforeach
 
             </select>
 
@@ -708,6 +706,42 @@
 
     </div>
 
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Seller Type *
+            </label>
+
+            <select
+                id="seller_type"
+                name="seller_type"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+                <option value="">Select seller type</option>
+                <option value="individual" @selected(old('seller_type') === 'individual')>Individual</option>
+                <option value="business" @selected(old('seller_type') === 'business')>Registered Business</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                TIN *
+            </label>
+
+            <input
+                type="text"
+                name="tin"
+                value="{{ old('tin') }}"
+                required
+                inputmode="numeric"
+                placeholder="123-456-789-000"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+        </div>
+
+    </div>
 
 </div>
 
@@ -749,7 +783,7 @@
 
 
 <span class="text-xs text-gray-400 mt-1">
-    JPG, JPEG, PNG or PDF
+    JPG, JPEG, PNG or PDF · Maximum 5 MB
 </span>
 
 
@@ -765,6 +799,7 @@
     id="valid_id"
     name="valid_id"
     required
+    accept=".jpg,.jpeg,.png,.pdf"
     class="hidden"
     onchange="showFileName(this, 'validIdName')"
 >
@@ -780,11 +815,11 @@
 
 
         {{-- BUSINESS PERMIT --}}
-        <div>
+        <div id="businessPermitField">
 
 
             <label class="block text-sm font-medium text-gray-700 mb-2">
-                Upload Business Permit
+                Upload Business Permit <span id="businessPermitRequired">*</span>
             </label>
 
 
@@ -803,7 +838,7 @@
 
 
 <span class="text-xs text-gray-400 mt-1">
-    JPG, JPEG, PNG or PDF
+    JPG, JPEG, PNG or PDF · Maximum 5 MB
 </span>
 
 
@@ -818,7 +853,7 @@
     type="file"
     id="business_permit"
     name="business_permit"
-    required
+    accept=".jpg,.jpeg,.png,.pdf"
     class="hidden"
     onchange="showFileName(this, 'permitName')"
 >
@@ -842,7 +877,7 @@
 {{-- ==========================================
      ADMIN APPROVAL NOTICE
 ========================================== --}}
-<div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
 
 
     <div class="flex gap-3">
@@ -860,7 +895,7 @@
                 Administrator approval required.
             </span>
 
-            After submitting your registration, your application will be reviewed by SUKI SHOP administrator.
+            Your account will remain pending and seller portal access will stay disabled until an administrator reviews your information and private documents. You will see the decision when you next sign in.
 
         </p>
 
@@ -910,7 +945,7 @@
     type="submit"
     class="w-full rounded-xl bg-[#1F6F5B] py-3.5 text-sm font-semibold text-white hover:bg-[#155244] transition"
 >
-    Submit Registration →
+    Submit for Admin Review
 </button>
 
 
@@ -1032,10 +1067,43 @@ function showFileName(input, targetId) {
 
     if (input.files.length > 0) {
 
-        target.textContent = input.files[0].name;
+        const file = input.files[0];
+        const sizeInMb = file.size / (1024 * 1024);
+
+        target.textContent = `${file.name} (${sizeInMb.toFixed(1)} MB)`;
+        target.classList.toggle('text-red-600', sizeInMb > 5);
+        target.classList.toggle('text-[#1F6F5B]', sizeInMb <= 5);
+
+        if (sizeInMb > 5) {
+            target.textContent += ' — file exceeds the 5 MB limit';
+        }
 
     }
 
+}
+
+const sellerTypeSelect = document.getElementById('seller_type');
+const businessPermitField = document.getElementById('businessPermitField');
+const businessPermitInput = document.getElementById('business_permit');
+const businessPermitRequired = document.getElementById('businessPermitRequired');
+
+function syncSellerDocumentFields() {
+    if (!sellerTypeSelect || !businessPermitField || !businessPermitInput) {
+        return;
+    }
+
+    const requiresPermit = sellerTypeSelect.value === 'business';
+    businessPermitField.classList.toggle('hidden', !requiresPermit);
+    businessPermitInput.required = requiresPermit;
+
+    if (businessPermitRequired) {
+        businessPermitRequired.classList.toggle('hidden', !requiresPermit);
+    }
+}
+
+if (sellerTypeSelect) {
+    sellerTypeSelect.addEventListener('change', syncSellerDocumentFields);
+    syncSellerDocumentFields();
 }
 
 

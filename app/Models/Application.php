@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 
 class Application extends Model
@@ -60,7 +61,7 @@ class Application extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Reviewer (Super Admin)
+    | Reviewer (Admin)
     |--------------------------------------------------------------------------
     */
 
@@ -70,6 +71,11 @@ class Application extends Model
             User::class,
             'reviewed_by'
         );
+    }
+
+    public function sellerDocuments(): HasMany
+    {
+        return $this->hasMany(SellerDocument::class);
     }
 
 }

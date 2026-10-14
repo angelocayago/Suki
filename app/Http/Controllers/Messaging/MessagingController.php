@@ -37,9 +37,15 @@ abstract class MessagingController extends Controller
                 'route_prefix' => 'logistics.messages',
                 'role_contexts' => ['LOGISTICS'],
             ],
+            'admin' => [
+                'name' => 'admin',
+                'layout' => 'admin.layout',
+                'route_prefix' => 'admin.messages',
+                'role_contexts' => ['ADMIN'],
+            ],
             'superadmin' => [
-                'name' => 'superadmin',
-                'layout' => 'superadmin.layout',
+                'name' => 'admin',
+                'layout' => 'admin.layout',
                 'route_prefix' => 'superadmin.messages',
                 'role_contexts' => ['ADMIN'],
             ],

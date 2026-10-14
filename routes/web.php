@@ -17,25 +17,27 @@ use App\Http\Controllers\ParticipantComplaintController;
 use App\Http\Controllers\Seller\FulfillmentController as SellerFulfillmentController;
 use App\Http\Controllers\Seller\InventoryController as SellerInventoryController;
 use App\Http\Controllers\Seller\ProductController as SellerProductController;
+use App\Http\Controllers\Seller\RegistrationController as SellerRegistrationController;
 use App\Http\Controllers\Rider\FulfillmentController as RiderFulfillmentController;
 use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
 use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
 use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
 use App\Http\Controllers\Messaging\MessageController as MessagingMessageController;
-use App\Http\Controllers\SuperAdmin\ApplicationController as AdminApplicationController;
-use App\Http\Controllers\SuperAdmin\BuyerManagementController;
-use App\Http\Controllers\SuperAdmin\CommissionController;
-use App\Http\Controllers\SuperAdmin\ComplaintController;
-use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
-use App\Http\Controllers\SuperAdmin\OrderManagementController;
-use App\Http\Controllers\SuperAdmin\ProductModerationController;
-use App\Http\Controllers\SuperAdmin\ReportController;
-use App\Http\Controllers\SuperAdmin\SellerComplianceController;
-use App\Http\Controllers\SuperAdmin\SellerComplianceEvidenceController;
-use App\Http\Controllers\SuperAdmin\SellerManagementController;
-use App\Http\Controllers\SuperAdmin\SettingController;
-use App\Http\Controllers\SuperAdmin\UserManagementController;
+use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
+use App\Http\Controllers\Admin\ApplicationDocumentController;
+use App\Http\Controllers\Admin\BuyerManagementController;
+use App\Http\Controllers\Admin\CommissionController;
+use App\Http\Controllers\Admin\ComplaintController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\OrderManagementController;
+use App\Http\Controllers\Admin\ProductModerationController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\SellerComplianceController;
+use App\Http\Controllers\Admin\SellerComplianceEvidenceController;
+use App\Http\Controllers\Admin\SellerManagementController;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserManagementController;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -2928,137 +2930,12 @@ Route::post('/seller/orders/{sellerOrder}/status', [SellerFulfillmentController:
 // SELLER REGISTRATION
 // =====================================================
 
-Route::get('/seller/register', function () {
+Route::get('/seller/register', [SellerRegistrationController::class, 'create'])
+    ->name('seller.register');
 
-    return view('seller.register');
-
-})->name('seller.register');
-
-
-Route::post('/seller/register', function (Request $request) {
-
-    $validated = $request->validate([
-
-    'first_name' => 'required|string|max:100',
-
-    'last_name' => 'required|string|max:100',
-
-    'middle_initial' => 'nullable|string|max:5',
-
-    'sex' => 'required|string',
-
-    'birthday' => 'required|date|before:today',
-
-    'phone' => 'required|string|max:30|unique:users,phone',
-
-    'email' => 'required|email|max:255|unique:users,email',
-
-
-    'province' => 'required|string|max:100',
-
-    'municipality' => 'required|string|max:100',
-
-    'barangay' => 'required|string|max:100',
-
-    'address' => 'required|string|max:255',
-
-
-    'business_name' => 'required|string|max:150',
-
-    'business_category' => 'required|string|max:150',
-
-
-    'valid_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-    'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-
-    'password' => 'required|string|min:8|confirmed',
-
-    'terms' => 'accepted',
-
-]);
-
-    
-
-$validIdPath = $request
-    ->file('valid_id')
-    ->store('application-documents/sellers');
-
-
-$permitPath = $request
-    ->file('business_permit')
-    ->store('application-documents/sellers');
-
-
-
-
-    DB::transaction(function () use ($validated, $validIdPath, $permitPath) {
-        $fullName = trim($validated['first_name'].' '.($validated['middle_initial'] ?? '').' '.$validated['last_name']);
-
-        $user = User::create([
-            'role' => 'seller',
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'middle_initial' => $validated['middle_initial'] ?? null,
-            'sex' => $validated['sex'],
-            'birthday' => $validated['birthday'],
-            'name' => $fullName,
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'status' => 'pending',
-            'password' => $validated['password'],
-        ]);
-
-        $role = Role::firstOrCreate(['name' => 'seller']);
-        $user->roles()->syncWithoutDetaching([$role->id]);
-
-        $address = $user->addresses()->create([
-            'label' => 'Business',
-            'recipient' => $fullName,
-            'phone' => $validated['phone'],
-            'line1' => $validated['address'],
-            'barangay' => $validated['barangay'],
-            'city' => $validated['municipality'],
-            'province' => $validated['province'],
-            'is_default' => true,
-        ]);
-
-        Seller::create([
-            'user_id' => $user->id,
-            'name' => $validated['business_name'],
-            'slug' => Str::slug($validated['business_name']).'-'.$user->id,
-            'business_category' => $validated['business_category'],
-            'status' => 'pending',
-            'commission_bps' => 1000,
-            'pickup_address_id' => $address->id,
-            'valid_id_path' => $validIdPath,
-            'business_permit_path' => $permitPath,
-        ]);
-
-        Application::create([
-            'user_id' => $user->id,
-            'application_type' => 'seller',
-            'status' => 'pending',
-            'application_data' => [
-                'business_name' => $validated['business_name'],
-                'business_category' => $validated['business_category'],
-            ],
-            'documents' => [
-                'valid_id' => $validIdPath,
-                'business_permit' => $permitPath,
-            ],
-        ]);
-    });
-
-    return redirect()
-        ->route('login')
-        ->with(
-            'success',
-            'Your seller application has been submitted. Please wait for administrator approval.'
-        );
-
-})->name('seller.register.submit');
+Route::post('/seller/register', [SellerRegistrationController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('seller.register.submit');
 
 
 // =====================================================
@@ -5322,6 +5199,8 @@ $registerMessagingRoutes('buyer', 'buyer', 'buyer', 'buyer');
 $registerMessagingRoutes('seller', 'seller', 'seller', 'seller');
 $registerMessagingRoutes('rider', 'rider', 'rider', 'rider');
 $registerMessagingRoutes('logistics', 'logistics', 'logistics', 'logistics');
+$registerMessagingRoutes('admin', 'admin', 'admin,superadmin', 'admin');
+// Compatibility for existing bookmarks and integrations during the rename.
 $registerMessagingRoutes('superadmin', 'superadmin', 'admin,superadmin', 'superadmin');
 
 // =====================================================
@@ -5565,11 +5444,8 @@ Route::post('/logistics/riders/{rider}/disapprove', function (
 
 }
 
-Route::prefix('superadmin')
-    ->name('superadmin.')
-    ->middleware(['auth', 'not_suspended', 'approved', 'role:admin,superadmin'])
-    ->group(function () {
-        Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+$registerAdminPortalRoutes = function (): void {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/users', [UserManagementController::class, 'index'])->name('users');
         Route::get('/users/search', [UserManagementController::class, 'search'])->name('users.search');
@@ -5621,12 +5497,8 @@ Route::prefix('superadmin')
         Route::get('/complaints/{complaint}/evidence/{evidence}/download', [ComplaintEvidenceController::class, 'download'])->name('complaints.evidence.download');
 
         Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications');
-        Route::get('/applications/{application}/documents/{document}', function (Application $application, string $document) {
-            $documents = $application->documents ?? [];
-            abort_unless(isset($documents[$document]) && Storage::exists($documents[$document]), 404);
-
-            return Storage::download($documents[$document]);
-        })->name('applications.documents.show');
+        Route::get('/applications/{application}/documents/{document}', [ApplicationDocumentController::class, 'show'])
+            ->name('applications.documents.show');
         Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
         Route::post('/applications/{application}/approve', [AdminApplicationController::class, 'approve'])->name('applications.approve');
         Route::post('/applications/{application}/reject', [AdminApplicationController::class, 'reject'])->name('applications.reject');
@@ -5644,7 +5516,19 @@ Route::prefix('superadmin')
         Route::post('/settings/announcements', [SettingController::class, 'storeAnnouncement'])->name('settings.announcement.store');
         Route::patch('/settings/announcements/{announcement}', [SettingController::class, 'updateAnnouncement'])->name('settings.announcement.update');
         Route::delete('/settings/announcements/{announcement}', [SettingController::class, 'deleteAnnouncement'])->name('settings.announcement.delete');
-    });
+};
+
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:admin,superadmin'])
+    ->group($registerAdminPortalRoutes);
+
+// Temporary compatibility surface. The Admin portal now generates /admin URLs,
+// but legacy /superadmin URLs and route names continue to execute the same code.
+Route::prefix('superadmin')
+    ->name('superadmin.')
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:admin,superadmin'])
+    ->group($registerAdminPortalRoutes);
 
 // =====================================================
 // ADMIN AUTH CHECK
@@ -5760,39 +5644,7 @@ Route::post('/admin/login', function (Request $request) {
 })->name('admin.login.submit');
 
 // =====================================================
-// ADMIN DASHBOARD
-// =====================================================
-
-Route::get('/admin', function () use ($requireAdmin) {
-
-    if ($redirect = $requireAdmin()) {
-        return $redirect;
-    }
-
-    return redirect()->route('superadmin.dashboard');
-
-})->name('admin.dashboard');
-
-// =====================================================
-// ADMIN BUYER APPLICATIONS
-// =====================================================
-
-Route::get(
-    '/admin/buyers',
-    function () use ($requireAdmin) {
-
-        if ($redirect = $requireAdmin()) {
-            return $redirect;
-        }
-
-        return redirect()->route('superadmin.buyers');
-
-    }
-)->name('admin.buyers');
-
-
-// =====================================================
-// ADMIN APPROVE BUYER
+// ADMIN BUYER APPLICATION COMPATIBILITY ACTIONS
 // =====================================================
 
 Route::post(
@@ -5821,7 +5673,7 @@ Route::post(
         $buyer->notify(new \App\Notifications\ApplicationDecisionNotification($application));
 
         return redirect()
-            ->route('superadmin.applications.show', $application)
+            ->route('admin.applications.show', $application)
             ->with('success', $buyer->full_name . ' has been approved successfully.');
 
     }
@@ -5860,7 +5712,7 @@ Route::post(
         $buyer->notify(new \App\Notifications\ApplicationDecisionNotification($application));
 
         return redirect()
-            ->route('superadmin.applications.show', $application)
+            ->route('admin.applications.show', $application)
             ->with('success', $buyer->full_name . ' has been rejected.');
 
     }

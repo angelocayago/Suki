@@ -97,6 +97,17 @@ class AccountStatusService
             $this->writeUserStatus($user, 'active');
             $this->synchronizeApprovedProfile($user, $lockedApplication->application_type);
 
+            if ($lockedApplication->application_type === 'seller') {
+                $lockedApplication->sellerDocuments()
+                    ->where('verification_status', 'pending')
+                    ->update([
+                        'verification_status' => 'approved',
+                        'reviewed_by' => $actor->id,
+                        'reviewed_at' => now(),
+                        'rejection_reason' => null,
+                    ]);
+            }
+
             $lockedApplication->update([
                 'status' => 'approved',
                 'reviewed_by' => $actor->id,
@@ -145,6 +156,15 @@ class AccountStatusService
                     'status' => 'rejected',
                     'rejection_reason' => $reason,
                 ]);
+
+                $lockedApplication->sellerDocuments()
+                    ->where('verification_status', 'pending')
+                    ->update([
+                        'verification_status' => 'rejected',
+                        'reviewed_by' => $actor->id,
+                        'reviewed_at' => now(),
+                        'rejection_reason' => $reason,
+                    ]);
             }
 
             if ($lockedApplication->application_type === 'logistics') {

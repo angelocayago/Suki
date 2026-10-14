@@ -46,7 +46,7 @@ class PhaseThreeSellerComplianceAdminInterfaceTest extends TestCase
         ]);
 
         $violation = SellerViolation::firstOrFail();
-        $response->assertRedirect(route('superadmin.compliance.show', $violation));
+        $response->assertRedirect(route('admin.compliance.show', $violation));
         $this->assertSame('active', $seller->owner->fresh()->status);
         $this->assertSame('approved', $seller->fresh()->status);
         $this->assertDatabaseHas('seller_compliance_events', [

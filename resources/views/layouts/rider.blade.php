@@ -451,6 +451,7 @@
             <form
                 action="{{ route('logout') }}"
                 method="POST"
+                data-confirm-logout
             >
 
                 @csrf
