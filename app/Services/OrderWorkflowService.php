@@ -158,6 +158,12 @@ class OrderWorkflowService
                 ->lockForUpdate()
                 ->findOrFail($sellerOrder->id);
 
+            if (strtoupper((string) $lockedOrder->order?->status) === 'CANCELLED') {
+                throw ValidationException::withMessages([
+                    'order' => 'A cancelled order cannot be accepted for pickup.',
+                ]);
+            }
+
             $workflowStatus = $lockedOrder->workflow_status instanceof OrderStatus
                 ? $lockedOrder->workflow_status
                 : OrderStatus::tryFrom(strtoupper($lockedOrder->workflow_status));
@@ -236,9 +242,15 @@ class OrderWorkflowService
     ): Shipment {
         return DB::transaction(function () use ($sellerOrder, $provider, $actor) {
             $lockedOrder = SellerOrder::query()
-                ->with(['shipment.pickupRider', 'shipment.provider'])
+                ->with(['order', 'shipment.pickupRider', 'shipment.provider'])
                 ->lockForUpdate()
                 ->findOrFail($sellerOrder->id);
+
+            if (strtoupper((string) $lockedOrder->order?->status) === 'CANCELLED') {
+                throw ValidationException::withMessages([
+                    'order' => 'A cancelled order cannot be received for logistics processing.',
+                ]);
+            }
 
             $shipment = $lockedOrder->shipment;
             $status = $lockedOrder->workflow_status instanceof OrderStatus

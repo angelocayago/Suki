@@ -92,9 +92,15 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::Delivered->value, $order->fresh()->status);
         $this->assertSame($pickupRider->id, $shipment->fresh()->pickup_rider_id);
         $this->assertSame($deliveryRider->id, $shipment->fresh()->rider_id);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'DELIVERED']);
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'delivered'])
+            ->assertSessionHasErrors('status');
+        $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
 
         app(OrderWorkflowService::class)
             ->transition($sellerOrder, $buyer, OrderStatus::Completed);
@@ -244,6 +250,35 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->get(route('logistics.parcels'))
             ->assertOk()
             ->assertSee('Legacy Session Buyer');
+    }
+
+    public function test_ready_pickup_queue_excludes_cancelled_orders_and_cancellation_blocks_pickup(): void
+    {
+        $context = $this->workflowContext();
+        extract($context);
+
+        $this->actingAs($logisticsUser)
+            ->get(route('logistics.parcels'))
+            ->assertOk()
+            ->assertSee('STEP5-ORDER');
+
+        $order->update(['status' => 'CANCELLED']);
+
+        $this->actingAs($logisticsUser)
+            ->get(route('logistics.parcels'))
+            ->assertOk()
+            ->assertDontSee('STEP5-ORDER');
+        $this->actingAs($pickupUser)
+            ->get(route('rider.deliveries'))
+            ->assertOk()
+            ->assertDontSee('STEP5-ORDER');
+
+        $this->actingAs($pickupUser)
+            ->post(route('rider.database.pickup.accept', $sellerOrder))
+            ->assertSessionHasErrors('order');
+
+        $this->assertNull($shipment->fresh()->pickup_rider_id);
+        $this->assertSame(OrderStatus::ReadyForPickup, $sellerOrder->fresh()->workflow_status);
     }
 
     private function workflowContext(): array

@@ -42,7 +42,8 @@
                         ?? ''
                     ),
                     [
-                        'picked_up',
+                    'ready_for_pickup',
+                    'picked_up',
                         'at_sorting_center',
                     ]
                 );

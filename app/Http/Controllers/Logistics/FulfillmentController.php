@@ -113,13 +113,18 @@ class FulfillmentController extends Controller
     {
         return SellerOrder::query()
             ->whereHas('shipment', function ($query) use ($provider) {
-                $query->where('logistics_provider_id', $provider->id)
+                $query->where(function ($query) {
+                    $query->where('workflow_status', OrderStatus::ReadyForPickup->value)
+                        ->whereNull('logistics_provider_id')
+                        ->whereNull('pickup_rider_id');
+                })->orWhere('logistics_provider_id', $provider->id)
                     ->orWhere(function ($query) use ($provider) {
                         $query->whereNull('logistics_provider_id')
                             ->whereHas('pickupRider', fn ($query) => $query
                                 ->where('logistics_provider_id', $provider->id));
                     });
             })
+            ->whereHas('order', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
             ->with(['order.buyer', 'items', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events'])
             ->latest()
             ->get()
@@ -135,6 +140,7 @@ class FulfillmentController extends Controller
             'id' => $sellerOrder->id,
             'source' => 'database',
             'status' => strtolower($sellerOrder->workflow_status->value),
+            'seller_name' => $sellerOrder->seller?->name,
             'order_number' => $order->order_number,
             'customer_name' => $order->recipient_name,
             'buyer_name' => $order->buyer?->full_name ?? $order->recipient_name,

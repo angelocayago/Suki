@@ -114,6 +114,7 @@ class FulfillmentController extends Controller
                 })->orWhere('pickup_rider_id', $rider->id)
                     ->orWhere('rider_id', $rider->id);
             })
+            ->whereHas('order', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
             ->with(['order.buyer', 'items', 'seller', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events'])
             ->latest()
             ->get()
