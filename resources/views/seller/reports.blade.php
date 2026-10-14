@@ -14,301 +14,170 @@
     */
 
     $products = session('seller_products', []);
-    $orders = session('orders', []);
+    $sellerOrders = collect($orders ?? [])
+        ->map(function ($order) {
+            return is_array($order) ? $order : $order->toArray();
+        });
 
-    $sellerOrders = collect($orders);
+    $orderStatus = function (array $order): string {
+        return strtolower((string) ($order['status'] ?? ''));
+    };
+
+    $orderAmount = function (array $order): float {
+        return (float) (
+            $order['total_amount']
+            ?? $order['total']
+            ?? $order['grand_total']
+            ?? 0
+        );
+    };
+
+    $orderDate = function (array $order, array $fields): ?\Carbon\Carbon {
+        foreach ($fields as $field) {
+            $value = $order[$field] ?? null;
+
+            if (!$value) {
+                continue;
+            }
+
+            $timestamp = is_numeric($value)
+                ? (int) $value
+                : strtotime((string) $value);
+
+            if ($timestamp !== false) {
+                return \Carbon\Carbon::createFromTimestamp($timestamp);
+            }
+        }
+
+        return null;
+    };
 
     $totalOrders = $sellerOrders->count();
+    $completedOrders = $sellerOrders->filter(function ($order) use ($orderStatus) {
+        return in_array($orderStatus($order), ['delivered', 'completed'], true);
+    });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | COMPLETED SALES
-    |--------------------------------------------------------------------------
-    */
-
-    $completedOrders = $sellerOrders
-        ->filter(function ($order) {
-
-            return in_array(
-                $order['status'] ?? '',
-                [
-                    'delivered',
-                    'completed'
-                ]
-            );
-
-        });
-
-
-    $totalSales = $completedOrders
-        ->sum(function ($order) {
-
-            return (float) (
-                $order['total']
-                ?? $order['grand_total']
-                ?? 0
-            );
-
-        });
-
-
-    $allOrderSales = $sellerOrders
-        ->sum(function ($order) {
-
-            return (float) (
-                $order['total']
-                ?? $order['grand_total']
-                ?? 0
-            );
-
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PRODUCT SALES
-    |--------------------------------------------------------------------------
-    */
-
-    $productsSold = $completedOrders
-        ->sum(function ($order) {
-
-            return collect(
-                $order['items'] ?? []
-            )
-            ->sum(function ($item) {
-
-                return (int) (
-                    $item['quantity'] ?? 0
-                );
-
-            });
-
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXISTING PROTOTYPE EARNINGS
-    |--------------------------------------------------------------------------
-    */
-
-    $netEarnings = $totalSales * 0.90;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ORDER COUNTS
-    |--------------------------------------------------------------------------
-    */
-
-    $toShip = $sellerOrders
-        ->filter(function ($order) {
-
-            return in_array(
-                $order['status'] ?? '',
-                [
-                    'confirmed',
-                    'preparing',
-                    'ready_for_pickup'
-                ]
-            );
-
-        })
-        ->count();
-
-
-    $cancelledOrders = $sellerOrders
-        ->where('status', 'cancelled')
-        ->count();
-
-
-    $deliveryFailed = $sellerOrders
-        ->where('status', 'delivery_failed')
-        ->count();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | RATES
-    |--------------------------------------------------------------------------
-    */
-
-    $completionRate = $totalOrders > 0
-        ? round(
-            ($completedOrders->count() / $totalOrders) * 100,
-            1
-        )
+    $totalSales = $completedOrders->sum($orderAmount);
+    $allOrderSales = $sellerOrders->sum($orderAmount);
+    $averageCompletedOrder = $completedOrders->isNotEmpty()
+        ? $totalSales / $completedOrders->count()
         : 0;
 
+    $productsSoldByName = [];
 
-    /*
-    |--------------------------------------------------------------------------
-    | TOP PRODUCTS
-    |--------------------------------------------------------------------------
-    */
+    foreach ($completedOrders as $order) {
+        foreach (($order['items'] ?? []) as $item) {
+            $item = (array) $item;
+            $quantity = max(0, (int) ($item['quantity'] ?? 0));
+            $name = trim((string) (
+                $item['product_name']
+                ?? $item['name']
+                ?? ''
+            ));
 
-    $topProducts = collect($products)
-        ->map(function ($product) {
+            if ($quantity === 0 || $name === '') {
+                continue;
+            }
 
-            return [
-
-                'name' =>
-                    $product['name']
-                    ?? 'Unnamed Product',
-
-                'image' =>
-                    $product['image']
-                    ?? null,
-
-                'sold' =>
-                    (int) (
-                        $product['sold']
-                        ?? 0
-                    ),
-
-                'stock' =>
-                    (int) (
-                        $product['stock']
-                        ?? 0
-                    ),
-
-                'price' =>
-                    (float) (
-                        $product['price']
-                        ?? 0
-                    ),
-
+            $key = mb_strtolower($name);
+            $productsSoldByName[$key] ??= [
+                'name' => $name,
+                'image' => $item['image'] ?? null,
+                'sold' => 0,
+                'stock' => null,
+                'price' => (float) ($item['unit_price'] ?? 0),
             ];
+            $productsSoldByName[$key]['sold'] += $quantity;
+        }
+    }
 
-        })
+    $productsSold = array_sum(array_column($productsSoldByName, 'sold'));
+    $topProducts = collect($productsSoldByName)
         ->sortByDesc('sold')
         ->take(5);
 
+    $toShip = $sellerOrders->filter(function ($order) use ($orderStatus) {
+        return in_array($orderStatus($order), [
+            'confirmed',
+            'preparing',
+            'ready_for_pickup',
+        ], true);
+    })->count();
 
-    /*
-    |--------------------------------------------------------------------------
-    | RECENT ORDERS
-    |--------------------------------------------------------------------------
-    */
+    $cancelledOrders = $sellerOrders
+        ->filter(fn ($order) => $orderStatus($order) === 'cancelled')
+        ->count();
+
+    $deliveryFailed = $sellerOrders
+        ->filter(fn ($order) => $orderStatus($order) === 'delivery_failed')
+        ->count();
+
+    $completionRate = $totalOrders > 0
+        ? round(($completedOrders->count() / $totalOrders) * 100, 1)
+        : 0;
 
     $recentOrders = $sellerOrders
-        ->sortByDesc(function ($order) {
-
-            return $order['created_at']
-                ?? '';
-
+        ->sortByDesc(function ($order) use ($orderDate) {
+            return $orderDate($order, ['created_at', 'placed_at'])?->timestamp ?? 0;
         })
         ->take(6);
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | STATUS COUNTS
-    |--------------------------------------------------------------------------
-    */
+    $countStatuses = function (array $statuses) use ($sellerOrders, $orderStatus): int {
+        return $sellerOrders
+            ->filter(fn ($order) => in_array($orderStatus($order), $statuses, true))
+            ->count();
+    };
 
     $statusCounts = [
-
-        'Placed' =>
-            $sellerOrders
-                ->where('status', 'placed')
-                ->count(),
-
-        'Confirmed' =>
-            $sellerOrders
-                ->where('status', 'confirmed')
-                ->count(),
-
-        'Preparing' =>
-            $sellerOrders
-                ->where('status', 'preparing')
-                ->count(),
-
-        'Ready for Pickup' =>
-            $sellerOrders
-                ->where('status', 'ready_for_pickup')
-                ->count(),
-
-        'Picked Up' =>
-            $sellerOrders
-                ->where('status', 'picked_up')
-                ->count(),
-
-        'In Transit' =>
-            $sellerOrders
-                ->whereIn(
-                    'status',
-                    [
-                        'at_sorting_center',
-                        'sorted',
-                        'assigned_to_rider'
-                    ]
-                )
-                ->count(),
-
-        'Out for Delivery' =>
-            $sellerOrders
-                ->where('status', 'out_for_delivery')
-                ->count(),
-
-        'Delivered' =>
-            $sellerOrders
-                ->where('status', 'delivered')
-                ->count(),
-
-        'Completed' =>
-            $sellerOrders
-                ->where('status', 'completed')
-                ->count(),
-
-        'Cancelled' =>
-            $sellerOrders
-                ->where('status', 'cancelled')
-                ->count(),
-
+        'Placed' => $countStatuses(['placed']),
+        'Confirmed' => $countStatuses(['confirmed']),
+        'Preparing' => $countStatuses(['preparing']),
+        'Ready for Pickup' => $countStatuses(['ready_for_pickup']),
+        'Picked Up' => $countStatuses(['picked_up']),
+        'In Transit' => $countStatuses([
+            'at_sorting_center',
+            'sorted',
+            'assigned_to_rider',
+        ]),
+        'Out for Delivery' => $countStatuses(['out_for_delivery']),
+        'Delivered' => $countStatuses(['delivered']),
+        'Completed' => $countStatuses(['completed']),
+        'Cancelled' => $countStatuses(['cancelled']),
+        'Delivery Failed' => $countStatuses(['delivery_failed']),
+        'Returned' => $countStatuses(['returned']),
     ];
 
+    $chartDays = collect(range(6, 0))
+        ->map(fn ($daysAgo) => now()->startOfDay()->subDays($daysAgo));
+    $chartLabels = $chartDays
+        ->map(fn ($day) => $day->format('D, M j'))
+        ->all();
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHART DATA
-    |--------------------------------------------------------------------------
-    | Existing frontend prototype data retained.
-    */
+    $salesChart = $chartDays->map(function ($day) use ($completedOrders, $orderAmount, $orderDate) {
+        return $completedOrders
+            ->filter(function ($order) use ($day, $orderDate) {
+                $date = $orderDate($order, [
+                    'completed_at',
+                    'delivered_at',
+                ]);
 
-    $chartLabels = [
-        'Mon',
-        'Tue',
-        'Wed',
-        'Thu',
-        'Fri',
-        'Sat',
-        'Sun'
-    ];
+                return $date?->isSameDay($day) ?? false;
+            })
+            ->sum($orderAmount);
+    })->all();
 
+    $ordersChart = $chartDays->map(function ($day) use ($sellerOrders, $orderDate) {
+        return $sellerOrders
+            ->filter(function ($order) use ($day, $orderDate) {
+                $date = $orderDate($order, ['created_at', 'placed_at']);
 
-    $salesChart = [
-        4200,
-        6800,
-        5100,
-        8900,
-        7600,
-        11200,
-        9800
-    ];
+                return $date?->isSameDay($day) ?? false;
+            })
+            ->count();
+    })->all();
 
-
-    $ordersChart = [
-        8,
-        12,
-        9,
-        16,
-        13,
-        21,
-        18
-    ];
+    $hasSalesChartData = array_sum($salesChart) > 0;
+    $hasOrdersChartData = array_sum($ordersChart) > 0;
 
 
     /*
@@ -489,7 +358,9 @@
             class="h-4 w-4 text-[#1F6F5B]"
         ></i>
 
-        Last 7 Days
+        {{ $chartDays->first()->format('M j') }}
+        –
+        {{ $chartDays->last()->format('M j') }}
 
     </div>
 
@@ -719,7 +590,7 @@
     </div>
 
 
-    {{-- NET EARNINGS --}}
+    {{-- AVERAGE COMPLETED ORDER --}}
     <div
         class="rounded-2xl
                border border-[#E1E8E4]
@@ -741,7 +612,7 @@
                            tracking-[0.12em]
                            text-[#839189]"
                 >
-                    Net Earnings
+                    Avg. Completed Order
                 </p>
 
                 <p
@@ -752,7 +623,7 @@
                            text-[#24312C]
                            sm:text-2xl"
                 >
-                    ₱{{ number_format($netEarnings, 2) }}
+                    ₱{{ number_format($averageCompletedOrder, 2) }}
                 </p>
 
             </div>
@@ -784,7 +655,7 @@
                    text-[10px]
                    text-[#7B8982]"
         >
-            Existing prototype earnings calculation
+            Based on completed order totals
         </p>
 
     </div>
@@ -884,7 +755,7 @@
                        font-medium
                        text-[#849089]"
             >
-                Gross Order Value
+                Order Value (All Statuses)
             </p>
 
             <p
@@ -1113,7 +984,7 @@
                         class="h-3 w-3"
                     ></i>
 
-                    7 days
+                    Last 7 days
 
                 </span>
 
@@ -1121,10 +992,13 @@
 
 
             <div class="h-[270px]">
-
                 <canvas id="salesChart"></canvas>
-
             </div>
+            @unless($hasSalesChartData)
+                <p class="mt-2 text-center text-[10px] text-[#8A9791]">
+                    No completed sales yet. The chart is showing zero activity.
+                </p>
+            @endunless
 
         </div>
 
@@ -1238,10 +1112,13 @@
 
 
             <div class="h-[270px]">
-
                 <canvas id="ordersChart"></canvas>
-
             </div>
+            @unless($hasOrdersChartData)
+                <p class="mt-2 text-center text-[10px] text-[#8A9791]">
+                    No orders yet. The chart is showing zero activity.
+                </p>
+            @endunless
 
         </div>
 
@@ -1442,7 +1319,11 @@
                                    sm:block"
                         >
 
-                            @if($product['stock'] <= 0)
+                            @if($product['stock'] === null)
+
+                                <span class="text-[10px] text-[#A0AAA5]">—</span>
+
+                            @elseif($product['stock'] <= 0)
 
                                 <span
                                     class="inline-flex
@@ -1734,7 +1615,7 @@
                        font-semibold
                        text-[#24312C]"
             >
-                Recent Sales
+                Recent Orders
             </h3>
 
             <p
@@ -1742,7 +1623,7 @@
                        text-[11px]
                        text-[#7C8983]"
             >
-                Latest transactions from your store
+                Latest orders placed in your store
             </p>
 
         </div>
@@ -1848,10 +1729,13 @@
                                 $order['buyer_name']
                                 ?? $order['customer_name']
                                 ?? $order['shipping_address']['name']
+                                ?? $order['recipient_name']
                                 ?? 'Buyer';
 
                             $amount =
                                 (float) (
+                                    $order['total_amount']
+                                    ??
                                     $order['total']
                                     ?? $order['grand_total']
                                     ?? 0
@@ -1896,10 +1780,10 @@
                                        text-[#7B8982]"
                             >
 
-                                @if(!empty($order['created_at']))
+                                @if(!empty($order['created_at']) || !empty($order['placed_at']))
 
                                     {{ \Carbon\Carbon::parse(
-                                        $order['created_at']
+                                        $order['created_at'] ?? $order['placed_at']
                                     )->format('M d, Y') }}
 
                                 @else
@@ -1997,10 +1881,13 @@
                         $order['buyer_name']
                         ?? $order['customer_name']
                         ?? $order['shipping_address']['name']
+                        ?? $order['recipient_name']
                         ?? 'Buyer';
 
                     $amount =
                         (float) (
+                            $order['total_amount']
+                            ??
                             $order['total']
                             ?? $order['grand_total']
                             ?? 0
@@ -2072,10 +1959,10 @@
                                    text-[#8A9791]"
                         >
 
-                            @if(!empty($order['created_at']))
+                            @if(!empty($order['created_at']) || !empty($order['placed_at']))
 
                                 {{ \Carbon\Carbon::parse(
-                                    $order['created_at']
+                                    $order['created_at'] ?? $order['placed_at']
                                 )->format('M d, Y') }}
 
                             @else

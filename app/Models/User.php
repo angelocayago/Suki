@@ -26,6 +26,10 @@ class User extends Authenticatable
         'role',
         'first_name',
         'last_name',
+        'middle_initial',
+        'sex',
+        'birthday',
+        'government_id',
         'name',
         'email',
         'phone',
@@ -144,6 +148,11 @@ class User extends Authenticatable
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
+    }
+
+    public function emailVerification(): HasOne
+    {
+        return $this->hasOne(BuyerEmailVerification::class);
     }
 
     public function rider(): HasOne

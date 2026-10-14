@@ -100,15 +100,15 @@
 
         {{-- BRAND --}}
         <div
-            class="flex h-[82px]
-                   items-center
+            class="seller-sidebar-brand flex h-[82px]
+                   items-center justify-between
                    border-b border-white/10
-                   px-6"
+                   px-5"
         >
 
             <a
                 href="{{ route('seller.dashboard') }}"
-                class="flex items-center gap-3"
+                class="seller-sidebar-brand-link flex min-w-0 items-center gap-3"
             >
 
                 <div
@@ -127,7 +127,7 @@
                 </div>
 
 
-                <div>
+                <div class="seller-sidebar-brand-copy">
 
                     <p
                         class="text-[16px]
@@ -152,19 +152,33 @@
 
             </a>
 
+            <button
+                id="sellerSidebarCollapse"
+                type="button"
+                class="seller-sidebar-collapse hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 lg:flex"
+                aria-label="Collapse sidebar"
+                aria-expanded="true"
+                aria-controls="sellerSidebar"
+                title="Collapse sidebar"
+            >
+                <i data-lucide="panel-left-close" class="h-[18px] w-[18px] transition-transform duration-300"></i>
+            </button>
+
         </div>
 
 
         {{-- STORE --}}
-        <div class="px-4 pt-5">
+        <div class="seller-sidebar-store-wrap px-4 pt-5">
 
             <a
     href="{{ route('seller.store.profile') }}"
+    aria-label="{{ $shopName }} store profile"
+    title="{{ $shopName }}"
     class="block"
 >
 
     <div
-        class="rounded-2xl
+        class="seller-sidebar-store-card rounded-2xl
                border border-white/10
                bg-white/[0.06]
                p-4
@@ -172,7 +186,7 @@
                hover:bg-white/[0.10]"
     >
 
-        <div class="flex items-center gap-3">
+        <div class="seller-sidebar-store-content flex items-center gap-3">
 
             <div
                 class="flex h-10 w-10
@@ -191,7 +205,7 @@
             </div>
 
 
-            <div class="min-w-0">
+            <div class="seller-sidebar-store-copy min-w-0">
 
                 <p
                     class="truncate
@@ -223,7 +237,8 @@
         <nav class="flex-1 overflow-y-auto px-4 py-5">
 
             <p
-                class="mb-2 px-3
+                class="seller-sidebar-section-label
+                       mb-2 px-3
                        text-[9px]
                        font-semibold
                        uppercase
@@ -240,7 +255,10 @@
                 {{-- DASHBOARD --}}
                 <a
                     href="{{ route('seller.dashboard') }}"
+                    aria-label="Dashboard"
+                    title="Dashboard"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -258,7 +276,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Dashboard</span>
+                    <span class="seller-sidebar-link-label">Dashboard</span>
 
                 </a>
 
@@ -266,7 +284,10 @@
                 {{-- ORDERS --}}
                 <a
                     href="{{ route('seller.orders') }}"
+                    aria-label="Orders"
+                    title="Orders"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -284,7 +305,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Orders</span>
+                    <span class="seller-sidebar-link-label">Orders</span>
 
                 </a>
 
@@ -292,7 +313,10 @@
                 {{-- PRODUCTS --}}
                 <a
                     href="{{ route('seller.products') }}"
+                    aria-label="Products"
+                    title="Products"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -310,7 +334,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Products</span>
+                    <span class="seller-sidebar-link-label">Products</span>
 
                 </a>
 
@@ -318,7 +342,10 @@
                 {{-- INVENTORY --}}
                 <a
                     href="{{ route('seller.inventory') }}"
+                    aria-label="Inventory"
+                    title="Inventory"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -336,7 +363,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Inventory</span>
+                    <span class="seller-sidebar-link-label">Inventory</span>
 
                 </a>
 
@@ -344,7 +371,10 @@
                 {{-- SALES --}}
                 <a
                     href="{{ route('seller.sales') }}"
+                    aria-label="Sales"
+                    title="Sales"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -361,14 +391,17 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Sales</span>
+                    <span class="seller-sidebar-link-label">Sales</span>
                 </a>
 
 
                 {{-- REPORTS --}}
                 <a
                     href="{{ route('seller.reports') }}"
+                    aria-label="Reports"
+                    title="Reports"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -386,14 +419,17 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Reports</span>
+                    <span class="seller-sidebar-link-label">Reports</span>
 
                 </a>
 
                 {{-- PROMOTIONS --}}
                 <a
                     href="{{ route('seller.promotions') }}"
+                    aria-label="Promotions"
+                    title="Promotions"
                     class="
+                        seller-sidebar-link
                         flex items-center gap-3
                         rounded-xl
                         px-3 py-2.5
@@ -410,7 +446,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>Promotions</span>
+                    <span class="seller-sidebar-link-label">Promotions</span>
                 </a>
 
 
@@ -420,7 +456,7 @@
 
             {{-- STORE SECTION --}}
             <p
-                class="mb-2 mt-7 px-3
+                class="seller-sidebar-section-label mb-2 mt-7 px-3
                        text-[9px]
                        font-semibold
                        uppercase
@@ -436,7 +472,10 @@
                 <a
                     href="{{ route('buyer.home') }}"
                     target="_blank"
+                    aria-label="View Marketplace"
+                    title="View Marketplace"
                     class="flex items-center gap-3
+                           seller-sidebar-link
                            rounded-xl
                            px-3 py-2.5
                            text-[13px]
@@ -452,7 +491,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span>View Marketplace</span>
+                    <span class="seller-sidebar-link-label">View Marketplace</span>
 
                 </a>
 
@@ -468,7 +507,7 @@
         >
 
             <div
-                class="mb-3
+                class="seller-sidebar-user mb-3
                        flex items-center gap-3
                        rounded-xl
                        px-2 py-2"
@@ -490,7 +529,7 @@
                 </div>
 
 
-                <div class="min-w-0 flex-1">
+                <div class="seller-sidebar-user-copy min-w-0 flex-1">
 
                     <p
                         class="truncate
@@ -525,7 +564,9 @@
 
                 <button
                     type="submit"
-                    class="flex w-full
+                    aria-label="Sign Out"
+                    title="Sign Out"
+                    class="seller-sidebar-signout flex w-full
                            items-center gap-3
                            rounded-xl
                            px-3 py-2.5
@@ -542,7 +583,7 @@
                         class="h-4 w-4"
                     ></i>
 
-                    Sign Out
+                    <span class="seller-sidebar-signout-label">Sign Out</span>
 
                 </button>
 
@@ -557,7 +598,7 @@
         MAIN
     ========================================================== --}}
 
-    <div class="min-h-screen lg:pl-[270px]">
+    <div id="sellerMainContent" class="min-h-screen lg:pl-[270px]">
 
 
         {{-- TOPBAR --}}
@@ -756,6 +797,12 @@
             const openButton =
                 document.getElementById('sellerSidebarOpen');
 
+            const collapseButton =
+                document.getElementById('sellerSidebarCollapse');
+
+            const root =
+                document.documentElement;
+
 
             function openSidebar() {
 
@@ -792,6 +839,40 @@
                 openButton.addEventListener(
                     'click',
                     openSidebar
+                );
+
+            }
+
+            if (collapseButton) {
+
+                collapseButton.addEventListener(
+                    'click',
+                    function () {
+
+                        const isCollapsed =
+                            root.classList.toggle('seller-sidebar-collapsed');
+
+                        const label =
+                            isCollapsed
+                                ? 'Expand sidebar'
+                                : 'Collapse sidebar';
+
+                        collapseButton.setAttribute(
+                            'aria-label',
+                            label
+                        );
+
+                        collapseButton.setAttribute(
+                            'title',
+                            label
+                        );
+
+                        collapseButton.setAttribute(
+                            'aria-expanded',
+                            String(!isCollapsed)
+                        );
+
+                    }
                 );
 
             }

@@ -13,15 +13,17 @@
 
     $inStock = collect($products)
         ->filter(function ($product) {
-            return (int) ($product['stock'] ?? 0) > 10;
+            return (int) ($product['stock'] ?? 0)
+                > (int) ($product['low_stock_threshold'] ?? 10);
         })
         ->count();
 
     $lowStock = collect($products)
         ->filter(function ($product) {
             $stock = (int) ($product['stock'] ?? 0);
+            $threshold = (int) ($product['low_stock_threshold'] ?? 10);
 
-            return $stock >= 1 && $stock <= 10;
+            return $stock >= 1 && $stock <= $threshold;
         })
         ->count();
 
@@ -797,6 +799,8 @@
 
                         $stock =
                             (int) ($product['stock'] ?? 0);
+                        $lowStockThreshold =
+                            (int) ($product['low_stock_threshold'] ?? 10);
 
                         if ($stock <= 0) {
 
@@ -809,7 +813,7 @@
                             $stockClass =
                                 'border-red-200 bg-red-50 text-red-700';
 
-                        } elseif ($stock <= 10) {
+                        } elseif ($stock <= $lowStockThreshold) {
 
                             $stockStatus =
                                 'low-stock';
@@ -1245,6 +1249,8 @@
 
                 $stock =
                     (int) ($product['stock'] ?? 0);
+                $lowStockThreshold =
+                    (int) ($product['low_stock_threshold'] ?? 10);
 
                 if ($stock <= 0) {
 
@@ -1257,7 +1263,7 @@
                     $stockClass =
                         'border-red-200 bg-red-50 text-red-700';
 
-                } elseif ($stock <= 10) {
+                } elseif ($stock <= $lowStockThreshold) {
 
                     $stockStatus =
                         'low-stock';

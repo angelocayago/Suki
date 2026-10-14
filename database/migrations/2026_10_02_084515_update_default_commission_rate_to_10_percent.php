@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sellers', function (Blueprint $table) {
-            
+
             $table->unsignedInteger('commission_bps')
                 ->default(1000)
                 ->change();

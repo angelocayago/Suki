@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\BuyerEmailVerification;
 use App\Models\Seller;
 use App\Models\Address;
 use App\Models\SellerDocument;
@@ -25,6 +26,8 @@ use App\Http\Controllers\SuperAdmin\OrderManagementController;
 use App\Http\Controllers\SuperAdmin\CommissionController;
 use App\Http\Controllers\SuperAdmin\ReportController;
 use App\Http\Controllers\SuperAdmin\SettingController;
+use App\Http\Controllers\Auth\BuyerEmailVerificationController;
+use App\Services\BuyerEmailVerificationService;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -733,6 +736,25 @@ $requireBuyer = function () {
 
     /** @var User $user */
     $user = Auth::user();
+
+    if (
+        $user->hasRole('buyer') &&
+        $user->email_verified_at === null &&
+        BuyerEmailVerification::query()
+            ->where('user_id', $user->id)
+            ->exists()
+    ) {
+        $userId = $user->id;
+        Auth::logout();
+
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+        request()->session()->put('buyer_verification_user_id', $userId);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->with('error', 'Please verify your email address before accessing your account.');
+    }
 
     if (
         !$user->hasRole('buyer') ||
@@ -3823,7 +3845,7 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
     'business_category' => [
         'required',
         'string',
-        'in:Pet Supplies,Kids and Baby,Electronics and Gadgets,Home and Garden,Women\'s Apparel,Men\'s Apparel,Health and Beauty,Sports and Outdoors',
+        \Illuminate\Validation\Rule::in(array_keys(config('seller_categories', []))),
     ],
 
     'seller_type' => [
@@ -4436,6 +4458,69 @@ Route::post('/seller/products', function (
         'user_id',
         Auth::id()
     )->firstOrFail();
+    $sellerCategory = session('seller_profile.business_category');
+    $registeredCategories = config('seller_categories', []);
+
+    if (!array_key_exists($sellerCategory, $registeredCategories)) {
+        abort(403, 'A valid business category is required to add products.');
+    }
+
+    $isDraft = $request->input('submit_action') === 'draft';
+    $required = $isDraft ? 'nullable' : 'required';
+    $hasVariations = $request->boolean('has_variations');
+
+    $request->validate([
+        'name' => "{$required}|string|max:150",
+        'subcategory' => [
+            $isDraft ? 'nullable' : 'required',
+            'string',
+            \Illuminate\Validation\Rule::in($registeredCategories[$sellerCategory]),
+        ],
+        'description' => "{$required}|string|max:3000",
+        'price' => "{$required}|numeric|min:0",
+        'sale_price' => [
+            $isDraft ? 'nullable' : 'required_if:on_sale,1',
+            'numeric',
+            'min:0',
+            'lt:price',
+        ],
+        'on_sale' => 'nullable|boolean',
+        'stock' => "{$required}|integer|min:0",
+        'low_stock_threshold' => 'nullable|integer|min:0',
+        'sku' => 'nullable|string|max:50',
+        'status' => $isDraft ? 'nullable|in:active,inactive' : 'required|in:active,inactive',
+        'images' => $isDraft ? 'nullable|array|max:5' : 'required|array|min:1|max:5',
+        'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        'additional_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        'product_video' => 'nullable|file|mimes:mp4,mov,avi,webm|max:10240',
+        'has_variations' => 'nullable|boolean',
+        'variation_name' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
+        'variation_name.*' => !$isDraft && $hasVariations ? 'required|string|max:100' : 'nullable|string|max:100',
+        'variation_value' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
+        'variation_value.*' => !$isDraft && $hasVariations ? 'required|string|max:255' : 'nullable|string|max:255',
+    ]);
+
+    $imageUrls = collect($request->file('images', []))
+        ->map(function ($image) {
+            $path = $image->store('products', 'public');
+
+            return Storage::disk('public')->url($path);
+        })
+        ->all();
+
+    $additionalImageUrl = $request->hasFile('additional_image')
+        ? Storage::disk('public')->url(
+            $request->file('additional_image')->store('products', 'public')
+        )
+        : null;
+
+    $productVideoUrl = $request->hasFile('product_video')
+        ? Storage::disk('public')->url(
+            $request->file('product_video')->store('products/videos', 'public')
+        )
+        : null;
+
+    $products = session()->get('seller_products', []);
 
     $category = Category::where(
         'name',
@@ -4453,6 +4538,29 @@ Route::post('/seller/products', function (
             $request,
             &$uploadedPaths
         ) {
+    $products[$productId] = [
+        'id' => $productId,
+        'name' => $request->name,
+        'category' => $sellerCategory,
+        'subcategory' => $request->subcategory,
+        'brand' => $request->brand,
+        'description' => $request->description,
+        'image' => $imageUrls[0] ?? null,
+        'images' => $imageUrls,
+        'additional_image' => $additionalImageUrl,
+        'product_video' => $productVideoUrl,
+
+        'regular_price' => $request->filled('price') ? (float) $request->price : null,
+        'price' => $request->boolean('on_sale')
+            ? (float) $request->sale_price
+            : ($request->filled('price') ? (float) $request->price : null),
+        'on_sale' => $request->boolean('on_sale'),
+        'sale_price' => $request->filled('sale_price') ? (float) $request->sale_price : null,
+        'stock' => (int) $request->stock,
+        'low_stock_threshold' => (int) $request->input('low_stock_threshold', 5),
+
+        'sku' => $request->sku,
+        'status' => $isDraft ? 'draft' : $request->status,
 
             $baseSlug = Str::slug(
                 $validated['name']
@@ -4461,6 +4569,13 @@ Route::post('/seller/products', function (
             if ($baseSlug === '') {
                 $baseSlug = 'product';
             }
+        'has_variations' => $request->boolean('has_variations'),
+        'variation_names' => $request->boolean('has_variations')
+            ? array_values(array_filter($request->variation_name ?? []))
+            : [],
+        'variation_values' => $request->boolean('has_variations')
+            ? array_values(array_filter($request->variation_value ?? []))
+            : [],
 
             $slug = $baseSlug;
             $counter = 2;
@@ -4543,7 +4658,7 @@ Route::post('/seller/products', function (
         ->route('seller.products')
         ->with(
             'success',
-            'Product added successfully.'
+            $isDraft ? 'Product saved as a draft.' : 'Product added successfully.'
         );
 
 })->name('seller.products.store');
@@ -4592,14 +4707,17 @@ Route::put('/seller/products/{product}', function (
         abort(404);
     }
 
+    $isDraft = $request->input('status') === 'draft';
+    $required = $isDraft ? 'nullable' : 'required';
+
     $request->validate([
-        'name' => 'required|string|max:150',
-        'category' => 'required|string|max:100',
-        'description' => 'required|string|max:3000',
-        'price' => 'required|numeric|min:0',
-        'stock' => 'required|integer|min:0',
+        'name' => "{$required}|string|max:150",
+        'category' => "{$required}|string|max:100",
+        'description' => "{$required}|string|max:3000",
+        'price' => "{$required}|numeric|min:0",
+        'stock' => "{$required}|integer|min:0",
         'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
+        'status' => 'required|in:active,inactive,draft',
     ]);
 
     $products[$productId] = array_merge(
@@ -4850,7 +4968,9 @@ Route::get('/seller/reports', function () use ($requireSeller) {
         return $redirect;
     }
 
-    return view('seller.reports');
+    return view('seller.reports', [
+        'orders' => session('seller_orders', []),
+    ]);
 
 })->name('seller.reports');
 
@@ -7107,7 +7227,6 @@ Route::middleware(SuperAdminMiddleware::class)
     ->prefix('superadmin')
     ->name('superadmin.')
     ->group(function () {
-        
 
         Route::get(
             '/users',
@@ -7562,6 +7681,14 @@ Route::post(
                 );
         }
 
+        if ($buyer->email_verified_at === null) {
+            return back()
+                ->with(
+                    'error',
+                    'Buyer email must be verified before the account can be approved.'
+                );
+        }
+
 
         if ($buyer->status === 'active') {
 
@@ -7779,6 +7906,28 @@ Route::post('/login', function (Request $request) {
             ->onlyInput('login');
     }
 
+    if (
+        $user->hasRole('buyer') &&
+        $user->email_verified_at === null &&
+        BuyerEmailVerification::query()
+            ->where('user_id', $user->id)
+            ->exists()
+    ) {
+        $userId = $user->id;
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        $request->session()->put('buyer_verification_user_id', $userId);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->with(
+                'error',
+                'Please verify your email address before logging in.'
+            );
+    }
+
 
     // =====================================================
     // ACCOUNT STATUS CHECK
@@ -7986,47 +8135,296 @@ Route::get('/register/buyer', function () {
 
 })->name('register.buyer');
 
+Route::get(
+    '/buyer/email/verify',
+    [BuyerEmailVerificationController::class, 'show']
+)->name('buyer.verification.show');
+
+Route::post(
+    '/buyer/email/verify',
+    [BuyerEmailVerificationController::class, 'verify']
+)->middleware('throttle:6,1')
+    ->name('buyer.verification.verify');
+
+Route::post(
+    '/buyer/email/verify/resend',
+    [BuyerEmailVerificationController::class, 'resend']
+)->middleware('throttle:6,1')
+    ->name('buyer.verification.resend');
 
 // =====================================================
 // REGISTER SUBMIT
 // =====================================================
 
-Route::post('/register', function (Request $request) {
+Route::post('/register', function (
+    Request $request,
+    BuyerEmailVerificationService $verificationService
+) use ($fetchPsgcData) {
+
+    $submittedEmail = $request->input('email');
+    $normalizedEmail = is_string($submittedEmail)
+        ? strtolower(trim($submittedEmail))
+        : null;
+
+    if ($normalizedEmail !== null) {
+        $request->merge(['email' => $normalizedEmail]);
+    }
+
+    $submittedPhone = $request->input('phone');
+    $normalizedPhone = null;
+
+    if (is_string($submittedPhone)) {
+        if (preg_match('/\A09[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = $submittedPhone;
+        } elseif (preg_match('/\A\+639[0-9]{9}\z/', $submittedPhone) === 1) {
+            $normalizedPhone = '0' . substr($submittedPhone, 3);
+        }
+    }
+
+    if ($normalizedPhone !== null) {
+        $request->merge(['phone' => $normalizedPhone]);
+    }
+
+    $latestAllowedBirthday = \Illuminate\Support\Carbon::today('Asia/Manila')
+        ->subYears(18)
+        ->toDateString();
 
     $validated = $request->validate([
-        'last_name' => 'required|string|max:100',
-        'first_name' => 'required|string|max:100',
+        'last_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?: \p{L}+)*\z/u',
+        ],
+        'first_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+            'regex:/\A\p{L}+(?: \p{L}+)*\z/u',
+        ],
         'middle_initial' => 'nullable|string|max:10',
         'sex' => 'required|string|max:20',
 
-        'email' => 'required|email|max:255|unique:users,email',
-        'phone' => 'required|string|max:30|unique:users,phone',
+        'email' => [
+            'bail',
+            'required',
+            'string',
+            'email',
+            'regex:/\A[^@\s]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}\z/',
+            'max:255',
+            function ($attribute, $value, $fail) use ($normalizedEmail) {
+                if (
+                    $normalizedEmail !== null &&
+                    User::query()
+                        ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                        ->exists()
+                ) {
+                    $fail('This email address has already been taken.');
+                }
+            },
+        ],
+        'phone' => [
+            'bail',
+            'required',
+            'string',
+            function ($attribute, $value, $fail) use ($normalizedPhone) {
+                if ($normalizedPhone === null) {
+                    $fail('Enter a valid Philippine mobile number in local or +63 format.');
 
-        'birthday' => 'required|date|before:today',
+                    return;
+                }
 
-        'province' => 'required|string|max:255',
-        'municipality' => 'required|string|max:255',
-        'barangay' => 'required|string|max:255',
+                $internationalPhone = '+63' . substr($normalizedPhone, 1);
+
+                if (
+                    User::query()
+                        ->whereIn('phone', [$normalizedPhone, $internationalPhone])
+                        ->exists()
+                ) {
+                    $fail('This phone number has already been taken.');
+                }
+            },
+        ],
+
+        'birthday' => [
+            'bail',
+            'required',
+            'date_format:Y-m-d',
+            'before_or_equal:' . $latestAllowedBirthday,
+        ],
+
+        'region' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'province' => [
+            'bail',
+            'required_without:region',
+            'nullable',
+            'string',
+            'regex:/\A[0-9]{10}\z/',
+        ],
+        'municipality' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
+        'barangay' => ['bail', 'required', 'string', 'regex:/\A[0-9]{10}\z/'],
         'street_address' => 'required|string|max:255',
 
         'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
 
-        'password' => 'required|string|min:8|confirmed',
+        'password' => [
+            'bail',
+            'required',
+            'string',
+            'min:8',
+            'max:255',
+            'regex:/\A(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\p{P}\p{S}]).*\z/u',
+        ],
+        'password_confirmation' => [
+            'required',
+            'string',
+            'same:password',
+        ],
         'terms' => 'accepted',
+    ], [
+        'first_name.required' => 'First name is required.',
+        'first_name.min' => 'First name must be at least 2 characters.',
+        'first_name.max' => 'First name may not exceed 50 characters.',
+        'first_name.regex' => 'First name may contain letters only, with spaces allowed between names.',
+        'last_name.required' => 'Last name is required.',
+        'last_name.min' => 'Last name must be at least 2 characters.',
+        'last_name.max' => 'Last name may not exceed 50 characters.',
+        'last_name.regex' => 'Last name may contain letters only, with spaces allowed between names.',
+        'email.required' => 'Email is required.',
+        'email.email' => 'Enter a valid email address.',
+        'email.regex' => 'Enter a valid email address with a domain extension.',
+        'email.max' => 'Email may not exceed 255 characters.',
+        'phone.required' => 'Contact number is required.',
+        'password.required' => 'Password is required.',
+        'password.min' => 'Password must be at least 8 characters.',
+        'password.max' => 'Password may not exceed 255 characters.',
+        'password.regex' => 'Password must include an uppercase letter, a lowercase letter, a number, and a special character.',
+        'password_confirmation.required' => 'Confirm password is required.',
+        'password_confirmation.same' => 'Password confirmation must match the password.',
+        'terms.accepted' => "You must agree to SUKI SHOP's Terms & Conditions and Privacy Policy before continuing.",
+        'region.required' => 'Region is required.',
+        'region.regex' => 'Select a valid region.',
+        'province.required_without' => 'Province is required.',
+        'province.regex' => 'Select a valid province.',
+        'municipality.required' => 'Municipality or city is required.',
+        'municipality.regex' => 'Select a valid municipality or city.',
+        'barangay.required' => 'Barangay is required.',
+        'barangay.regex' => 'Select a valid barangay.',
     ]);
+
+    $regions = $fetchPsgcData('regions');
+
+    if ($regions === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $region = collect($regions)->firstWhere('code', $validated['region']);
+
+    if (! is_array($region) || ! is_string($region['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'region' => 'Select a valid region.',
+        ]);
+    }
+
+    $regionPath = 'regions/' . rawurlencode($region['code']);
+    $provinces = $fetchPsgcData($regionPath . '/provinces');
+
+    if ($provinces === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'province' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $province = null;
+    $locationErrors = [];
+
+    if ($provinces !== [] && empty($validated['province'])) {
+        $locationErrors['province'] = 'Province is required.';
+    } elseif ($provinces !== []) {
+        $province = collect($provinces)->firstWhere(
+            'code',
+            $validated['province']
+        );
+
+        if (! is_array($province) || ! is_string($province['name'] ?? null)) {
+            $locationErrors['province'] = 'Select a province in the selected region.';
+        }
+    } elseif (! empty($validated['province'])) {
+        $locationErrors['province'] = 'This region does not have provinces.';
+    }
+
+    if ($locationErrors !== []) {
+        throw \Illuminate\Validation\ValidationException::withMessages($locationErrors);
+    }
+
+    $municipalityPath = $province !== null
+        ? 'provinces/' . rawurlencode($province['code']) . '/cities-municipalities'
+        : $regionPath . '/cities-municipalities';
+    $municipalities = $fetchPsgcData($municipalityPath);
+
+    if ($municipalities === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'municipality' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $municipality = collect($municipalities)->firstWhere(
+        'code',
+        $validated['municipality']
+    );
+
+    if (! is_array($municipality) || ! is_string($municipality['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'municipality' => 'Select a municipality or city in the selected area.',
+        ]);
+    }
+
+    $barangays = $fetchPsgcData(
+        'cities-municipalities/'
+        . rawurlencode($municipality['code'])
+        . '/barangays'
+    );
+
+    if ($barangays === null) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Address data could not be verified. Please try again later.',
+        ]);
+    }
+
+    $barangay = collect($barangays)->firstWhere(
+        'code',
+        $validated['barangay']
+    );
+
+    if (! is_array($barangay) || ! is_string($barangay['name'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'barangay' => 'Select a barangay in the selected municipality or city.',
+        ]);
+    }
+
+    $addressLocation = [
+        'region' => $region['name'],
+        'province' => $province['name'] ?? null,
+        'municipality' => $municipality['name'],
+        'barangay' => $barangay['name'],
+    ];
 
     $governmentIdPath = $request
         ->file('government_id')
         ->store('government-ids', 'public');
 
-    $fullName = trim(
-        $validated['first_name'] . ' ' .
-        ($validated['middle_initial'] ?? '') . ' ' .
-        $validated['last_name']
-    );
+    $fullName = implode(' ', array_filter([
+        $validated['first_name'],
+        $validated['middle_initial'] ?? null,
+        $validated['last_name'],
+    ], fn ($part) => is_string($part) && trim($part) !== ''));
 
     $user = \Illuminate\Support\Facades\DB::transaction(
-        function () use ($validated, $governmentIdPath, $fullName) {
+        function () use ($validated, $addressLocation, $governmentIdPath, $fullName) {
 
             $user = User::create([
                 'role' => 'buyer',
@@ -8039,6 +8437,7 @@ Route::post('/register', function (Request $request) {
                 'email' => $validated['email'],
                 'phone' => $validated['phone'],
                 'status' => 'pending',
+                'email_verified_at' => null,
                 'government_id' => $governmentIdPath,
                 'password' => $validated['password'],
             ]);
@@ -8063,9 +8462,10 @@ Route::post('/register', function (Request $request) {
                 'recipient' => $fullName,
                 'phone' => $validated['phone'],
                 'line1' => $validated['street_address'],
-                'barangay' => $validated['barangay'],
-                'city' => $validated['municipality'],
-                'province' => $validated['province'],
+                'barangay' => $addressLocation['barangay'],
+                'city' => $addressLocation['municipality'],
+                'province' => $addressLocation['province'],
+                'region' => $addressLocation['region'],
                 'postal_code' => null,
                 'is_default' => true,
             ]);
@@ -8074,11 +8474,25 @@ Route::post('/register', function (Request $request) {
         }
     );
 
+    $request->session()->put('buyer_verification_user_id', $user->id);
+
+    try {
+        $verificationService->issue($user);
+    } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $exception) {
+        report($exception);
+
+        return redirect()
+            ->route('buyer.verification.show')
+            ->withErrors([
+                'email' => 'Your account was created, but we could not send a verification code. Please request a new code.',
+            ]);
+    }
+
     return redirect()
-        ->route('login')
+        ->route('buyer.verification.show')
         ->with(
             'success',
-            'Your buyer application has been submitted. Please wait for administrator approval before logging in.'
+            'Your buyer account was created. Verify your email to continue; administrator approval is still required before login.'
         );
 
 })->name('register.submit');
@@ -8109,5 +8523,3 @@ Route::post('/logout', function (Request $request) {
         );
 
 })->name('logout');
-
-

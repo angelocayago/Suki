@@ -225,6 +225,16 @@ class BuyerManagementController extends Controller
 
         ]);
 
+        if (
+            $request->status === 'active' &&
+            $buyer->email_verified_at === null
+        ) {
+            return back()->with(
+                'error',
+                'Buyer email must be verified before the account can be activated.'
+            );
+        }
+
 
 
         $buyer->update([
