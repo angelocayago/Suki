@@ -112,4 +112,6 @@ class SellerOrder extends Model
     {
         return $this->hasMany(Conversation::class);
     }
+
+    public function voucherRedemptions(): HasMany { return $this->hasMany(VoucherRedemption::class); }
 }

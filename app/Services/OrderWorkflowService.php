@@ -268,6 +268,10 @@ class OrderWorkflowService
 
             $this->synchronizeParentOrder($lockedOrder->order);
 
+            if ($nextStatus === OrderStatus::Completed) {
+                app(SellerWalletService::class)->creditCompleted($lockedOrder);
+            }
+
             return $lockedOrder->fresh(['order', 'seller', 'shipment']);
         });
     }

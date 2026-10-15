@@ -1,0 +1,12 @@
+<?php
+namespace App\Http\Controllers;
+use App\Models\Seller; use App\Models\Voucher; use Illuminate\Http\Request;
+class VoucherController extends Controller {
+ public function adminIndex(){return view('admin.vouchers.index',['vouchers'=>Voucher::where('scope','PLATFORM')->latest()->paginate(20)]);}
+ public function sellerIndex(Request $r){$seller=$r->user()->sellers()->where('status','approved')->firstOrFail();return view('seller.promotions',['vouchers'=>Voucher::where('seller_id',$seller->id)->latest()->get()]);}
+ public function store(Request $r){$scope=$r->routeIs('admin.vouchers.*')?'PLATFORM':'SELLER';$seller=$scope==='SELLER'?$r->user()->sellers()->where('status','approved')->firstOrFail():null;$v=$this->data($r,$scope,$seller?->id);Voucher::create($v);return back()->with('success','Voucher saved.');}
+ public function update(Request $r,Voucher $voucher){$this->authorizeVoucher($r,$voucher);$voucher->update($this->data($r,$voucher->scope,$voucher->seller_id));return back()->with('success','Voucher updated.');}
+ public function archive(Request $r,Voucher $voucher){$this->authorizeVoucher($r,$voucher);$voucher->update(['is_active'=>false,'archived_at'=>now()]);return back()->with('success','Voucher archived.');}
+ private function data(Request $r,$scope,$sellerId){$d=$r->validate(['code'=>['required','string','max:64'],'discount_type'=>['required','in:FIXED,PERCENTAGE'],'discount_value'=>['required','numeric','gt:0'],'starts_at'=>['nullable','date'],'expires_at'=>['nullable','date','after_or_equal:starts_at'],'usage_limit'=>['nullable','integer','min:1'],'is_active'=>['nullable','boolean']]);$percentage=$d['discount_type']==='PERCENTAGE';if($percentage&&$d['discount_value']>100)abort(422,'Percentage cannot exceed 100.');return['code'=>strtoupper(trim($d['code'])),'scope'=>$scope,'seller_id'=>$sellerId,'discount_type'=>$d['discount_type'],'discount_minor'=>$percentage?0:(int)round($d['discount_value']*100),'discount_bps'=>$percentage?(int)round($d['discount_value']*100):0,'starts_at'=>$d['starts_at']??null,'expires_at'=>$d['expires_at']??null,'usage_limit'=>$d['usage_limit']??null,'is_active'=>$r->boolean('is_active',true)];}
+ private function authorizeVoucher(Request $r,Voucher $v){if($v->scope==='PLATFORM'){abort_unless($r->user()->hasAnyRole(['admin','superadmin']),403);return;}abort_unless($v->seller_id===$r->user()->sellers()->where('status','approved')->value('id'),403);}
+}

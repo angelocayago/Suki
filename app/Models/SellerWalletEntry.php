@@ -1,0 +1,1 @@
+<?php namespace App\Models;use Illuminate\Database\Eloquent\Model;class SellerWalletEntry extends Model{protected $fillable=['seller_id','seller_order_id','payout_id','type','status','amount_minor','reference','description'];protected function casts():array{return['amount_minor'=>'integer'];}}

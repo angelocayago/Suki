@@ -1,0 +1,3 @@
+<?php
+namespace App\Models; use Illuminate\Database\Eloquent\Model; use Illuminate\Database\Eloquent\Relations\BelongsTo;
+class Voucher extends Model {protected $fillable=['code','scope','seller_id','discount_type','discount_minor','discount_bps','is_active','starts_at','expires_at','usage_limit','archived_at']; protected function casts():array{return['discount_minor'=>'integer','discount_bps'=>'integer','is_active'=>'boolean','starts_at'=>'datetime','expires_at'=>'datetime','usage_limit'=>'integer','used_count'=>'integer','archived_at'=>'datetime'];} public function seller():BelongsTo{return $this->belongsTo(Seller::class);} }

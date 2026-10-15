@@ -16,6 +16,7 @@ class CheckoutController extends Controller
     public function index(Request $request, CheckoutService $checkout): View|RedirectResponse
     {
         $summary = $checkout->cartSummary($request->user());
+        $summary['voucher_codes'] = $request->session()->get('checkout_voucher_codes', []);
 
         if ($summary['cart'] === []) {
             return redirect()
@@ -65,7 +66,7 @@ class CheckoutController extends Controller
         $address = $this->resolveAddress($request, $validated['address_id']);
 
         try {
-            $order = $checkout->checkout($buyer, $address, $validated['payment_method']);
+            $order = $checkout->checkout($buyer, $address, $validated['payment_method'], $request->session()->get('checkout_voucher_codes', []));
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -76,6 +77,7 @@ class CheckoutController extends Controller
                 ->with('error', 'Unable to place your order. Please try again.');
         }
 
+        $request->session()->forget('checkout_voucher_codes');
         return redirect()
             ->route('buyer.order-success', ['order' => $order->order_number])
             ->with('success', 'Your order has been placed successfully!');

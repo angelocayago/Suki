@@ -16,6 +16,7 @@ use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\User;
+use App\Services\SellerWalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -302,6 +303,14 @@ class ComplaintService
                 'new_status' => $next,
                 'notes' => $locked->resolution_notes,
             ]);
+
+            // Releasing an earning is an explicit consequence of resolving/dismissing
+            // a complaint, never a side effect of a wallet page view.
+            if ($locked->seller_order_id) {
+                app(SellerWalletService::class)->reconcileSellerOrder(
+                    SellerOrder::query()->findOrFail($locked->seller_order_id)
+                );
+            }
 
             return $locked->fresh(['resolver']);
         }, 3);

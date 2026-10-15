@@ -1,0 +1,8 @@
+@extends('layouts.seller')
+@section('title','Store Vouchers')
+@section('page-title','Store Vouchers')
+@section('content')
+<div class="space-y-5"><h1 class="text-2xl font-bold">Store vouchers</h1>@if(session('success'))<div class="rounded bg-green-50 p-3 text-green-800">{{ session('success') }}</div>@endif
+<form method="POST" action="{{ route('seller.vouchers.store') }}" class="grid gap-3 rounded border bg-white p-5 md:grid-cols-3">@csrf<input name="code" required placeholder="Code" class="rounded border p-2"><select name="discount_type" class="rounded border p-2"><option value="FIXED">Fixed ₱</option><option value="PERCENTAGE">Percentage</option></select><input name="discount_value" type="number" step="0.01" min="0.01" required placeholder="Value" class="rounded border p-2"><input name="starts_at" type="datetime-local" class="rounded border p-2"><input name="expires_at" type="datetime-local" class="rounded border p-2"><button class="rounded bg-[#173F35] p-2 font-semibold text-white">Create store voucher</button></form>
+@forelse($vouchers as $voucher)<div class="flex items-center justify-between rounded border bg-white p-4"><div><b>{{ $voucher->code }}</b> · {{ $voucher->discount_type === 'PERCENTAGE' ? number_format($voucher->discount_bps/100,2).'%' : '₱'.number_format($voucher->discount_minor/100,2) }}<p class="text-sm text-gray-500">{{ $voucher->is_active && !$voucher->archived_at ? 'Active':'Inactive' }}</p></div><form method="POST" action="{{ route('seller.vouchers.archive',$voucher) }}">@csrf @method('DELETE')<button class="text-sm text-red-700">Archive</button></form></div>@empty<div class="rounded border bg-white p-5 text-gray-500">No store vouchers yet.</div>@endforelse</div>
+@endsection

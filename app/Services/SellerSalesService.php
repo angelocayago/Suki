@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Models\OrderItem;
 use App\Models\Seller;
+use App\Models\VoucherRedemption;
 
 class SellerSalesService
 {
@@ -27,11 +28,15 @@ class SellerSalesService
 
         $rawSalesMinor = (int) ($totals->raw_sales_minor ?? 0);
         $commissionMinor = (int) ($totals->commission_minor ?? 0);
+        $discounts = VoucherRedemption::query()->where('scope_snapshot', 'SELLER')->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $seller->id)->where('workflow_status', OrderStatus::Completed->value)->where('status', '!=', 'cancelled'))->sum('discount_minor');
+        $platformDiscounts = VoucherRedemption::query()->where('scope_snapshot', 'PLATFORM')->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $seller->id)->where('workflow_status', OrderStatus::Completed->value)->where('status', '!=', 'cancelled'))->sum('discount_minor');
 
         return [
             'raw_sales_minor' => $rawSalesMinor,
             'commission_minor' => $commissionMinor,
-            'net_sales_minor' => $rawSalesMinor - $commissionMinor,
+            'seller_funded_discount_minor' => (int) $discounts,
+            'platform_funded_discount_minor' => (int) $platformDiscounts,
+            'net_sales_minor' => $rawSalesMinor - $commissionMinor - (int) $discounts,
         ];
     }
 }

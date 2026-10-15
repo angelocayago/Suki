@@ -471,6 +471,16 @@
                     {{-- SUMMARY DETAILS --}}
                     <div class="mt-6 space-y-4">
 
+                        <form method="POST" action="{{ route('buyer.cart.vouchers.apply') }}" class="flex gap-2 border-b border-gray-100 pb-4">
+                            @csrf
+                            <label class="sr-only" for="voucher_code">Voucher code</label>
+                            <input id="voucher_code" name="voucher_code" required placeholder="Voucher code" class="min-w-0 flex-1 rounded border px-3 py-2 text-sm">
+                            <button class="rounded bg-[#1F6F5B] px-3 py-2 text-sm font-semibold text-white">Apply</button>
+                        </form>
+                        @foreach(session('checkout_voucher_codes', []) as $voucherCode)
+                            <div class="flex items-center justify-between text-sm"><span class="font-medium">Voucher: {{ $voucherCode }}</span><form method="POST" action="{{ route('buyer.cart.vouchers.remove', $voucherCode) }}">@csrf @method('DELETE')<button class="text-red-700">Remove</button></form></div>
+                        @endforeach
+
                         {{-- SUBTOTAL --}}
                         <div class="flex items-center justify-between text-sm">
 

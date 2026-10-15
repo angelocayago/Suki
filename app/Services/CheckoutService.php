@@ -11,6 +11,8 @@ use App\Models\ProductVariant;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\User;
+use App\Models\VoucherRedemption;
+use App\Services\VoucherService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -83,9 +85,10 @@ class CheckoutService
     public function checkout(
         User $buyer,
         array $address,
-        string $paymentMethod
+        string $paymentMethod,
+        array $voucherCodes = []
     ): Order {
-        return DB::transaction(function () use ($buyer, $address, $paymentMethod) {
+        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes) {
             $cartItems = CartItem::query()
                 ->where('user_id', $buyer->id)
                 ->orderBy('id')
@@ -115,8 +118,12 @@ class CheckoutService
 
             $sellerGroups = $lines->groupBy(fn (array $line) => $line['seller']->id);
             $subtotalMinor = $lines->sum('line_total_minor');
+            $sellerSubtotals = $sellerGroups->map(fn ($group) => $group->sum('line_total_minor'));
+            $redemptions = app(VoucherService::class)->resolve($voucherCodes, $sellerSubtotals);
+            $sellerDiscounts = $sellerSubtotals->map(fn () => 0);
+            foreach ($redemptions as $redemption) foreach ($redemption['allocation'] as $sellerId => $amount) $sellerDiscounts[$sellerId] += $amount;
             $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
-            $discountMinor = 0;
+            $discountMinor = collect($redemptions)->sum('amount');
             $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
             $orderNumber = $this->orderNumber();
             $now = now();
@@ -133,6 +140,7 @@ class CheckoutService
                 'subtotal' => $this->decimal($subtotalMinor),
                 'shipping_fee' => $this->decimal($shippingMinor),
                 'discount_amount' => $this->decimal($discountMinor),
+                'voucher_code' => collect($redemptions)->pluck('voucher.code')->implode(',') ?: null,
                 'total_amount' => $this->decimal($totalMinor),
                 'total_minor' => $totalMinor,
                 'recipient_name' => $address['recipient_name'],
@@ -153,6 +161,7 @@ class CheckoutService
                 $seller = $sellerLines->first()['seller'];
                 $sellerSubtotalMinor = $sellerLines->sum('line_total_minor');
                 $sellerShippingMinor = self::SHIPPING_FEE_PER_SELLER_MINOR;
+                $sellerDiscountMinor = (int) $sellerDiscounts->get($seller->id, 0);
                 $sellerCommissionMinor = $sellerLines->sum('commission_minor');
 
                 $sellerOrder = SellerOrder::create([
@@ -177,7 +186,7 @@ class CheckoutService
                     'workflow_status' => OrderStatus::Placed->value,
                     'fee_minor' => 0,
                     'cod_amount_minor' => $paymentMethod === 'cod'
-                        ? $sellerSubtotalMinor + $sellerShippingMinor
+                        ? $sellerSubtotalMinor - $sellerDiscountMinor + $sellerShippingMinor
                         : 0,
                     'cod_collected' => false,
                     'attempts' => 0,
@@ -209,7 +218,14 @@ class CheckoutService
 
                     $variant->decrement('stock', $line['quantity']);
                 }
+                foreach ($redemptions as $redemption) {
+                    $amount = (int) ($redemption['allocation'][$seller->id] ?? 0);
+                    if (!$amount) continue;
+                    $voucher=$redemption['voucher'];
+                    VoucherRedemption::create(['voucher_id'=>$voucher->id,'order_id'=>$order->id,'seller_order_id'=>$sellerOrder->id,'buyer_id'=>$buyer->id,'code_snapshot'=>$voucher->code,'scope_snapshot'=>$voucher->scope,'seller_id_snapshot'=>$voucher->seller_id,'discount_type_snapshot'=>$voucher->discount_type,'discount_value_snapshot'=>$voucher->discount_type==='PERCENTAGE'?$voucher->discount_bps:$voucher->discount_minor,'discount_minor'=>$amount]);
+                }
             }
+            foreach ($redemptions as $redemption) $redemption['voucher']->increment('used_count');
 
             CartItem::query()
                 ->whereIn('id', $cartItems->pluck('id'))

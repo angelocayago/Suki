@@ -12,6 +12,8 @@ use App\Models\Role;
 use App\Models\Seller;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Buyer\CartController;
+use App\Http\Controllers\VoucherController;
+use App\Http\Controllers\PayoutController;
 use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Controllers\Buyer\OrderCancellationController;
 use App\Http\Controllers\DeliveryProofController;
@@ -497,6 +499,8 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 Route::get('/cart', [CartController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.cart');
+Route::post('/cart/vouchers', [CartController::class, 'applyVoucher'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.cart.vouchers.apply');
+Route::delete('/cart/vouchers/{code}', [CartController::class, 'removeVoucher'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.cart.vouchers.remove');
 
 
 // =====================================================
@@ -2974,6 +2978,12 @@ Route::get('/seller-legacy', function () use ($requireSeller) {
 Route::get('/seller', [SellerFulfillmentController::class, 'dashboard'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.dashboard');
+Route::get('/seller/vouchers', [VoucherController::class, 'sellerIndex'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.index');
+Route::get('/seller/wallet', [PayoutController::class, 'seller'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.wallet');
+Route::post('/seller/wallet/payouts', [PayoutController::class, 'request'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.payouts.store');
+Route::post('/seller/vouchers', [VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.store');
+Route::patch('/seller/vouchers/{voucher}', [VoucherController::class, 'update'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.update');
+Route::delete('/seller/vouchers/{voucher}', [VoucherController::class, 'archive'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.archive');
 
 
 // =====================================================
@@ -5441,6 +5451,13 @@ $registerAdminPortalRoutes = function (): void {
             ->name('sellers.allowed-categories.update');
 
         Route::get('/products', [ProductModerationController::class, 'index'])->name('products.index');
+        Route::get('/vouchers', [VoucherController::class, 'adminIndex'])->name('vouchers.index');
+        Route::get('/payouts', [PayoutController::class, 'admin'])->name('payouts.index');
+        Route::patch('/payouts/{payout}', [PayoutController::class, 'review'])->name('payouts.review');
+        Route::post('/payouts/{payout}/paid', [PayoutController::class, 'paid'])->name('payouts.paid');
+        Route::post('/vouchers', [VoucherController::class, 'store'])->name('vouchers.store');
+        Route::patch('/vouchers/{voucher}', [VoucherController::class, 'update'])->name('vouchers.update');
+        Route::delete('/vouchers/{voucher}', [VoucherController::class, 'archive'])->name('vouchers.archive');
         Route::get('/products/{product}', [ProductModerationController::class, 'show'])->name('products.show');
         Route::post('/products/{product}/approve', [ProductModerationController::class, 'approve'])->name('products.approve');
         Route::post('/products/{product}/reject', [ProductModerationController::class, 'reject'])->name('products.reject');
