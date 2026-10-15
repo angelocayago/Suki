@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BuyerRegistrationRequest;
+use App\Exceptions\VerificationDeliveryException;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AccountVerificationService;
@@ -41,8 +42,13 @@ class BuyerRegistrationController extends Controller
             throw $e;
         }
 
-        $verification->send($user, 'email', false);
         $request->session()->put('verification_user_id', $user->id);
+        try {
+            $verification->send($user, 'email', false);
+        } catch (VerificationDeliveryException) {
+            return redirect()->route('verification.contact.show')
+                ->with('error', 'Your account was created, but we could not send the email code. Please use Resend code.');
+        }
         return redirect()->route('verification.contact.show')->with('success', 'Account created. Verify your email, then your mobile number.');
     }
 }

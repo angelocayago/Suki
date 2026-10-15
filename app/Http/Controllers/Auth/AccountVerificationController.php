@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\VerificationDeliveryException;
 use App\Models\User;
 use App\Services\AccountVerificationService;
 use Illuminate\Http\RedirectResponse;
@@ -36,7 +37,12 @@ class AccountVerificationController extends Controller
             return $this->finished($request, $user->fresh());
         }
 
-        $service->send($user->fresh(), 'sms', false);
+        try {
+            $service->send($user->fresh(), 'sms', false);
+        } catch (VerificationDeliveryException) {
+            return redirect()->route('verification.contact.show')
+                ->with('error', 'Email verified, but we could not send your mobile verification code. Please try again.');
+        }
 
         return redirect()->route('verification.contact.show')
             ->with('success', 'Email verified. We sent a verification code to your mobile number.');
@@ -45,7 +51,12 @@ class AccountVerificationController extends Controller
     public function resend(Request $request, AccountVerificationService $service): RedirectResponse
     {
         $user = $this->pendingUser($request);
-        $service->send($user, $user->email_verified_at ? 'sms' : 'email');
+        $channel = $user->email_verified_at ? 'sms' : 'email';
+        try {
+            $service->send($user, $channel);
+        } catch (VerificationDeliveryException) {
+            return back()->with('error', 'We could not send a new '.strtoupper($channel).' code. Please try again.');
+        }
 
         return back()->with('success', 'A new verification code was sent. The previous code is no longer valid.');
     }
@@ -78,6 +89,6 @@ class AccountVerificationController extends Controller
 
     private function maskPhone(string $phone): string
     {
-        return substr($phone, 0, 4).'***'.substr($phone, -4);
+        return substr($phone, 0, 2).'*****'.substr($phone, -4);
     }
 }

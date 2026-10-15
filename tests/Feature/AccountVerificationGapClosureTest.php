@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Contracts\SmsSender;
+use App\Exceptions\VerificationDeliveryException;
 use App\Mail\AccountVerificationOtpMail;
 use App\Mail\RiderActivationMail;
 use App\Models\AccountVerification;
@@ -108,6 +109,36 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->expectException(ValidationException::class); $service->verify($user, 'email', $this->lastEmailCode());
     }
 
+    public function test_smtp_failure_does_not_persist_or_replace_an_email_code(): void
+    {
+        $user = $this->verificationUser();
+        Mail::shouldReceive('to')->once()->andThrow(new \RuntimeException('SMTP unavailable'));
+
+        try {
+            app(AccountVerificationService::class)->send($user, 'email', false);
+            $this->fail('SMTP failure was treated as a successful send.');
+        } catch (VerificationDeliveryException $exception) {
+            $this->assertSame('email', $exception->channel);
+        }
+
+        $this->assertDatabaseMissing('account_verifications', ['user_id' => $user->id, 'channel' => 'email']);
+    }
+
+    public function test_sms_failure_does_not_persist_or_replace_a_mobile_code(): void
+    {
+        $user = $this->verificationUser();
+        $this->sms->fail = true;
+
+        try {
+            app(AccountVerificationService::class)->send($user, 'sms', false);
+            $this->fail('SMS failure was treated as a successful send.');
+        } catch (VerificationDeliveryException $exception) {
+            $this->assertSame('sms', $exception->channel);
+        }
+
+        $this->assertDatabaseMissing('account_verifications', ['user_id' => $user->id, 'channel' => 'sms']);
+    }
+
     public function test_unverified_account_is_redirected_to_verification_instead_of_portal(): void
     {
         $user = $this->verificationUser('buyer');
@@ -182,6 +213,11 @@ class AccountVerificationGapClosureTest extends TestCase
 class FakeSmsSender implements SmsSender
 {
     public array $messages = [];
-    public function send(string $phone, string $message): void { $this->messages[] = compact('phone','message'); }
+    public bool $fail = false;
+    public function send(string $phone, string $message): void
+    {
+        if ($this->fail) throw new \RuntimeException('SMS provider unavailable');
+        $this->messages[] = compact('phone','message');
+    }
     public function lastCode(): string { preg_match('/\b(\d{6})\b/', end($this->messages)['message'], $matches); return $matches[1]; }
 }

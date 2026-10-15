@@ -40,6 +40,7 @@ return [
         'endpoint' => env('SMS_API_URL'),
         'token' => env('SMS_API_TOKEN'),
         'sender' => env('SMS_SENDER', 'SUKI SHOP'),
+        'timeout' => env('SMS_TIMEOUT', 10),
     ],
 
     'maptiler' => [

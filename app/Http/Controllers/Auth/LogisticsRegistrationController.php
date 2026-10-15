@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LogisticsRegistrationRequest;
+use App\Exceptions\VerificationDeliveryException;
 use App\Models\Application;
 use App\Models\LogisticsProvider;
 use App\Models\Role;
@@ -48,8 +49,13 @@ class LogisticsRegistrationController extends Controller
             foreach ($paths as $path) Storage::disk('local')->delete($path);
             throw $e;
         }
-        $verification->send($user, 'email', false);
         $request->session()->put('verification_user_id', $user->id);
+        try {
+            $verification->send($user, 'email', false);
+        } catch (VerificationDeliveryException) {
+            return redirect()->route('verification.contact.show')
+                ->with('error', 'Your application was saved, but we could not send the email code. Please use Resend code.');
+        }
         return redirect()->route('verification.contact.show')->with('success', 'Application saved. Verify your contacts before administrator review.');
     }
 }

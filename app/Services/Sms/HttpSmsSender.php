@@ -17,10 +17,14 @@ class HttpSmsSender implements SmsSender
             throw new RuntimeException('SMS delivery is not configured.');
         }
 
-        Http::asJson()->withToken($token)->post($endpoint, [
+        Http::asJson()
+            ->acceptJson()
+            ->timeout((int) config('services.sms.timeout', 10))
+            ->withToken($token)
+            ->post($endpoint, [
             'to' => '+63'.substr($phone, 1),
             'message' => $message,
             'sender' => config('services.sms.sender'),
-        ])->throw();
+            ])->throw();
     }
 }

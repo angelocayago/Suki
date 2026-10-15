@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Contracts\SmsSender;
+use App\Exceptions\VerificationDeliveryException;
 use App\Mail\AccountVerificationOtpMail;
 use App\Models\AccountVerification;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AccountVerificationService
@@ -23,7 +25,9 @@ class AccountVerificationService
         $this->assertChannel($channel);
         $code = (string) random_int(100000, 999999);
 
-        DB::transaction(function () use ($user, $channel, $code, $enforceCooldown): void {
+        // Check cooldown before transport. A failed delivery deliberately leaves
+        // any prior usable code intact instead of locking the user out.
+        DB::transaction(function () use ($user, $channel, $enforceCooldown): void {
             $verification = AccountVerification::query()
                 ->whereBelongsTo($user)
                 ->where('channel', $channel)
@@ -33,6 +37,27 @@ class AccountVerificationService
             if ($enforceCooldown && $verification?->last_sent_at?->gt(now()->subSeconds(self::RESEND_COOLDOWN_SECONDS))) {
                 throw ValidationException::withMessages(['code' => 'Please wait before requesting another code.']);
             }
+
+        }, 3);
+
+        try {
+            if ($channel === 'email') {
+                Mail::to($user->email)->send(new AccountVerificationOtpMail($code));
+            } else {
+                $this->sms->send($user->phone, "Your SUKI SHOP verification code is {$code}. It expires in 5 minutes.");
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Verification code delivery failed.', [
+                'user_id' => $user->id,
+                'channel' => $channel,
+                'exception' => $exception::class,
+            ]);
+
+            throw new VerificationDeliveryException($channel);
+        }
+
+        DB::transaction(function () use ($user, $channel, $code): void {
+            AccountVerification::query()->whereBelongsTo($user)->where('channel', $channel)->lockForUpdate()->first();
 
             AccountVerification::query()->updateOrCreate(
                 ['user_id' => $user->id, 'channel' => $channel],
@@ -46,12 +71,6 @@ class AccountVerificationService
                 ]
             );
         }, 3);
-
-        if ($channel === 'email') {
-            Mail::to($user->email)->send(new AccountVerificationOtpMail($code));
-        } else {
-            $this->sms->send($user->phone, "Your SUKI SHOP verification code is {$code}. It expires in 5 minutes.");
-        }
     }
 
     public function verify(User $user, string $channel, string $code): bool

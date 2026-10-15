@@ -7,6 +7,7 @@ use App\Http\Requests\SellerRegistrationRequest;
 use App\Models\Category;
 use App\Services\SellerOnboardingService;
 use App\Services\AccountVerificationService;
+use App\Exceptions\VerificationDeliveryException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -29,8 +30,13 @@ class RegistrationController extends Controller
         AccountVerificationService $verification
     ): RedirectResponse {
         $application = $onboarding->register($request->validated());
-        $verification->send($application->user, 'email', false);
         $request->session()->put('verification_user_id', $application->user_id);
+        try {
+            $verification->send($application->user, 'email', false);
+        } catch (VerificationDeliveryException) {
+            return redirect()->route('verification.contact.show')
+                ->with('error', 'Your application was saved, but we could not send the email code. Please use Resend code.');
+        }
 
         return redirect()
             ->route('verification.contact.show')

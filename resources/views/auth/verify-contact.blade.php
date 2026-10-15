@@ -23,13 +23,19 @@
         <label class="block text-sm font-semibold" for="code">Verification code</label>
         <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus
                class="w-full rounded-xl border border-gray-300 px-4 py-3 text-center text-2xl tracking-[.45em] focus:border-[#1F6F5B] focus:outline-none">
-        <button class="w-full rounded-xl bg-[#1F6F5B] px-4 py-3 font-semibold text-white hover:bg-[#185a4a]">Verify {{ $channel === 'email' ? 'Email' : 'Mobile Number' }}</button>
+        <button data-submit-button class="w-full rounded-xl bg-[#1F6F5B] px-4 py-3 font-semibold text-white hover:bg-[#185a4a]">Verify {{ $channel === 'email' ? 'Email' : 'Mobile Number' }}</button>
     </form>
     <form method="POST" action="{{ route('verification.contact.resend') }}" class="mt-3 text-center">
         @csrf
-        <button class="text-sm font-semibold text-[#1F6F5B] hover:underline">Resend code</button>
+        <button data-submit-button class="text-sm font-semibold text-[#1F6F5B] hover:underline">Resend code</button>
         <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies.</p>
     </form>
 </main>
+<script>
+document.querySelectorAll('form').forEach((form) => form.addEventListener('submit', () => {
+    const button = form.querySelector('[data-submit-button]');
+    if (button) { button.disabled = true; button.classList.add('opacity-60', 'cursor-not-allowed'); }
+}));
+</script>
 </body>
 </html>
