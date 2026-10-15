@@ -21,13 +21,13 @@
 
 <body class="min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
 
-    <div class="min-h-screen grid lg:grid-cols-[45%_55%]">
+    <div class="min-h-screen grid">
 
         <!-- ================================================= -->
         <!-- LEFT SIDE - SUKI SHOP BRANDING -->
         <!-- ================================================= -->
 
-        <section class="hidden lg:flex items-center justify-center bg-[#EEF8F3] px-10">
+        <section class="hidden" aria-hidden="true">
 
             <div class="text-center max-w-lg">
 
@@ -131,7 +131,7 @@
             <div class="w-full max-w-[440px]">
 
                 <!-- Mobile Logo -->
-                <div class="lg:hidden text-center mb-7">
+                <div class="text-center mb-7">
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"

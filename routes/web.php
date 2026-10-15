@@ -5446,6 +5446,7 @@ $registerAdminPortalRoutes = function (): void {
         Route::post('/products/{product}/reject', [ProductModerationController::class, 'reject'])->name('products.reject');
         Route::post('/products/{product}/hide', [ProductModerationController::class, 'hide'])->name('products.hide');
         Route::post('/products/{product}/restore', [ProductModerationController::class, 'restore'])->name('products.restore');
+        Route::patch('/products/{product}/commission', [ProductModerationController::class, 'updateCommission'])->name('products.commission.update');
 
         Route::get('/compliance', [SellerComplianceController::class, 'index'])->name('compliance.index');
         Route::get('/compliance/create', [SellerComplianceController::class, 'create'])->name('compliance.create');

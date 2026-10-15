@@ -25,6 +25,7 @@ class Product extends Model
         'shipping_options',
         'legacy_reference',
         'is_active',
+        'commission_bps',
         'moderation_status',
         'moderation_reason',
         'moderated_by',
@@ -38,6 +39,7 @@ class Product extends Model
     {
         return [
             'is_active' => 'boolean',
+            'commission_bps' => 'integer',
             'shipping_options' => 'array',
             'moderation_status' => ProductModerationStatus::class,
             'moderated_at' => 'datetime',

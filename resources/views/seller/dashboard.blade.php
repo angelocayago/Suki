@@ -19,6 +19,7 @@
     $orders = $orders ?? session('orders', []);
 
     $products = $products ?? session('seller_products', []);
+    $completedSales = $completedSales ?? ['raw_sales_minor' => 0, 'commission_minor' => 0, 'net_sales_minor' => 0];
 
 
     /*
@@ -251,6 +252,12 @@
     ];
 
 @endphp
+
+<section class="mb-6 grid gap-3 sm:grid-cols-3">
+    <div class="rounded-xl border border-[#DCE5E0] bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Completed raw sales</p><p class="mt-1 text-xl font-bold text-[#173F35]">₱{{ number_format($completedSales['raw_sales_minor'] / 100, 2) }}</p></div>
+    <div class="rounded-xl border border-[#DCE5E0] bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Platform commission</p><p class="mt-1 text-xl font-bold text-[#173F35]">₱{{ number_format($completedSales['commission_minor'] / 100, 2) }}</p></div>
+    <div class="rounded-xl border border-[#DCE5E0] bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Completed net sales</p><p class="mt-1 text-xl font-bold text-[#173F35]">₱{{ number_format($completedSales['net_sales_minor'] / 100, 2) }}</p></div>
+</section>
 
 
 

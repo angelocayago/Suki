@@ -30,6 +30,8 @@ class OrderItem extends Model
         'product_variant_id',
         'variant_name',
         'unit_price_minor',
+        'commission_bps_snapshot',
+        'commission_minor',
     ];
 
     protected function casts(): array
@@ -44,6 +46,8 @@ class OrderItem extends Model
             // Shared / new
             'quantity' => 'integer',
             'unit_price_minor' => 'integer',
+            'commission_bps_snapshot' => 'integer',
+            'commission_minor' => 'integer',
         ];
     }
 

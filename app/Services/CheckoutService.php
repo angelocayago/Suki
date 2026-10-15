@@ -153,6 +153,7 @@ class CheckoutService
                 $seller = $sellerLines->first()['seller'];
                 $sellerSubtotalMinor = $sellerLines->sum('line_total_minor');
                 $sellerShippingMinor = self::SHIPPING_FEE_PER_SELLER_MINOR;
+                $sellerCommissionMinor = $sellerLines->sum('commission_minor');
 
                 $sellerOrder = SellerOrder::create([
                     'order_id' => $order->id,
@@ -160,9 +161,7 @@ class CheckoutService
                     'logistics_provider_id' => null,
                     'subtotal_minor' => $sellerSubtotalMinor,
                     'shipping_fee_minor' => $sellerShippingMinor,
-                    'commission_minor' => (int) round(
-                        $sellerSubtotalMinor * ((int) $seller->commission_bps / 10000)
-                    ),
+                    'commission_minor' => $sellerCommissionMinor,
                     'status' => OrderStatus::Placed->legacySellerStatus(),
                     'workflow_status' => OrderStatus::Placed->value,
                     'status_changed_at' => $now,
@@ -202,6 +201,8 @@ class CheckoutService
                         'variant_name' => $variant->name,
                         'unit_price' => $this->decimal($variant->price_minor),
                         'unit_price_minor' => $variant->price_minor,
+                        'commission_bps_snapshot' => $line['commission_bps'],
+                        'commission_minor' => $line['commission_minor'],
                         'quantity' => $line['quantity'],
                         'line_total' => $this->decimal($line['line_total_minor']),
                     ]);
@@ -253,6 +254,11 @@ class CheckoutService
             'seller' => $seller,
             'quantity' => $quantity,
             'line_total_minor' => $variant->price_minor * $quantity,
+            'commission_bps' => (int) $product->commission_bps,
+            'commission_minor' => $this->commissionMinor(
+                $variant->price_minor * $quantity,
+                (int) $product->commission_bps
+            ),
         ];
     }
 
@@ -345,6 +351,11 @@ class CheckoutService
     private function decimal(int $minor): string
     {
         return number_format($minor / 100, 2, '.', '');
+    }
+
+    private function commissionMinor(int $merchandiseMinor, int $commissionBps): int
+    {
+        return intdiv(($merchandiseMinor * $commissionBps) + 5000, 10000);
     }
 
     private function orderNumber(): string

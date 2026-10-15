@@ -32,6 +32,12 @@ body {
     min-height: 100%;
 }
 
+/* Public authentication is intentionally plain: the account forms are the focus. */
+.public-auth-simple .auth-page { display: block; }
+.public-auth-simple .auth-brand { display: none; }
+.public-auth-simple .auth-form-side { min-height: 100vh; padding: 32px 20px; background: var(--cream); }
+.public-auth-simple .auth-form-container { width: min(100%, 460px); }
+
 body {
     font-family: "Poppins", Arial, sans-serif;
     background: var(--cream);

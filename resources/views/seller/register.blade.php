@@ -16,13 +16,13 @@
 
 <div class="min-h-screen bg-[#F8FAF8]">
 
-    <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[45%_55%]">
+    <div class="grid min-h-screen grid-cols-1">
 
 
         {{-- ==========================================
              LEFT BRANDING
         =========================================== --}}
-        <section class="bg-[#EEF8F3] flex items-center justify-center px-6 py-10 sm:px-10 sm:py-12 lg:px-12 lg:py-16">
+        <section class="hidden" aria-hidden="true">
 
             <div class="w-full max-w-md">
 
@@ -156,7 +156,7 @@
                 {{-- ==========================================
                      MOBILE LOGO
                 =========================================== --}}
-                <div class="flex justify-center mb-7 sm:mb-8 lg:hidden">
+                <div class="flex justify-center mb-7 sm:mb-8">
 
                     <img
                         src="{{ asset('images/suki-logo.png') }}"

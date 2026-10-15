@@ -663,7 +663,7 @@
 
 
             <!-- RIGHT SIDEBAR -->
-            <aside class="lg:sticky lg:top-6 lg:self-start">
+            <aside class="hidden" aria-hidden="true">
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
 

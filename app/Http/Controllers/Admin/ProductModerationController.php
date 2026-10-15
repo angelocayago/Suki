@@ -98,4 +98,17 @@ class ProductModerationController extends Controller
 
         return back()->with('success', 'Product restored to the marketplace.');
     }
+
+    public function updateCommission(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'commission_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $product->update([
+            'commission_bps' => (int) round(((float) $validated['commission_rate']) * 100),
+        ]);
+
+        return back()->with('success', 'Product commission rate updated. Existing order items keep their original snapshot.');
+    }
 }

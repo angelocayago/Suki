@@ -115,6 +115,23 @@
                     @endforelse
                 </div>
             </section>
+
+            <section class="rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
+                <h2 class="text-lg font-bold text-[#173F35]">Product commission</h2>
+                <p class="mt-1 text-sm text-gray-600">Applied to future order items only. Shipping is never commissioned.</p>
+                <form method="POST" action="{{ route('admin.products.commission.update', $product) }}" class="mt-4 flex flex-wrap items-end gap-3">
+                    @csrf
+                    @method('PATCH')
+                    <label class="block text-sm font-semibold text-gray-700" for="commission_rate">
+                        Commission rate (%)
+                        <input id="commission_rate" name="commission_rate" type="number" min="0" max="100" step="0.01" required
+                               value="{{ old('commission_rate', number_format($product->commission_bps / 100, 2, '.', '')) }}"
+                               class="mt-1 block w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    </label>
+                    <button class="rounded-lg bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">Save rate</button>
+                </form>
+                @error('commission_rate')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+            </section>
         </div>
     </div>
 </div>

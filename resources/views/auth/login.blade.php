@@ -25,7 +25,7 @@
 </head>
 
 
-<body>
+<body class="public-auth-simple">
 
 <div class="auth-page">
 
