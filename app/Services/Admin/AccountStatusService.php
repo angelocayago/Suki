@@ -88,6 +88,12 @@ class AccountStatusService
             $user = User::query()->lockForUpdate()->findOrFail($lockedApplication->user_id);
             $previousStatus = $user->status;
 
+            if ($user->requiresContactVerification() && ! $user->hasVerifiedContacts()) {
+                throw ValidationException::withMessages([
+                    'application' => 'The applicant must verify both email and mobile number before approval.',
+                ]);
+            }
+
             if ($previousStatus !== 'pending') {
                 throw ValidationException::withMessages([
                     'application' => 'Only a pending account can be approved.',

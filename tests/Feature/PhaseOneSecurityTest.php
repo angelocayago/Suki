@@ -90,7 +90,7 @@ class PhaseOneSecurityTest extends TestCase
             'terms' => '1',
         ]);
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('verification.contact.show'));
         $user = User::where('email', 'seller-applicant@example.com')->firstOrFail();
 
         $this->assertSame('pending', $user->status);
@@ -196,11 +196,12 @@ class PhaseOneSecurityTest extends TestCase
             ->post(route('logistics.riders.approve', $application->id))
             ->assertRedirect(route('logistics.riders'));
 
-        $this->assertSame('active', $riderUser->fresh()->status);
+        $this->assertSame('pending', $riderUser->fresh()->status);
         $this->assertDatabaseHas('riders', [
             'user_id' => $riderUser->id,
             'logistics_provider_id' => $provider->id,
             'plate_no' => 'ABC-1234',
+            'is_active' => false,
         ]);
         Notification::assertSentTo($riderUser, ApplicationDecisionNotification::class);
     }

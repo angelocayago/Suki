@@ -25,7 +25,7 @@ class PhaseOneBSellerOnboardingTest extends TestCase
 
         $response = $this->post(route('seller.register.submit'), $this->validPayload($category));
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('verification.contact.show'));
         $response->assertSessionHas('success');
 
         $user = User::query()->where('email', 'new-seller@example.com')->firstOrFail();
@@ -94,7 +94,7 @@ class PhaseOneBSellerOnboardingTest extends TestCase
         unset($individual['business_permit']);
 
         $this->post(route('seller.register.submit'), $individual)
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('verification.contact.show'));
 
         $application = Application::query()
             ->whereHas('user', fn ($query) => $query->where('email', 'individual@example.com'))
@@ -166,6 +166,7 @@ class PhaseOneBSellerOnboardingTest extends TestCase
             'is_suspended' => false,
         ]);
         $admin->roles()->attach(Role::query()->firstOrCreate(['name' => 'admin']));
+        $application->user->update(['email_verified_at' => now(), 'phone_verified_at' => now()]);
 
         $this->actingAs($admin)
             ->post(route('superadmin.applications.approve', $application))

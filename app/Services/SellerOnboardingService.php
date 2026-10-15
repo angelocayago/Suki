@@ -46,6 +46,7 @@ class SellerOnboardingService
                     'phone' => $data['phone'],
                     'status' => 'pending',
                     'is_suspended' => false,
+                    'verification_required_at' => now(),
                     'password' => $data['password'],
                 ]);
 

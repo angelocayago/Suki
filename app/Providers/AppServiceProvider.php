@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\SmsSender;
+use App\Services\Sms\HttpSmsSender;
+use App\Services\Sms\NullSmsSender;
 use App\Models\Conversation;
 use App\Policies\ConversationPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -14,7 +17,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(SmsSender::class, fn () => config('services.sms.driver') === 'http'
+            ? new HttpSmsSender()
+            : new NullSmsSender());
     }
 
     /**

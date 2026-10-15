@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SellerRegistrationRequest;
 use App\Models\Category;
 use App\Services\SellerOnboardingService;
+use App\Services\AccountVerificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -24,12 +25,15 @@ class RegistrationController extends Controller
 
     public function store(
         SellerRegistrationRequest $request,
-        SellerOnboardingService $onboarding
+        SellerOnboardingService $onboarding,
+        AccountVerificationService $verification
     ): RedirectResponse {
-        $onboarding->register($request->validated());
+        $application = $onboarding->register($request->validated());
+        $verification->send($application->user, 'email', false);
+        $request->session()->put('verification_user_id', $application->user_id);
 
         return redirect()
-            ->route('login')
-            ->with('success', 'Your seller application has been submitted. Please wait for administrator approval.');
+            ->route('verification.contact.show')
+            ->with('success', 'Application saved. Verify your email and mobile number before administrator review.');
     }
 }

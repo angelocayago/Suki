@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'null'),
+        'endpoint' => env('SMS_API_URL'),
+        'token' => env('SMS_API_TOKEN'),
+        'sender' => env('SMS_SENDER', 'SUKI SHOP'),
+    ],
+
     'maptiler' => [
         // A full MapTiler-compatible style URL. Keep keys in .env, never in source.
         'style_url' => env('MAPTILER_STYLE_URL'),

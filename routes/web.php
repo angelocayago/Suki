@@ -44,6 +44,10 @@ use App\Http\Controllers\Admin\SellerComplianceEvidenceController;
 use App\Http\Controllers\Admin\SellerManagementController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Auth\AccountVerificationController;
+use App\Http\Controllers\Auth\BuyerRegistrationController;
+use App\Http\Controllers\Auth\LogisticsRegistrationController;
+use App\Http\Controllers\Auth\RiderActivationController;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -3336,12 +3340,19 @@ Route::get('/rider/apply', function () {
 
 Route::post('/rider/apply', function (Request $request) {
 
+    // Rider applications remain a legacy compatibility path. Normalize identity
+    // before validation so the eventual activation flow cannot create aliases.
+    $request->merge([
+        'email' => \App\Support\IdentityNormalizer::email($request->input('email')),
+        'phone' => \App\Support\IdentityNormalizer::philippinePhone($request->input('phone')),
+    ]);
+
     $validated = $request->validate([
 
         'first_name' => 'required|string|max:100',
         'last_name' => 'required|string|max:100',
-        'phone' => 'required|string|max:30|unique:users,phone',
-        'email' => 'required|email|max:255|unique:users,email',
+        'phone' => 'required|string|regex:/^09\d{9}$/|unique:users,phone',
+        'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->where(fn ($query) => $query->whereRaw('LOWER(email) = ?', [$request->input('email')]))],
         'address' => 'required|string|max:1000',
 
         'vehicle_type' => 'required|in:Motorcycle,E-bike,Bicycle',
@@ -3464,79 +3475,9 @@ Route::get('/logistics/register', function () {
     return view('logistics.register');
 })->name('logistics.register');
 
-Route::post('/logistics/register', function (Request $request) {
-    $validated = $request->validate([
-        'first_name' => 'required|string|max:100',
-        'last_name' => 'required|string|max:100',
-        'middle_initial' => 'nullable|string|max:5',
-        'sex' => 'required|string|max:20',
-        'birthday' => 'required|date|before:today',
-        'email' => 'required|email|max:255|unique:users,email',
-        'phone' => 'required|string|max:30|unique:users,phone',
-        'business_name' => 'required|string|max:150',
-        'address' => 'required|string|max:1000',
-        'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        'business_permit' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        'password' => 'required|string|min:8|confirmed',
-        'terms' => 'accepted',
-    ]);
-
-    $governmentIdPath = $request->file('government_id')
-        ->store('application-documents/logistics/government-ids');
-    $permitPath = $request->file('business_permit')
-        ->store('application-documents/logistics/business-permits');
-
-    DB::transaction(function () use ($validated, $governmentIdPath, $permitPath) {
-        $fullName = trim($validated['first_name'].' '.($validated['middle_initial'] ?? '').' '.$validated['last_name']);
-
-        $user = User::create([
-            'role' => 'logistics',
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'middle_initial' => $validated['middle_initial'] ?? null,
-            'sex' => $validated['sex'],
-            'birthday' => $validated['birthday'],
-            'name' => $fullName,
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'status' => 'pending',
-            'password' => $validated['password'],
-        ]);
-
-        $role = Role::firstOrCreate(['name' => 'logistics']);
-        $user->roles()->syncWithoutDetaching([$role->id]);
-
-        LogisticsProvider::create([
-            'user_id' => $user->id,
-            'name' => $validated['business_name'],
-            'slug' => Str::slug($validated['business_name']).'-'.$user->id,
-            'status' => 'pending',
-            'contact_phone' => $validated['phone'],
-            'address' => $validated['address'],
-            'government_id_path' => $governmentIdPath,
-            'business_permit_path' => $permitPath,
-        ]);
-
-        Application::create([
-            'user_id' => $user->id,
-            'application_type' => 'logistics',
-            'status' => 'pending',
-            'application_data' => [
-                'business_name' => $validated['business_name'],
-                'address' => $validated['address'],
-            ],
-            'documents' => [
-                'government_id' => $governmentIdPath,
-                'business_permit' => $permitPath,
-            ],
-        ]);
-    });
-
-    return redirect()->route('login')->with(
-        'success',
-        'Your logistics application has been submitted. Please wait for administrator approval.'
-    );
-})->name('logistics.register.submit');
+Route::post('/logistics/register', [LogisticsRegistrationController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('logistics.register.submit');
 
 Route::get('/logistics/login', function () {
     return redirect()->route('login');
@@ -3647,13 +3588,13 @@ Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($req
                 'government_id_path' => $documents['government_id'] ?? null,
                 'drivers_license_path' => $documents['drivers_license'] ?? null,
                 'vehicle_document_path' => $documents['vehicle_document'] ?? null,
-                'is_active' => true,
+                'is_active' => false,
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]
         );
 
-        $application->user->update(['status' => 'active']);
+        $application->user->update(['status' => 'pending', 'verification_required_at' => now()]);
         $application->update([
             'status' => 'approved',
             'reviewed_by' => auth()->id(),
@@ -3662,9 +3603,11 @@ Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($req
         ]);
     });
 
+    app(\App\Services\RiderActivationService::class)->send($application->user->fresh(), false);
+
     $application->user->notify(new \App\Notifications\ApplicationDecisionNotification($application->fresh()));
 
-    return redirect()->route('logistics.riders')->with('success', 'Rider application approved successfully!');
+    return redirect()->route('logistics.riders')->with('success', 'Rider approved. A single-use activation link was sent by email.');
 })->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
     ->name('logistics.riders.approve');
 
@@ -3712,6 +3655,11 @@ Route::get('/rider/login', function () {
 
 })->name('rider.login');
 
+Route::get('/rider/activate/{token}', [RiderActivationController::class, 'show'])
+    ->middleware('throttle:10,1')->name('rider.activation.show');
+Route::post('/rider/activate/{token}', [RiderActivationController::class, 'store'])
+    ->middleware('throttle:5,1')->name('rider.activation.store');
+
 
 // =====================================================
 // RIDER LOGIN SUBMIT
@@ -3731,7 +3679,7 @@ Route::post('/rider/login', function (Request $request) {
         'status' => 'active',
     ]);
 
-    if (! $authenticated || auth()->user()->is_suspended || ! auth()->user()->rider?->is_active) {
+    if (! $authenticated || auth()->user()->is_suspended || ! auth()->user()->hasVerifiedContacts() || ! auth()->user()->rider?->is_active) {
         auth()->logout();
 
         return back()->withInput()->with('error', 'Invalid credentials or the rider account is not approved and active.');
@@ -5893,6 +5841,17 @@ Route::post('/login', function (Request $request) {
             ->onlyInput('login');
     }
 
+    if (! $user->hasVerifiedContacts()) {
+        $verificationUserId = $user->id;
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        $request->session()->put('verification_user_id', $verificationUserId);
+
+        return redirect()->route('verification.contact.show')
+            ->with('error', 'Complete email and mobile verification before signing in.');
+    }
+
 
     // =====================================================
     // ACCOUNT STATUS CHECK
@@ -6088,107 +6047,18 @@ Route::get('/register/buyer', function () {
 // REGISTER SUBMIT
 // =====================================================
 
-Route::post('/register', function (Request $request) {
+Route::post('/register', [BuyerRegistrationController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('register.submit');
 
-    $validated = $request->validate([
-        'last_name' => 'required|string|max:100',
-        'first_name' => 'required|string|max:100',
-        'middle_initial' => 'nullable|string|max:10',
-        'sex' => 'required|string|max:20',
-
-        'email' => 'required|email|max:255|unique:users,email',
-        'phone' => 'required|string|max:30|unique:users,phone',
-
-        'birthday' => 'required|date|before:today',
-
-        'province' => 'required|string|max:255',
-        'municipality' => 'required|string|max:255',
-        'barangay' => 'required|string|max:255',
-        'street_address' => 'required|string|max:255',
-
-        'government_id' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-
-        'password' => 'required|string|min:8|confirmed',
-        'terms' => 'accepted',
-    ]);
-
-    $governmentIdPath = $request
-        ->file('government_id')
-        ->store('application-documents/buyers');
-
-    $fullName = trim(
-        $validated['first_name'] . ' ' .
-        ($validated['middle_initial'] ?? '') . ' ' .
-        $validated['last_name']
-    );
-
-    $user = \Illuminate\Support\Facades\DB::transaction(
-        function () use ($validated, $governmentIdPath, $fullName) {
-
-            $user = User::create([
-                'role' => 'buyer',
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'middle_initial' => $validated['middle_initial'] ?? null,
-                'sex' => $validated['sex'],
-                'birthday' => $validated['birthday'],
-                'name' => $fullName,
-                'email' => $validated['email'],
-                'phone' => $validated['phone'],
-                'status' => 'pending',
-                'government_id' => $governmentIdPath,
-                'password' => $validated['password'],
-            ]);
-
-            /*
-             * Keep the new roles / role_user architecture populated
-             * while legacy users.role is still supported.
-             */
-            $buyerRole = \App\Models\Role::where('name', 'buyer')->first();
-
-            if ($buyerRole) {
-                $user->roles()->syncWithoutDetaching([
-                    $buyerRole->id,
-                ]);
-            }
-
-            /*
-             * Save the buyer's default address.
-             */
-            $user->addresses()->create([
-                'label' => 'Home',
-                'recipient' => $fullName,
-                'phone' => $validated['phone'],
-                'line1' => $validated['street_address'],
-                'barangay' => $validated['barangay'],
-                'city' => $validated['municipality'],
-                'province' => $validated['province'],
-                'postal_code' => null,
-                'is_default' => true,
-            ]);
-
-            Application::create([
-                'user_id' => $user->id,
-                'application_type' => 'buyer',
-                'status' => 'pending',
-                'application_data' => [],
-                'documents' => [
-                    'government_id' => $governmentIdPath,
-                ],
-            ]);
-
-            return $user;
-        }
-    );
-
-    return redirect()
-        ->route('login')
-        ->with(
-            'success',
-            'Your buyer application has been submitted. Please wait for administrator approval before logging in.'
-        );
-
-})->name('register.submit');
+Route::get('/verify-contact', [AccountVerificationController::class, 'show'])
+    ->name('verification.contact.show');
+Route::post('/verify-contact', [AccountVerificationController::class, 'verify'])
+    ->middleware('throttle:10,1')
+    ->name('verification.contact.verify');
+Route::post('/verify-contact/resend', [AccountVerificationController::class, 'resend'])
+    ->middleware('throttle:3,5')
+    ->name('verification.contact.resend');
 
 
 // =====================================================

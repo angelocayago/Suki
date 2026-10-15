@@ -20,6 +20,10 @@ class EnsureAccountApproved
             abort(403, 'This account is not approved for portal access.');
         }
 
+        if (! $user->hasVerifiedContacts()) {
+            abort(403, 'Email and mobile verification are required for portal access.');
+        }
+
         return $next($request);
     }
 }

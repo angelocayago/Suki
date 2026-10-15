@@ -2,11 +2,19 @@
 
 namespace App\Http\Requests;
 
+use App\Support\IdentityNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class SellerRegistrationRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => IdentityNormalizer::email($this->input('email')),
+            'phone' => IdentityNormalizer::philippinePhone($this->input('phone')),
+        ]);
+    }
     public function authorize(): bool
     {
         return true;
@@ -30,8 +38,8 @@ class SellerRegistrationRequest extends FormRequest
             'middle_initial' => ['nullable', 'string', 'max:5'],
             'sex' => ['required', Rule::in(['Male', 'Female'])],
             'birthday' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
-            'phone' => ['required', 'string', 'regex:/^09\d{9}$/', 'unique:users,phone'],
-            'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'regex:/^09\d{9}$/', Rule::unique('users', 'phone')],
+            'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->where(fn ($query) => $query->whereRaw('LOWER(email) = ?', [$this->input('email')]))],
             'province' => ['required', 'string', 'max:100'],
             'municipality' => ['required', 'string', 'max:100'],
             'barangay' => ['required', 'string', 'max:100'],

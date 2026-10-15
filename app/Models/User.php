@@ -35,6 +35,9 @@ class User extends Authenticatable
         'status',
         'is_suspended',
         'government_id',
+        'email_verified_at',
+        'phone_verified_at',
+        'verification_required_at',
         'password',
     ];
 
@@ -53,10 +56,33 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
+            'verification_required_at' => 'datetime',
             'birthday' => 'date',
             'password' => 'hashed',
             'is_suspended' => 'boolean',
         ];
+    }
+
+    public function accountVerifications(): HasMany
+    {
+        return $this->hasMany(AccountVerification::class);
+    }
+
+    public function riderActivationToken(): HasOne
+    {
+        return $this->hasOne(RiderActivationToken::class);
+    }
+
+    public function requiresContactVerification(): bool
+    {
+        return $this->verification_required_at !== null;
+    }
+
+    public function hasVerifiedContacts(): bool
+    {
+        return ! $this->requiresContactVerification()
+            || ($this->email_verified_at !== null && $this->phone_verified_at !== null);
     }
 
     /**
