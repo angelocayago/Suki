@@ -37,7 +37,10 @@ class PhaseTwoCheckoutTest extends TestCase
         $response->assertRedirect(route('buyer.order-success', $order->order_number));
         $this->assertSame('PLACED', $order->status);
         $this->assertNull($order->seller_id);
-        $this->assertSame(17500, $order->total_minor);
+        $this->assertSame('175.00', $order->subtotal);
+        $this->assertSame('100.00', $order->shipping_fee);
+        $this->assertSame('275.00', $order->total_amount);
+        $this->assertSame(27500, $order->total_minor);
         $this->assertSame($address->recipient, $order->shipping_address['recipient_name']);
         $this->assertCount(2, $order->sellerOrders);
         $this->assertCount(2, $order->items);
@@ -53,6 +56,11 @@ class PhaseTwoCheckoutTest extends TestCase
             $this->assertNull($sellerOrder->shipment->logistics_provider_id);
             $this->assertNull($sellerOrder->shipment->pickup_rider_id);
             $this->assertNull($sellerOrder->shipment->rider_id);
+            $this->assertSame(5000, $sellerOrder->shipping_fee_minor);
+            $this->assertSame(
+                $sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor,
+                $sellerOrder->shipment->cod_amount_minor
+            );
         }
 
         foreach ($order->items as $item) {
@@ -108,7 +116,33 @@ class PhaseTwoCheckoutTest extends TestCase
         $this->assertSame(3200, $orderItem->unit_price_minor);
         $this->assertSame('32.00', $orderItem->unit_price);
         $this->assertSame(2, $item['variant']->fresh()->stock);
-        $this->assertSame(3200, $orderItem->sellerOrder->shipment->cod_amount_minor);
+        $this->assertSame(5000, $orderItem->sellerOrder->shipping_fee_minor);
+        $this->assertSame(8200, $orderItem->sellerOrder->shipment->cod_amount_minor);
+    }
+
+    public function test_three_seller_checkout_charges_shipping_once_per_seller_and_aggregates_parent_totals(): void
+    {
+        $buyer = $this->user('buyer');
+        $address = $this->address($buyer);
+        foreach ([
+            $this->catalogItem('One', 'one-store', 'one-product', 1000, 2),
+            $this->catalogItem('Two', 'two-store', 'two-product', 2000, 2),
+            $this->catalogItem('Three', 'three-store', 'three-product', 3000, 2),
+        ] as $item) {
+            $this->cartItem($buyer, $item['product'], $item['variant'], 1);
+        }
+
+        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
+            'address_id' => $address->id, 'payment_method' => 'cod',
+        ])->assertSessionHasNoErrors();
+
+        $order = $buyer->buyerOrders()->with('sellerOrders.shipment')->sole();
+        $this->assertSame(6000, (int) round($order->subtotal * 100));
+        $this->assertSame(15000, (int) round($order->shipping_fee * 100));
+        $this->assertSame(21000, $order->total_minor);
+        $this->assertSame(21000, $order->sellerOrders->sum(fn ($sellerOrder) => $sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor));
+        $this->assertSame([5000, 5000, 5000], $order->sellerOrders->pluck('shipping_fee_minor')->sort()->values()->all());
+        $this->assertTrue($order->sellerOrders->every(fn ($sellerOrder) => $sellerOrder->shipment->cod_amount_minor === $sellerOrder->subtotal_minor + 5000));
     }
 
     public function test_session_address_fallback_is_saved_as_an_order_snapshot(): void

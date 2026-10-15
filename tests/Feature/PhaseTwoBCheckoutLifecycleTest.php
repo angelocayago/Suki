@@ -37,7 +37,8 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $order = Order::with('sellerOrders.items', 'items')->sole();
         $this->assertSame('PLACED', $order->status);
         $this->assertNull($order->seller_id);
-        $this->assertSame(32500, $order->total_minor);
+        $this->assertSame(42500, $order->total_minor);
+        $this->assertSame('100.00', $order->shipping_fee);
         $this->assertCount(2, $order->sellerOrders);
         $this->assertSame(3, $order->items->sum('quantity'));
         $this->assertSame(3, $first['variant']->fresh()->stock);
@@ -115,11 +116,17 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($buyer)->get(route('buyer.cart'))
             ->assertOk()
             ->assertSee('125.00')
+            ->assertSee('Merchandise Subtotal')
+            ->assertSee('Shipping')
+            ->assertSee('175.00')
             ->assertDontSee('1.00');
 
         $this->actingAs($buyer)->get(route('buyer.checkout'))
             ->assertOk()
             ->assertSee('125.00')
+            ->assertSee('Total Shipping')
+            ->assertSee('COD Grand Total')
+            ->assertSee('175.00')
             ->assertSee('Delivery Address');
     }
 

@@ -475,7 +475,7 @@
                         <div class="flex items-center justify-between text-sm">
 
                             <span class="text-gray-500">
-                                Subtotal
+                                Merchandise Subtotal
                             </span>
 
                             <span class="font-medium text-gray-900">
@@ -531,8 +531,18 @@
                                 </p>
                             </div>
 
+                            <div class="flex items-center justify-between border-t border-gray-100 pt-4 text-sm text-gray-600">
+                                <span>Shipping (₱{{ number_format($shipping_per_seller ?? 50, 2) }} × {{ $seller_count ?? 0 }} seller{{ ($seller_count ?? 0) === 1 ? '' : 's' }})</span>
+                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2 text-sm font-medium text-gray-700">
+                                <span>Total Shipping</span>
+                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
+                            </div>
+
                             <span class="text-xl sm:text-2xl font-bold text-[#1F6F5B]">
-                                ₱{{ number_format($subtotal, 2) }}
+                                ₱{{ number_format($total, 2) }}
                             </span>
 
                         </div>

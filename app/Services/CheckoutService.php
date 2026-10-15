@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
+    /** The project-wide COD shipping fee charged once for each seller shipment. */
+    public const SHIPPING_FEE_PER_SELLER_MINOR = 5000;
     public function cartSummary(User $buyer): array
     {
         $items = CartItem::query()
@@ -47,6 +49,7 @@ class CheckoutService
                         'quantity' => (int) $cartItem->quantity,
                         'variant' => $variant?->name,
                         'variation' => $variant?->options,
+                        'seller_id' => $product?->seller_id,
                         'stock' => (int) ($variant?->stock ?? 0),
                         'available' => (bool) $available,
                     ],
@@ -54,15 +57,23 @@ class CheckoutService
             })
             ->all();
 
-        $subtotal = collect($items)->sum(
-            fn (array $item) => $item['price'] * $item['quantity']
+        $subtotalMinor = collect($items)->sum(
+            fn (array $item) => (int) round($item['price'] * 100) * $item['quantity']
         );
+        $sellerCount = collect($items)
+            ->filter(fn (array $item) => $item['available'] && $item['seller_id'])
+            ->pluck('seller_id')
+            ->unique()
+            ->count();
+        $shippingMinor = $sellerCount * self::SHIPPING_FEE_PER_SELLER_MINOR;
 
         return [
             'cart' => $items,
-            'subtotal' => $subtotal,
-            'shipping' => 0,
-            'total' => $subtotal,
+            'subtotal' => $subtotalMinor / 100,
+            'seller_count' => $sellerCount,
+            'shipping_per_seller' => self::SHIPPING_FEE_PER_SELLER_MINOR / 100,
+            'shipping' => $shippingMinor / 100,
+            'total' => ($subtotalMinor + $shippingMinor) / 100,
             'has_unavailable_items' => collect($items)->contains(
                 fn (array $item) => ! $item['available']
             ),
@@ -102,8 +113,9 @@ class CheckoutService
                 }
             }
 
+            $sellerGroups = $lines->groupBy(fn (array $line) => $line['seller']->id);
             $subtotalMinor = $lines->sum('line_total_minor');
-            $shippingMinor = 0;
+            $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
             $discountMinor = 0;
             $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
             $orderNumber = $this->orderNumber();
@@ -137,16 +149,17 @@ class CheckoutService
                 'placed_at' => $now,
             ]);
 
-            foreach ($lines->groupBy(fn (array $line) => $line['seller']->id) as $sellerLines) {
+            foreach ($sellerGroups as $sellerLines) {
                 $seller = $sellerLines->first()['seller'];
                 $sellerSubtotalMinor = $sellerLines->sum('line_total_minor');
+                $sellerShippingMinor = self::SHIPPING_FEE_PER_SELLER_MINOR;
 
                 $sellerOrder = SellerOrder::create([
                     'order_id' => $order->id,
                     'seller_id' => $seller->id,
                     'logistics_provider_id' => null,
                     'subtotal_minor' => $sellerSubtotalMinor,
-                    'shipping_fee_minor' => 0,
+                    'shipping_fee_minor' => $sellerShippingMinor,
                     'commission_minor' => (int) round(
                         $sellerSubtotalMinor * ((int) $seller->commission_bps / 10000)
                     ),
@@ -164,7 +177,9 @@ class CheckoutService
                     'status' => OrderStatus::Placed->legacyShipmentStatus(),
                     'workflow_status' => OrderStatus::Placed->value,
                     'fee_minor' => 0,
-                    'cod_amount_minor' => $paymentMethod === 'cod' ? $sellerSubtotalMinor : 0,
+                    'cod_amount_minor' => $paymentMethod === 'cod'
+                        ? $sellerSubtotalMinor + $sellerShippingMinor
+                        : 0,
                     'cod_collected' => false,
                     'attempts' => 0,
                     'status_changed_at' => $now,

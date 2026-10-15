@@ -568,6 +568,16 @@
 
                             </div>
 
+                            <div class="flex items-center justify-between py-2 text-sm text-gray-600">
+                                <span>Shipping (₱{{ number_format($shipping_per_seller ?? 50, 2) }} × {{ $seller_count ?? 0 }} seller{{ ($seller_count ?? 0) === 1 ? '' : 's' }})</span>
+                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between py-2 text-sm text-gray-600">
+                                <span>Total Shipping</span>
+                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
+                            </div>
+
 
                             {{-- SUKI LOGISTICS DELIVERY --}}
 <div class="flex items-center justify-between gap-4 text-sm">
@@ -599,7 +609,7 @@
 
                                     <div>
                                         <p class="text-sm text-gray-500">
-                                            Total
+                                            COD Grand Total
                                         </p>
 
                                         <p class="mt-1 text-xs text-gray-400">
