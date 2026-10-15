@@ -123,6 +123,15 @@
     @endpush
 @endif
 
+@push('scripts')
+<script>
+document.querySelectorAll('[data-copy-address]').forEach(button => button.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(button.dataset.copyAddress); button.textContent = 'Address copied'; }
+  catch (_) { button.textContent = 'Copy unavailable'; }
+}));
+</script>
+@endpush
+
 
 {{-- ============================================================
      PAGE HEADER
@@ -378,6 +387,11 @@
                                         <span class="font-medium">Address:</span>
                                         {{ $order['address'] }}
                                     </p>
+                                    <button type="button" data-copy-address="{{ $order['navigation_address'] ?? $order['address'] }}" class="text-xs font-semibold text-[#1F6F5B] underline">Copy address for navigation</button>
+                                @endif
+                                @if(in_array($status, ['ready_for_pickup', 'picked_up'], true) && !empty($order['pickup_address']))
+                                    <p class="mt-2 text-sm text-gray-600"><span class="font-medium">Pickup:</span> {{ $order['pickup_address'] }}</p>
+                                    <button type="button" data-copy-address="{{ $order['pickup_address'] }}" class="text-xs font-semibold text-[#1F6F5B] underline">Copy pickup address</button>
                                 @endif
 
                                 @if (isset($order['total']))
@@ -407,6 +421,12 @@
                                         Confirm Parcel Collection
                                     </button>
                                 </form>
+                                @if (($order['source'] ?? '') === 'database' && empty($order['pickup_accepted_at']))
+                                    <form method="POST" action="{{ route('rider.database.pickup.decline', $orderId) }}" class="mt-2" onsubmit="return confirm('Decline this assigned pickup?');">
+                                        @csrf
+                                        <button type="submit" class="w-full rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-700">Decline Pickup</button>
+                                    </form>
+                                @endif
 
                             @elseif ($status === 'assigned_to_rider')
 
@@ -505,6 +525,12 @@
                                         @csrf
                                         <input name="failure_reason" required maxlength="1000" placeholder="Failed delivery reason" class="rounded-lg border border-gray-200 px-3 py-2 text-xs">
                                         <button type="submit" class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white">Record Failure</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('rider.database.delivery.issue', $orderId) }}" class="mt-2 grid gap-2">
+                                        @csrf
+                                        <select name="issue_category" required class="rounded-lg border border-gray-200 px-3 py-2 text-xs"><option value="">Report delivery issue</option><option value="buyer_unreachable">Buyer unreachable</option><option value="wrong_or_incomplete_address">Wrong or incomplete address</option><option value="damaged_parcel">Damaged parcel</option><option value="other">Other</option></select>
+                                        <input name="issue_details" maxlength="1000" placeholder="Details (optional)" class="rounded-lg border border-gray-200 px-3 py-2 text-xs">
+                                        <button type="submit" class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800">Save Issue Report</button>
                                     </form>
                                 @endif
 

@@ -58,7 +58,7 @@ class FulfillmentController extends Controller
 
         return view('logistics.assignments', [
             'orders' => $this->databaseOrders($provider)
-                ->filter(fn (array $order) => in_array($order['status'], ['sorted', 'assigned_to_rider'], true)),
+                ->filter(fn (array $order) => in_array($order['status'], ['ready_for_pickup', 'sorted', 'assigned_to_rider'], true)),
             'riders' => $this->activeRiders($provider),
         ]);
     }
@@ -101,6 +101,20 @@ class FulfillmentController extends Controller
         return back()->with('success', 'Logistics status updated successfully.');
     }
 
+    public function assignPickup(
+        Request $request,
+        SellerOrder $sellerOrder,
+        OrderWorkflowService $workflow
+    ): RedirectResponse {
+        $validated = $request->validate(['pickup_rider_id' => ['required', 'integer']]);
+        $provider = $this->providerFor($request);
+        $rider = $provider->riders()->with(['user', 'logisticsProvider'])->findOrFail($validated['pickup_rider_id']);
+
+        $workflow->assignPickupRider($sellerOrder, $provider, $request->user(), $rider);
+
+        return back()->with('success', 'Pickup rider assignment saved. The rider must still accept the pickup.');
+    }
+
     private function providerFor(Request $request): LogisticsProvider
     {
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->first();
@@ -125,7 +139,7 @@ class FulfillmentController extends Controller
                     });
             })
             ->whereHas('order', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
-            ->with(['order.buyer', 'items', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events'])
+            ->with(['order.buyer', 'items', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events.user'])
             ->latest()
             ->get()
             ->map(fn (SellerOrder $order) => $this->presentOrder($order));
@@ -138,6 +152,7 @@ class FulfillmentController extends Controller
 
         return [
             'id' => $sellerOrder->id,
+            'shipment_id' => $shipment->id,
             'source' => 'database',
             'status' => strtolower($sellerOrder->workflow_status->value),
             'seller_name' => $sellerOrder->seller?->name,
@@ -166,6 +181,11 @@ class FulfillmentController extends Controller
             'tracking_code' => $shipment->tracking_code,
             'logistics_provider_id' => $shipment->logistics_provider_id,
             'pickup_rider_name' => $shipment->pickupRider?->user?->full_name,
+            'pickup_rider_id' => $shipment->pickup_rider_id,
+            'pickup_assignment_open' => $sellerOrder->workflow_status === OrderStatus::ReadyForPickup && ! $shipment->pickup_accepted_at,
+            'assignment_history' => $shipment->events->filter(fn ($event) => in_array($event->status, [
+                'PICKUP_RIDER_ASSIGNED', 'PICKUP_RIDER_REASSIGNED', 'PICKUP_ACCEPTED', 'PICKUP_DECLINED', 'ASSIGNED_TO_RIDER',
+            ], true))->values(),
             'pickup_rider' => [
                 'first_name' => $shipment->pickupRider?->user?->first_name,
                 'last_name' => $shipment->pickupRider?->user?->last_name,
@@ -183,6 +203,7 @@ class FulfillmentController extends Controller
     {
         return $provider->riders()
             ->where('is_active', true)
+            ->whereNotNull('approved_at')
             ->whereHas('user', fn ($query) => $query
                 ->where('status', 'active')
                 ->where('is_suspended', false))

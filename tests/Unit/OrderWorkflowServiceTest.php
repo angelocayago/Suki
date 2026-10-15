@@ -46,6 +46,7 @@ class OrderWorkflowServiceTest extends TestCase
             'vehicle_type' => 'Motorcycle',
             'plate_no' => 'PICKUP-1',
             'is_active' => true,
+            'approved_at' => now(),
         ]);
 
         $deliveryRider = Rider::create([
@@ -71,13 +72,24 @@ class OrderWorkflowServiceTest extends TestCase
         $workflow->transition($sellerOrder, $sellerUser, OrderStatus::Confirmed);
         $workflow->transition($sellerOrder, $sellerUser, OrderStatus::Preparing);
         $workflow->transition($sellerOrder, $sellerUser, OrderStatus::ReadyForPickup);
+        \App\Models\Shipment::create([
+            'seller_order_id' => $sellerOrder->id,
+            'logistics_provider_id' => null,
+            'tracking_code' => 'UNIT-WORKFLOW-PICKUP',
+            'status' => OrderStatus::ReadyForPickup->legacyShipmentStatus(),
+            'workflow_status' => OrderStatus::ReadyForPickup,
+            'fee_minor' => 500,
+            'cod_amount_minor' => 10500,
+            'cod_collected' => false,
+            'attempts' => 0,
+        ]);
+        $workflow->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
         $workflow->acceptPickup($sellerOrder, $pickupRider);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::PickedUp);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::AtSortingCenter);
 
-        $this->assertNull($sellerOrder->fresh()->shipment->logistics_provider_id);
-        $sellerOrder->fresh()->shipment->update(['logistics_provider_id' => $provider->id]);
-        $sellerOrder->update(['logistics_provider_id' => $provider->id]);
+        $this->assertSame($provider->id, $sellerOrder->fresh()->shipment->logistics_provider_id);
+        $this->assertSame($provider->id, $sellerOrder->fresh()->logistics_provider_id);
 
         $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, [
             'sorting_area' => 'North Zone',

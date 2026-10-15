@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shipment;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\SvgWriter;
+use Picqer\Barcode\BarcodeGeneratorSVG;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,6 +25,12 @@ class ShipmentWaybillController extends Controller
             || $user->hasRole('superadmin');
         abort_unless($allowed, 403);
 
-        return view('shipments.waybill', compact('shipment'));
+        // The tracking code is intentionally the only encoded payload.  It
+        // contains no address, buyer, payment, or account information.
+        $trackingCode = $shipment->tracking_code;
+        $qrDataUri = (new SvgWriter())->write(new QrCode(data: $trackingCode, size: 150))->getDataUri();
+        $barcodeSvg = (new BarcodeGeneratorSVG())->getBarcode($trackingCode, BarcodeGeneratorSVG::TYPE_CODE_128, 2, 60);
+
+        return view('shipments.waybill', compact('shipment', 'qrDataUri', 'barcodeSvg'));
     }
 }

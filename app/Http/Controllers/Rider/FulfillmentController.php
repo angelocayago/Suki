@@ -61,6 +61,16 @@ class FulfillmentController extends Controller
         return back()->with('success', 'Pickup accepted. Proceed to the seller to collect the parcel.');
     }
 
+    public function decline(
+        Request $request,
+        SellerOrder $sellerOrder,
+        OrderWorkflowService $workflow
+    ): RedirectResponse {
+        $workflow->declinePickup($sellerOrder, $this->riderFor($request));
+
+        return back()->with('success', 'Pickup declined. Logistics can assign another available rider.');
+    }
+
     public function update(
         Request $request,
         SellerOrder $sellerOrder,
@@ -101,6 +111,21 @@ class FulfillmentController extends Controller
         return back()->with('success', 'Failed delivery attempt recorded.');
     }
 
+    public function issue(
+        Request $request,
+        SellerOrder $sellerOrder,
+        OrderWorkflowService $workflow
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'issue_category' => ['required', Rule::in(['buyer_unreachable', 'wrong_or_incomplete_address', 'damaged_parcel', 'other'])],
+            'issue_details' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $workflow->recordDeliveryIssue($sellerOrder, $request->user(), $validated['issue_category'], $validated['issue_details'] ?? null);
+
+        return back()->with('success', 'Delivery issue recorded for logistics follow-up.');
+    }
+
     private function riderFor(Request $request): Rider
     {
         $rider = $request->user()->rider()->with(['user', 'logisticsProvider'])->first();
@@ -113,14 +138,11 @@ class FulfillmentController extends Controller
     {
         return SellerOrder::query()
             ->whereHas('shipment', function ($query) use ($rider) {
-                $query->where(function ($query) use ($rider) {
-                    $query->where('workflow_status', OrderStatus::ReadyForPickup->value)
-                        ->whereNull('pickup_rider_id');
-                })->orWhere('pickup_rider_id', $rider->id)
+                $query->where('pickup_rider_id', $rider->id)
                     ->orWhere('rider_id', $rider->id);
             })
             ->whereHas('order', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
-            ->with(['order.buyer', 'items', 'seller', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events'])
+            ->with(['order.buyer', 'items', 'seller.pickupAddress', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events'])
             ->latest()
             ->get()
             ->map(fn (SellerOrder $order) => $this->presentOrder($order));
@@ -131,6 +153,7 @@ class FulfillmentController extends Controller
         $order = $sellerOrder->order;
         $shipment = $sellerOrder->shipment;
         $address = is_array($order->shipping_address) ? $order->shipping_address : [];
+        $pickupAddress = $sellerOrder->seller?->pickupAddress;
 
         return [
             'id' => $sellerOrder->id,
@@ -163,12 +186,21 @@ class FulfillmentController extends Controller
             'tracking_code' => $shipment?->tracking_code,
             'pickup_rider_index' => $shipment?->pickup_rider_id,
             'pickup_rider_name' => $shipment?->pickupRider?->user?->full_name,
+            'pickup_accepted_at' => $shipment?->pickup_accepted_at?->toDateTimeString(),
             'rider_index' => $shipment?->rider_id,
             'rider_name' => $shipment?->rider?->user?->full_name,
             'has_failed_attempt' => $shipment?->events->contains('status', 'DELIVERY_ATTEMPT_FAILED') ?? false,
             'failure_reason' => $shipment?->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->last()?->note,
             'created_at' => $sellerOrder->created_at?->toDateTimeString(),
             'updated_at' => $sellerOrder->status_changed_at?->toDateTimeString(),
+            'navigation_address' => implode(', ', array_filter([
+                $order->house_number, $order->street_address, $order->barangay,
+                $order->municipality, $order->province, $order->postal_code,
+            ])),
+            'pickup_address' => $pickupAddress ? implode(', ', array_filter([
+                $pickupAddress->line1, $pickupAddress->barangay, $pickupAddress->city,
+                $pickupAddress->province, $pickupAddress->postal_code,
+            ])) : null,
         ];
     }
 

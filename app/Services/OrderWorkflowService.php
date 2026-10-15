@@ -12,11 +12,128 @@ use App\Models\Shipment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrderWorkflowService
 {
+    /**
+     * Assign (or safely reassign) the rider responsible for collecting a
+     * ready parcel.  This deliberately does not advance the ERP status: the
+     * assigned rider must still accept and collect it before PICKED_UP.
+     */
+    public function assignPickupRider(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, Rider $rider): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $provider, $actor, $rider) {
+            Order::query()->whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $lockedOrder = SellerOrder::query()
+                ->with('order')
+                ->lockForUpdate()
+                ->findOrFail($sellerOrder->id);
+
+            $shipment = Shipment::query()
+                ->with(['pickupRider.user', 'provider'])
+                ->where('seller_order_id', $lockedOrder->id)
+                ->lockForUpdate()
+                ->first();
+            $status = $lockedOrder->workflow_status instanceof OrderStatus
+                ? $lockedOrder->workflow_status
+                : OrderStatus::tryFrom(strtoupper((string) $lockedOrder->workflow_status));
+
+            if ($lockedOrder->order->status === 'CANCELLED' || ! $shipment || $status !== OrderStatus::ReadyForPickup) {
+                throw ValidationException::withMessages(['order' => 'Only an active ready-for-pickup parcel may be assigned.']);
+            }
+
+            if (! $actor->hasRole('logistics') || $provider->user_id !== $actor->id || $provider->status !== 'approved') {
+                throw new AuthorizationException('Only the approved logistics provider may assign pickup riders.');
+            }
+
+            if (
+                ($shipment->logistics_provider_id && $shipment->logistics_provider_id !== $provider->id)
+                || ($lockedOrder->logistics_provider_id && $lockedOrder->logistics_provider_id !== $provider->id)
+            ) {
+                throw new AuthorizationException('This parcel belongs to another logistics provider.');
+            }
+
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if (
+                ! $rider->is_active || ! $rider->approved_at || ! $rider->user || ! $rider->user->hasRole('rider')
+                || $rider->user->status !== 'active' || $rider->user->is_suspended
+                || $rider->logistics_provider_id !== $provider->id || $rider->logisticsProvider?->status !== 'approved'
+            ) {
+                throw ValidationException::withMessages(['pickup_rider_id' => 'Select an active rider from your approved logistics provider.']);
+            }
+
+            if ($shipment->pickup_accepted_at) {
+                throw ValidationException::withMessages(['order' => 'The pickup rider cannot be changed after accepting this parcel.']);
+            }
+
+            $previousRider = $shipment->pickupRider;
+            if ($previousRider?->id === $rider->id) {
+                return $shipment->fresh(['pickupRider.user']);
+            }
+
+            $shipment->update([
+                'logistics_provider_id' => $provider->id,
+                'pickup_rider_id' => $rider->id,
+            ]);
+            $lockedOrder->update(['logistics_provider_id' => $provider->id]);
+            DeliveryEvent::create([
+                'shipment_id' => $shipment->id,
+                'status' => $previousRider ? 'PICKUP_RIDER_REASSIGNED' : 'PICKUP_RIDER_ASSIGNED',
+                'attempt' => 0,
+                'user_id' => $actor->id,
+                'note' => $previousRider
+                    ? 'Pickup rider changed from '.$previousRider->user?->full_name.' to '.$rider->user->full_name.'.'
+                    : 'Pickup rider assigned to '.$rider->user->full_name.'.',
+                'occurred_at' => now(),
+            ]);
+
+            return $shipment->fresh(['pickupRider.user', 'events']);
+        });
+    }
+
+    /** The existing pickup acceptance action is the lightweight rider acknowledgement. */
+    public function declinePickup(SellerOrder $sellerOrder, Rider $rider): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $rider) {
+            Order::query()->whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $lockedOrder = SellerOrder::query()
+                ->with('order')
+                ->lockForUpdate()
+                ->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()
+                ->with('pickupRider.user')
+                ->where('seller_order_id', $lockedOrder->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                ! $shipment || $lockedOrder->order->status === 'CANCELLED'
+                || $lockedOrder->workflow_status !== OrderStatus::ReadyForPickup
+                || $shipment->pickup_rider_id !== $rider->id || $shipment->pickup_accepted_at
+            ) {
+                throw new AuthorizationException('Only the currently assigned pickup rider may decline before accepting.');
+            }
+
+            $rider->loadMissing('user');
+            if (! $rider->is_active || ! $rider->user || $rider->user->status !== 'active' || $rider->user->is_suspended) {
+                throw new AuthorizationException('Only an active rider may decline a pickup.');
+            }
+
+            $shipment->update(['pickup_rider_id' => null]);
+            DeliveryEvent::create([
+                'shipment_id' => $shipment->id,
+                'status' => 'PICKUP_DECLINED',
+                'attempt' => 0,
+                'user_id' => $rider->user_id,
+                'note' => 'Pickup declined by '.$rider->user->full_name.'.',
+                'occurred_at' => now(),
+            ]);
+
+            return $shipment->fresh();
+        });
+    }
+
     public function transition(
         SellerOrder $sellerOrder,
         ?User $actor,
@@ -207,32 +324,15 @@ class OrderWorkflowService
                 throw new AuthorizationException('This shipment belongs to another logistics provider.');
             }
 
-            if ($lockedOrder->shipment?->pickup_rider_id
-                && $lockedOrder->shipment->pickup_rider_id !== $rider->id) {
+            if (! $lockedOrder->shipment?->pickup_rider_id || $lockedOrder->shipment->pickup_rider_id !== $rider->id) {
                 throw ValidationException::withMessages([
-                    'order' => 'Another rider has already accepted this pickup.',
+                    'order' => 'Logistics must assign this pickup before it can be accepted.',
                 ]);
             }
 
-            $shipment = $lockedOrder->shipment ?: Shipment::create([
-                'seller_order_id' => $lockedOrder->id,
-                'logistics_provider_id' => null,
-                'tracking_code' => $this->trackingCode(),
-                'status' => OrderStatus::ReadyForPickup->legacyShipmentStatus(),
-                'workflow_status' => OrderStatus::ReadyForPickup->value,
-                'fee_minor' => $lockedOrder->shipping_fee_minor,
-                'cod_amount_minor' => $lockedOrder->order->payment_method === 'cod'
-                    ? $lockedOrder->subtotal_minor + $lockedOrder->shipping_fee_minor
-                    : 0,
-                'cod_collected' => false,
-                'attempts' => 0,
-                'status_changed_at' => now(),
-            ]);
+            $shipment = $lockedOrder->shipment;
 
-            $shipment->update([
-                'pickup_rider_id' => $rider->id,
-                'pickup_accepted_at' => $shipment->pickup_accepted_at ?: now(),
-            ]);
+            $shipment->update(['pickup_accepted_at' => $shipment->pickup_accepted_at ?: now()]);
 
             $this->recordEvent($shipment, 'PICKUP_ACCEPTED', $rider->user);
 
@@ -341,6 +441,45 @@ class OrderWorkflowService
         });
     }
 
+    public function recordDeliveryIssue(SellerOrder $sellerOrder, User $actor, string $category, ?string $details = null): DeliveryEvent
+    {
+        $labels = [
+            'buyer_unreachable' => 'Buyer unreachable',
+            'wrong_or_incomplete_address' => 'Wrong or incomplete address',
+            'damaged_parcel' => 'Damaged parcel',
+            'other' => 'Other delivery issue',
+        ];
+
+        if (! array_key_exists($category, $labels)) {
+            throw ValidationException::withMessages(['issue_category' => 'Select a valid delivery issue category.']);
+        }
+
+        return DB::transaction(function () use ($sellerOrder, $actor, $category, $details, $labels) {
+            $lockedOrder = SellerOrder::query()
+                ->with(['order', 'shipment.rider.user'])
+                ->lockForUpdate()
+                ->findOrFail($sellerOrder->id);
+            $shipment = $lockedOrder->shipment;
+
+            if (
+                $lockedOrder->workflow_status !== OrderStatus::OutForDelivery || $lockedOrder->order->status === 'CANCELLED'
+                || ! $actor->hasRole('rider') || $actor->status !== 'active' || $actor->is_suspended
+                || ! $shipment?->rider?->is_active || $shipment->rider->user_id !== $actor->id
+            ) {
+                throw new AuthorizationException('Only the assigned delivery rider may report a delivery issue.');
+            }
+
+            return DeliveryEvent::create([
+                'shipment_id' => $shipment->id,
+                'status' => 'DELIVERY_ISSUE_REPORTED',
+                'attempt' => $shipment->attempts,
+                'user_id' => $actor->id,
+                'note' => $labels[$category].($details ? ': '.trim($details) : ''),
+                'occurred_at' => now(),
+            ]);
+        });
+    }
+
     private function authorizeTransition(
         SellerOrder $sellerOrder,
         ?User $actor,
@@ -429,12 +568,4 @@ class OrderWorkflowService
         );
     }
 
-    private function trackingCode(): string
-    {
-        do {
-            $code = 'SUKI-'.now()->format('YmdHis').'-'.Str::upper(Str::random(6));
-        } while (Shipment::query()->where('tracking_code', $code)->exists());
-
-        return $code;
-    }
 }

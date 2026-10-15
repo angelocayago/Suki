@@ -87,6 +87,10 @@ class SystemFunctionalStabilizationTest extends TestCase
                 ->assertSessionHasNoErrors();
         }
 
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.database.pickup-rider.assign', $sellerOrder), [
+                'pickup_rider_id' => $pickupUser->rider->id,
+            ])->assertSessionHasNoErrors();
         $this->actingAs($pickupUser)
             ->post(route('rider.database.pickup.accept', $sellerOrder))
             ->assertSessionHasNoErrors();

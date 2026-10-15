@@ -23,6 +23,8 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $context = $this->workflowContext();
         extract($context);
 
+        app(OrderWorkflowService::class)->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
+
         $this->actingAs($pickupUser)
             ->get(route('rider.deliveries'))
             ->assertOk()
@@ -114,6 +116,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
     {
         $context = $this->workflowContext();
         extract($context);
+        app(OrderWorkflowService::class)->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
         $otherRiderUser = User::factory()->create([
             'role' => 'rider', 'status' => 'active', 'is_suspended' => false,
         ]);
@@ -186,6 +189,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         ]);
 
         $workflow = app(OrderWorkflowService::class);
+        $workflow->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
         $workflow->acceptPickup($sellerOrder, $pickupRider);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::PickedUp);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::AtSortingCenter);
@@ -469,6 +473,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'vehicle_type' => 'Motorcycle',
             'plate_no' => 'PICKUP-5',
             'is_active' => true,
+            'approved_at' => now(),
         ]);
         $deliveryRider = Rider::create([
             'user_id' => $deliveryUser->id,

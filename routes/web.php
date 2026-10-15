@@ -5113,10 +5113,14 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
     Route::get('/rider/history', [RiderFulfillmentController::class, 'history'])->name('rider.history');
     Route::post('/rider/erp-orders/{sellerOrder}/accept-pickup', [RiderFulfillmentController::class, 'accept'])
         ->name('rider.database.pickup.accept');
+    Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
+        ->name('rider.database.pickup.decline');
     Route::post('/rider/erp-orders/{sellerOrder}/status', [RiderFulfillmentController::class, 'update'])
         ->name('rider.database.order.status');
     Route::post('/rider/erp-orders/{sellerOrder}/failed-delivery', [RiderFulfillmentController::class, 'failed'])
         ->name('rider.database.delivery.failed');
+    Route::post('/rider/erp-orders/{sellerOrder}/delivery-issue', [RiderFulfillmentController::class, 'issue'])
+        ->name('rider.database.delivery.issue');
     Route::post('/rider/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'riderShipment'])
         ->middleware('throttle:20,1')
         ->name('rider.messages.context.shipment.store');
@@ -5134,6 +5138,8 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
     Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
         ->name('logistics.database.orders.receive');
+    Route::post('/logistics/erp-orders/{sellerOrder}/pickup-rider', [LogisticsFulfillmentController::class, 'assignPickup'])
+        ->name('logistics.database.pickup-rider.assign');
     Route::post('/logistics/erp-orders/{sellerOrder}/status', [LogisticsFulfillmentController::class, 'update'])
         ->name('logistics.database.order.status');
     Route::post('/logistics/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'logisticsShipment'])
