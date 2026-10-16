@@ -1,35 +1,23 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->string('compliance_status')
-                ->default('approved')
-                ->change();
-        });
-
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement(
-                'ALTER TABLE products DROP CONSTRAINT IF EXISTS compliance_status_check'
-            );
-
             DB::statement("
                 ALTER TABLE products
-                ADD CONSTRAINT compliance_status_check
-                CHECK (compliance_status IN (
-                    'pending',
-                    'approved',
-                    'flagged',
-                    'rejected',
-                    'auto_flagged'
-                ))
+                ALTER COLUMN compliance_status SET DEFAULT 'approved'
+            ");
+        } elseif (DB::getDriverName() === 'mysql') {
+            DB::statement("
+                ALTER TABLE products
+                MODIFY COLUMN compliance_status
+                ENUM('pending', 'approved', 'flagged', 'rejected', 'auto_flagged')
+                NOT NULL DEFAULT 'approved'
             ");
         }
 
@@ -41,15 +29,17 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement(
-                'ALTER TABLE products DROP CONSTRAINT IF EXISTS compliance_status_check'
-            );
+            DB::statement("
+                ALTER TABLE products
+                ALTER COLUMN compliance_status SET DEFAULT 'pending'
+            ");
+        } elseif (DB::getDriverName() === 'mysql') {
+            DB::statement("
+                ALTER TABLE products
+                MODIFY COLUMN compliance_status
+                ENUM('pending', 'approved', 'flagged', 'rejected', 'auto_flagged')
+                NOT NULL DEFAULT 'pending'
+            ");
         }
-
-        Schema::table('products', function (Blueprint $table) {
-            $table->string('compliance_status')
-                ->default('pending')
-                ->change();
-        });
     }
 };
