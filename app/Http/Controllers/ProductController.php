@@ -332,25 +332,29 @@ class ProductController extends Controller
     }
 
 
-    public function shop(ProductCatalogService $catalog)
+    public function shop(\Illuminate\Http\Request $request, ProductCatalogService $catalog)
     {
-        $products = $catalog->marketplaceProducts() ?: $this->products();
+        $validated = $request->validate(['q'=>['nullable','string','max:100'],'category'=>['nullable','string','max:100'],'seller'=>['nullable','string','max:100'],'in_stock'=>['nullable','in:0,1'],'min_price'=>['nullable','numeric','min:0'],'max_price'=>['nullable','numeric','min:0','gte:min_price'],'sort'=>['nullable','in:newest,price_asc,price_desc,name']]);
+        $products = $catalog->marketplacePage($validated);
+        $filterOptions = [
+            'categories' => \App\Models\Category::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug', 'parent_id']),
+            'sellers' => \App\Models\Seller::query()
+                ->where('status', 'approved')
+                ->whereHas('owner', fn ($query) => $query->where('status', 'active')->where('is_suspended', false))
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug']),
+        ];
 
-        return view('buyer.shop', compact('products'));
+        return view('buyer.shop', compact('products', 'filterOptions'));
     }
 
 
     public function show(string $slug, ProductCatalogService $catalog)
     {
         $product = $catalog->marketplaceProduct($slug);
-
-        if (! $product) {
-            $product = collect($this->products())->firstWhere('slug', $slug);
-
-            if ($product) {
-                $product['source'] = 'legacy';
-            }
-        }
 
         if (!$product) {
             abort(404);

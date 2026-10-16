@@ -13,6 +13,7 @@ use App\Models\Seller;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\Buyer\CartController;
 use App\Http\Controllers\VoucherController;
+use App\Http\Controllers\StoreController;
 use App\Http\Controllers\PayoutController;
 use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Controllers\Buyer\OrderCancellationController;
@@ -340,15 +341,12 @@ $products = [
 
 $legacyProducts = $products;
 
-$resolveProductCatalog = static function () use ($legacyProducts): array {
-    try {
-        $databaseProducts = app(\App\Services\ProductCatalogService::class)
-            ->marketplaceProducts();
-
-        return $databaseProducts !== [] ? $databaseProducts : $legacyProducts;
-    } catch (\Throwable) {
-        return $legacyProducts;
-    }
+$resolveProductCatalog = static function (): array {
+    // Buyer mutations must never fall back to the presentation-only legacy
+    // catalog. ProductCatalogService is the single marketplace visibility
+    // authority for cart, wishlist, and buy-again actions.
+    return app(\App\Services\ProductCatalogService::class)
+        ->marketplaceProducts();
 };
 
 // =====================================================
@@ -382,6 +380,15 @@ Route::get('/shop', [ProductController::class, 'shop'])
 
 Route::get('/product/{slug}', [ProductController::class, 'show'])
     ->name('buyer.product');
+
+Route::get('/stores/following', [StoreController::class, 'following'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])
+    ->name('buyer.stores.following');
+Route::get('/stores/{seller:slug}', [StoreController::class, 'show'])->name('buyer.stores.show');
+Route::post('/stores/{seller:slug}/follow', [StoreController::class, 'follow'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])->name('buyer.stores.follow');
+Route::delete('/stores/{seller:slug}/follow', [StoreController::class, 'unfollow'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])->name('buyer.stores.unfollow');
 
 
 // =====================================================
@@ -2605,6 +2612,8 @@ Route::post(
 
 Route::get('/my-account', function () use ($requireBuyer) {
 
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->account(request());
+
     if ($redirect = $requireBuyer()) {
         return $redirect;
     }
@@ -2632,6 +2641,8 @@ Route::get('/my-account', function () use ($requireBuyer) {
 Route::post('/my-account/profile', function (
     Request $request
 ) use ($requireBuyer) {
+
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->updateProfile($request);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2710,6 +2721,8 @@ Route::post('/my-account/password', function (
 
 Route::get('/my-account/addresses', function () use ($requireBuyer) {
 
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->addresses(request());
+
     if ($redirect = $requireBuyer()) {
         return $redirect;
     }
@@ -2746,6 +2759,8 @@ Route::get('/my-account/addresses', function () use ($requireBuyer) {
 Route::post('/my-account/addresses', function (
     Request $request
 ) use ($requireBuyer) {
+
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->storeAddress($request);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2814,6 +2829,8 @@ Route::post('/my-account/addresses/{address}/default', function (
     $addressId
 ) use ($requireBuyer) {
 
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->setDefault(request(), (int) $addressId);
+
     if ($redirect = $requireBuyer()) {
         return $redirect;
     }
@@ -2847,6 +2864,8 @@ Route::post('/my-account/addresses/{address}/default', function (
 Route::post('/my-account/addresses/{address}/delete', function (
     $addressId
 ) use ($requireBuyer) {
+
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->deleteAddress(request(), (int) $addressId);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2993,6 +3012,8 @@ Route::delete('/seller/vouchers/{voucher}', [VoucherController::class, 'archive'
 
 Route::get('/seller/store-profile', function () use ($requireSeller) {
 
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->show(request());
+
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
@@ -3004,6 +3025,8 @@ Route::get('/seller/store-profile', function () use ($requireSeller) {
 Route::post('/seller/store-profile/profile', function (
     Request $request
 ) use ($requireSeller) {
+
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->update($request);
 
     if ($redirect = $requireSeller()) {
         return $redirect;
@@ -3065,6 +3088,8 @@ Route::post('/seller/store-profile/photo/remove', function () use ($requireSelle
 Route::post('/seller/store-profile/address', function (
     Request $request
 ) use ($requireSeller) {
+
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->address($request);
 
     if ($redirect = $requireSeller()) {
         return $redirect;

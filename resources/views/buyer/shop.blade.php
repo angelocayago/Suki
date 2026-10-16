@@ -86,9 +86,13 @@
         ],
     ];
 
-    $products = !empty($products)
-        ? array_values($products)
-        : $legacyProducts;
+    $catalogPaginator = $products instanceof \Illuminate\Contracts\Pagination\Paginator
+        ? $products
+        : null;
+
+    $products = $catalogPaginator
+        ? $catalogPaginator->items()
+        : (!empty($products) ? array_values($products) : $legacyProducts);
 
     $categories = [
         'All Products',
@@ -190,6 +194,56 @@
 
     </div>
 
+</section>
+
+{{-- Database-backed marketplace controls. All filters are preserved by the paginator. --}}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5">
+    <form method="GET" action="{{ route('buyer.shop') }}" class="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-6">
+        <label class="md:col-span-2">
+            <span class="sr-only">Search products</span>
+            <input name="q" value="{{ request('q') }}" maxlength="100" placeholder="Search products" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+        </label>
+        <label>
+            <span class="sr-only">Category</span>
+            <select name="category" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+                <option value="">All categories</option>
+                @foreach(($filterOptions['categories'] ?? collect()) as $filterCategory)
+                    <option value="{{ $filterCategory->slug }}" @selected(request('category') == $filterCategory->slug)>{{ $filterCategory->name }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label>
+            <span class="sr-only">Store</span>
+            <select name="seller" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+                <option value="">All stores</option>
+                @foreach(($filterOptions['sellers'] ?? collect()) as $filterSeller)
+                    <option value="{{ $filterSeller->slug }}" @selected(request('seller') == $filterSeller->slug)>{{ $filterSeller->name }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label>
+            <span class="sr-only">Sort products</span>
+            <select name="sort" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+                <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest</option>
+                <option value="price_asc" @selected(request('sort') === 'price_asc')>Price: low to high</option>
+                <option value="price_desc" @selected(request('sort') === 'price_desc')>Price: high to low</option>
+                <option value="name" @selected(request('sort') === 'name')>Name</option>
+            </select>
+        </label>
+        <div class="flex gap-2">
+            <input name="min_price" value="{{ request('min_price') }}" min="0" step="0.01" type="number" placeholder="Min price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+            <input name="max_price" value="{{ request('max_price') }}" min="0" step="0.01" type="number" placeholder="Max price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="hidden" name="in_stock" value="0">
+            <input type="checkbox" name="in_stock" value="1" @checked(request('in_stock') === '1') class="rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]">
+            In stock only
+        </label>
+        <div class="flex gap-3 md:col-span-6">
+            <button class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#155244]">Apply filters</button>
+            <a href="{{ route('buyer.shop') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</a>
+        </div>
+    </form>
 </section>
 
 
@@ -429,7 +483,7 @@
                         <p class="text-sm text-gray-700">
 
                             <span class="font-semibold">
-                                {{ count($products) }}
+                                {{ $catalogPaginator?->total() ?? count($products) }}
                             </span>
 
                             products available
@@ -460,14 +514,10 @@
                                 Sort by
                             </span>
 
-                            <select
+                            <select name="sort"
                                 class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1F6F5B]"
                             >
-                                <option>Recommended</option>
-                                <option>Newest</option>
-                                <option>Best Selling</option>
-                                <option>Price: Low to High</option>
-                                <option>Price: High to Low</option>
+                                <option>Use filters above</option>
                             </select>
 
                         </div>
@@ -657,54 +707,11 @@
             {{-- PAGINATION --}}
             {{-- ================================================= --}}
 
-            <div class="flex items-center justify-center gap-2 mt-10">
-
-                <button
-                    type="button"
-                    class="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
-                >
-                    <i
-                        data-lucide="chevron-left"
-                        class="w-4 h-4"
-                    ></i>
-                </button>
-
-                <button
-                    type="button"
-                    class="w-9 h-9 rounded-lg bg-[#1F6F5B] text-white text-sm font-semibold"
-                >
-                    1
-                </button>
-
-                <button
-                    type="button"
-                    class="w-9 h-9 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
-                >
-                    2
-                </button>
-
-                <button
-                    type="button"
-                    class="w-9 h-9 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
-                >
-                    3
-                </button>
-
-                <span class="px-1 text-gray-400">
-                    ...
-                </span>
-
-                <button
-                    type="button"
-                    class="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
-                >
-                    <i
-                        data-lucide="chevron-right"
-                        class="w-4 h-4"
-                    ></i>
-                </button>
-
-            </div>
+            @if($catalogPaginator && $catalogPaginator->hasPages())
+                <div class="mt-10">
+                    {{ $catalogPaginator->links() }}
+                </div>
+            @endif
 
         </div>
 

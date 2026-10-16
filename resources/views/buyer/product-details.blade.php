@@ -422,7 +422,7 @@
                 <div class="w-14 h-14 rounded-full overflow-hidden bg-gray-100">
 
                     <img
-                        src="https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=200&q=80"
+                        src="{{ $product['seller_logo'] ?? 'https://placehold.co/200x200?text=Store' }}"
                         class="w-full h-full object-cover"
                         alt="{{ $product['seller'] }}"
                     >
@@ -462,15 +462,17 @@
 
             <div class="flex gap-2">
 
-                <button
-                    type="button"
+                @if(!empty($product['seller_slug']))
+                <a
+                    href="{{ route('buyer.stores.show', ['seller' => $product['seller_slug']]) }}"
                     class="px-4 py-2 rounded-lg
                            border border-[#1F6F5B]
                            text-[#1F6F5B] text-sm font-medium
                            hover:bg-[#DDF3EC]"
                 >
                     View Shop
-                </button>
+                </a>
+                @endif
 
                 @if(($product['source'] ?? 'legacy') === 'database' && !empty($product['id']))
                     <form method="POST" action="{{ route('buyer.messages.context.product.store', $product['id']) }}">

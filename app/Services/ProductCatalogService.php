@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\ProductModerationStatus;
 use App\Models\Product;
+use App\Models\Category;
+use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Seller;
@@ -39,6 +41,42 @@ class ProductCatalogService
             ->first();
 
         return $product ? $this->marketplaceItem($product) : null;
+    }
+
+    /**
+     * Database-backed buyer catalog. Query parameters are filters only; all
+     * marketplace visibility is enforced by marketplaceQuery().
+     */
+    public function marketplacePage(array $filters, int $perPage = 24): LengthAwarePaginator
+    {
+        $query = $this->marketplaceQuery();
+
+        if (filled($filters['q'] ?? null)) {
+            $term = trim((string) $filters['q']);
+            $query->where(fn ($q) => $q->where('products.name', 'like', "%{$term}%")->orWhere('products.description', 'like', "%{$term}%"));
+        }
+        if (filled($filters['category'] ?? null)) {
+            $category = Category::query()->where('id', $filters['category'])->orWhere('slug', $filters['category'])->first();
+            if (! $category) $query->whereRaw('1 = 0');
+            else $query->whereIn('products.category_id', $this->categoryTreeIds($category->id));
+        }
+        if (filled($filters['seller'] ?? null)) {
+            $query->whereHas('seller', fn ($q) => $q->where('id', $filters['seller'])->orWhere('slug', $filters['seller']));
+        }
+        if (($filters['in_stock'] ?? false) === '1') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('stock', '>', 0));
+        if (isset($filters['min_price']) && $filters['min_price'] !== '') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('price_minor', '>=', (int) round(((float) $filters['min_price']) * 100)));
+        if (isset($filters['max_price']) && $filters['max_price'] !== '') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('price_minor', '<=', (int) round(((float) $filters['max_price']) * 100)));
+
+        match ($filters['sort'] ?? 'newest') {
+            'price_asc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) asc'),
+            'price_desc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) desc'),
+            'name' => $query->orderBy('products.name'),
+            default => $query->orderByDesc('products.created_at'),
+        };
+
+        return $query->paginate(min(max($perPage, 1), 48))
+            ->withQueryString()
+            ->through(fn (Product $product) => $this->marketplaceItem($product));
     }
 
     public function sellerProducts(Seller $seller): array
@@ -172,7 +210,7 @@ class ProductCatalogService
     private function marketplaceQuery()
     {
         return Product::query()
-            ->with(['category', 'images', 'variants' => fn ($query) => $query->where('is_active', true)])
+            ->with(['category', 'images', 'seller', 'variants' => fn ($query) => $query->where('is_active', true)])
             ->where('products.is_active', true)
             ->where('products.moderation_status', ProductModerationStatus::Approved->value)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))
@@ -183,6 +221,13 @@ class ProductCatalogService
                         $owner->where('status', 'active')->where('is_suspended', false);
                     });
             });
+    }
+
+    private function categoryTreeIds(int $rootId): array
+    {
+        $ids = [$rootId]; $frontier = [$rootId];
+        while ($frontier) { $frontier = Category::query()->whereIn('parent_id', $frontier)->pluck('id')->all(); $ids = [...$ids, ...$frontier]; }
+        return $ids;
     }
 
     private function marketplaceItem(Product $product): array
@@ -214,8 +259,13 @@ class ProductCatalogService
             'images' => $images,
             'colors' => array_values((array) ($variant?->options['Color'] ?? [])),
             'seller' => $product->seller?->name ?? 'SUKI Seller',
+            'seller_slug' => $product->seller?->slug,
+            'seller_logo' => $this->imageUrl($product->seller?->logo_path),
             'seller_rating' => 'New',
-            'seller_products' => $product->seller?->products()->count() ?? 0,
+            'seller_products' => $product->seller?->products()
+                ->where('is_active', true)
+                ->where('moderation_status', ProductModerationStatus::Approved->value)
+                ->count() ?? 0,
             'description' => $product->description ?? '',
             'features' => [],
         ];
