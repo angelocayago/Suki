@@ -1,7 +1,7 @@
-@extends('layouts.logistic', ['title' => 'Delivery Management', 'logistic' => $logistic])
+﻿@extends('layouts.logistic', ['title' => 'Delivery Management', 'logistic' => $logistic])
 
 @section('content')
-<div class="container-fluid px-4">
+<div class="container-fluid px-4 se-delivery-page" id="se-delivery-page">
 
     {{-- Page Header --}}
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">

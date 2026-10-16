@@ -10,15 +10,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('product_price_history', function (Blueprint $table) {
-            $table->unsignedBigInteger('price_minor')->nullable()->after('price');
+            $table->unsignedBigInteger('price_minor')
+                ->nullable()
+                ->after('price');
         });
 
         // Convert existing peso prices to integer centavos.
-        DB::statement('
-            UPDATE product_price_history
-            SET price_minor = ROUND(price * 100)::bigint
-            WHERE price IS NOT NULL
-        ');
+        DB::table('product_price_history')
+            ->whereNotNull('price')
+            ->update([
+                'price_minor' => DB::raw(
+                    'CAST(ROUND(price * 100) AS BIGINT)'
+                ),
+            ]);
     }
 
     public function down(): void

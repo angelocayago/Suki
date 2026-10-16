@@ -50,7 +50,7 @@ class DashboardController extends Controller
     $totalRevenue = $shopId
         ? SellerOrder::where('seller_id', $shopId)
             ->whereHas('order', function ($query) {
-                $query->where('status', 'delivered');
+                $query->whereIn('status', ['delivered', 'completed']);
             })
             ->sum('total_minor') / 100
         : 0;
@@ -67,7 +67,7 @@ for ($i = 6; $i >= 0; $i--) {
 if ($shopId) {
     $deliveredSellerOrders = SellerOrder::where('seller_id', $shopId)
         ->whereHas('order', function ($query) {
-            $query->where('status', 'delivered')
+            $query->whereIn('status', ['delivered', 'completed'])
                 ->whereDate('ordered_at', '>=', now()->subDays(6)->startOfDay());
         })
         ->with('order')
@@ -171,7 +171,11 @@ $revenueData = $revenueData->map(
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => ['required', 'exists:categories,id', Rule::in($allowedCategoryIds)],
-            'subcategory_id' => ['nullable', 'exists:categories,id'],
+            'subcategory_id' => [
+                'nullable',
+                Rule::exists('categories', 'id')
+                    ->where('parent_id', $request->input('category_id')),
+            ],
             'price' => 'required|numeric|min:0|max:999999.99',
             'stock' => 'required|integer|min:0',
             'sku' => 'nullable|string|max:255',
@@ -246,6 +250,7 @@ $revenueData = $revenueData->map(
             'low_stock_threshold' => $request->low_stock_threshold,
             'attributes' => $request->attributes,
             'status' => $isDraft ? 'draft' : 'published',
+            'compliance_status' => 'pending',
             'image' => $imagePath,
             'alt_text' => $request->name,
             'image_path' => $imagePath,
@@ -376,7 +381,12 @@ $revenueData = $revenueData->map(
 
         $allowedCategoryIds = Auth::user()->allowedCategoryIds();
         $allowedCategoryIds[] = $product->category_id;
-        $isDraft = $request->input('status') === 'draft';
+        $requestedStatus = $request->input('status', $product->status);
+
+        $isDraft = $requestedStatus === 'draft';
+
+        $isSubmittingDraft = $product->status === 'draft'
+            && $requestedStatus === 'published';
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -384,7 +394,11 @@ $revenueData = $revenueData->map(
             'price' => 'required|numeric|min:0|max:999999.99',
             'stock' => 'required|integer|min:0',
             'category_id' => ['required', 'exists:categories,id', Rule::in($allowedCategoryIds)],
-            'subcategory_id' => ['nullable', 'exists:categories,id'],
+            'subcategory_id' => [
+                'nullable',
+                Rule::exists('categories', 'id')
+                    ->where('parent_id', $request->input('category_id')),
+            ],
             'sku' => 'nullable|string|max:255',
             'low_stock_threshold' => 'nullable|integer|min:0',
             'attributes' => 'nullable|array',
@@ -657,7 +671,11 @@ $revenueData = $revenueData->map(
             return back()->withInput()->with('error', 'The 7-day resubmission deadline has passed. Please contact admin support to restore this product.');
         }
 
-        $data['compliance_status'] = $isDraft ? $product->compliance_status : ($wasFlagged ? 'pending' : $product->compliance_status);
+        $data['status'] = $requestedStatus;
+
+        $data['compliance_status'] = ($isSubmittingDraft || (!$isDraft && $wasFlagged))
+            ? 'pending'
+            : $product->compliance_status;
         if ($wasFlagged) {
             $data['flagged_reason'] = null;
             $data['admin_notes'] = null;
@@ -878,136 +896,190 @@ $revenueData = $revenueData->map(
         return redirect()->route('seller.products')->with('success', 'Product "' . $name . '" has been removed from your shop.');
     }
 
+
     public function orders()
     {
         $seller = Auth::user();
-        $orders = Order::whereHas('items.product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->with(['user', 'items.product', 'items.size'])->latest()->paginate(20);
+        $shopId = $seller->seller?->id;
+
+        if (!$shopId) {
+            return view('seller.orders', [
+                'orders' => Order::whereRaw('1 = 0')->paginate(20),
+            ]);
+        }
+
+        $orders = Order::query()
+            ->whereHas('sellerOrders', function ($query) use ($shopId) {
+                $query->where('seller_id', $shopId);
+            })
+            ->with([
+                'user',
+                'sellerOrders' => function ($query) use ($shopId) {
+                    $query->where('seller_id', $shopId)
+                        ->with([
+                            'items.product',
+                            'items.size',
+                            'shipment.rider',
+                            'shipment.logistic',
+                        ]);
+                },
+            ])
+            ->latest()
+            ->paginate(20);
 
         return view('seller.orders', compact('orders'));
     }
 
+
+
     public function showOrder(Order $order)
-{
-    $seller = Auth::user();
+    {
+        $seller = Auth::user();
+        $shopId = $seller->seller?->id;
 
-    // Security: siguraduhin na may product ang logged-in seller sa order na ito.
-    $hasSellerProduct = $order->items()
-        ->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })
-        ->exists();
+        if (!$shopId) {
+            abort(403, 'No seller shop is linked to this account.');
+        }
 
-    if (!$hasSellerProduct) {
-        abort(403);
+        // Verify ownership through seller_orders, not product ownership.
+        $sellerOrder = $order->sellerOrders()
+            ->where('seller_id', $shopId)
+            ->first();
+
+        if (!$sellerOrder) {
+            abort(403, 'You are not authorized to view this seller order.');
+        }
+
+        // Load only the authenticated seller's order and its items.
+        $order->load([
+            'user',
+            'sellerOrders' => function ($query) use ($shopId) {
+                $query->where('seller_id', $shopId)
+                    ->with([
+                        'items.product',
+                        'items.size',
+                        'items.variation',
+                        'shipment.logistic',
+                        'shipment.rider',
+                    ]);
+            },
+        ]);
+
+        return view('seller.orders.show', compact('order'));
     }
 
-    // Load order information.
-    // Shipment belongs to SellerOrder, not directly to Order.
-    $order->load([
-        'user',
-        'items.product',
-        'items.variation',
-        'items.size',
-        'sellerOrders.seller',
-        'sellerOrders.logistic',
-        'sellerOrders.shipment.rider',
-    ]);
 
-    return view('seller.orders.show', compact('order'));
-}
+
 
     public function updateOrderStatus(Request $request, Order $order)
     {
         $seller = Auth::user();
-        $hasSellerProduct = $order->items()->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->exists();
 
-        if (!$hasSellerProduct) {
-            abort(403);
+        $validated = $request->validate([
+            'status' => 'required|in:confirmed,preparing',
+        ]);
+
+        $sellerOrder = $this->sellerOrderForAuthenticatedSeller(
+            $order,
+            $seller
+        );
+
+        if (!$sellerOrder) {
+            abort(403, 'You are not authorized to update this seller order.');
         }
 
-        $request->validate([
-            'status' => 'required|in:confirmed,preparing,ready_for_pickup,cancelled',
-        ]);
+        $newStatus = $validated['status'];
 
-        $order->update([
-            'status' => $request->status,
-            'shipped_at' => $request->status === 'ready_for_pickup' ? now() : $order->shipped_at,
-            'delivered_at' => $request->status === 'delivered' ? now() : $order->delivered_at,
-        ]);
+        $changed = \Illuminate\Support\Facades\DB::transaction(
+            function () use ($sellerOrder, $newStatus) {
 
-        if ($request->status === 'confirmed') {
-            $sellerOrder = $this->sellerOrderForAuthenticatedSeller($order, $seller);
+                $lockedOrder = \App\Models\SellerOrder::query()
+                    ->whereKey($sellerOrder->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            if ($sellerOrder && !$sellerOrder->shipment) {
-                $hub = \App\Services\HubAssignmentService::findBestHubForSellerOrder($sellerOrder);
+                $allowedTransitions = [
+                    'pending' => 'confirmed',
+                    'placed' => 'confirmed',
+                    'confirmed' => 'preparing',
+                ];
 
-                if ($hub) {
-                    $trackingNumber = 'SPE-' . strtoupper(uniqid());
+                $currentStatus = $lockedOrder->status;
 
-                    \App\Models\Shipment::create([
-                        'seller_order_id' => $sellerOrder->id,
-                        'logistic_id' => $hub->logistic_id,
-                        'hub_id' => $hub->id,
-                        'tracking_number' => $trackingNumber,
-                        'tracking_code' => $trackingNumber,
-                        'status' => 'pending',
-                        'pickup_address' => $this->sellerPickupAddress($sellerOrder, $seller),
-                        'delivery_address' => $order->shipping_address,
-                        'notes' => 'Auto-assigned hub based on seller pickup location: ' . $hub->name,
-                    ]);
-
-                    $this->createNotification(
-                        $hub->logistic->owner_user_id,
-                        'New Shipment Assignment',
-                        'Order ' . $order->order_number . ' is being processed and has been auto-assigned to your hub (' . $hub->name . ') based on seller pickup location.',
-                        'shipment',
-                        route('logistic.shipments')
-                    );
+                if ($currentStatus === $newStatus) {
+                    return false;
                 }
+
+                if (
+                    !isset($allowedTransitions[$currentStatus]) ||
+                    $allowedTransitions[$currentStatus] !== $newStatus
+                ) {
+                    abort(422, 'Invalid seller order status transition.');
+                }
+
+                $lockedOrder->update([
+                    'status' => $newStatus,
+                ]);
+
+                return true;
             }
-        }
+        );
 
-        $statusMessages = [
-            'confirmed' => 'Your order ' . $order->order_number . ' has been confirmed.',
-            'preparing' => 'Your order ' . $order->order_number . ' is being prepared.',
-            'ready_for_pickup' => 'Your order ' . $order->order_number . ' is ready for pickup.',
-            'cancelled' => 'Your order ' . $order->order_number . ' has been cancelled.',
-        ];
-
-        if (isset($statusMessages[$request->status])) {
-            $this->createNotification(
-                $order->user_id,
-                'Order Status Updated',
-                $statusMessages[$request->status],
-                'order',
-                route('orders.show', $order)
+        if (!$changed) {
+            return back()->with(
+                'success',
+                'Seller order is already in this status.'
             );
         }
 
-        return back()->with('success', 'Order status updated.');
+        $this->createNotification(
+            $order->user_id,
+            'Seller Order Status Updated',
+            'Seller order #' . $sellerOrder->id
+                . ' for order ' . $order->order_number
+                . ' is now ' . str_replace('_', ' ', $newStatus) . '.',
+            'order',
+            route('orders.show', $order)
+        );
+
+        return back()->with(
+            'success',
+            'Seller order updated to ' . ucfirst($newStatus) . '.'
+        );
     }
 
     public function approveReturn(Request $request, Order $order)
     {
-        $seller = Auth::user();
-        $hasSellerProduct = $order->items()->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->exists();
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+        ]);
 
-        if (!$hasSellerProduct) {
-            abort(403);
+        $shopId = Auth::user()->seller?->id;
+
+        if (!$shopId) {
+            abort(403, 'No seller shop is linked to this account.');
         }
 
-        $order->update(['return_status' => 'approved']);
+        $sellerOrder = $order->sellerOrders()
+            ->where('seller_id', $shopId)
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
+
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('seller_id', $shopId)
+            ->where('return_status', 'requested')
+            ->update(['return_status' => 'approved']);
+
+        if ($updated !== 1) {
+            return back()->with('error', 'This return request is no longer pending.');
+        }
 
         $this->createNotification(
             $order->user_id,
             'Return Approved',
-            'Your return request for order ' . $order->order_number . ' has been approved.',
+            'Your return request for seller order #' . $sellerOrder->id
+                . ' under order ' . $order->order_number . ' has been approved.',
             'return',
             route('orders.show', $order)
         );
@@ -1017,21 +1089,36 @@ $revenueData = $revenueData->map(
 
     public function rejectReturn(Request $request, Order $order)
     {
-        $seller = Auth::user();
-        $hasSellerProduct = $order->items()->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->exists();
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+        ]);
 
-        if (!$hasSellerProduct) {
-            abort(403);
+        $shopId = Auth::user()->seller?->id;
+
+        if (!$shopId) {
+            abort(403, 'No seller shop is linked to this account.');
         }
 
-        $order->update(['return_status' => 'rejected']);
+        $sellerOrder = $order->sellerOrders()
+            ->where('seller_id', $shopId)
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
+
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('seller_id', $shopId)
+            ->where('return_status', 'requested')
+            ->update(['return_status' => 'rejected']);
+
+        if ($updated !== 1) {
+            return back()->with('error', 'This return request is no longer pending.');
+        }
 
         $this->createNotification(
             $order->user_id,
             'Return Rejected',
-            'Your return request for order ' . $order->order_number . ' has been rejected.',
+            'Your return request for seller order #' . $sellerOrder->id
+                . ' under order ' . $order->order_number . ' has been rejected.',
             'return',
             route('orders.show', $order)
         );
@@ -1039,274 +1126,267 @@ $revenueData = $revenueData->map(
         return back()->with('success', 'Return request rejected.');
     }
 
+
     public function approveReschedule(Request $request, Order $order)
-{
-    $seller = Auth::user();
+    {
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+        ]);
 
-    $hasSellerProduct = $order->items()
-        ->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })
-        ->exists();
+        $shopId = Auth::user()->seller?->id;
 
-    if (!$hasSellerProduct) {
-        abort(403);
-    }
+        if (!$shopId) {
+            abort(403, 'No seller shop is linked to this account.');
+        }
 
-    /*
-     * Only a pending reschedule request can be approved.
-     */
-    if ($order->status !== 'reschedule_requested') {
-        return back()->with(
-            'error',
-            'This order does not have a pending reschedule request.'
+        $sellerOrder = $order->sellerOrders()
+            ->with('shipment')
+            ->where('seller_id', $shopId)
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
+
+        if (
+            $sellerOrder->status !== 'delivery_failed' ||
+            $sellerOrder->reschedule_status !== 'requested'
+        ) {
+            return back()->with(
+                'error',
+                'This seller order has no eligible pending reschedule request.'
+            );
+        }
+
+        $shipment = $sellerOrder->shipment;
+
+        if (!$shipment) {
+            return back()->with(
+                'error',
+                'No shipment was found for this seller order.'
+            );
+        }
+
+        if (
+            $shipment->status !== 'failed_return_at_sorting_center' ||
+            is_null($shipment->failed_return_received_at)
+        ) {
+            return back()->with(
+                'error',
+                'Logistics must confirm receipt of the failed parcel before approval.'
+            );
+        }
+
+        // Update only this seller order.
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('seller_id', $shopId)
+            ->where('status', 'delivery_failed')
+            ->where('reschedule_status', 'requested')
+            ->whereHas('shipment', function ($query) {
+                $query->where(
+                    'status',
+                    'failed_return_at_sorting_center'
+                )->whereNotNull('failed_return_received_at');
+            })
+            ->update([
+                'reschedule_status' => 'approved',
+                'rescheduled_at' => now(),
+            ]);
+
+        if ($updated !== 1) {
+            return back()->with(
+                'error',
+                'This reschedule request is no longer eligible for approval.'
+            );
+        }
+
+        $this->createNotification(
+            $order->user_id,
+            'Reschedule Approved',
+            'Your reschedule request for seller order #' .
+                $sellerOrder->id .
+                ' under order ' . $order->order_number .
+                ' has been approved. Awaiting rider assignment.',
+            'order',
+            route('orders.show', $order)
         );
-    }
 
-    /*
-     * Make sure the failed parcel has physically returned
-     * and Logistics has confirmed receipt.
-     */
-    $shipments = $order->sellerOrders()
-        ->with('shipment')
-        ->get()
-        ->pluck('shipment')
-        ->filter();
-
-    if ($shipments->isEmpty()) {
-        return back()->with(
-            'error',
-            'No shipment was found for this order.'
-        );
-    }
-
-    $hasUnreceivedFailedReturn = $shipments->contains(function ($shipment) {
-        return is_null($shipment->failed_return_received_at);
-    });
-
-    if ($hasUnreceivedFailedReturn) {
-        return back()->with(
-            'error',
-            'The failed parcel must be returned to and received by the sorting center before the reschedule can be approved.'
-        );
-    }
-
-    /*
-     * Seller only approves the request.
-     * Logistics will assign the next delivery rider.
-     */
-    $order->update([
-        'status' => 'rescheduled',
-        'rescheduled_at' => now(),
-    ]);
-
-    $this->createNotification(
-        $order->user_id,
-        'Reschedule Approved',
-        'Your reschedule request for order ' .
-            $order->order_number .
-            ' has been approved. The parcel is now awaiting delivery rider assignment.',
-        'order',
-        route('orders.show', $order)
-    );
-
-    /*
-     * Notify Logistics that the parcel can now
-     * be assigned to another delivery rider.
-     */
-    foreach ($shipments as $shipment) {
-        $logisticOwner = \App\Models\Logistic::find(
-            $shipment->logistic_id
-        )?->owner;
+        // Notify only the logistics provider for this shipment.
+        $logisticOwner = $shipment->logistic?->owner;
 
         if ($logisticOwner) {
             $this->createNotification(
                 $logisticOwner->id,
                 'Rescheduled Parcel Ready for Assignment',
-                'Order ' .
-                    $order->order_number .
-                    ' has been approved for redelivery and is ready for rider assignment.',
+                'Seller order #' . $sellerOrder->id .
+                    ' under order ' . $order->order_number .
+                    ' is approved for redelivery.',
                 'shipment',
                 route('logistic.rider-assignment')
             );
         }
-    }
 
-    return back()->with(
-        'success',
-        'Reschedule request approved. Logistics can now assign a delivery rider.'
-    );
-}
+        return back()->with(
+            'success',
+            'Reschedule approved for this seller order.'
+        );
+    }
 
     public function rejectReschedule(Request $request, Order $order)
     {
-        $seller = Auth::user();
-        $hasSellerProduct = $order->items()->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->exists();
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+        ]);
 
-        if (!$hasSellerProduct) {
-            abort(403);
+        $shopId = Auth::user()->seller?->id;
+
+        if (!$shopId) {
+            abort(403, 'No seller shop is linked to this account.');
         }
 
-        $order->update([
-            'status' => 'return_requested',
-            'return_status' => 'requested',
-        ]);
+        $sellerOrder = $order->sellerOrders()
+            ->where('seller_id', $shopId)
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
+
+        // Update only a pending request belonging to this seller.
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('seller_id', $shopId)
+            ->where('status', 'delivery_failed')
+            ->where('reschedule_status', 'requested')
+            ->update([
+                'reschedule_status' => 'rejected',
+            ]);
+
+        if ($updated !== 1) {
+            return back()->with(
+                'error',
+                'This seller order has no eligible pending reschedule request.'
+            );
+        }
 
         $this->createNotification(
             $order->user_id,
             'Reschedule Rejected',
-            'Your reschedule request for order ' . $order->order_number . ' has been rejected. Please choose to return the item instead.',
+            'Your reschedule request for seller order #' .
+                $sellerOrder->id .
+                ' under order ' . $order->order_number .
+                ' has been rejected. You may contact support.',
             'order',
             route('orders.show', $order)
         );
 
-        return back()->with('success', 'Reschedule request rejected. Buyer can now request a return.');
+        return back()->with(
+            'success',
+            'Reschedule request rejected for this seller order.'
+        );
     }
+
+
 
     public function markReadyForPickup(Order $order)
     {
         $seller = Auth::user();
-        $hasSellerProduct = $order->items()->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })->exists();
 
-        if (!$hasSellerProduct) {
-    abort(403);
-}
-
-if ($order->ready_for_pickup) {
-    $sellerOrder = $this->sellerOrderForAuthenticatedSeller($order, $seller);
-
-    if ($sellerOrder?->shipment) {
-        return back()->with(
-            'success',
-            'This order is already ready for pickup and already has a shipment.'
+        $sellerOrder = $this->sellerOrderForAuthenticatedSeller(
+            $order,
+            $seller
         );
-    }
-}
-       if (!$order->ready_for_pickup) {
-    $order->items()
-        ->whereHas('product', function ($query) use ($seller) {
-            $query->where('user_id', $seller->id);
-        })
-        ->with(['product', 'variant'])
-        ->each(function ($item) {
 
-            if (!$item->product) {
-                return;
-            }
+        if (!$sellerOrder) {
+            abort(403, 'You do not own this seller order.');
+        }
 
-            // If the order item has a variant, deduct from that exact variant.
-            if ($item->variant) {
-                $item->variant->update([
-                    'stock' => max(
-                        0,
-                        $item->variant->stock - $item->quantity
-                    ),
-                ]);
+        $result = \Illuminate\Support\Facades\DB::transaction(
+            function () use ($sellerOrder, $order, $seller) {
 
-                // Product stock = total remaining stock of all variants.
-                $item->product->update([
-                    'stock' => (int) $item->product
-                        ->variations()
-                        ->sum('stock'),
-                ]);
+                $sellerOrder = \App\Models\SellerOrder::query()
+                    ->whereKey($sellerOrder->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-                return;
-            }
+                if ($sellerOrder->status === 'ready_for_pickup') {
+                    return [
+                        'message' => 'This seller order is already ready for pickup.',
+                        'shipment_id' => $sellerOrder->shipment?->id,
+                    ];
+                }
 
-            // Products without variants use the main product stock.
-            $item->product->update([
-                'stock' => max(
-                    0,
-                    $item->product->stock - $item->quantity
-                ),
-            ]);
-        });
-}
-
-
-        $order->update([
-            'ready_for_pickup' => true,
-            'status' => 'ready_for_pickup',
-        ]);
-
-        $sellerOrder = $this->sellerOrderForAuthenticatedSeller($order, $seller);
-
-        if ($sellerOrder) {
-            $hub = \App\Services\HubAssignmentService::findBestHubForSellerOrder($sellerOrder);
-
-            if ($hub) {
-                $trackingNumber = 'SPE-' . strtoupper(uniqid());
-
-                $pickupRider = \App\Models\User::whereHas('roles', function ($query) {
-                    $query->where('name', 'rider');
-                })
-                    ->where('logistic_id', $hub->logistic_id)
-                    ->where('availability_status', 'available')
-                    ->whereColumn('current_load', '<', 'max_capacity')
-                    ->first();
+                if (!in_array($sellerOrder->status, ['confirmed', 'preparing'], true)) {
+                    abort(422, 'Confirm the seller order before marking it ready.');
+                }
 
                 $shipment = $sellerOrder->shipment;
 
-if (!$shipment) {
-    $shipment = \App\Models\Shipment::create([
-        'seller_order_id' => $sellerOrder->id,
-        'logistic_id' => $hub->logistic_id,
-        'hub_id' => $hub->id,
-        'rider_id' => $pickupRider ? $pickupRider->id : null,
-        'tracking_number' => $trackingNumber,
-        'tracking_code' => $trackingNumber,
-        'status' => $pickupRider ? 'assigned' : 'pending',
-        'pickup_address' => $this->sellerPickupAddress($sellerOrder, $seller),
-        'delivery_address' => $order->shipping_address,
-        'notes' => 'Auto-assigned hub based on seller pickup location: ' . $hub->name,
-    ]);
-} else {
-    $shipment->update([
-        'logistic_id' => $hub->logistic_id,
-        'hub_id' => $hub->id,
-        'rider_id' => $pickupRider ? $pickupRider->id : null,
-        'status' => $pickupRider ? 'assigned' : 'pending',
-        'pickup_address' => $this->sellerPickupAddress($sellerOrder, $seller),
-        'delivery_address' => $order->shipping_address,
-    ]);
-}
+                if (!$shipment) {
+                    $hub = \App\Services\HubAssignmentService::findBestHubForSellerOrder(
+                        $sellerOrder
+                    );
 
-if ($pickupRider) {
-    $order->update([
-        'rider_id' => $pickupRider->id,
-        'delivery_status' => 'assigned_to_rider',
-    ]);
+                    if (!$hub) {
+                        abort(422, 'No logistics hub is available for this seller order.');
+                    }
 
-    // Parcel is now part of the pickup rider's active load.
-    $pickupRider->increment('current_load');
+                    $trackingNumber = 'SPE-' . strtoupper(uniqid());
 
-    // Mark rider busy only when maximum capacity is reached.
-    $pickupRider->refresh();
+                    $shipment = \App\Models\Shipment::create([
+                        'seller_order_id' => $sellerOrder->id,
+                        'logistic_id' => $hub->logistic_id,
+                        'hub_id' => $hub->id,
+                        'tracking_number' => $trackingNumber,
+                        'tracking_code' => $trackingNumber,
+                        'status' => 'pending',
+                        'pickup_address' => $this->sellerPickupAddress(
+                            $sellerOrder,
+                            $seller
+                        ),
+                        'delivery_address' => $order->shipping_address,
+                        'notes' => 'Assigned to hub ' . $hub->name,
+                    ]);
+                }
 
-    if ($pickupRider->current_load >= $pickupRider->max_capacity) {
-        $pickupRider->update([
-            'availability_status' => 'busy',
-        ]);
-    }
-}
+                $sellerOrder->update([
+                    'status' => 'ready_for_pickup',
+                ]);
+
+                return [
+                    'message' => 'Seller order marked ready for pickup. Tracking: '
+                        . $shipment->tracking_number,
+                    'shipment_id' => $shipment->id,
+                ];
+            }
+        );
+
+        $message = $result['message'];
+
+        if (!empty($result['shipment_id'])) {
+            try {
+                $shipment = \App\Models\Shipment::findOrFail(
+                    $result['shipment_id']
+                );
+
+                $offer = \App\Services\PickupOfferService::offerNext($shipment);
+
+                if ($offer) {
+                    $message .= ' A pickup request has been sent to an eligible rider.';
+                } else {
+                    $message .= ' Awaiting an available pickup rider.';
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'Automatic pickup offer failed.',
+                    [
+                        'shipment_id' => $result['shipment_id'],
+                        'error' => $e->getMessage(),
+                    ]
+                );
+
+                $message .= ' Pickup dispatch is temporarily unavailable. Logistics can review this shipment.';
             }
         }
 
-        $sellerOrder?->load('shipment.logistic');
-        $shipment = $sellerOrder?->shipment;
-
-        return back()->with(
-            'success',
-            'Order marked as ready for pickup. ' .
-            ($shipment?->logistic
-                ? 'Shipment assigned to ' . $shipment->logistic->company_name . '.'
-                : 'Awaiting logistic company assignment.')
-        );
+        return back()->with('success', $message);
     }
+
 
     private function sellerOrderForAuthenticatedSeller(Order $order, User $seller): ?SellerOrder
     {
@@ -1400,7 +1480,7 @@ if ($pickupRider) {
 
         $sellerOrdersQuery = SellerOrder::where('seller_id', $shopId ?? 0)
             ->whereHas('order', function ($orderQuery) use ($request) {
-                $orderQuery->where('status', 'delivered');
+                $orderQuery->whereIn('status', ['delivered', 'completed']);
 
                 if ($request->filled('from_date') && $request->filled('to_date')) {
                     $from = \Carbon\Carbon::parse($request->from_date)->startOfDay();
@@ -1411,15 +1491,15 @@ if ($pickupRider) {
 
         $totalSales = $sellerOrdersQuery->sum('total_minor') / 100;
         $totalOrders = $orders->count();
-        $deliveredOrders = $orders->where('status', 'delivered')->count();
+        $deliveredOrders = $orders->whereIn('status', ['delivered', 'completed'])->count();
         $cancelledOrders = $orders->where('status', 'cancelled')->count();
         $pendingOrders = $orders->whereIn('status', ['placed', 'confirmed', 'preparing'])->count();
         $processingOrders = $orders->whereIn('status', ['ready_for_pickup', 'picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery'])->count();
-        $shippedOrders = $orders->where('status', 'delivered')->count();
+        $shippedOrders = $orders->whereIn('status', ['delivered', 'completed'])->count();
 
         $chartData = SellerOrder::where('seller_id', $shopId ?? 0)
             ->whereHas('order', function ($orderQuery) use ($request) {
-                $orderQuery->where('status', 'delivered');
+                $orderQuery->whereIn('status', ['delivered', 'completed']);
 
                 if ($request->filled('from_date') && $request->filled('to_date')) {
                     $from = \Carbon\Carbon::parse($request->from_date)->startOfDay();
@@ -1577,4 +1657,3 @@ if ($pickupRider) {
         return redirect()->route('login')->with('success', 'Your appeal has been submitted. You will be notified once it has been reviewed.');
     }
 }
-

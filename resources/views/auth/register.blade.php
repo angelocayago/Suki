@@ -13,15 +13,17 @@
           </div>
 
           @if($errors->any())
-            <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0" role="alert">
-              <strong>Please fix the following errors:</strong>
-              <ul class="mb-0 mt-2">
-                @foreach($errors->all() as $error)
-                  <li>{{ $error }}</li>
-                @endforeach
-              </ul>
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+          <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>
+            <strong>Please correct the highlighted fields below.</strong>
+
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="alert"
+              aria-label="Close">
+            </button>
+          </div>
           @endif
 
           <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" id="registerForm">
@@ -41,18 +43,27 @@
               </div>
               <div class="col-md-4">
                 <label for="middle_name" class="form-label fw-medium">Middle Initial</label>
-                <input type="text" name="middle_name" id="middle_name" class="form-control rounded-xl" value="{{ old('middle_name') }}" maxlength="1">
+                <input
+                  type="text"
+                  name="middle_name"
+                  id="middle_name"
+                  class="form-control rounded-xl"
+                  value="{{ old('middle_name') }}"
+                  maxlength="1"
+                  pattern="[A-Za-zÑñ]"
+                  title="Middle initial must be one letter only."
+                  autocomplete="additional-name">
                 @error('middle_name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
               <div class="col-md-3">
                 <label for="role" class="form-label fw-medium">Register As <span class="text-danger">*</span></label>
-                 <select name="role" id="role" class="form-select rounded-xl" required>
-                   <option value="">Select Role</option>
-                   <option value="buyer" {{ old('role') == 'buyer' ? 'selected' : '' }}>Buyer</option>
-                   <option value="seller" {{ old('role') == 'seller' ? 'selected' : '' }}>Seller</option>
-                   <option value="logistic" {{ old('role') == 'logistic' ? 'selected' : '' }}>Logistics Company</option>
-                 </select>
-                 @error('role') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                <select name="role" id="role" class="form-select rounded-xl" required>
+                  <option value="">Select Role</option>
+                  <option value="buyer" {{ old('role') == 'buyer' ? 'selected' : '' }}>Buyer</option>
+                  <option value="seller" {{ old('role') == 'seller' ? 'selected' : '' }}>Seller</option>
+                  <option value="logistic" {{ old('role') == 'logistic' ? 'selected' : '' }}>Logistics Company</option>
+                </select>
+                @error('role') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
               <div class="col-md-3">
                 <label for="sex" class="form-label fw-medium">Sex <span class="text-danger">*</span></label>
@@ -64,18 +75,50 @@
                 @error('sex') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
               <div class="col-md-3">
-                <label for="email" class="form-label fw-medium">E-mail <span class="text-danger">*</span></label>
-                <input type="email" name="email" id="email" class="form-control rounded-xl" value="{{ old('email') }}" required>
-                @error('email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                <label for="email" class="form-label fw-medium">
+                  E-mail <span class="text-danger">*</span>
+                </label>
+
+                <input
+                  type="email"
+                  name="email"
+                  id="email"
+                  class="form-control rounded-xl @error('email') is-invalid @enderror"
+                  value="{{ old('email') }}"
+                  required
+                  aria-describedby="email-error">
+
+                <div
+                  id="email-error"
+                  class="text-danger small mt-1"
+                  role="alert"
+                  aria-live="polite">@error('email'){{ $message }}@enderror</div>
               </div>
               <div class="col-md-3">
                 <label for="mobile_number" class="form-label fw-medium">Contact No. <span class="text-danger">*</span></label>
-                <input type="text" name="mobile_number" id="mobile_number" class="form-control rounded-xl" value="{{ old('mobile_number') }}" required inputmode="numeric" maxlength="11" pattern="\d{11}" title="Please enter exactly 11 digits">
+                <input
+                  type="text"
+                  name="mobile_number"
+                  id="mobile_number"
+                  class="form-control rounded-xl"
+                  value="{{ old('mobile_number') }}"
+                  required
+                  inputmode="tel"
+                  maxlength="13"
+                  pattern="09[0-9]{9}"
+                  title="Please enter a valid Philippine mobile number (09XXXXXXXXX)">
                 @error('mobile_number') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
               <div class="col-md-3">
                 <label for="birthday" class="form-label fw-medium">Birthday <span class="text-danger">*</span></label>
-                <input type="date" name="birthday" id="birthday" class="form-control rounded-xl" value="{{ old('birthday') }}" required>
+                <input
+                  type="date"
+                  name="birthday"
+                  id="birthday"
+                  class="form-control rounded-xl"
+                  value="{{ old('birthday') }}"
+                  max="{{ now()->subYears(18)->toDateString() }}"
+                  required>
                 @error('birthday') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
               <div class="col-md-3">
@@ -86,18 +129,82 @@
             </div>
 
             <h5 class="fw-semibold text-slate-800 mb-3">Account Security</h5>
+
             <div class="row g-3 mb-4">
+
+              <!-- Password -->
               <div class="col-md-6">
-                <label for="password" class="form-label fw-medium">Password <span class="text-danger">*</span></label>
-                <input type="password" name="password" id="password" class="form-control rounded-xl" required minlength="8">
-                <small class="text-muted">Minimum 8 characters</small>
-                @error('password') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                <label for="password" class="form-label fw-medium">
+                  Password <span class="text-danger">*</span>
+                </label>
+
+                <div class="position-relative">
+                  <input
+                    type="password"
+                    name="password"
+                    id="password"
+                    class="form-control rounded-xl pe-5 @error('password') is-invalid @enderror"
+                    required
+                    minlength="8"
+                    aria-describedby="password-help password-error">
+
+                  <button
+                    type="button"
+                    class="register-password-toggle"
+                    data-password-target="password"
+                    aria-label="Show password"
+                    aria-pressed="false">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div id="password-help" class="small mt-2">
+                  <div id="password-rule-length" class="text-muted">○ At least 8 characters</div>
+                  <div id="password-rule-upper" class="text-muted">○ At least 1 uppercase letter</div>
+                  <div id="password-rule-lower" class="text-muted">○ At least 1 lowercase letter</div>
+                  <div id="password-rule-number" class="text-muted">○ At least 1 number</div>
+                  <div id="password-rule-symbol" class="text-muted">○ At least 1 special character</div>
+                </div>
+
+                <div
+                  id="password-error"
+                  class="text-danger small mt-1"
+                  role="alert"
+                  aria-live="polite">@error('password'){{ $message }}@enderror</div>
               </div>
+
+              <!-- Confirm Password -->
               <div class="col-md-6">
-                <label for="password_confirmation" class="form-label fw-medium">Confirm Password <span class="text-danger">*</span></label>
-                <input type="password" name="password_confirmation" id="password_confirmation" class="form-control rounded-xl" required>
-                @error('password_confirmation') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                <label for="password_confirmation" class="form-label fw-medium">
+                  Confirm Password <span class="text-danger">*</span>
+                </label>
+
+                <div class="position-relative">
+                  <input
+                    type="password"
+                    name="password_confirmation"
+                    id="password_confirmation"
+                    class="form-control rounded-xl pe-5 @error('password_confirmation') is-invalid @enderror"
+                    required
+                    aria-describedby="password-confirmation-error">
+
+                  <button
+                    type="button"
+                    class="register-password-toggle"
+                    data-password-target="password_confirmation"
+                    aria-label="Show confirm password"
+                    aria-pressed="false">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div
+                  id="password-confirmation-error"
+                  class="text-danger small mt-1"
+                  role="alert"
+                  aria-live="polite">@error('password_confirmation'){{ $message }}@enderror</div>
               </div>
+
             </div>
 
             <h5 class="fw-semibold text-slate-800 mb-3">Address</h5>
@@ -146,7 +253,7 @@
               </div>
             </div>
 
-             <h5 class="fw-semibold text-slate-800 mb-3">Seller Information</h5>
+            <h5 class="fw-semibold text-slate-800 mb-3">Seller Information</h5>
             <div class="row g-3 mb-4 d-none" id="seller-section">
               <div class="col-md-6">
                 <label for="business_name" class="form-label fw-medium">Business Name <span class="text-danger">*</span></label>
@@ -157,9 +264,9 @@
                 <label for="selling_categories" class="form-label fw-medium">Line of Business <span class="text-danger">*</span></label>
                 <select name="selling_categories[]" id="selling_categories" class="form-select rounded-xl" multiple size="5">
                   @foreach($categories ?? [] as $category)
-                    <option value="{{ $category->id }}" {{ in_array($category->id, old('selling_categories', [])) ? 'selected' : '' }}>
-                      {{ $category->name }}
-                    </option>
+                  <option value="{{ $category->id }}" {{ in_array($category->id, old('selling_categories', [])) ? 'selected' : '' }}>
+                    {{ $category->name }}
+                  </option>
                   @endforeach
                 </select>
                 <small class="text-muted">Hold Ctrl to select multiple categories</small>
@@ -167,40 +274,40 @@
               </div>
             </div>
 
-             <h5 class="fw-semibold text-slate-800 mb-3">Logistics Company Information</h5>
-             <div class="row g-3 mb-4 d-none" id="logistic-section">
-               <div class="col-md-6">
-                 <label for="company_name" class="form-label fw-medium">Company Name <span class="text-danger">*</span></label>
-                 <input type="text" name="company_name" id="company_name" class="form-control rounded-xl" value="{{ old('company_name') }}">
-                 @error('company_name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-               <div class="col-md-6">
-                 <label for="contact_person" class="form-label fw-medium">Contact Person</label>
-                 <input type="text" name="contact_person" id="contact_person" class="form-control rounded-xl" value="{{ old('contact_person') }}">
-                 @error('contact_person') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-               <div class="col-md-6">
-                 <label for="company_email" class="form-label fw-medium">Company Email</label>
-                 <input type="email" name="company_email" id="company_email" class="form-control rounded-xl" value="{{ old('company_email') }}">
-                 @error('company_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-               <div class="col-md-6">
-                 <label for="company_phone" class="form-label fw-medium">Company Phone</label>
-                 <input type="text" name="company_phone" id="company_phone" class="form-control rounded-xl" value="{{ old('company_phone') }}">
-                 @error('company_phone') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-               <div class="col-12">
-                 <label for="company_address" class="form-label fw-medium">Company Address</label>
-                 <textarea name="company_address" id="company_address" class="form-control rounded-xl" rows="2">{{ old('company_address') }}</textarea>
-                 @error('company_address') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-               <div class="col-12">
-                 <label for="api_address" class="form-label fw-medium">Hub API Address / Location</label>
-                 <input type="text" name="api_address" id="api_address" class="form-control rounded-xl" value="{{ old('api_address') }}" placeholder="Enter hub API address or full location for auto-assignment">
-                 <small class="text-muted">This address will be used to auto-match orders near your hub for rider assignment.</small>
-                 @error('api_address') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-               </div>
-             </div>
+            <h5 class="fw-semibold text-slate-800 mb-3">Logistics Company Information</h5>
+            <div class="row g-3 mb-4 d-none" id="logistic-section">
+              <div class="col-md-6">
+                <label for="company_name" class="form-label fw-medium">Company Name <span class="text-danger">*</span></label>
+                <input type="text" name="company_name" id="company_name" class="form-control rounded-xl" value="{{ old('company_name') }}">
+                @error('company_name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-md-6">
+                <label for="contact_person" class="form-label fw-medium">Contact Person</label>
+                <input type="text" name="contact_person" id="contact_person" class="form-control rounded-xl" value="{{ old('contact_person') }}">
+                @error('contact_person') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-md-6">
+                <label for="company_email" class="form-label fw-medium">Company Email</label>
+                <input type="email" name="company_email" id="company_email" class="form-control rounded-xl" value="{{ old('company_email') }}">
+                @error('company_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-md-6">
+                <label for="company_phone" class="form-label fw-medium">Company Phone</label>
+                <input type="text" name="company_phone" id="company_phone" class="form-control rounded-xl" value="{{ old('company_phone') }}">
+                @error('company_phone') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-12">
+                <label for="company_address" class="form-label fw-medium">Company Address</label>
+                <textarea name="company_address" id="company_address" class="form-control rounded-xl" rows="2">{{ old('company_address') }}</textarea>
+                @error('company_address') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-12">
+                <label for="api_address" class="form-label fw-medium">Hub API Address / Location</label>
+                <input type="text" name="api_address" id="api_address" class="form-control rounded-xl" value="{{ old('api_address') }}" placeholder="Enter hub API address or full location for auto-assignment">
+                <small class="text-muted">This address will be used to auto-match orders near your hub for rider assignment.</small>
+                @error('api_address') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+              </div>
+            </div>
 
             <h5 class="fw-semibold text-slate-800 mb-3">Documents</h5>
             <div class="row g-3 mb-4">
@@ -214,6 +321,35 @@
                 <input type="file" name="business_permit" id="business_permit" class="form-control rounded-xl" accept=".pdf,.jpg,.jpeg,.png">
                 @error('business_permit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
               </div>
+            </div>
+
+            <div id="buyerTermsSection" class="mb-3" style="{{ old('role') === 'buyer' ? '' : 'display: none;' }}">
+              <div class="form-check">
+                <input
+                  type="checkbox"
+                  name="terms"
+                  id="terms"
+                  value="1"
+                  class="form-check-input @error('terms') is-invalid @enderror"
+                  {{ old('terms') ? 'checked' : '' }}
+                  required
+                  oninvalid="this.setCustomValidity('You must accept the Terms and Privacy Policy to register.')"
+                  onchange="this.setCustomValidity('')">
+
+                <label class="form-check-label" for="terms">
+                  I agree to the
+                  <strong>Terms and Conditions</strong>
+                  and
+                  <strong>Privacy Policy</strong>.
+                  <span class="text-danger">*</span>
+                </label>
+              </div>
+
+              @error('terms')
+              <div class="text-danger small mt-1">
+                You must accept the Terms and Privacy Policy to register.
+              </div>
+              @enderror
             </div>
 
             <div class="alert alert-info rounded-2 border-0">
@@ -232,15 +368,22 @@
   </div>
 </div>
 
-<script type="application/json" id="auth-page-data">@php $authPageData = [
-  'region' => old('region'),
-  'province' => old('province'),
-  'municipality' => old('municipality'),
-  'barangay' => old('barangay'),
-  'geocodeKey' => config('services.googlemaps.key'),
-]; @endphp @json($authPageData)</script>
+<script type="application/json" id="auth-page-data">
+  @php $authPageData = [
+    'region' => old('region'),
+    'province' => old('province'),
+    'municipality' => old('municipality'),
+    'barangay' => old('barangay'),
+    'geocodeKey' => config('services.googlemaps.key'),
+  ];
+  @endphp @json($authPageData)
+</script>
 @endsection
 
+@push('styles')
+@vite('resources/css/auth/register.css')
+@endpush
+
 @push('scripts')
-  @vite('resources/js/auth/register.js')
+@vite('resources/js/auth/register.js')
 @endpush

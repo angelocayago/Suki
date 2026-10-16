@@ -36,34 +36,12 @@ class ShipmentController extends Controller
         return view('admin.shipments.show', compact('shipment', 'riders'));
     }
 
+
     public function updateStatus(Request $request, Shipment $shipment)
     {
-        $request->validate([
-            'status' => ['required', 'in:pending,assigned,picked_up,in_transit,delivered,cancelled,delayed'],
-        ]);
-
-        $shipment->update(['status' => $request->status]);
-
-        if ($request->status === 'delivered') {
-            $shipment->update(['delivered_at' => now()]);
-        }
-
-        return back()->with('success', 'Shipment status updated successfully.');
+        abort(403, 'Shipment status updates must be handled through the logistics and rider workflows.');
     }
 
-    public function assignRider(Request $request, Shipment $shipment)
-    {
-        $request->validate([
-            'rider_id' => ['required', 'exists:users,id'],
-        ]);
-
-        $shipment->update([
-            'rider_id' => $request->rider_id,
-            'status' => 'assigned',
-        ]);
-
-        return back()->with('success', 'Rider assigned successfully.');
-    }
 
     public function reports(Request $request)
     {
@@ -114,9 +92,9 @@ class ShipmentController extends Controller
         $dailyReports = Shipment::select(
             \Illuminate\Support\Facades\DB::raw('DATE(created_at) as date'),
             \Illuminate\Support\Facades\DB::raw('COUNT(*) as total'),
-            \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN status = "delivered" THEN 1 ELSE 0 END) as delivered'),
-            \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled'),
-            \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN status = "delayed" THEN 1 ELSE 0 END) as `delayed`')
+            \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered"),
+            \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled"),
+            \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed")
         )
             ->where('created_at', '>=', now()->subDays(30))
             ->groupBy('date')

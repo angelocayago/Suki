@@ -658,7 +658,9 @@ if (!file_exists($imagePath)) {
 
     public static function checkReturnRate(Product $product): ?array
     {
-        $items = OrderItem::where('product_id', $product->id)->get();
+        $items = OrderItem::with('sellerOrder')
+            ->where('product_id', $product->id)
+            ->get();
 
         if ($items->isEmpty()) {
             return null;
@@ -668,20 +670,30 @@ if (!file_exists($imagePath)) {
         $returnCount = 0;
 
         foreach ($items as $item) {
-            $order = $item->order;
-            if ($order && ($order->return_status === 'requested' || $order->return_status === 'approved')) {
+            $sellerOrder = $item->sellerOrder;
+
+            if (
+                $sellerOrder &&
+                in_array(
+                    $sellerOrder->return_status,
+                    ['requested', 'approved'],
+                    true
+                )
+            ) {
                 $returnCount++;
             }
         }
 
         if ($totalOrders >= self::MIN_ORDERS_FOR_RETURN_RATE) {
             $rate = $returnCount / $totalOrders;
+
             if ($rate >= self::RETURN_RATE_THRESHOLD) {
                 $percent = round($rate * 100, 1);
+
                 return [
                     'bucket' => 'user_customer',
                     'trigger' => 'return_rate_spike',
-                    'message' => "Return rate spike detected: {$returnCount}/{$totalOrders} orders ({$percent}%) have return requests (threshold: " . round(self::RETURN_RATE_THRESHOLD * 100) . "%).",
+                    'message' => "Return rate spike detected: {$returnCount}/{$totalOrders} order items ({$percent}%) have return requests (threshold: " . round(self::RETURN_RATE_THRESHOLD * 100) . "%).",
                     'severity' => 'high',
                     'auto_flag' => true,
                 ];

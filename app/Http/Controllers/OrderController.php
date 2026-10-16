@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Services\ComplianceMonitor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -54,164 +55,226 @@ class OrderController extends Controller
 
     public function requestReturn(Request $request, Order $order)
     {
-        if ($order->user_id !== Auth::id()) abort(403);
-
-        if ($order->status !== 'reschedule_requested' && $order->status !== 'delivered') {
-            return back()->with('error', 'This order is not eligible for return request.');
+        if ($order->user_id !== Auth::id()) {
+            abort(403);
         }
 
-        $request->validate(['return_reason' => 'required|string|max:1000']);
-
-        $order->update([
-            'status' => 'return_requested',
-            'return_status' => 'requested',
-            'return_reason' => $request->return_reason,
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+            'return_reason' => 'required|string|max:1000',
         ]);
 
-        foreach ($order->sellerOrders()->with('shipment')->get() as $sellerOrder) {
-            $shipment = $sellerOrder->shipment;
-            if ($shipment) {
-                $shipment->update([
-                    'status' => 'returned',
-                    'notes' => ($shipment->notes ? $shipment->notes . "\n" : '') .
-                        "Return requested by buyer. Reason: " . $request->return_reason,
-                ]);
-            }
+        $sellerOrder = $order->sellerOrders()
+            ->with(['seller.owner', 'shipment'])
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
+
+        if ($sellerOrder->status !== 'delivered') {
+            return back()->with(
+                'error',
+                'This seller order is not eligible for return.'
+            );
+        }
+
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('status', 'delivered')
+            ->where('return_status', 'none')
+            ->update([
+                'return_status' => 'requested',
+                'return_reason' => $validated['return_reason'],
+                'return_requested_at' => now(),
+            ]);
+
+        if ($updated !== 1) {
+            return back()->with(
+                'error',
+                'This seller order is no longer eligible for a new return request.'
+            );
         }
 
         $this->createNotification(
             $order->user_id,
             'Return Requested',
-            'Your return request for order ' . $order->order_number . ' has been submitted.',
+            'Your return request for order ' . $order->order_number
+                . ' (' . $sellerOrder->seller->name . ') has been submitted.',
             'return',
             route('orders.show', $order)
         );
 
-        $seller = $order->items->first()->product->user ?? null;
-        if ($seller) {
+        $sellerUser = $sellerOrder->seller?->owner;
+
+        if ($sellerUser) {
             $this->createNotification(
-                $seller->id,
+                $sellerUser->id,
                 'Return Requested',
-                'Buyer requested return for order ' . $order->order_number . '. Reason: ' . $request->return_reason,
+                'Buyer requested a return for seller order #'
+                    . $sellerOrder->id
+                    . '. Reason: ' . $validated['return_reason'],
                 'return',
                 route('seller.orders.show', $order)
             );
         }
 
-        return back()->with('success', 'Return request submitted successfully.');
+        return back()->with(
+            'success',
+            'Return request submitted successfully.'
+        );
     }
 
     public function requestReschedule(Request $request, Order $order)
-{
-    if ($order->user_id !== Auth::id()) {
-        abort(403);
-    }
+    {
+        if ((int) $order->user_id !== (int) Auth::id()) {
+            abort(403);
+        }
 
-    if ($order->status !== 'delivery_failed') {
-        return back()->with(
-            'error',
-            'This order is not eligible for reschedule.'
-        );
-    }
+        $validated = $request->validate([
+            'seller_order_id' => 'required|integer',
+            'reschedule_reason' => 'nullable|string|max:1000',
+        ]);
 
-    $request->validate([
-        'reschedule_reason' => 'nullable|string|max:1000',
-    ]);
+        $sellerOrder = $order->sellerOrders()
+            ->with('seller.owner')
+            ->whereKey($validated['seller_order_id'])
+            ->firstOrFail();
 
-    /*
-     * Buyer is only REQUESTING a reschedule here.
-     * Do not assign another rider yet.
-     * Do not clear the failed-delivery information yet.
-     */
-    $order->update([
-        'status' => 'reschedule_requested',
-        'reschedule_reason' => $request->reschedule_reason,
-        'reschedule_requested_at' => now(),
-        'rescheduled_at' => null,
-    ]);
+        if ($sellerOrder->status !== 'delivery_failed') {
+            return back()->with(
+                'error',
+                'This seller order is not eligible for reschedule.'
+            );
+        }
 
-    /*
-     * Keep:
-     * delivery_status = delivery_failed
-     * failed_at
-     * failure_reason
-     *
-     * These will remain until the reschedule is approved
-     * and the parcel is ready for another delivery attempt.
-     */
+        $updated = $order->sellerOrders()
+            ->whereKey($sellerOrder->id)
+            ->where('status', 'delivery_failed')
+            ->where('reschedule_status', 'none')
+            ->update([
+                'reschedule_status' => 'requested',
+                'reschedule_reason' => $validated['reschedule_reason'] ?? null,
+                'reschedule_requested_at' => now(),
+                'rescheduled_at' => null,
+            ]);
 
-    $this->createNotification(
-        $order->user_id,
-        'Reschedule Requested',
-        'Your reschedule request for order ' .
-            $order->order_number .
-            ' has been submitted.',
-        'order',
-        route('orders.show', $order)
-    );
+        if ($updated !== 1) {
+            return back()->with(
+                'error',
+                'This seller order already has a reschedule request or is no longer eligible.'
+            );
+        }
 
-    $seller = $order->items->first()?->product?->user;
-
-    if ($seller) {
         $this->createNotification(
-            $seller->id,
+            $order->user_id,
             'Reschedule Requested',
-            'Buyer requested a delivery reschedule for order ' .
-                $order->order_number .
-                ($request->reschedule_reason
-                    ? '. Reason: ' . $request->reschedule_reason
-                    : '.'),
+            'Your reschedule request for seller order #' .
+                $sellerOrder->id .
+                ' under order ' . $order->order_number .
+                ' has been submitted.',
             'order',
-            route('seller.orders.show', $order)
+            route('orders.show', $order)
+        );
+
+        $sellerOwner = $sellerOrder->seller?->owner;
+
+        if ($sellerOwner) {
+            $this->createNotification(
+                $sellerOwner->id,
+                'Reschedule Requested',
+                'Buyer requested a delivery reschedule for seller order #' .
+                    $sellerOrder->id .
+                    ' under order ' . $order->order_number .
+                    (!empty($validated['reschedule_reason'])
+                        ? '. Reason: ' . $validated['reschedule_reason']
+                        : '.'),
+                'order',
+                route('seller.orders.show', $order)
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Reschedule request submitted for this seller order.'
         );
     }
-
-    return back()->with(
-        'success',
-        'Reschedule request submitted successfully.'
-    );
-}
 
     public function requestCancellation(Request $request, Order $order)
     {
-        if ($order->user_id !== Auth::id()) abort(403);
-
-        if (!in_array($order->status, ['placed', 'confirmed', 'preparing'])) {
-            return back()->with('error', 'Order cannot be cancelled at this stage.');
+        if ((int) $order->user_id !== (int) Auth::id()) {
+            abort(403);
         }
 
-        $request->validate(['reason' => 'required|string|max:1000']);
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
 
-        $order->load('items.product.sizes', 'items.size', 'items.variation');
+        // The order lock serializes repeat or simultaneous cancellation requests.
+        // Stock restoration and the status transition must commit together.
+        $cancelled = DB::transaction(function () use ($order, $validated) {
+            $lockedOrder = Order::query()
+                ->whereKey($order->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        foreach ($order->items as $item) {
-            if ($item->size_id && $item->product) {
-                $size = $item->product->sizes->firstWhere('id', $item->size_id);
-                if ($size) {
-                    $item->product->sizes()->updateExistingPivot($item->size_id, [
-                        'stock' => $size->pivot->stock + $item->quantity,
-                    ]);
+            if (!in_array($lockedOrder->status, ['placed', 'confirmed', 'preparing'], true)) {
+                return false;
+            }
+
+            $items = $lockedOrder->items()->get();
+
+            // Consistent product locking order helps avoid deadlocks with checkout.
+            $productIds = $items->pluck('product_id')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
+
+            foreach ($productIds as $productId) {
+                \App\Models\Product::query()
+                    ->whereKey($productId)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            foreach ($items as $item) {
+                $quantity = (int) $item->quantity;
+                if ($quantity <= 0) {
+                    continue;
+                }
+
+                // Increment the pivot directly, avoiding stale relationship stock values.
+                if ($item->size_id && $item->product_id) {
+                    DB::table('product_size')
+                        ->where('product_id', $item->product_id)
+                        ->where('size_id', $item->size_id)
+                        ->increment('stock', $quantity);
+                }
+
+                if ($item->variant_id) {
+                    DB::table('product_variants')
+                        ->where('id', $item->variant_id)
+                        ->where('product_id', $item->product_id)
+                        ->increment('stock', $quantity);
+                }
+
+                if ($item->product_id) {
+                    DB::table('products')
+                        ->where('id', $item->product_id)
+                        ->increment('stock', $quantity);
                 }
             }
 
-            if ($item->variation) {
-                $item->variation->update([
-                    'stock' => $item->variation->stock + $item->quantity,
-                ]);
-            }
+            $lockedOrder->update([
+                'status' => 'cancelled',
+                'notes' => ($lockedOrder->notes ? $lockedOrder->notes . "\n" : '') .
+                    'Cancellation reason: ' . $validated['reason'],
+            ]);
 
-            if ($item->product) {
-                $item->product->update([
-                    'stock' => $item->product->stock + $item->quantity,
-                ]);
-            }
+            return true;
+        }, 3);
+
+        if (!$cancelled) {
+            return back()->with('error', 'Order cannot be cancelled at this stage.');
         }
-
-        $order->update([
-            'status' => 'cancelled',
-            'notes' => ($order->notes ? $order->notes . "\n" : '') .
-                "Cancellation reason: " . $request->reason,
-        ]);
 
         $this->createNotification(
             $order->user_id,
@@ -232,10 +295,15 @@ class OrderController extends Controller
             return back()->with('error', 'Cannot confirm receipt for this order.');
         }
 
-        $order->update([
-            'status' => 'completed',
-            'confirmed_received_at' => now(),
-        ]);
+        \DB::transaction(function () use ($order) {
+            $order->update([
+                'status' => 'completed',
+                'confirmed_received_at' => now(),
+            ]);
+
+            app(\App\Services\CommissionService::class)
+                ->generateForOrder($order);
+        });
 
         $this->createNotification(
             $order->user_id,

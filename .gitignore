@@ -25,3 +25,16 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local credentials - never commit
+bilihub-33f7dff7807a.json
+
+# Local development backups and audit outputs
+*.bak
+*_backup.php
+ProductController_old.php
+money-audit.txt
+shipment_show_review.txt
+test-output.txt
+storage/test-results.xml
+public/tmp_test_trending.php

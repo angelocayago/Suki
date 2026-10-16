@@ -86,7 +86,6 @@ class DashboardController extends Controller
         )
             ->whereHas('roles', function ($query) {
                 $query->whereIn('name', [
-                    'buyer',
                     'seller',
                     'logistics',
                 ]);
@@ -101,7 +100,6 @@ class DashboardController extends Controller
         )
             ->whereHas('roles', function ($query) {
                 $query->whereIn('name', [
-                    'buyer',
                     'seller',
                     'logistics',
                 ]);

@@ -1,0 +1,47 @@
+﻿/* BiliHub Registration - Password Visibility */
+
+#registerForm .register-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    z-index: 2;
+}
+
+#registerForm .register-password-toggle:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+#registerForm .register-password-toggle:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* Hide the native Edge password reveal icon */
+#registerForm input[type="password"]::-ms-reveal,
+#registerForm input[type="password"]::-ms-clear {
+    display: none;
+}
+
+/* Remove Bootstrap's validation icon to avoid overlap */
+#registerForm .form-control.is-invalid {
+    background-image: none !important;
+    padding-right: 3rem !important;
+}
+
+/* Keep the password toggle above input decorations */
+#registerForm .register-password-toggle {
+    right: 12px;
+    z-index: 3;
+}

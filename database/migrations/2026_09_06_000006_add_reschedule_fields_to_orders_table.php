@@ -15,15 +15,25 @@ return new class extends Migration
             $table->timestamp('rescheduled_at')->nullable()->after('reschedule_requested_at');
         });
 
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled', 'reschedule_requested', 'rescheduled', 'return_requested', 'returned') DEFAULT 'pending'");
+        // Preserve the original MySQL ENUM behavior.
+        // SQLite and PostgreSQL do not support MODIFY COLUMN.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled', 'reschedule_requested', 'rescheduled', 'return_requested', 'returned') DEFAULT 'pending'");
+        }
     }
 
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn(['reschedule_reason', 'reschedule_requested_at', 'rescheduled_at']);
+            $table->dropColumn([
+                'reschedule_reason',
+                'reschedule_requested_at',
+                'rescheduled_at',
+            ]);
         });
 
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'");
+        }
     }
 };

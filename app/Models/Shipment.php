@@ -12,6 +12,7 @@ class Shipment extends Model
         'logistic_id',
         'hub_id',
         'rider_id',
+        'pickup_rider_id',
         'rider_profile_id',
         'seller_order_id',
         'tracking_number',
@@ -23,6 +24,9 @@ class Shipment extends Model
         'delivery_address',
         'picked_up_at',
         'delivered_at',
+        'proof_of_delivery',
+        'delivery_signature',
+        'delivered_to',
         'at_sorting_center_at',
         'notes',
         'latitude',
@@ -44,14 +48,30 @@ class Shipment extends Model
         'received_by_sorting_center',
         'failed_returned_to_sorting_center_at',
         'failed_return_received_at',
-        ];
+        'hub_picked_up_at',
+        'hub_pickup_rider_id',
+    ];
 
     protected $casts = [
         'picked_up_at' => 'datetime',
+        'hub_picked_up_at' => 'datetime',
         'delivered_at' => 'datetime',
         'at_sorting_center_at' => 'datetime',
         'scanned_at_seller' => 'datetime',
         'seller_scan_confirmed_at' => 'datetime',
+
+        // Sorting center timestamps
+        'received_at' => 'datetime',
+        'scanned_at' => 'datetime',
+        'sorted_at' => 'datetime',
+        'staged_at' => 'datetime',
+
+        // Failed delivery and return to sorting center
+        'failed_returned_to_sorting_center_at' => 'datetime',
+        'failed_return_received_at' => 'datetime',
+        'received_by_sorting_center' => 'boolean',
+
+        // Location coordinates
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
         'rider_latitude' => 'decimal:7',

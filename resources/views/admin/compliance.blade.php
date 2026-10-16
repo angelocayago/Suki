@@ -7,7 +7,7 @@
 
     <small class="text-muted">
         <i class="bi bi-info-circle"></i>
-        Products are auto-approved. Only flagged products need admin attention.
+        Newly submitted products require admin approval before becoming visible to buyers.
     </small>
 </div>
 
@@ -15,15 +15,20 @@
     <div class="card-body">
 
         <form method="GET"
-              action="{{ route('admin.compliance.index') }}"
-              class="row g-3 align-items-end">
+            action="{{ route('admin.compliance.index') }}"
+            class="row g-3 align-items-end">
 
             <div class="col-md-5">
                 <label class="form-label fw-bold">Filter</label>
 
                 <select name="filter"
-                        class="form-select"
-                        onchange="this.form.submit()">
+                    class="form-select"
+                    onchange="this.form.submit()">
+
+                    <option value="pending"
+                        {{ $filter == 'pending' ? 'selected' : '' }}>
+                        Pending Product Review
+                    </option>
 
                     <option value="flagged"
                         {{ $filter == 'flagged' ? 'selected' : '' }}>
@@ -62,16 +67,16 @@
                 <label class="form-label fw-bold">Seller</label>
 
                 <select name="seller"
-                        class="form-select"
-                        onchange="this.form.submit()">
+                    class="form-select"
+                    onchange="this.form.submit()">
 
                     <option value="">All Sellers</option>
 
                     @foreach($sellers as $s)
-                        <option value="{{ $s->id }}"
-                            {{ request('seller') == $s->id ? 'selected' : '' }}>
-                            {{ $s->name }}
-                        </option>
+                    <option value="{{ $s->id }}"
+                        {{ request('seller') == $s->id ? 'selected' : '' }}>
+                        {{ $s->name }}
+                    </option>
                     @endforeach
 
                 </select>
@@ -102,78 +107,78 @@
 
                 @forelse($products as $product)
 
-                    @php
-                        /*
-                         * seller     = new sellers table / shop
-                         * sellerUser = legacy users table / seller account
-                         */
+                @php
+                /*
+                * seller = new sellers table / shop
+                * sellerUser = legacy users table / seller account
+                */
 
-                        $sellerUser = $product->sellerUser;
+                $sellerUser = $product->sellerUser;
 
-                        $sellingCategories = $sellerUser
-                            ? $sellerUser->selling_categories
-                            : null;
+                $sellingCategories = $sellerUser
+                ? $sellerUser->selling_categories
+                : null;
 
-                        /*
-                         * Handle selling_categories whether Laravel
-                         * returns it as an array or JSON string.
-                         */
-                        if (is_string($sellingCategories)) {
-                            $decodedCategories = json_decode(
-                                $sellingCategories,
-                                true
-                            );
+                /*
+                * Handle selling_categories whether Laravel
+                * returns it as an array or JSON string.
+                */
+                if (is_string($sellingCategories)) {
+                $decodedCategories = json_decode(
+                $sellingCategories,
+                true
+                );
 
-                            if (json_last_error() === JSON_ERROR_NONE) {
-                                $sellingCategories = $decodedCategories;
-                            }
-                        }
+                if (json_last_error() === JSON_ERROR_NONE) {
+                $sellingCategories = $decodedCategories;
+                }
+                }
 
-                        $mismatch = $sellerUser
-                            && is_array($sellingCategories)
-                            && $product->category_id
-                            && !in_array(
-                                $product->category_id,
-                                $sellingCategories
-                            );
+                $mismatch = $sellerUser
+                && is_array($sellingCategories)
+                && $product->category_id
+                && !in_array(
+                $product->category_id,
+                $sellingCategories
+                );
 
-                        $isResubmitted =
-                            $product->compliance_status === 'pending'
-                            && $product->updated_at
-                            && $product->updated_at->gt(
-                                $product->created_at
-                            );
-                    @endphp
+                $isResubmitted =
+                $product->compliance_status === 'pending'
+                && $product->updated_at
+                && $product->updated_at->gt(
+                $product->created_at
+                );
+                @endphp
 
-                    <tr class="{{ $isResubmitted ? 'table-info' : '' }}">
+                <tr class="{{ $isResubmitted ? 'table-info' : '' }}">
 
-                        <td>
-                            <strong>{{ $product->name }}</strong>
+                    <td>
+                        <strong>{{ $product->name }}</strong>
 
-                            @if($isResubmitted)
-                                <br>
+                        @if($isResubmitted)
+                        <br>
 
-                                <span class="badge bg-info">
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                    Resubmitted
-                                </span>
-                            @endif
-                        </td>
+                        <span class="badge bg-info">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            Resubmitted
+                        </span>
+                        @endif
+                    </td>
 
-                        <td>
-                            <span class="badge bg-light text-dark">
-                                {{ $product->category->name ?? 'N/A' }}
-                            </span>
-                        </td>
+                    <td>
+                        <span class="badge bg-light text-dark">
+                            {{ $product->category->name ?? 'N/A' }}
+                        </span>
+                    </td>
 
-                        {{-- New Seller/shop relationship --}}
-                        <td>
-                            {{ $product->seller->name ?? $sellerUser->name ?? 'N/A' }}
-                        </td>
+                    {{-- New Seller/shop relationship --}}
+                    <td>
+                        {{ $product->seller->name ?? $sellerUser->name ?? 'N/A' }}
+                    </td>
 
-                        <td>
+                    <td>
 
-                            <span class="badge bg-{{
+                        <span class="badge bg-{{
                                 $product->compliance_status == 'approved'
                                     ? 'success'
                                     : (
@@ -188,77 +193,77 @@
                                     )
                             }} text-capitalize">
 
-                                {{ str_replace('_', ' ', $product->compliance_status) }}
+                            {{ str_replace('_', ' ', $product->compliance_status) }}
 
-                            </span>
+                        </span>
 
-                            @if($mismatch)
+                        @if($mismatch)
 
-                                <span class="badge bg-danger ms-1"
-                                      title="Category not in seller's registered categories">
-                                    Mismatch
-                                </span>
+                        <span class="badge bg-danger ms-1"
+                            title="Category not in seller's registered categories">
+                            Mismatch
+                        </span>
+
+                        @endif
+
+                    </td>
+
+                    <td>
+                        <small>
+                            {{ $product->updated_at->diffForHumans() }}
+                        </small>
+                    </td>
+
+                    <td>
+
+                        <div class="d-flex flex-column gap-1">
+
+                            <a href="{{ route('admin.compliance.show', $product) }}"
+                                class="btn btn-sm btn-outline-primary">
+
+                                <i class="bi bi-eye"></i>
+                                Review
+
+                            </a>
+
+                            @if($product->status === 'published' && $product->compliance_status === 'pending')
+
+                            <form method="POST"
+                                action="{{ route('admin.compliance.approve', $product) }}"
+                                class="d-inline">
+
+                                @csrf
+
+                                <button type="submit"
+                                    class="btn btn-sm btn-success w-100"
+                                    onclick="return confirm(&quot;Approve and publish this product to the seller's shop?&quot;)">
+
+                                    <i class="bi bi-check-circle"></i>
+                                    Approve
+
+                                </button>
+
+                            </form>
 
                             @endif
 
-                        </td>
+                        </div>
 
-                        <td>
-                            <small>
-                                {{ $product->updated_at->diffForHumans() }}
-                            </small>
-                        </td>
+                    </td>
 
-                        <td>
-
-                            <div class="d-flex flex-column gap-1">
-
-                                <a href="{{ route('admin.compliance.show', $product) }}"
-                                   class="btn btn-sm btn-outline-primary">
-
-                                    <i class="bi bi-eye"></i>
-                                    Review
-
-                                </a>
-
-                                @if($isResubmitted)
-
-                                    <form method="POST"
-                                          action="{{ route('admin.compliance.approve', $product) }}"
-                                          class="d-inline">
-
-                                        @csrf
-
-                                        <button type="submit"
-                                                class="btn btn-sm btn-success w-100"
-                                                onclick="return confirm(&quot;Approve and publish this product to the seller's shop?&quot;)">
-
-                                            <i class="bi bi-check-circle"></i>
-                                            Approve
-
-                                        </button>
-
-                                    </form>
-
-                                @endif
-
-                            </div>
-
-                        </td>
-
-                    </tr>
+                </tr>
 
                 @empty
 
-                    <tr>
-                        <td colspan="6"
-                            class="text-center text-muted py-4">
+                <tr>
+                    <td colspan="6"
+                        class="text-center text-muted py-4">
 
-                            <i class="bi bi-inbox"></i>
-                            No products to review.
+                        <i class="bi bi-inbox"></i>
+                        No products to review.
 
-                        </td>
-                    </tr>
+                    </td>
+                </tr>
 
                 @endforelse
 

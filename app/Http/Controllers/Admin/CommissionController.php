@@ -6,64 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Commission;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\CommissionService;
 use Illuminate\Http\Request;
 
 class CommissionController extends Controller
 {
     protected float $defaultRate = 10;
 
-    public function ensureCommissionsExist()
+    public function ensureCommissionsExist(): void
     {
-        $completedOrders = Order::whereIn('status', [
-    'delivered',
-    'completed',
-])
-    ->with('items.product')
-    ->get();
+        $service = app(CommissionService::class);
 
-        foreach ($completedOrders as $order) {
-            $bySeller = [];
-
-            foreach ($order->items as $item) {
-                if (!$item->product) {
-                    continue;
+        Order::query()
+            ->whereIn('status', ['delivered', 'completed'])
+            ->with(['sellerOrders.seller', 'sellerOrders.items'])
+            ->chunkById(100, function ($orders) use ($service) {
+                foreach ($orders as $order) {
+                    $service->generateForOrder($order);
                 }
-
-                $sellerId = $item->product->user_id;
-
-                if (!$sellerId) {
-                    continue;
-                }
-
-                // Integer centavos are the source of truth.
-                $itemSubtotalMinor = (int) $item->subtotal_minor;
-
-                $bySeller[$sellerId] = ($bySeller[$sellerId] ?? 0) + $itemSubtotalMinor;
-            }
-
-            foreach ($bySeller as $sellerId => $sellerTotalMinor) {
-                $commissionAmountMinor = (int) round(
-                    $sellerTotalMinor * ($this->defaultRate / 100)
-                );
-
-                Commission::firstOrCreate(
-                    [
-                        'order_id' => $order->id,
-                        'seller_id' => $sellerId,
-                    ],
-                    [
-                        // Legacy peso fields kept temporarily for UI compatibility.
-                        'order_total_minor' => $sellerTotalMinor,
-
-                        // Percentage, not money.
-                        'rate' => $this->defaultRate,
-                        'amount_minor' => $commissionAmountMinor,
-
-                        'status' => 'pending',
-                    ]
-                );
-            }
-        }
+            });
     }
 
     public function index(Request $request)

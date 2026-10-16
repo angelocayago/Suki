@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\Logistic;
 use App\Models\Role;
 use App\Models\User;
+use App\Mail\BuyerEmailOtp;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use App\Models\EmailVerificationOtp;
 use Tests\TestCase;
 
 class RegistrationEmailUniquenessTest extends TestCase
@@ -18,6 +20,15 @@ class RegistrationEmailUniquenessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (
+            config('database.default') !== 'sqlite' ||
+            config('database.connections.sqlite.database') !== ':memory:'
+        ) {
+            throw new \RuntimeException(
+                'Registration tests require SQLite in-memory database.'
+            );
+        }
 
         $this->migrateRegistrationSchema();
 
@@ -28,18 +39,34 @@ class RegistrationEmailUniquenessTest extends TestCase
         config(['services.googlemaps.key' => null]);
     }
 
+
     protected function tearDown(): void
     {
-        Schema::disableForeignKeyConstraints();
+        if (
+            config('database.default') === 'sqlite' &&
+            config('database.connections.sqlite.database') === ':memory:'
+        ) {
+            Schema::disableForeignKeyConstraints();
 
-        foreach (['notifications', 'role_user', 'roles', 'logistics', 'users'] as $table) {
-            Schema::dropIfExists($table);
+            foreach (
+                [
+                    'email_verification_otps',
+                    'notifications',
+                    'role_user',
+                    'roles',
+                    'logistics',
+                    'users',
+                ] as $table
+            ) {
+                Schema::dropIfExists($table);
+            }
+
+            Schema::enableForeignKeyConstraints();
         }
-
-        Schema::enableForeignKeyConstraints();
 
         parent::tearDown();
     }
+
 
     private function migrateRegistrationSchema(): void
     {
@@ -84,6 +111,19 @@ class RegistrationEmailUniquenessTest extends TestCase
             $table->timestamp('logistic_approved_at')->nullable();
             $table->text('logistic_rejection_reason')->nullable();
             $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('email_verification_otps', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')
+                ->unique()
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->string('otp_hash');
+            $table->unsignedTinyInteger('attempts')->default(0);
+            $table->timestamp('expires_at');
+            $table->timestamp('last_sent_at');
             $table->timestamps();
         });
 
@@ -137,6 +177,7 @@ class RegistrationEmailUniquenessTest extends TestCase
 
         return array_merge([
             'role' => 'buyer',
+            'terms' => '1',
             'first_name' => 'Maria',
             'last_name' => 'Santos',
             'sex' => 'Female',
@@ -201,7 +242,7 @@ class RegistrationEmailUniquenessTest extends TestCase
 
         $response = $this->post(route('register'), $this->registrationPayload());
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('buyer.email.verify'));
         $response->assertSessionHasNoErrors();
 
         $this->assertSame(1, User::where('email', 'newuser@example.com')->count());
@@ -209,6 +250,16 @@ class RegistrationEmailUniquenessTest extends TestCase
         $user = User::where('email', 'newuser@example.com')->firstOrFail();
         $this->assertTrue($user->isCustomer());
         $this->assertSame(User::STATUS_PENDING, $user->status);
+        $this->assertNull($user->email_verified_at);
+
+        $this->assertDatabaseHas('email_verification_otps', [
+            'user_id' => $user->id,
+            'attempts' => 0,
+        ]);
+
+        Mail::assertSent(BuyerEmailOtp::class, 1);
+
+        $response->assertSessionHas('buyer_otp_user_id', $user->id);
     }
 
     public function test_new_seller_email_creates_one_user_with_one_role(): void
@@ -360,15 +411,23 @@ class RegistrationEmailUniquenessTest extends TestCase
         Mail::fake();
 
         $this->post(route('register'), $this->registrationPayload())
-            ->assertRedirect(route('login'))
+            ->assertRedirect(route('buyer.email.verify'))
             ->assertSessionHasNoErrors();
 
         // The double click / double submit replays the identical request.
         $response = $this->post(route('register'), $this->registrationPayload());
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('buyer.email.verify'));
         $response->assertSessionHasNoErrors();
+
+        // Exactly one buyer account should exist.
         $this->assertSame(1, User::where('email', 'newuser@example.com')->count());
+
+        // Exactly one registration notification should be queued.
+        Mail::assertQueued(
+            \App\Mail\RegistrationNotification::class,
+            1
+        );
     }
 
     public function test_repeat_submission_does_not_duplicate_roles_or_company_records(): void

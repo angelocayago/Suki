@@ -23,7 +23,7 @@
       <div class="card-body d-flex align-items-center">
         <div class="stat-icon bg-primary text-white me-3"><i class="bi bi-receipt"></i></div>
         <div>
-          <h6 class="text-muted mb-1">Orders Collected</h6>
+          <h6 class="text-muted mb-1">Collections Recorded</h6>
           <h3 class="mb-0">{{ $cashReport->total_orders ?? 0 }}</h3>
         </div>
       </div>
@@ -46,32 +46,53 @@
 
 <div class="table-container">
   <h5 class="mb-3">Recent Collections</h5>
+
   <div class="table-responsive">
     <table class="table table-hover align-middle">
       <thead class="table-light">
         <tr>
           <th>Order #</th>
+          <th>Shipment</th>
           <th>Customer</th>
           <th>Amount</th>
           <th>Collected At</th>
         </tr>
       </thead>
+
       <tbody>
-        @forelse($recentCollections as $order)
-          <tr>
-            <td>{{ $order->order_number }}</td>
-            <td>{{ $order->user->name ?? 'N/A' }}</td>
-            <td class="text-success fw-bold">&#8369;{{ number_format(($order->amount_collected_minor / 100), 2) }}</td>
-            <td>{{ $order->collected_at->format('M d, Y H:i') }}</td>
-          </tr>
+        @forelse($recentCollections as $collection)
+        <tr>
+          <td>{{ $collection->order_number }}</td>
+
+          <td>
+            @if($collection->shipment_number)
+            <span class="badge bg-primary">
+              {{ $collection->shipment_number }}
+            </span>
+            @else
+            <span class="badge bg-secondary">Legacy COD</span>
+            @endif
+          </td>
+
+          <td>{{ $collection->customer_name }}</td>
+
+          <td class="text-success fw-bold">
+            &#8369;{{ number_format($collection->amount_minor / 100, 2) }}
+          </td>
+
+          <td>
+            {{ $collection->collected_at?->format('M d, Y H:i') ?? 'N/A' }}
+          </td>
+        </tr>
         @empty
-          <tr><td colspan="4" class="text-center text-muted py-4">No cash collections yet.</td></tr>
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            No cash collections yet.
+          </td>
+        </tr>
         @endforelse
       </tbody>
     </table>
   </div>
 </div>
 @endsection
-
-
-

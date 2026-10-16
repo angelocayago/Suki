@@ -610,7 +610,7 @@
 
 .variation-thumb.variation-selected::after {
 
-  content: '\u00a0✓';
+  content: '\u00a0âœ“';
 
   color: #7c3aed;
 
@@ -1868,3 +1868,328 @@
 .variant-row.card .variant-fields-row {
     width: 100%;
 }
+/* Seller Edit Product - Compact Variant Cards */
+#variants-list .variant-row.card {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: visible;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+#variants-list .variant-row.card > .card-body {
+    padding: 18px !important;
+}
+
+#variants-list .variant-fields-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    align-items: start !important;
+}
+
+#variants-list .variant-fields-row > div {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    grid-column: span 1;
+}
+
+#variants-list .variant-fields-row > div:has(input[name$="[name]"]) {
+    grid-column: 1 / -1;
+}
+
+#variants-list .variant-fields-row > div:has(.variant-image-uploader) {
+    grid-column: 1 / -1;
+}
+
+#variants-list .variant-image-uploader {
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+#variants-list .image-preview-container {
+    position: relative;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+#variants-list .image-preview-thumb {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+#variants-list .variant-fields-row .form-control {
+    width: 100%;
+    min-height: 38px;
+}
+
+#variants-list .variant-fields-row .form-label {
+    display: block;
+    margin-bottom: 6px !important;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    #variants-list .variant-fields-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #variants-list .variant-fields-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
+
+/* BILIHUB COMPACT EDIT VARIANTS START */
+
+#variants-list .variant-row.card {
+    display: block !important;
+    padding: 0 !important;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fff;
+    overflow: visible;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+#variants-list .variant-row.card > .card-body {
+    padding: 20px !important;
+}
+
+#variants-list .variant-fields-row {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    align-items: start !important;
+    margin: 0 !important;
+}
+
+#variants-list .variant-fields-row > div {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+}
+
+/* Full-width variant name */
+#variants-list .variant-fields-row > div:has(input[name$="[name]"]) {
+    grid-column: 1 / -1 !important;
+}
+
+/* Image occupies the left column */
+#variants-list .variant-fields-row > div:has(.variant-image-uploader) {
+    grid-column: 1 !important;
+    grid-row: span 2 !important;
+}
+
+#variants-list .variant-image-uploader {
+    width: 110px !important;
+    max-width: 100%;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+#variants-list .image-preview-container {
+    position: relative;
+    display: inline-block;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+#variants-list .image-preview-container.d-none {
+    display: none !important;
+}
+
+#variants-list .image-preview-thumb {
+    width: 105px !important;
+    height: 105px !important;
+    object-fit: contain;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+#variants-list .image-upload-placeholder {
+    width: 105px;
+    min-height: 105px;
+    padding: 10px;
+}
+
+#variants-list .variant-fields-row .form-control {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 9px;
+}
+
+#variants-list .variant-fields-row .form-label {
+    display: block;
+    margin-bottom: 6px !important;
+    font-weight: 600;
+}
+
+/* Tablet */
+@media (max-width: 991px) {
+    #variants-list .variant-fields-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #variants-list .variant-fields-row > div:has(.variant-image-uploader) {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+    }
+}
+
+/* Mobile */
+@media (max-width: 575px) {
+    #variants-list .variant-fields-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    #variants-list .variant-fields-row > div:has(.variant-image-uploader) {
+        grid-column: 1 !important;
+        grid-row: auto !important;
+    }
+}
+
+/* BILIHUB COMPACT EDIT VARIANTS END */
+
+/* BILIHUB FINAL VARIANT CARD POLISH */
+
+#variants-list .variant-row.card {
+  position: relative;
+}
+
+#variants-list .variant-row.card>.card-body {
+  padding: 20px 22px !important;
+}
+
+#variants-list .variant-fields-row {
+  grid-template-columns: 125px repeat(4, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+/* Variant name */
+#variants-list .variant-fields-row>div:has(input[name$="[name]"]) {
+  grid-column: 1 / -1 !important;
+}
+
+/* Image */
+#variants-list .variant-fields-row>div:has(.variant-image-uploader) {
+  grid-column: 1 !important;
+  grid-row: span 2 !important;
+}
+
+/* Delete button */
+#variants-list .variant-fields-row>.col-md-auto {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+}
+
+/* Prevent name input from overlapping delete */
+#variants-list .variant-fields-row>div:has(input[name$="[name]"]) {
+  padding-right: 42px !important;
+}
+
+@media (max-width: 991px) {
+  #variants-list .variant-fields-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #variants-list .variant-fields-row>div:has(.variant-image-uploader) {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+  }
+}
+
+@media (max-width: 575px) {
+  #variants-list .variant-fields-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
+
+/* BILIHUB - EDIT PRODUCT VARIANT IMAGE CONTROLS */
+#variants-list .image-preview-container {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 112px;
+    overflow: visible;
+}
+
+#variants-list .image-preview-container.d-none {
+    display: none !important;
+}
+
+#variants-list .image-preview-container .image-preview-thumb {
+    display: block;
+    width: 108px !important;
+    height: 108px !important;
+    object-fit: contain;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+}
+
+#variants-list .image-preview-container .btn-change {
+    position: static !important;
+    display: block;
+    width: 100%;
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    font-weight: 600;
+    color: #6d35f2;
+    background: #f3edff;
+    border: 1px solid #ddd0ff;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#variants-list .image-preview-container .btn-change:hover {
+    background: #e9ddff;
+}
+
+#variants-list .image-preview-container .btn-remove {
+    position: absolute !important;
+    top: -7px !important;
+    right: -7px !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: 25px !important;
+    height: 25px !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px !important;
+    font-weight: 700;
+    color: #dc2626;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+}
+
+#variants-list .image-preview-container .btn-remove:hover {
+    color: #fff;
+    background: #dc2626;
+}
+
+/* END BILIHUB VARIANT IMAGE CONTROLS */

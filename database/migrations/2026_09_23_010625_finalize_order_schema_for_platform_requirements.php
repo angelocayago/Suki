@@ -30,15 +30,19 @@ return new class extends Migration
         ");
 
         /*
-         * reference is now required and unique.
+         * PostgreSQL-specific NOT NULL constraint.
+         * SQLite does not support this ALTER COLUMN syntax.
          */
-        DB::statement("
-            ALTER TABLE orders
-            ALTER COLUMN reference SET NOT NULL
-        ");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+                ALTER TABLE orders
+                ALTER COLUMN reference SET NOT NULL
+            ");
+        }
 
         $orderReferenceIndexExists = collect(Schema::getIndexes('orders'))
-            ->contains(fn ($index) =>
+            ->contains(
+                fn($index) =>
                 $index['name'] === 'orders_reference_unique'
             );
 
@@ -56,25 +60,30 @@ return new class extends Migration
          *     "address": "old text address"
          * }
          *
-         * This avoids losing existing address information.
+         * Preserve the original PostgreSQL conversion.
          */
-        $ordersShippingType = DB::selectOne("
-            SELECT data_type
-            FROM information_schema.columns
-            WHERE table_schema = current_schema()
-              AND table_name = 'orders'
-              AND column_name = 'shipping_address'
-        ");
-
-        if ($ordersShippingType && $ordersShippingType->data_type !== 'json') {
-            DB::statement("
-                ALTER TABLE orders
-                ALTER COLUMN shipping_address TYPE json
-                USING json_build_object(
-                    'address',
-                    shipping_address
-                )
+        if (DB::getDriverName() === 'pgsql') {
+            $ordersShippingType = DB::selectOne("
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'orders'
+                  AND column_name = 'shipping_address'
             ");
+
+            if (
+                $ordersShippingType &&
+                $ordersShippingType->data_type !== 'json'
+            ) {
+                DB::statement("
+                    ALTER TABLE orders
+                    ALTER COLUMN shipping_address TYPE json
+                    USING json_build_object(
+                        'address',
+                        shipping_address
+                    )
+                ");
+            }
         }
 
         /*
@@ -98,15 +107,19 @@ return new class extends Migration
         ");
 
         /*
-         * Only enforce NOT NULL when every existing shipment has a tracking
-         * number. This prevents the migration from failing on legacy rows
-         * without tracking numbers.
+         * Only enforce NOT NULL when every existing shipment
+         * has a tracking number.
+         *
+         * The ALTER COLUMN statement is PostgreSQL-specific.
          */
         $missingTrackingCodes = DB::table('shipments')
             ->whereNull('tracking_code')
             ->count();
 
-        if ($missingTrackingCodes === 0) {
+        if (
+            $missingTrackingCodes === 0 &&
+            DB::getDriverName() === 'pgsql'
+        ) {
             DB::statement("
                 ALTER TABLE shipments
                 ALTER COLUMN tracking_code SET NOT NULL
@@ -114,13 +127,17 @@ return new class extends Migration
         }
 
         $trackingCodeIndexExists = collect(Schema::getIndexes('shipments'))
-            ->contains(fn ($index) =>
+            ->contains(
+                fn($index) =>
                 $index['name'] === 'shipments_tracking_code_unique'
             );
 
         if (!$trackingCodeIndexExists) {
             Schema::table('shipments', function (Blueprint $table) {
-                $table->unique('tracking_code', 'shipments_tracking_code_unique');
+                $table->unique(
+                    'tracking_code',
+                    'shipments_tracking_code_unique'
+                );
             });
         }
     }
@@ -142,8 +159,12 @@ return new class extends Migration
 
         /*
          * Convert shipping_address back to text.
+         * PostgreSQL-specific operation.
          */
-        if (Schema::hasColumn('orders', 'shipping_address')) {
+        if (
+            DB::getDriverName() === 'pgsql' &&
+            Schema::hasColumn('orders', 'shipping_address')
+        ) {
             DB::statement("
                 ALTER TABLE orders
                 ALTER COLUMN shipping_address TYPE text

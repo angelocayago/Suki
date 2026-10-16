@@ -59,7 +59,8 @@ class Product extends Model
 
     public function isPublished(): bool
     {
-        return !$this->isDraft();
+        return $this->status === self::STATUS_PUBLISHED
+            && $this->compliance_status === 'approved';
     }
 
     public function isFlagged(): bool
@@ -185,6 +186,39 @@ class Product extends Model
             ->where('is_primary', true);
     }
 
+    /**
+     * Vouchers explicitly associated with this product.
+     */
+    public function vouchers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Voucher::class,
+            'voucher_products',
+            'product_id',
+            'voucher_id'
+        );
+    }
+
+    /**
+     * Promotional campaigns featuring this product.
+     */
+    public function promotionCampaigns(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PromotionCampaign::class,
+            'campaign_products',
+            'product_id',
+            'campaign_id'
+        )->withPivot([
+            'discount_type',
+            'discount_value_minor',
+            'discount_percent_bps',
+            'funded_by',
+            'quantity_limit',
+            'quantity_used',
+        ])->withTimestamps();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Image / Media Helpers
@@ -203,35 +237,35 @@ class Product extends Model
     }
 
     public function getImageUrlAttribute(): string
-{
-    $img = $this->display_image;
+    {
+        $img = $this->display_image;
 
-    // Preferred: ProductImage record
-    if ($img) {
-        return $img->url;
-    }
+        // Preferred: ProductImage record
+        if ($img) {
+            return $img->url;
+        }
 
-    // Fallback: legacy products.image / image_path
-    $path = $this->image ?: $this->image_path;
+        // Fallback: legacy products.image / image_path
+        $path = $this->image ?: $this->image_path;
 
-    if ($path) {
-        // New Supabase Storage
-        try {
-            if (Storage::disk('s3')->exists($path)) {
-                return Storage::disk('s3')->url($path);
+        if ($path) {
+            // New Supabase Storage
+            try {
+                if (Storage::disk('s3')->exists($path)) {
+                    return Storage::disk('s3')->url($path);
+                }
+            } catch (\Throwable $e) {
+                // Fall back to old local storage.
             }
-        } catch (\Throwable $e) {
-            // Fall back to old local storage.
+
+            // Old local public storage
+            if (Storage::disk('public')->exists($path)) {
+                return Storage::disk('public')->url($path);
+            }
         }
 
-        // Old local public storage
-        if (Storage::disk('public')->exists($path)) {
-            return Storage::disk('public')->url($path);
-        }
+        return 'https://via.placeholder.com/300x200?text=No+Image';
     }
-
-    return 'https://via.placeholder.com/300x200?text=No+Image';
-}
 
     public function getVideoUrlAttribute()
     {
@@ -249,42 +283,42 @@ class Product extends Model
     }
 
     public function getSecondaryImageUrlAttribute(): ?string
-{
-    if (!$this->secondary_image_path) {
+    {
+        if (!$this->secondary_image_path) {
+            return null;
+        }
+
+        try {
+            if (Storage::disk('s3')->exists($this->secondary_image_path)) {
+                return Storage::disk('s3')->url($this->secondary_image_path);
+            }
+        } catch (\Throwable $e) {
+            // Fall back to old local storage below.
+        }
+
+        if (Storage::disk('public')->exists($this->secondary_image_path)) {
+            return Storage::disk('public')->url($this->secondary_image_path);
+        }
+
         return null;
     }
 
-    try {
-        if (Storage::disk('s3')->exists($this->secondary_image_path)) {
-            return Storage::disk('s3')->url($this->secondary_image_path);
+    public function hasSecondaryImage(): bool
+    {
+        if (!$this->secondary_image_path) {
+            return false;
         }
-    } catch (\Throwable $e) {
-        // Fall back to old local storage below.
-    }
 
-    if (Storage::disk('public')->exists($this->secondary_image_path)) {
-        return Storage::disk('public')->url($this->secondary_image_path);
-    }
-
-    return null;
-}
-
-public function hasSecondaryImage(): bool
-{
-    if (!$this->secondary_image_path) {
-        return false;
-    }
-
-    try {
-        if (Storage::disk('s3')->exists($this->secondary_image_path)) {
-            return true;
+        try {
+            if (Storage::disk('s3')->exists($this->secondary_image_path)) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // Check old local storage below.
         }
-    } catch (\Throwable $e) {
-        // Check old local storage below.
-    }
 
-    return Storage::disk('public')->exists($this->secondary_image_path);
-}
+        return Storage::disk('public')->exists($this->secondary_image_path);
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -350,16 +384,16 @@ public function hasSecondaryImage(): bool
 |--------------------------------------------------------------------------
 */
 
-public function wishlists()
-{
-    return $this->hasMany(Wishlist::class);
-}
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
+    }
 
-public function wishlistedByUsers()
-{
-    return $this->belongsToMany(User::class, 'wishlists')
-        ->withTimestamps();
-}
+    public function wishlistedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'wishlists')
+            ->withTimestamps();
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -368,33 +402,34 @@ public function wishlistedByUsers()
     */
 
     public function scopeWithSoldCount($query)
-{
-    return $query->withSum(
-        [
-            'orderItems as sold_count' => function ($query) {
-                $query
-                    ->join(
-                        'seller_orders',
-                        'seller_orders.id',
-                        '=',
-                        'order_items.seller_order_id'
-                    )
-                    ->join(
-                        'orders',
-                        'orders.id',
-                        '=',
-                        'seller_orders.order_id'
-                    )
-                    ->whereIn('orders.status', ['completed', 'delivered']);
-            },
-        ],
-        'quantity'
-    );
-}
+    {
+        return $query->withSum(
+            [
+                'orderItems as sold_count' => function ($query) {
+                    $query
+                        ->join(
+                            'seller_orders',
+                            'seller_orders.id',
+                            '=',
+                            'order_items.seller_order_id'
+                        )
+                        ->join(
+                            'orders',
+                            'orders.id',
+                            '=',
+                            'seller_orders.order_id'
+                        )
+                        ->whereIn('orders.status', ['completed', 'delivered']);
+                },
+            ],
+            'quantity'
+        );
+    }
 
     public function scopeTrending($query, $limit = 8, $days = 30)
     {
         return $query
+            ->where('status', 'published')
             ->where('compliance_status', 'approved')
             ->whereHas('orderItems.sellerOrder.order', function ($q) use ($days) {
                 $q->whereIn('status', ['completed', 'delivered'])
@@ -437,5 +472,3 @@ public function wishlistedByUsers()
             ->limit($limit);
     }
 }
-
-

@@ -1,4 +1,4 @@
-import {
+﻿import {
   formatFileSize,
   initVariantImageHandling,
   changeVariantImage,
@@ -84,6 +84,16 @@ document.addEventListener('DOMContentLoaded', function () {
     row.innerHTML = `
       <div class="card-body">
         <div class="row g-3 align-items-end variant-fields-row">
+               <div class="col-md-4">
+  <label class="form-label form-label-sm mb-0">Variant Name</label>
+  <input
+    type="text"
+    name="variations[${index}][name]"
+    class="form-control form-control-sm"
+    placeholder="e.g. Police Car, Fire Truck"
+    maxlength="255"
+  >
+</div>
           <div class="col-md-4">
             <label class="form-label form-label-sm mb-0">Image</label>
             <div class="variant-image-uploader" data-index="${index}">

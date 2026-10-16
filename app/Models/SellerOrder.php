@@ -14,17 +14,40 @@ class SellerOrder extends Model
         'seller_id',
         'logistic_id',
         'status',
+
+        'discount_minor',
+        'seller_discount_minor',
+        'platform_discount_minor',
+
+        // Return request
+        'return_status',
+        'return_reason',
+        'return_requested_at',
+
+        // Reschedule request
+        'reschedule_status',
+        'reschedule_reason',
+        'reschedule_requested_at',
+        'rescheduled_at',
+
+        // Money in centavos
         'subtotal_minor',
         'shipping_minor',
         'total_minor',
     ];
 
     protected $casts = [
+        'return_requested_at' => 'datetime',
+        'reschedule_requested_at' => 'datetime',
+        'rescheduled_at' => 'datetime',
 
-        // Milestone 4 integer centavo fields.
         'subtotal_minor' => 'integer',
         'shipping_minor' => 'integer',
         'total_minor' => 'integer',
+
+        'discount_minor' => 'integer',
+        'seller_discount_minor' => 'integer',
+        'platform_discount_minor' => 'integer',
     ];
 
     /**
@@ -67,4 +90,3 @@ class SellerOrder extends Model
         return $this->hasOne(Shipment::class, 'seller_order_id');
     }
 }
-

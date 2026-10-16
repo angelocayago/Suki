@@ -54,9 +54,12 @@ class ComplianceController extends Controller
             'category',
         ]);
 
-        $filter = $request->input('filter', 'flagged');
+        $filter = $request->input('filter', 'pending');
 
-        if ($filter === 'flagged') {
+        if ($filter === 'pending') {
+            $query->where('status', 'published')
+                ->where('compliance_status', 'pending');
+        } elseif ($filter === 'flagged') {
             $query->whereIn('compliance_status', [
                 'flagged',
                 'auto_flagged',
@@ -145,6 +148,20 @@ class ComplianceController extends Controller
 
     public function approve(Product $product)
     {
+        if ($product->status !== 'published') {
+            return back()->with(
+                'error',
+                'Draft products cannot be approved. The seller must submit the product for review first.'
+            );
+        }
+
+        if ($product->compliance_status !== 'pending') {
+            return back()->with(
+                'error',
+                'Only products pending review can be approved.'
+            );
+        }
+
         $wasResubmitted =
             $product->compliance_status === 'pending'
             && $product->updated_at

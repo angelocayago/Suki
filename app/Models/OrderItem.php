@@ -16,6 +16,9 @@ class OrderItem extends Model
         'subtotal_minor',
         'size_id',
         'variant_id',
+        'discount_minor',
+        'seller_discount_minor',
+        'platform_discount_minor',
     ];
 
     protected $casts = [
@@ -23,6 +26,9 @@ class OrderItem extends Model
         // Milestone 4 integer centavo fields.
         'price_minor' => 'integer',
         'subtotal_minor' => 'integer',
+        'discount_minor' => 'integer',
+        'seller_discount_minor' => 'integer',
+        'platform_discount_minor' => 'integer',
     ];
 
     /**

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,14 +11,15 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   @vite([
-    'resources/css/app.css',
-    'resources/css/shared-layout.css',
-    'resources/css/components/footer.css',
-    'resources/css/admin/admin-layout.css',
-    'resources/js/app.js',
+  'resources/css/app.css',
+  'resources/css/shared-layout.css',
+  'resources/css/components/footer.css',
+  'resources/css/admin/admin-layout.css',
+  'resources/js/app.js',
   ])
   @stack('styles')
 </head>
+
 <body class="d-flex flex-column min-vh-100">
   <nav class="navbar navbar-expand-lg navbar-light bg-white">
     <div class="container-fluid px-4">
@@ -35,12 +37,12 @@
             <a class="nav-link position-relative" href="{{ route('admin.notifications.index') }}" title="Notifications">
               <i class="bi bi-bell fs-5"></i>
               @php
-                $unreadCount = \App\Models\Notification::where('user_id', Auth::id())->where('is_read', false)->count();
+              $unreadCount = \App\Models\Notification::where('user_id', Auth::id())->where('is_read', false)->count();
               @endphp
               @if($unreadCount > 0)
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill cart-badge" style="font-size: 0.65rem; min-width: 18px; height: 18px;">
-                  {{ $unreadCount }}
-                </span>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill cart-badge" style="font-size: 0.65rem; min-width: 18px; height: 18px;">
+                {{ $unreadCount }}
+              </span>
               @endif
             </a>
           </li>
@@ -52,11 +54,17 @@
               <span class="d-none d-md-inline fw-medium">{{ Auth::user()->name }}</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminUserDropdown">
-              <li><h6 class="dropdown-header fw-semibold">{{ Auth::user()->email }}</h6></li>
-              <li><hr class="dropdown-divider"></li>
+              <li>
+                <h6 class="dropdown-header fw-semibold">{{ Auth::user()->email }}</h6>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
               <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2 me-2 text-violet-500"></i>Dashboard</a></li>
               <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person me-2 text-slate-400"></i>Account Settings</a></li>
-              <li><hr class="dropdown-divider"></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
               <li>
                 <form method="POST" action="{{ route('logout') }}" class="d-inline">
                   @csrf
@@ -80,6 +88,11 @@
           <nav class="nav flex-column px-3 admin-nav">
             <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
               <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{{ route('admin.seller-settlements.index') }}"
+              class="nav-link {{ request()->routeIs('admin.seller-settlements.*') ? 'active' : '' }}">
+              <i class="bi bi-wallet2 me-2"></i>
+              Seller Settlements
             </a>
             <a class="nav-link {{ request()->routeIs('admin.registrations.*') ? 'active' : '' }}" href="{{ route('admin.registrations.index') }}">
               <i class="bi bi-clipboard-check"></i> Registrations
@@ -121,10 +134,21 @@
             <a class="nav-link {{ request()->routeIs('admin.complaints.*') ? 'active' : '' }}" href="{{ route('admin.complaints.index') }}">
               <i class="bi bi-exclamation-triangle"></i> Complaints
             </a>
-            <a class="nav-link {{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}" href="{{ route('admin.commissions.index') }}">
+
+            <a class="nav-link {{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}"
+              href="{{ route('admin.commissions.index') }}">
               <i class="bi bi-percent"></i> Commissions
             </a>
+
+            {{-- Financial Reconciliation --}}
+            <a class="nav-link d-flex align-items-center gap-2 {{ request()->routeIs('admin.financial-reconciliation.*') ? 'active' : '' }}"
+              href="{{ route('admin.financial-reconciliation.index') }}"
+              title="Financial Reconciliation">
+              <i class="bi bi-wallet2 flex-shrink-0"></i>
+              <span class="small text-nowrap">Financial Reconciliation</span>
+            </a>
           </nav>
+
 
           <div class="px-3 mb-3 mt-4">
             <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">System</small>
@@ -145,22 +169,22 @@
 
       <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 d-flex flex-column flex-grow-1">
         @if(session('success'))
-          <div class="alert alert-success alert-dismissible fade show rounded-2 border-0 shadow-sm">
-            <div class="d-flex align-items-center">
-              <i class="bi bi-check-circle-fill me-2"></i>
-              {{ session('success') }}
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-success alert-dismissible fade show rounded-2 border-0 shadow-sm">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {{ session('success') }}
           </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         @endif
         @if(session('error'))
-          <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0 shadow-sm">
-            <div class="d-flex align-items-center">
-              <i class="bi bi-exclamation-circle-fill me-2"></i>
-              {{ session('error') }}
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0 shadow-sm">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-circle-fill me-2"></i>
+            {{ session('error') }}
           </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         @endif
         <div class="flex-grow-1">
           @yield('content')
@@ -174,4 +198,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   @stack('scripts')
 </body>
+
 </html>

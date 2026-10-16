@@ -45,6 +45,7 @@ export default defineConfig({
                 'resources/js/rider/profit.js',
                 'resources/js/rider/account.js',
                 'resources/js/auth/login.js',
+                'resources/css/auth/register.css',
                 'resources/js/auth/register.js',
                 'resources/js/auth/social-register.js',
                 'resources/js/auth/apply-rider.js',

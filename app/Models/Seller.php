@@ -52,4 +52,13 @@ class Seller extends Model
     {
         return $this->belongsTo(Address::class, 'pickup_address_id');
     }
+
+    /**
+     * Vouchers created by this seller.
+     */
+    public function vouchers(): HasMany
+    {
+        return $this->hasMany(Voucher::class, 'seller_id')
+            ->where('owner_type', 'seller');
+    }
 }

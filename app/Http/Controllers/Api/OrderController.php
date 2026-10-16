@@ -146,9 +146,12 @@ if (!$product->seller_id) {
             ];
         }
 
-        // Money calculations use integer centavos as the source of truth.
-        $shippingFeeMinor = 8000; // â‚±80.00 base shipping
-        $serviceFeeMinor = intdiv(($subtotalMinor * 3) + 50, 100); // 3%, rounded to nearest centavo
+        // Fixed shipping fee: PHP 50.00.
+        $shippingFeeMinor = 5000;
+
+        // Standardized buyer service fee: 3%.
+        $serviceFeeMinor = intdiv(($subtotalMinor * 3) + 50, 100);
+
         $totalMinor = $subtotalMinor + $shippingFeeMinor + $serviceFeeMinor;
 
         // Legacy peso values are dual-written temporarily for compatibility.
@@ -302,9 +305,10 @@ if (!$product->seller_id) {
                 ->whereIn('product_id', array_column($cartItems, 'product_id'))
                 ->delete();
 
-           // Create one shipment for each seller/shop parcel
-// before committing so the whole checkout remains atomic.
-$this->createShipmentsForSellerOrders($order);
+            // Create one shipment for each seller/shop parcel
+            // before committing so the whole checkout remains atomic.
+            app(\App\Services\ShipmentCreationService::class)
+                ->createForOrder($order);
 
 DB::commit();
 
@@ -547,80 +551,6 @@ Shipment::whereIn(
                 'phone' => $order->rider->phone,
             ] : null,
         ];
-    }
-
-    private function createShipmentsForSellerOrders(Order $order): void
-    {
-        $order->loadMissing([
-            'sellerOrders.seller.owner',
-            'sellerOrders.seller.pickupAddress',
-            'sellerOrders.shipment',
-        ]);
-
-        foreach ($order->sellerOrders as $sellerOrder) {
-            // Prevent duplicate parcel creation if this method is called again.
-            if ($sellerOrder->shipment) {
-                continue;
-            }
-
-            $hub = \App\Services\HubAssignmentService::findBestHubForSellerOrder($sellerOrder);
-            $seller = $sellerOrder->seller;
-            $owner = $seller?->owner;
-            $pickupAddress = $seller?->pickupAddress;
-
-            if ($pickupAddress) {
-                $pickup = collect([
-                    $pickupAddress->address_line1,
-                    $pickupAddress->address_line2,
-                    $pickupAddress->city,
-                    $pickupAddress->province,
-                    $pickupAddress->postal_code,
-                    $pickupAddress->country,
-                ])->filter()->implode(', ');
-            } elseif ($owner) {
-                $pickup = collect([
-                    $owner->business_name,
-                    $owner->street_address,
-                    $owner->barangay,
-                    $owner->municipality,
-                    $owner->province,
-                ])->filter()->implode(', ');
-            } else {
-                $pickup = 'Seller address';
-            }
-
-            $shipment = Shipment::create([
-                'seller_order_id' => $sellerOrder->id,
-                'logistic_id' => $hub?->logistic_id,
-                'hub_id' => $hub?->id,
-                'tracking_number' => 'SPE-' . Str::upper(Str::random(10)),
-'tracking_code' => 'SPE-' . Str::upper(Str::random(12)),
-'status' => $hub ? 'pending' : 'pending_logistic',
-                'pickup_address' => $pickup ?: 'Seller address',
-                'delivery_address' => collect($order->shipping_address)
-    ->only([
-        'address_line1',
-        'address_line2',
-        'city',
-        'province',
-        'postal_code',
-        'country',
-    ])
-    ->filter()
-    ->implode(', '),
-                'notes' => $hub
-                    ? 'Auto-assigned hub based on seller pickup location: ' . $hub->name
-                    : 'Awaiting logistic assignment',
-            ]);
-
-            if ($hub) {
-                $rider = \App\Services\RiderAssignmentService::findBestRiderForShipment($shipment);
-
-                if ($rider) {
-                    \App\Services\RiderAssignmentService::assignRiderToShipment($shipment, $rider);
-                }
-            }
-        }
     }
 }
 

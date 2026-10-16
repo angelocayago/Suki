@@ -53,3 +53,49 @@ Schedule::call(function () {
             'last_quota_reset_date' => now()->toDateString(),
         ]);
 })->dailyAt('00:00')->name('daily-quota-reset')->withoutOverlapping();
+
+
+/*
+|--------------------------------------------------------------------------
+| Automatic Pickup Offer Expiration
+|--------------------------------------------------------------------------
+| Runs every minute.
+| Expired offers are processed by PickupOfferService, which
+| locks the shipment before expiring and re-offering.
+|--------------------------------------------------------------------------
+*/
+
+Schedule::call(function () {
+    \App\Models\PickupRequest::query()
+        ->where('status', 'offered')
+        ->where('expires_at', '<=', now())
+        ->select('id', 'shipment_id')
+        ->orderBy('id')
+        ->chunkById(100, function ($offers) {
+            foreach ($offers as $offer) {
+                try {
+                    $shipment = \App\Models\Shipment::find(
+                        $offer->shipment_id
+                    );
+
+                    if ($shipment) {
+                        \App\Services\PickupOfferService::offerNext(
+                            $shipment
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error(
+                        'Pickup offer expiration failed',
+                        [
+                            'pickup_request_id' => $offer->id,
+                            'shipment_id' => $offer->shipment_id,
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+                }
+            }
+        });
+})
+    ->everyMinute()
+    ->name('pickup-offer-expiration')
+    ->withoutOverlapping();

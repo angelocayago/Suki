@@ -156,6 +156,7 @@ class HubAssignmentService
      * Assign a hub/rider to one SellerOrder parcel.
      * Creates a shipment only for that SellerOrder when one does not exist.
      */
+
     public static function autoAssignRiderToSellerOrder(SellerOrder $sellerOrder): ?User
     {
         $sellerOrder->loadMissing([
@@ -166,85 +167,92 @@ class HubAssignmentService
         ]);
 
         $order = $sellerOrder->order;
-        $hub = self::findBestHubForSellerOrder($sellerOrder);
 
-        if (!$order || !$hub) {
+        if (!$order) {
             return null;
         }
 
-        $shipment = $sellerOrder->shipment;
+        $existingShipment = $sellerOrder->shipment;
 
-        if ($shipment && !$shipment->rider_id) {
-            $shipment->update([
-                'logistic_id' => $hub->logistic_id,
-                'hub_id' => $hub->id,
-            ]);
-        } elseif (!$shipment) {
-            $trackingNumber = 'SPE-' . strtoupper(uniqid());
+        // Never reassign an existing shipment's hub or rider.
+        if ($existingShipment) {
+            return null;
+        }
 
-            $seller = $sellerOrder->seller;
-            $owner = $seller?->owner;
-            $pickupAddress = $seller?->pickupAddress;
+        $hub = self::findBestHubForSellerOrder($sellerOrder);
 
-            $pickupAddressText = $pickupAddress
-                ? implode(', ', array_filter([
-                    $pickupAddress->address_line1 ?? null,
-                    $pickupAddress->address_line2 ?? null,
-                    $pickupAddress->city ?? null,
-                    $pickupAddress->province ?? null,
-                    $pickupAddress->postal_code ?? null,
-                    $pickupAddress->country ?? null,
-                ]))
-                : implode(', ', array_filter([
-                    $owner?->business_name,
-                    $owner?->street_address,
-                    $owner?->barangay,
-                    $owner?->municipality,
-                    $owner?->province,
-                ]));
+        if (!$hub) {
+            return null;
+        }
 
-            $shipment = Shipment::create([
-                'seller_order_id' => $sellerOrder->id,
-                'logistic_id' => $hub->logistic_id,
-                'hub_id' => $hub->id,
-                'tracking_number' => $trackingNumber,
-                'status' => 'pending',
-                'pickup_address' => $pickupAddressText ?: 'Seller address',
-                'delivery_address' => $order->shipping_address,
-                'notes' => 'Auto-assigned hub based on SellerOrder pickup location: ' . $hub->name,
-            ]);
+        $seller = $sellerOrder->seller;
+        $owner = $seller?->owner;
+        $pickupAddress = $seller?->pickupAddress;
 
-            if (!$sellerOrder->logistic_id) {
-                $sellerOrder->update(['logistic_id' => $hub->logistic_id]);
+        $pickupAddressText = $pickupAddress
+            ? implode(', ', array_filter([
+                $pickupAddress->address_line1 ?? null,
+                $pickupAddress->address_line2 ?? null,
+                $pickupAddress->city ?? null,
+                $pickupAddress->province ?? null,
+                $pickupAddress->postal_code ?? null,
+                $pickupAddress->country ?? null,
+            ]))
+            : implode(', ', array_filter([
+                $owner?->business_name,
+                $owner?->street_address,
+                $owner?->barangay,
+                $owner?->municipality,
+                $owner?->province,
+            ]));
+
+        \Illuminate\Support\Facades\DB::transaction(
+            function () use (
+                $sellerOrder,
+                $order,
+                $hub,
+                $pickupAddressText
+            ) {
+                $lockedSellerOrder = SellerOrder::query()
+                    ->whereKey($sellerOrder->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                // Avoid creating a duplicate shipment.
+                $shipmentExists = Shipment::query()
+                    ->where('seller_order_id', $lockedSellerOrder->id)
+                    ->exists();
+
+                if ($shipmentExists) {
+                    return;
+                }
+
+                Shipment::create([
+                    'seller_order_id' => $lockedSellerOrder->id,
+                    'logistic_id' => $hub->logistic_id,
+                    'hub_id' => $hub->id,
+                    'tracking_number' => 'SPE-' . strtoupper(uniqid()),
+                    'status' => 'pending',
+                    'pickup_address' => $pickupAddressText
+                        ?: 'Seller address',
+                    'delivery_address' => $order->shipping_address,
+                    'notes' => 'Hub assigned based on seller pickup location: '
+                        . $hub->name,
+                ]);
+
+                if (!$lockedSellerOrder->logistic_id) {
+                    $lockedSellerOrder->update([
+                        'logistic_id' => $hub->logistic_id,
+                    ]);
+                }
             }
-        }
+        );
 
-        $rider = self::findBestRiderForHub($hub);
-
-        if ($rider) {
-            \App\Services\RiderAssignmentService::assignRiderToShipment($shipment, $rider);
-
-            \App\Models\Notification::create([
-                'user_id' => $rider->id,
-                'title' => 'New Delivery Assigned from Hub',
-                'type' => 'delivery',
-                'message' => 'Order ' . $order->order_number . ' parcel #' . $sellerOrder->id . ' has been auto-assigned to your hub (' . $hub->name . '). Please proceed with delivery.',
-                'link' => route('rider.pickups', ['status' => 'sorting_center']),
-            ]);
-
-            \App\Models\Notification::create([
-                'user_id' => $order->user_id,
-                'title' => 'Rider Assigned to Your Parcel',
-                'type' => 'delivery',
-                'message' => 'A parcel from order ' . $order->order_number . ' has been assigned to a rider from ' . $hub->name . ' for delivery.',
-                'link' => route('orders.show', $order),
-            ]);
-
-            return $rider;
-        }
-
+        // Pickup rider is assigned separately by Logistics.
+        // Delivery rider is assigned only after staging.
         return null;
     }
+
 
     public static function findBestRiderForHub(Hub $hub): ?User
     {

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
+
 class Order extends Model
 {
     protected $fillable = [
@@ -46,6 +47,9 @@ class Order extends Model
     'reschedule_reason',
     'reschedule_requested_at',
     'rescheduled_at',
+    'discount_minor',
+    'seller_discount_minor',
+    'platform_discount_minor',
 
     // Proof of Delivery
   'proof_of_delivery',
@@ -59,6 +63,9 @@ class Order extends Model
     protected $casts = [
     'shipping_address' => 'array',
 
+    'discount_minor' => 'integer',
+    'seller_discount_minor' => 'integer',
+    'platform_discount_minor' => 'integer',
     'ordered_at' => 'datetime',
     'shipped_at' => 'datetime',
     'delivered_at' => 'datetime',
@@ -114,6 +121,24 @@ class Order extends Model
     }
 
     /**
+     * All shipments belonging to this buyer order.
+     *
+     * orders.id -> seller_orders.order_id
+     * seller_orders.id -> shipments.seller_order_id
+     */
+    public function shipments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Shipment::class,
+            SellerOrder::class,
+            'order_id',
+            'seller_order_id',
+            'id',
+            'id'
+        );
+    }
+
+    /**
      * Payment records for this order.
      *
      * Legacy payment fields on orders are intentionally retained
@@ -132,15 +157,6 @@ class Order extends Model
     public function rider(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rider_id');
-    }
-
-    /**
-     * Legacy order-level shipment relationship.
-     * Keep temporarily until shipments are transitioned to seller orders.
-     */
-    public function shipment()
-    {
-        return $this->hasOne(Shipment::class);
     }
 
     public function calculateDistance($lat1, $lng1, $lat2, $lng2)
@@ -170,6 +186,7 @@ class Order extends Model
             'sorted' => 'success',
             'assigned_to_rider' => 'warning',
             'out_for_delivery' => 'primary',
+            'partially_delivered' => 'warning',
             'delivered' => 'success',
             'completed' => 'success',
             'delivery_failed' => 'danger',

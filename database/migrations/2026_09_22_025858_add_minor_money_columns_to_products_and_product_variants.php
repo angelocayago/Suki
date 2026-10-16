@@ -19,30 +19,22 @@ return new class extends Migration
             $table->unsignedBigInteger('discounted_price_minor')->nullable();
         });
 
-        // Convert existing peso values to integer centavos.
-        DB::statement("
-            UPDATE products
-            SET price_minor = ROUND(price * 100)::bigint
-            WHERE price IS NOT NULL
-        ");
+        // Convert existing peso values into integer centavos.
+        foreach (['products', 'product_variants'] as $table) {
+            DB::table($table)
+                ->whereNotNull('price')
+                ->update([
+                    'price_minor' => DB::raw('CAST(ROUND(price * 100) AS BIGINT)'),
+                ]);
 
-        DB::statement("
-            UPDATE products
-            SET discounted_price_minor = ROUND(discounted_price * 100)::bigint
-            WHERE discounted_price IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE product_variants
-            SET price_minor = ROUND(price * 100)::bigint
-            WHERE price IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE product_variants
-            SET discounted_price_minor = ROUND(discounted_price * 100)::bigint
-            WHERE discounted_price IS NOT NULL
-        ");
+            DB::table($table)
+                ->whereNotNull('discounted_price')
+                ->update([
+                    'discounted_price_minor' => DB::raw(
+                        'CAST(ROUND(discounted_price * 100) AS BIGINT)'
+                    ),
+                ]);
+        }
     }
 
     public function down(): void

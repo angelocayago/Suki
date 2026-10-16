@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Shipping Label - {{ $shipment->tracking_number }}</title>
@@ -7,15 +8,16 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   @vite('resources/css/shipments-label.css')
 </head>
+
 <body>
   @php
-    $sellerOrder = $shipment->sellerOrder;
-    $order = $sellerOrder?->order;
-    $sellerShop = $sellerOrder?->seller;
-    $sellerUser = $sellerShop?->owner;
-    $pickupAddress = $sellerShop?->pickupAddress;
-    $buyer = $order?->user;
-    $parcelItems = $sellerOrder?->items ?? collect();
+  $sellerOrder = $shipment->sellerOrder;
+  $order = $sellerOrder?->order;
+  $sellerShop = $sellerOrder?->seller;
+  $sellerUser = $sellerShop?->owner;
+  $pickupAddress = $sellerShop?->pickupAddress;
+  $buyer = $order?->user;
+  $parcelItems = $sellerOrder?->items ?? collect();
   @endphp
 
   <div class="no-print text-center mb-3">
@@ -37,11 +39,18 @@
       *{{ $shipment->tracking_number }}*
     </div>
 
-    <div class="qr-section">
-      <img src="{{ route('shipments.qr.image', $shipment) }}" alt="QR Code" onerror="this.style.display='none'">
-      <div class="mt-2 small">
-        <strong>SCAN TO CONFIRM</strong><br>
-        <code>{{ $shipment->qr_token }}</code>
+    <div class="qr-section text-center my-3">
+      <div class="fw-bold mb-2">SCAN TO CONFIRM</div>
+
+      <img
+        src="{{ route('shipments.qr.image', $shipment) }}"
+        alt="Shipment QR Code"
+        width="220"
+        height="220"
+        style="display:block; margin:0 auto; background:white;">
+
+      <div class="small mt-2">
+        <strong>{{ $shipment->tracking_number }}</strong>
       </div>
     </div>
 
@@ -57,37 +66,37 @@
               ?? 'Seller' }}<br>
 
           @if($pickupAddress)
-            {{ $pickupAddress->address_line1 }}
-            @if($pickupAddress->address_line2)
-              {{ $pickupAddress->address_line2 }}
-            @endif
-            <br>
+          {{ $pickupAddress->address_line1 }}
+          @if($pickupAddress->address_line2)
+          {{ $pickupAddress->address_line2 }}
+          @endif
+          <br>
 
-            {{ $pickupAddress->city }},
-            {{ $pickupAddress->province }}
-            {{ $pickupAddress->postal_code }}<br>
+          {{ $pickupAddress->city }},
+          {{ $pickupAddress->province }}
+          {{ $pickupAddress->postal_code }}<br>
 
-            {{ $pickupAddress->country }}<br>
+          {{ $pickupAddress->country }}<br>
 
-            @if($pickupAddress->phone)
-              <i class="bi bi-telephone"></i> {{ $pickupAddress->phone }}
-            @elseif($sellerUser?->phone)
-              <i class="bi bi-telephone"></i> {{ $sellerUser->phone }}
-            @endif
+          @if($pickupAddress->phone)
+          <i class="bi bi-telephone"></i> {{ $pickupAddress->phone }}
+          @elseif($sellerUser?->phone)
+          <i class="bi bi-telephone"></i> {{ $sellerUser->phone }}
+          @endif
           @elseif($sellerUser)
-            {{ $sellerUser->house_number }} {{ $sellerUser->street_address }}<br>
+          {{ $sellerUser->house_number }} {{ $sellerUser->street_address }}<br>
 
-            {{ $sellerUser->barangay_name ?? $sellerUser->barangay }},
-            {{ $sellerUser->municipality_name ?? $sellerUser->municipality }}<br>
+          {{ $sellerUser->barangay_name ?? $sellerUser->barangay }},
+          {{ $sellerUser->municipality_name ?? $sellerUser->municipality }}<br>
 
-            {{ $sellerUser->province_name ?? $sellerUser->province }},
-            {{ $sellerUser->region_name ?? $sellerUser->region }}<br>
+          {{ $sellerUser->province_name ?? $sellerUser->province }},
+          {{ $sellerUser->region_name ?? $sellerUser->region }}<br>
 
-            @if($sellerUser->phone)
-              <i class="bi bi-telephone"></i> {{ $sellerUser->phone }}
-            @endif
+          @if($sellerUser->phone)
+          <i class="bi bi-telephone"></i> {{ $sellerUser->phone }}
+          @endif
           @else
-            {{ $shipment->pickup_address }}
+          {{ $shipment->pickup_address }}
           @endif
         </div>
       </div>
@@ -98,7 +107,7 @@
           {{ $buyer?->name ?? 'Buyer' }}<br>
           {{ $shipment->delivery_address }}<br>
           @if($buyer?->phone)
-            <i class="bi bi-telephone"></i> {{ $buyer->phone }}
+          <i class="bi bi-telephone"></i> {{ $buyer->phone }}
           @endif
         </div>
       </div>
@@ -109,7 +118,7 @@
         <small>
           <strong>Order #:</strong> {{ $order?->order_number ?? 'N/A' }}
           @if($sellerOrder)
-            <br><strong>Parcel #:</strong> {{ $sellerOrder->id }}
+          <br><strong>Parcel #:</strong> {{ $sellerOrder->id }}
           @endif
         </small>
       </div>
@@ -119,19 +128,19 @@
     </div>
 
     @if($parcelItems->count() > 0)
-      <div class="mt-3">
-        <strong>Items:</strong>
-        <ul class="small mb-0">
-          @foreach($parcelItems as $item)
-            <li>
-              {{ $item->product_name }} x{{ $item->quantity }}
-              @if($item->size)
-                ({{ $item->size->name }})
-              @endif
-            </li>
-          @endforeach
-        </ul>
-      </div>
+    <div class="mt-3">
+      <strong>Items:</strong>
+      <ul class="small mb-0">
+        @foreach($parcelItems as $item)
+        <li>
+          {{ $item->product_name }} x{{ $item->quantity }}
+          @if($item->size)
+          ({{ $item->size->name }})
+          @endif
+        </li>
+        @endforeach
+      </ul>
+    </div>
     @endif
 
     <div class="mt-3 text-center small text-muted">
@@ -139,4 +148,5 @@
     </div>
   </div>
 </body>
+
 </html>

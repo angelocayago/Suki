@@ -1,7 +1,7 @@
 @extends('rider.layout')
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+<div class="d-flex justify-content-between flex-wrap align-items-center pt-3 pb-2 mb-3 border-bottom">
   <h1 class="h2">Delivery Notifications</h1>
 
   <div class="d-flex gap-2">
@@ -16,181 +16,110 @@
 </div>
 
 <div class="table-container">
-  <h5 class="mb-3">Available Deliveries</h5>
+  <h5 class="mb-3">My Assigned Shipments</h5>
 
   <div class="table-responsive">
     <table class="table table-hover align-middle">
       <thead class="table-light">
         <tr>
+          <th>Tracking #</th>
           <th>Order #</th>
           <th>Customer</th>
           <th>Address</th>
           <th>Contact</th>
           <th>Zone</th>
           <th>Ready</th>
-          <th>Distance</th>
           <th>Status</th>
           <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        @forelse($deliveries as $order)
-          @php
-            /*
-            |--------------------------------------------------------------------------
-            | Distance
-            |--------------------------------------------------------------------------
-            */
-            $distance = null;
+        @forelse($deliveries as $shipment)
+        @php
+        $order = $shipment->sellerOrder->order;
 
-            if (
-                $order->customer_latitude &&
-                $order->customer_longitude &&
-                Auth::user()->latitude &&
-                Auth::user()->longitude
-            ) {
-                $distance = $order->calculateDistance(
-                    Auth::user()->latitude,
-                    Auth::user()->longitude,
-                    $order->customer_latitude,
-                    $order->customer_longitude
-                );
-            }
+        $shippingData = is_array($order->shipping_address)
+        ? $order->shipping_address
+        : json_decode($order->shipping_address ?? '', true);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Delivery Address
-            |--------------------------------------------------------------------------
-            */
-            $shippingData = json_decode($order->shipping_address, true);
+        $displayAddress = is_array($shippingData)
+        ? ($shippingData['address']
+        ?? implode(', ', array_filter([
+        $shippingData['address_line1'] ?? null,
+        $shippingData['address_line2'] ?? null,
+        $shippingData['city'] ?? null,
+        $shippingData['province'] ?? null,
+        ])))
+        : $order->shipping_address;
 
-            $displayAddress = is_array($shippingData)
-                ? ($shippingData['address'] ?? $order->shipping_address)
-                : $order->shipping_address;
+        $contactNumber = is_array($shippingData)
+        ? ($shippingData['phone'] ?? $order->user?->phone)
+        : $order->user?->phone;
 
-            $contactNumber = is_array($shippingData)
-                ? ($shippingData['phone'] ?? ($order->user->phone ?? 'N/A'))
-                : ($order->user->phone ?? 'N/A');
-          @endphp
+        $ready = $shipment->received_by_sorting_center
+        && $shipment->sorting_status === 'staged';
+        @endphp
 
-          <tr>
-            <td>
-              {{ $order->order_number }}
-            </td>
+        <tr>
+          <td>{{ $shipment->tracking_number ?? 'N/A' }}</td>
+          <td>{{ $order->order_number }}</td>
+          <td>{{ $order->user?->name ?? 'N/A' }}</td>
 
-            <td>
-              {{ $order->user->name ?? 'N/A' }}
-            </td>
+          <td>
+            @if($displayAddress)
+            <a
+              href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($displayAddress) }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-decoration-none">
+              {{ Str::limit($displayAddress, 40) }}
+            </a>
+            @else
+            N/A
+            @endif
+          </td>
 
-            <td>
-              <a
-                href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($displayAddress) }}"
-                target="_blank"
-                class="text-decoration-none"
-              >
-                {{ Str::limit($displayAddress, 40) }}
-              </a>
-            </td>
+          <td>{{ $contactNumber ?: 'N/A' }}</td>
 
-            <td>
-              {{ $contactNumber }}
-            </td>
+          <td>
+            <span class="badge bg-info">
+              {{ $shipment->delivery_zone ?? $order->delivery_zone ?? 'N/A' }}
+            </span>
+          </td>
 
-            <td>
-              <span class="badge bg-info">
-                {{ $order->delivery_zone ?? 'N/A' }}
-              </span>
-            </td>
+          <td>
+            @if($ready)
+            <span class="badge bg-success">Staged</span>
+            @else
+            <span class="badge bg-secondary">Processing</span>
+            @endif
+          </td>
 
-            <td>
-              @if($order->ready_for_pickup)
-                <span class="badge bg-success">Ready</span>
-              @else
-                <span class="badge bg-secondary">Pending</span>
-              @endif
-            </td>
+          <td>
+            <span class="badge bg-{{
+                                $shipment->status === 'out_for_delivery'
+                                    ? 'primary'
+                                    : ($shipment->status === 'assigned' ? 'info' : 'warning')
+                            }}">
+              {{ ucwords(str_replace('_', ' ', $shipment->status)) }}
+            </span>
+          </td>
 
-            <td>
-              @if($distance !== null)
-                {{ number_format($distance, 1) }} km
-              @else
-                N/A
-              @endif
-            </td>
-
-            <td>
-              @if($order->delivery_status === 'picked_up_from_sorting_center')
-                <span class="badge bg-primary">
-                  Picked Up
-                </span>
-
-              @elseif($order->delivery_status === 'out_for_delivery')
-                <span class="badge bg-warning text-dark">
-                  Out for Delivery
-                </span>
-
-              @elseif($order->delivery_status === 'ready_for_delivery_pickup')
-                <span class="badge bg-info">
-                  Ready for Delivery
-                </span>
-
-              @elseif($order->delivery_status === 'assigned_to_rider')
-                <span class="badge bg-secondary">
-                  Assigned
-                </span>
-
-              @else
-                <span class="badge bg-secondary">
-                  {{ ucfirst(str_replace('_', ' ', $order->delivery_status)) }}
-                </span>
-              @endif
-            </td>
-
-            <td>
-              @if(
-                  $order->rider_id === Auth::id() &&
-                  in_array($order->delivery_status, [
-                      'assigned_to_rider',
-                      'ready_for_delivery_pickup',
-                      'picked_up_from_sorting_center',
-                      'out_for_delivery'
-                  ])
-              )
-                <a
-                  href="{{ route('rider.orders.show', $order) }}"
-                  class="btn btn-sm btn-primary"
-                >
-                  <i class="bi bi-eye"></i> View
-                </a>
-
-              @elseif(!$order->rider_id)
-                <form
-                  method="POST"
-                  action="{{ route('rider.deliveries.accept', $order) }}"
-                  class="d-inline"
-                >
-                  @csrf
-
-                  <button type="submit" class="btn btn-sm btn-success">
-                    Accept
-                  </button>
-                </form>
-
-              @else
-                <span class="text-muted small">
-                  Assigned
-                </span>
-              @endif
-            </td>
-          </tr>
-
+          <td>
+            <a
+              href="{{ route('rider.shipments.show', $shipment) }}"
+              class="btn btn-sm btn-primary">
+              <i class="bi bi-eye"></i> View
+            </a>
+          </td>
+        </tr>
         @empty
-          <tr>
-            <td colspan="9" class="text-center text-muted py-4">
-              No available deliveries at the moment.
-            </td>
-          </tr>
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">
+            No assigned shipments at the moment.
+          </td>
+        </tr>
         @endforelse
       </tbody>
     </table>

@@ -1,7 +1,7 @@
-@extends('seller.layout')
+﻿@extends('seller.layout')
 
 @push('styles')
-  @vite('resources/css/seller/products.css')
+@vite('resources/css/seller/products.css')
 @endpush
 
 @section('content')
@@ -12,53 +12,53 @@
 </div>
 
 @if(in_array($product->compliance_status, ['flagged', 'auto_flagged']))
-  @php
-    $daysLeft = $product->daysUntilResubmitDeadline();
-    $deadlinePassed = $product->isResubmitDeadlinePassed();
-  @endphp
-  <div class="modal fade" id="flaggedModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header {{ $deadlinePassed ? 'bg-danger' : 'bg-danger' }} text-white">
-          <h5 class="modal-title">
-            <i class="bi {{ $product->compliance_status == 'auto_flagged' ? 'bi-robot' : 'bi-flag-fill' }}"></i>
-            Product {{ $product->compliance_status == 'auto_flagged' ? 'Auto-Flagged by System' : 'Flagged by Admin' }}
-          </h5>
-        </div>
-        <div class="modal-body">
-          @if($product->flagged_reason)
-            <p class="mb-1"><strong>Reason:</strong> {{ $product->flagged_reason }}</p>
-          @endif
-          @if($product->admin_notes)
-            <p class="mb-1"><strong>Admin Notes:</strong> {!! nl2br(e($product->admin_notes)) !!}</p>
-          @endif
-          @if($deadlinePassed)
-            <p class="mb-0 mt-2"><strong><i class="bi bi-exclamation-octagon"></i> Deadline Passed:</strong> The 7-day resubmission window has expired. You can no longer update this product. Please contact admin support to restore it.</p>
-          @else
-            <p class="mb-0 mt-2"><strong>⏰ Resubmission Deadline:</strong> You have <strong>{{ $daysLeft }} day(s) left</strong> to fix the issues and resubmit (deadline: {{ $product->flaggedDeadline()->format('M d, Y g:i A') }}). After this, the product can only be restored by admin support.</p>
-            <p class="mb-0 mt-2"><strong>Action Required:</strong> Please fix the issues mentioned above, update the product below, and save. The product will be automatically resubmitted for admin review.</p>
-          @endif
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">I Understand</button>
-        </div>
+@php
+$daysLeft = $product->daysUntilResubmitDeadline();
+$deadlinePassed = $product->isResubmitDeadlinePassed();
+@endphp
+<div class="modal fade" id="flaggedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header {{ $deadlinePassed ? 'bg-danger' : 'bg-danger' }} text-white">
+        <h5 class="modal-title">
+          <i class="bi {{ $product->compliance_status == 'auto_flagged' ? 'bi-robot' : 'bi-flag-fill' }}"></i>
+          Product {{ $product->compliance_status == 'auto_flagged' ? 'Auto-Flagged by System' : 'Flagged by Admin' }}
+        </h5>
+      </div>
+      <div class="modal-body">
+        @if($product->flagged_reason)
+        <p class="mb-1"><strong>Reason:</strong> {{ $product->flagged_reason }}</p>
+        @endif
+        @if($product->admin_notes)
+        <p class="mb-1"><strong>Admin Notes:</strong> {!! nl2br(e($product->admin_notes)) !!}</p>
+        @endif
+        @if($deadlinePassed)
+        <p class="mb-0 mt-2"><strong><i class="bi bi-exclamation-octagon"></i> Deadline Passed:</strong> The 7-day resubmission window has expired. You can no longer update this product. Please contact admin support to restore it.</p>
+        @else
+        <p class="mb-0 mt-2"><strong>â° Resubmission Deadline:</strong> You have <strong>{{ $daysLeft }} day(s) left</strong> to fix the issues and resubmit (deadline: {{ $product->flaggedDeadline()->format('M d, Y g:i A') }}). After this, the product can only be restored by admin support.</p>
+        <p class="mb-0 mt-2"><strong>Action Required:</strong> Please fix the issues mentioned above, update the product below, and save. The product will be automatically resubmitted for admin review.</p>
+        @endif
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">I Understand</button>
       </div>
     </div>
   </div>
-@elseif($product->compliance_status === 'pending')
-  <div class="alert alert-warning" style="max-width: 800px;">
-    <i class="bi bi-hourglass-split"></i> This product is currently pending admin review.
-  </div>
+</div>
+@elseif($product->status === 'published' && $product->compliance_status === 'pending')
+<div class="alert alert-warning" style="max-width: 800px;">
+  <i class="bi bi-hourglass-split"></i> This product is currently pending admin review.
+</div>
 @endif
 
 <div class="table-container mx-auto" style="max-width: 800px;">
   @if($product->compliance_status === 'flagged' && $deadlinePassed)
-    <div class="text-center py-4">
-      <i class="bi bi-lock-fill display-1 text-muted"></i>
-      <h4 class="mt-3">Editing Locked</h4>
-      <p class="text-muted">The 7-day resubmission deadline has passed. This product can no longer be edited.</p>
-      <a href="{{ route('seller.products') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Products</a>
-    </div>
+  <div class="text-center py-4">
+    <i class="bi bi-lock-fill display-1 text-muted"></i>
+    <h4 class="mt-3">Editing Locked</h4>
+    <p class="text-muted">The 7-day resubmission deadline has passed. This product can no longer be edited.</p>
+    <a href="{{ route('seller.products') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Products</a>
+  </div>
   @else
   <form method="POST" action="{{ route('seller.products.update', $product) }}" enctype="multipart/form-data">
     @csrf
@@ -73,11 +73,11 @@
       <select name="category_id" id="category_id" class="form-select" required {{ empty($allowedCategoryIds) ? 'disabled' : '' }}>
         <option value="">Select Category</option>
         @foreach($categories as $category)
-          <option value="{{ $category->id }}" {{ old('category_id', $product->category_id) == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+        <option value="{{ $category->id }}" {{ old('category_id', $product->category_id) == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
         @endforeach
       </select>
       @if(empty($allowedCategoryIds))
-        <div class="text-danger mt-2">You have no selling categories set. Please contact admin support to assign categories to your seller account.</div>
+      <div class="text-danger mt-2">You have no selling categories set. Please contact admin support to assign categories to your seller account.</div>
       @endif
       @error('category_id') <div class="text-danger">{{ $message }}</div> @enderror
     </div>
@@ -88,7 +88,7 @@
     </div>
     <div class="row">
       <div class="col-md-6 mb-3">
-        <label for="price" class="form-label">Price ($)</label>
+        <label for="price" class="form-label">Price (₱)</label>
         <input type="number" name="price" id="price" class="form-control" value="{{ old('price', ($product->price_minor / 100)) }}" step="0.01" min="0" required>
         @error('price') <div class="text-danger">{{ $message }}</div> @enderror
       </div>
@@ -127,17 +127,17 @@
     <div class="mb-3">
       <label for="video" class="form-label">Product Video <span class="text-muted small">(Optional)</span></label>
       @if($product->video_path)
-        <div class="mb-2">
-          <video controls class="rounded shadow-sm" style="max-width: 100%; max-height: 200px;">
-            <source src="{{ asset('storage/' . $product->video_path) }}" type="video/mp4">
-            Your browser does not support the video tag.
-          </video>
-          <div class="mt-2">
-            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeVideoModal">
-              <i class="bi bi-trash"></i> Remove Video
-            </button>
-          </div>
+      <div class="mb-2">
+        <video controls class="rounded shadow-sm" style="max-width: 100%; max-height: 200px;">
+          <source src="{{ asset('storage/' . $product->video_path) }}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeVideoModal">
+            <i class="bi bi-trash"></i> Remove Video
+          </button>
         </div>
+      </div>
       @endif
       <input type="file" name="video" id="video" class="form-control" accept="video/*">
       <small class="text-muted">Upload a new video to replace the current one. Max 10MB. Supported formats: mp4, mov, avi, webm.</small>
@@ -148,14 +148,14 @@
     <div class="mb-3">
       <label for="secondary_image" class="form-label">Additional Image <span class="text-muted small">(Optional)</span></label>
       @if($product->secondary_image_path)
-        <div class="mb-2">
-          <img src="{{ $product->secondary_image_url }}" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
-          <div class="mt-2">
-            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeSecondaryImageModal">
-              <i class="bi bi-trash"></i> Remove Image
-            </button>
-          </div>
+      <div class="mb-2">
+        <img src="{{ $product->secondary_image_url }}" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeSecondaryImageModal">
+            <i class="bi bi-trash"></i> Remove Image
+          </button>
         </div>
+      </div>
       @endif
       <input type="file" name="secondary_image" id="secondary_image" class="form-control" accept="image/*">
       <small class="text-muted">Upload a new image to replace the current one. Max 2MB. JPG, PNG, GIF.</small>
@@ -164,40 +164,40 @@
 
     <hr>
 
-     <div class="mb-3">
-       <label class="form-label">Product Images</label>
-       <p class="text-muted small">Manage your product images. Each image appears in the product gallery.</p>
-       <input type="hidden" name="primary_image_id" id="primary-image-id" value="{{ $product->images()->where('is_primary', true)->first()?->id ?? '' }}">
-       @if($product->images->count() > 0)
-         <div class="row row-cols-auto g-2 mb-2" id="image-gallery">
-           @foreach($product->images as $img)
-             <div class="col" id="image-item-{{ $img->id }}">
-               <div class="position-relative border rounded" style="width: 80px; height: 80px;">
-                 <img src="{{ $img->url }}" class="w-100 h-100 rounded" style="object-fit: cover;" alt="{{ $img->alt_text ?? $product->name }}">
-                 @if($img->is_primary)
-                   <span class="position-absolute top-0 start-0 badge bg-success rounded-0" style="font-size: 0.6rem;"><i class="bi bi-star-fill"></i></span>
-                 @else
-                   <button type="button" class="btn btn-sm btn-outline-secondary position-absolute top-0 start-0 rounded-0" style="font-size: 0.5rem; padding: 2px 4px;" onclick="setPrimaryImage({{ $img->id }})" title="Set as Main Image">
-                     <i class="bi bi-star"></i>
-                   </button>
-                 @endif
-                 <button type="button" class="btn btn-sm btn-outline-danger position-absolute bottom-0 end-0 rounded-0" style="font-size: 0.5rem; padding: 2px 4px;" onclick="markRemoveImage({{ $img->id }}, '{{ addslashes($img->alt_text ?? $product->name) }}')" title="Remove image">
-                   <i class="bi bi-x"></i>
-                 </button>
-               </div>
-             </div>
-           @endforeach
-         </div>
-         <div id="remove-inputs"></div>
-       @endif
-       <label for="new_images" class="form-label mt-2">Add more images</label>
-       <input type="file" name="new_images[]" id="new_images" class="form-control" accept="image/*" multiple>
-       <small class="text-muted">You can upload multiple images (jpeg, png, jpg, gif). Max 2MB each.</small>
-       @error('new_images') <div class="text-danger">{{ $message }}</div> @enderror
-       @error('new_images.*') <div class="text-danger">{{ $message }}</div> @enderror
-     </div>
+    <div class="mb-3">
+      <label class="form-label">Product Images</label>
+      <p class="text-muted small">Manage your product images. Each image appears in the product gallery.</p>
+      <input type="hidden" name="primary_image_id" id="primary-image-id" value="{{ $product->images()->where('is_primary', true)->first()?->id ?? '' }}">
+      @if($product->images->count() > 0)
+      <div class="row row-cols-auto g-2 mb-2" id="image-gallery">
+        @foreach($product->images as $img)
+        <div class="col" id="image-item-{{ $img->id }}">
+          <div class="position-relative border rounded" style="width: 80px; height: 80px;">
+            <img src="{{ $img->url }}" class="w-100 h-100 rounded" style="object-fit: cover;" alt="{{ $img->alt_text ?? $product->name }}">
+            @if($img->is_primary)
+            <span class="position-absolute top-0 start-0 badge bg-success rounded-0" style="font-size: 0.6rem;"><i class="bi bi-star-fill"></i></span>
+            @else
+            <button type="button" class="btn btn-sm btn-outline-secondary position-absolute top-0 start-0 rounded-0" style="font-size: 0.5rem; padding: 2px 4px;" onclick="setPrimaryImage({{ $img->id }})" title="Set as Main Image">
+              <i class="bi bi-star"></i>
+            </button>
+            @endif
+            <button type="button" class="btn btn-sm btn-outline-danger position-absolute bottom-0 end-0 rounded-0" style="font-size: 0.5rem; padding: 2px 4px;" onclick="markRemoveImage({{ $img->id }}, '{{ addslashes($img->alt_text ?? $product->name) }}')" title="Remove image">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+        @endforeach
+      </div>
+      <div id="remove-inputs"></div>
+      @endif
+      <label for="new_images" class="form-label mt-2">Add more images</label>
+      <input type="file" name="new_images[]" id="new_images" class="form-control" accept="image/*" multiple>
+      <small class="text-muted">You can upload multiple images (jpeg, png, jpg, gif). Max 2MB each.</small>
+      @error('new_images') <div class="text-danger">{{ $message }}</div> @enderror
+      @error('new_images.*') <div class="text-danger">{{ $message }}</div> @enderror
+    </div>
 
-     <div id="new-image-previews" class="row row-cols-auto g-2 mb-3"></div>
+    <div id="new-image-previews" class="row row-cols-auto g-2 mb-3"></div>
 
     <hr>
 
@@ -209,132 +209,149 @@
 
       <div id="variants-list" class="variants-list">
         @php
-          $existingVariations = $product->variations;
-          $variantIndex = 0;
+        $existingVariations = $product->variations;
+        $variantIndex = 0;
         @endphp
         @forelse($existingVariations as $variation)
-          <div class="variant-row card mb-3" data-variation-id="{{ $variation->id }}" data-index="{{ $variantIndex }}">
-            <div class="card-body">
-              <input type="hidden" name="variations[{{ $variantIndex }}][id]" value="{{ $variation->id }}">
-              <div class="row g-3 align-items-end variant-fields-row">
-                <div class="col-md-4">
-                  <label class="form-label form-label-sm mb-0">Image</label>
-                  <div class="variant-image-uploader" data-index="{{ $variantIndex }}">
-                    @if($variation->image_url)
-                      <div id="variant-image-placeholder-{{ $variantIndex }}" class="image-upload-placeholder d-none">
-                        <i class="bi bi-image"></i>
-                        <span>Upload Image</span>
-                      </div>
-                      <div id="variant-image-preview-{{ $variantIndex }}" class="image-preview-container">
-                        <img src="{{ $variation->image_url }}" class="image-preview-thumb" alt="Variant preview">
-                        <button type="button" class="btn-change" onclick="changeVariantImage({{ $variantIndex }})">Change</button>
-                        <button type="button" class="btn-remove" onclick="removeVariantImage({{ $variantIndex }})">×</button>
-                        <input type="file" name="variations[{{ $variantIndex }}][image]" class="variant-image-input" style="display:none;" accept="image/*">
-                      </div>
-                    @else
-                      <div id="variant-image-placeholder-{{ $variantIndex }}" class="image-upload-placeholder" onclick="changeVariantImage({{ $variantIndex }})">
-                        <i class="bi bi-image"></i>
-                        <span>Upload Image</span>
-                      </div>
-                      <div id="variant-image-preview-{{ $variantIndex }}" class="image-preview-container d-none">
-                        <img src="" class="image-preview-thumb" alt="Variant preview">
-                        <button type="button" class="btn-change" onclick="changeVariantImage({{ $variantIndex }})">Change</button>
-                        <button type="button" class="btn-remove" onclick="removeVariantImage({{ $variantIndex }})">×</button>
-                        <input type="file" name="variations[{{ $variantIndex }}][image]" class="variant-image-input" style="display:none;" accept="image/*">
-                      </div>
-                    @endif
+        <div class="variant-row card mb-3" data-variation-id="{{ $variation->id }}" data-index="{{ $variantIndex }}">
+          <div class="card-body">
+            <input type="hidden" name="variations[{{ $variantIndex }}][id]" value="{{ $variation->id }}">
+            <div class="row g-3 align-items-end variant-fields-row">
+              <div class="col-md-4">
+                <label class="form-label form-label-sm mb-0">Variant Name</label>
+                <input type="text"
+                       name="variations[{{ $variantIndex }}][name]"
+                       class="form-control form-control-sm"
+                       value="{{ old('variations.'.$variantIndex.'.name', $variation->name) }}"
+                       placeholder="e.g. Police Car, Fire Truck"
+                       maxlength="255">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label form-label-sm mb-0">Image</label>
+                <div class="variant-image-uploader" data-index="{{ $variantIndex }}">
+                  @if($variation->image_url)
+                  <div id="variant-image-placeholder-{{ $variantIndex }}" class="image-upload-placeholder d-none">
+                    <i class="bi bi-image"></i>
+                    <span>Upload Image</span>
                   </div>
+                  <div id="variant-image-preview-{{ $variantIndex }}" class="image-preview-container">
+                    <img src="{{ $variation->image_url }}" class="image-preview-thumb" alt="Variant preview">
+                    <button type="button" class="btn-change" onclick="changeVariantImage({{ $variantIndex }})">Change</button>
+                    <button type="button" class="btn-remove" onclick="removeVariantImage({{ $variantIndex }})">&times;</button>
+                    <input type="file" name="variations[{{ $variantIndex }}][image]" class="variant-image-input" style="display:none;" accept="image/*">
+                  </div>
+                  @else
+                  <div id="variant-image-placeholder-{{ $variantIndex }}" class="image-upload-placeholder" onclick="changeVariantImage({{ $variantIndex }})">
+                    <i class="bi bi-image"></i>
+                    <span>Upload Image</span>
+                  </div>
+                  <div id="variant-image-preview-{{ $variantIndex }}" class="image-preview-container d-none">
+                    <img src="" class="image-preview-thumb" alt="Variant preview">
+                    <button type="button" class="btn-change" onclick="changeVariantImage({{ $variantIndex }})">Change</button>
+                    <button type="button" class="btn-remove" onclick="removeVariantImage({{ $variantIndex }})">&times;</button>
+                    <input type="file" name="variations[{{ $variantIndex }}][image]" class="variant-image-input" style="display:none;" accept="image/*">
+                  </div>
+                  @endif
                 </div>
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Color</label>
-                  <input type="text" name="variations[{{ $variantIndex }}][color]" class="form-control form-control-sm" placeholder="e.g. White" value="{{ $variation->color ?? '' }}">
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Color</label>
+                <input type="text" name="variations[{{ $variantIndex }}][color]" class="form-control form-control-sm" placeholder="e.g. White" value="{{ $variation->color ?? '' }}">
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Size</label>
-                  <input type="text" name="variations[{{ $variantIndex }}][size]" class="form-control form-control-sm" placeholder="e.g. 8 / XL" value="{{ $variation->size ?? '' }}">
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Size</label>
+                <input type="text" name="variations[{{ $variantIndex }}][size]" class="form-control form-control-sm" placeholder="e.g. 8 / XL" value="{{ $variation->size ?? '' }}">
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Price</label>
-                  <input type="number" name="variations[{{ $variantIndex }}][price]" class="form-control form-control-sm" placeholder="Optional" step="0.01" min="0" value="{{ ($variation->price_minor !== null ? $variation->price_minor / 100 : '') }}">
-                  <small class="text-muted small d-block">Blank = uses product price</small>
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Price</label>
+                <input type="number" name="variations[{{ $variantIndex }}][price]" class="form-control form-control-sm" placeholder="Optional" step="0.01" min="0" value="{{ ($variation->price_minor !== null ? $variation->price_minor / 100 : '') }}">
+                <small class="text-muted small d-block">Blank = uses product price</small>
+              </div>
 
-                <div class="col-md-1">
-                  <label class="form-label form-label-sm mb-0">Stock</label>
-                  <input type="number" name="variations[{{ $variantIndex }}][stock]" class="form-control form-control-sm" placeholder="0" min="0" value="{{ $variation->stock ?? 0 }}">
-                </div>
+              <div class="col-md-1">
+                <label class="form-label form-label-sm mb-0">Stock</label>
+                <input type="number" name="variations[{{ $variantIndex }}][stock]" class="form-control form-control-sm" placeholder="0" min="0" value="{{ $variation->stock ?? 0 }}">
+              </div>
 
-                <div class="col-md-1">
-                  <label class="form-label form-label-sm mb-0">SKU</label>
-                  <input type="text" name="variations[{{ $variantIndex }}][sku]" class="form-control form-control-sm" placeholder="Optional" value="{{ $variation->sku ?? '' }}">
-                </div>
+              <div class="col-md-1">
+                <label class="form-label form-label-sm mb-0">SKU</label>
+                <input type="text" name="variations[{{ $variantIndex }}][sku]" class="form-control form-control-sm" placeholder="Optional" value="{{ $variation->sku ?? '' }}">
+              </div>
 
-                <div class="col-md-auto d-flex align-items-end">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVariantRow({{ $variantIndex }})" title="Remove this variant">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
+              <div class="col-md-auto d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVariantRow({{ $variantIndex }})" title="Remove this variant">
+                  <i class="bi bi-trash"></i>
+                </button>
               </div>
             </div>
           </div>
-          @php $variantIndex++; @endphp
+        </div>
+        @php $variantIndex++; @endphp
         @empty
-          <div class="variant-row card mb-3" data-index="0">
-            <div class="card-body">
-              <div class="row g-3 align-items-end variant-fields-row">
-                <div class="col-md-4">
-                  <label class="form-label form-label-sm mb-0">Image</label>
-                  <div class="variant-image-uploader" data-index="0">
-                    <div id="variant-image-placeholder-0" class="image-upload-placeholder" onclick="changeVariantImage(0)">
-                      <i class="bi bi-image"></i>
-                      <span>Upload Image</span>
-                    </div>
-                    <div id="variant-image-preview-0" class="image-preview-container d-none">
-                      <img src="" class="image-preview-thumb" alt="Variant preview">
-                      <button type="button" class="btn-change" onclick="changeVariantImage(0)">Change</button>
-                      <button type="button" class="btn-remove" onclick="removeVariantImage(0)">×</button>
-                      <input type="file" name="variations[0][image]" class="variant-image-input" style="display:none;" accept="image/*">
-                    </div>
+        <div class="variant-row card mb-3" data-index="0">
+          <div class="card-body">
+            <div class="row g-3 align-items-end variant-fields-row">
+              <div class="col-md-4">
+                <label class="form-label form-label-sm mb-0">Variant Name</label>
+                <input type="text"
+                       name="variations[0][name]"
+                       class="form-control form-control-sm"
+                       placeholder="e.g. Police Car, Fire Truck"
+                       maxlength="255">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label form-label-sm mb-0">Image</label>
+                <div class="variant-image-uploader" data-index="0">
+                  <div id="variant-image-placeholder-0" class="image-upload-placeholder" onclick="changeVariantImage(0)">
+                    <i class="bi bi-image"></i>
+                    <span>Upload Image</span>
+                  </div>
+                  <div id="variant-image-preview-0" class="image-preview-container d-none">
+                    <img src="" class="image-preview-thumb" alt="Variant preview">
+                    <button type="button" class="btn-change" onclick="changeVariantImage(0)">Change</button>
+                    <button type="button" class="btn-remove" onclick="removeVariantImage(0)">&times;</button>
+                    <input type="file" name="variations[0][image]" class="variant-image-input" style="display:none;" accept="image/*">
                   </div>
                 </div>
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Color</label>
-                  <input type="text" name="variations[0][color]" class="form-control form-control-sm" placeholder="e.g. White">
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Color</label>
+                <input type="text" name="variations[0][color]" class="form-control form-control-sm" placeholder="e.g. White">
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Size</label>
-                  <input type="text" name="variations[0][size]" class="form-control form-control-sm" placeholder="e.g. 8 / XL">
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Size</label>
+                <input type="text" name="variations[0][size]" class="form-control form-control-sm" placeholder="e.g. 8 / XL">
+              </div>
 
-                <div class="col-md-2">
-                  <label class="form-label form-label-sm mb-0">Price</label>
-                  <input type="number" name="variations[0][price]" class="form-control form-control-sm" placeholder="Optional" step="0.01" min="0">
-                  <small class="text-muted small d-block">Blank = uses product price</small>
-                </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm mb-0">Price</label>
+                <input type="number" name="variations[0][price]" class="form-control form-control-sm" placeholder="Optional" step="0.01" min="0">
+                <small class="text-muted small d-block">Blank = uses product price</small>
+              </div>
 
-                <div class="col-md-1">
-                  <label class="form-label form-label-sm mb-0">Stock</label>
-                  <input type="number" name="variations[0][stock]" class="form-control form-control-sm" placeholder="0" min="0" value="0">
-                </div>
+              <div class="col-md-1">
+                <label class="form-label form-label-sm mb-0">Stock</label>
+                <input type="number" name="variations[0][stock]" class="form-control form-control-sm" placeholder="0" min="0" value="0">
+              </div>
 
-                <div class="col-md-1">
-                  <label class="form-label form-label-sm mb-0">SKU</label>
-                  <input type="text" name="variations[0][sku]" class="form-control form-control-sm" placeholder="Optional">
-                </div>
+              <div class="col-md-1">
+                <label class="form-label form-label-sm mb-0">SKU</label>
+                <input type="text" name="variations[0][sku]" class="form-control form-control-sm" placeholder="Optional">
+              </div>
 
-                <div class="col-md-auto d-flex align-items-end">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVariantRow(0)" title="Remove this variant">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
+              <div class="col-md-auto d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVariantRow(0)" title="Remove this variant">
+                  <i class="bi bi-trash"></i>
+                </button>
               </div>
             </div>
           </div>
+        </div>
         @endforelse
       </div>
 
@@ -347,35 +364,48 @@
       <label class="form-label">Sizes</label>
       <div class="row">
         @foreach($sizes as $size)
-          @php
-            $hasSize = $product->sizes->contains('id', $size->id);
-            $sizeStock = $hasSize ? $product->sizes->firstWhere('id', $size->id)->pivot->stock : 0;
-          @endphp
-          <div class="col-md-4 mb-2">
-            <div class="form-check">
-              <input class="form-check-input size-checkbox" type="checkbox" name="sizes[]" value="{{ $size->id }}" id="size_{{ $size->id }}" {{ $hasSize ? 'checked' : '' }}>
-              <label class="form-check-label" for="size_{{ $size->id }}">
-                {{ $size->name }}
-              </label>
-            </div>
-            <input type="number" name="size_stock[{{ $size->id }}]" class="form-control form-control-sm mt-1 size-stock-input" placeholder="Stock" min="0" value="{{ old('size_stock.' . $size->id, $sizeStock) }}" {{ $hasSize ? '' : 'disabled' }}>
+        @php
+        $hasSize = $product->sizes->contains('id', $size->id);
+        $sizeStock = $hasSize ? $product->sizes->firstWhere('id', $size->id)->pivot->stock : 0;
+        @endphp
+        <div class="col-md-4 mb-2">
+          <div class="form-check">
+            <input class="form-check-input size-checkbox" type="checkbox" name="sizes[]" value="{{ $size->id }}" id="size_{{ $size->id }}" {{ $hasSize ? 'checked' : '' }}>
+            <label class="form-check-label" for="size_{{ $size->id }}">
+              {{ $size->name }}
+            </label>
           </div>
+          <input type="number" name="size_stock[{{ $size->id }}]" class="form-control form-control-sm mt-1 size-stock-input" placeholder="Stock" min="0" value="{{ old('size_stock.' . $size->id, $sizeStock) }}" {{ $hasSize ? '' : 'disabled' }}>
+        </div>
         @endforeach
       </div>
       @error('sizes') <div class="text-danger">{{ $message }}</div> @enderror
       @error('size_stock') <div class="text-danger">{{ $message }}</div> @enderror
     </div>
-     <input type="hidden" name="remove_video" id="remove-video-input" value="">
-     <input type="hidden" name="remove_secondary_image" id="remove-secondary-image-input" value="">
+    <input type="hidden" name="remove_video" id="remove-video-input" value="">
+    <input type="hidden" name="remove_secondary_image" id="remove-secondary-image-input" value="">
     <div class="d-flex justify-content-between align-items-center mt-4">
-      <button type="submit" class="btn btn-bili-hub"><i class="bi bi-save"></i> Update Product</button>
+      <button type="submit" class="btn btn-outline-primary">
+        <i class="bi bi-save"></i> Save Changes
+      </button>
+
+      @if($product->status === 'draft')
+      <button
+        type="submit"
+        name="status"
+        value="published"
+        class="btn btn-bili-hub"
+        onclick="return confirm('Submit this product for admin review?')">
+        <i class="bi bi-send"></i> Submit for Admin Review
+      </button>
+      @endif
       <button type="button" class="btn btn-outline-danger" onclick="confirmRemoveProduct({{ $product->id }}, '{{ addslashes($product->name) }}')">
         <i class="bi bi-trash"></i> Remove Product
       </button>
     </div>
-    </form>
+  </form>
   @endif
-  </div>
+</div>
 
 @if($product->video_path)
 <div class="modal fade" id="removeVideoModal" tabindex="-1" aria-hidden="true">
@@ -416,15 +446,13 @@
 @endif
 
 <form id="remove-product-form-{{ $product->id }}" method="POST" action="{{ route('seller.products.destroy', $product) }}" style="display:none;">
-    @csrf
-    @method('DELETE')
+  @csrf
+  @method('DELETE')
 </form>
 @endsection
 
 @push('scripts')
 @vite('resources/js/seller/products/edit.js')
 @endpush
-
-
 
 

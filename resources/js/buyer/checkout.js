@@ -12,7 +12,16 @@ const readPayload = (id) => {
 
 const initCheckout = () => {
     const checkoutData = readPayload('checkout-page-data');
-    const defaultAddress = typeof checkoutData?.defaultAddress === 'string' ? checkoutData.defaultAddress : '';
+
+    const defaultAddress =
+        typeof checkoutData?.defaultAddress === 'string'
+            ? checkoutData.defaultAddress
+            : '';
+
+    // ==========================================
+    // SHIPPING ADDRESS
+    // ==========================================
+
     const useSavedButton = document.getElementById('use-saved-btn');
     const editAddressButton = document.getElementById('edit-address-btn');
     const shippingAddressWrap = document.getElementById('shipping-address-wrap');
@@ -20,18 +29,70 @@ const initCheckout = () => {
     const shippingAddress = document.getElementById('shipping_address');
 
     useSavedButton?.addEventListener('click', () => {
-        if (shippingAddress && defaultAddress) shippingAddress.value = defaultAddress;
+        if (shippingAddress && defaultAddress) {
+            shippingAddress.value = defaultAddress;
+        }
     });
 
     editAddressButton?.addEventListener('click', () => {
-        if (shippingAddressWrap) shippingAddressWrap.style.display = 'block';
-        if (savedAddressBox) savedAddressBox.style.display = 'none';
+        if (shippingAddressWrap) {
+            shippingAddressWrap.style.display = 'block';
+        }
+
+        if (savedAddressBox) {
+            savedAddressBox.style.display = 'none';
+        }
+
         shippingAddress?.focus();
     });
+
+    // ==========================================
+    // APPLY VOUCHER
+    // ==========================================
+
+    const voucherInput = document.getElementById('voucher_code');
+    const hiddenVoucherInput = document.getElementById('voucher-code-hidden');
+    const applyVoucherForm = document.getElementById('apply-voucher-form');
+
+    if (voucherInput && hiddenVoucherInput && applyVoucherForm) {
+        applyVoucherForm.addEventListener('submit', (event) => {
+            const voucherCode = voucherInput.value
+                .trim()
+                .toUpperCase();
+
+            if (!voucherCode) {
+                event.preventDefault();
+
+                voucherInput.setCustomValidity(
+                    'Please enter a voucher code.'
+                );
+
+                voucherInput.reportValidity();
+                voucherInput.focus();
+
+                return;
+            }
+
+            voucherInput.setCustomValidity('');
+            hiddenVoucherInput.value = voucherCode;
+        });
+
+        voucherInput.addEventListener('input', () => {
+            voucherInput.setCustomValidity('');
+        });
+    }
 };
 
+// ==========================================
+// INITIALIZE CHECKOUT
+// ==========================================
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCheckout, { once: true });
+    document.addEventListener(
+        'DOMContentLoaded',
+        initCheckout,
+        { once: true }
+    );
 } else {
     initCheckout();
 }

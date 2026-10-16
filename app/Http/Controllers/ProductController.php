@@ -16,6 +16,7 @@ class ProductController extends Controller
     {
         $query = Product::query()
             ->with(['category', 'seller', 'sizes'])
+            ->where('status', 'published')
             ->where('compliance_status', 'approved');
 
         if ($request->filled('search')) {
@@ -60,7 +61,10 @@ class ProductController extends Controller
         $isAdmin = $user && $user->isAdmin();
 
         if (
-            $product->compliance_status !== 'approved'
+            (
+                $product->status !== 'published' ||
+                $product->compliance_status !== 'approved'
+            )
             && !$isOwner
             && !$isAdmin
         ) {
@@ -94,10 +98,11 @@ class ProductController extends Controller
             ->paginate(10);
 
         $relatedProducts = Product::where(
-                'category_id',
-                $product->category_id
-            )
+            'category_id',
+            $product->category_id
+        )
             ->where('id', '!=', $product->id)
+            ->where('status', 'published')
             ->where('compliance_status', 'approved')
             ->with('sizes')
             ->take(4)

@@ -201,8 +201,30 @@ class User extends Authenticatable
 
     public function canLogin(): bool
     {
-        return $this->status === self::STATUS_ACTIVE
-            || $this->status === self::STATUS_SUSPENDED;
+        if ($this->status !== self::STATUS_ACTIVE) {
+            return false;
+        }
+
+        if (!$this->hasAnyRole([
+            'superadmin',
+            'admin',
+            'buyer',
+            'seller',
+            'logistics',
+            'rider',
+        ])) {
+            return false;
+        }
+
+        if ($this->isCustomer() && $this->email_verified_at === null) {
+            return false;
+        }
+
+        if ($this->isRider() && $this->logistic_status !== 'approved') {
+            return false;
+        }
+
+        return true;
     }
 
     public function statusBadgeClass(): string
@@ -429,6 +451,18 @@ public function wishlistProducts()
     return $this->belongsToMany(Product::class, 'wishlists')
         ->withTimestamps();
 }
+
+    /**
+     * Shipments assigned to this rider.
+     */
+    public function shipments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(
+            \App\Models\Shipment::class,
+            'rider_id',
+            'id'
+        );
+    }
 
     
 }

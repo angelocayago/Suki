@@ -15,7 +15,6 @@
         <label for="role" class="form-label fw-medium">Filter by Role</label>
         <select name="role" id="role" class="form-select rounded-xl" onchange="this.form.submit()">
           <option value="">All Roles</option>
-          <option value="buyer" {{ request('role') == 'buyer' ? 'selected' : '' }}>Buyer</option>
           <option value="seller" {{ request('role') == 'seller' ? 'selected' : '' }}>Seller</option>
           <option value="logistics" {{ request('role') == 'logistics' ? 'selected' : '' }}>Logistics</option>
         </select>

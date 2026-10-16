@@ -377,10 +377,25 @@ body {
   flex-shrink: 0;
 }
 
-.kpi-card .kpi-icon.purple { background-color: var(--se-light-lavender); color: var(--se-primary); }
-.kpi-card .kpi-icon.amber { background-color: #FFFBEB; color: #F59E0B; }
-.kpi-card .kpi-icon.blue { background-color: #EFF6FF; color: #3B82F6; }
-.kpi-card .kpi-icon.green { background-color: #ECFDF5; color: #10B981; }
+.kpi-card .kpi-icon.purple {
+  background-color: var(--se-light-lavender);
+  color: var(--se-primary);
+}
+
+.kpi-card .kpi-icon.amber {
+  background-color: #FFFBEB;
+  color: #F59E0B;
+}
+
+.kpi-card .kpi-icon.blue {
+  background-color: #EFF6FF;
+  color: #3B82F6;
+}
+
+.kpi-card .kpi-icon.green {
+  background-color: #ECFDF5;
+  color: #10B981;
+}
 
 .kpi-card .kpi-label {
   font-size: 13px;
@@ -405,10 +420,25 @@ body {
   gap: 4px;
 }
 
-.kpi-card.purple-tint { background-color: rgba(109, 53, 242, 0.02); border-color: rgba(109, 53, 242, 0.1); }
-.kpi-card.amber-tint { background-color: rgba(245, 158, 11, 0.02); border-color: rgba(245, 158, 11, 0.1); }
-.kpi-card.blue-tint { background-color: rgba(59, 130, 246, 0.02); border-color: rgba(59, 130, 246, 0.1); }
-.kpi-card.green-tint { background-color: rgba(16, 185, 129, 0.02); border-color: rgba(16, 185, 129, 0.1); }
+.kpi-card.purple-tint {
+  background-color: rgba(109, 53, 242, 0.02);
+  border-color: rgba(109, 53, 242, 0.1);
+}
+
+.kpi-card.amber-tint {
+  background-color: rgba(245, 158, 11, 0.02);
+  border-color: rgba(245, 158, 11, 0.1);
+}
+
+.kpi-card.blue-tint {
+  background-color: rgba(59, 130, 246, 0.02);
+  border-color: rgba(59, 130, 246, 0.1);
+}
+
+.kpi-card.green-tint {
+  background-color: rgba(16, 185, 129, 0.02);
+  border-color: rgba(16, 185, 129, 0.1);
+}
 
 /* Compact Status Cards */
 .status-card {
@@ -451,11 +481,30 @@ body {
   color: var(--se-text);
 }
 
-.status-card.blue .status-icon { background-color: #EFF6FF; color: #3B82F6; }
-.status-card.amber .status-icon { background-color: #FFFBEB; color: #F59E0B; }
-.status-card.orange .status-icon { background-color: #FFF1ED; color: #F97316; }
-.status-card.red .status-icon { background-color: #FEF2F2; color: #EF4444; }
-.status-card.green .status-icon { background-color: #ECFDF5; color: #10B981; }
+.status-card.blue .status-icon {
+  background-color: #EFF6FF;
+  color: #3B82F6;
+}
+
+.status-card.amber .status-icon {
+  background-color: #FFFBEB;
+  color: #F59E0B;
+}
+
+.status-card.orange .status-icon {
+  background-color: #FFF1ED;
+  color: #F97316;
+}
+
+.status-card.red .status-icon {
+  background-color: #FEF2F2;
+  color: #EF4444;
+}
+
+.status-card.green .status-icon {
+  background-color: #ECFDF5;
+  color: #10B981;
+}
 
 /* Operations Row Cards */
 .operations-card {
@@ -688,13 +737,40 @@ body {
   white-space: nowrap;
 }
 
-.status-badge-pending { background-color: #FEF3C7; color: #92400E; }
-.status-badge-in_transit { background-color: #DBEAFE; color: #1D4ED8; }
-.status-badge-delivered { background-color: #DCFCE7; color: #166534; }
-.status-badge-cancelled { background-color: #FEE2E2; color: #991B1B; }
-.status-badge-delayed { background-color: #FFEDD5; color: #9A3412; }
-.status-badge-assigned { background-color: #E0F2FE; color: #083344; }
-.status-badge-default { background-color: #F1F5F9; color: #475569; }
+.status-badge-pending {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge-in_transit {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.status-badge-delivered {
+  background-color: #DCFCE7;
+  color: #166534;
+}
+
+.status-badge-cancelled {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+.status-badge-delayed {
+  background-color: #FFEDD5;
+  color: #9A3412;
+}
+
+.status-badge-assigned {
+  background-color: #E0F2FE;
+  color: #083344;
+}
+
+.status-badge-default {
+  background-color: #F1F5F9;
+  color: #475569;
+}
 
 /* Empty State */
 .empty-state {
@@ -886,3 +962,244 @@ body {
     display: block;
   }
 }
+
+/* SPEEDY EXPRESS RESPONSIVE DELIVERY MANAGEMENT */
+.se-delivery-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.se-delivery-page>.card {
+  min-width: 0;
+}
+
+.se-delivery-page .table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.se-delivery-page .table {
+  min-width: 1120px;
+  margin-bottom: 0;
+}
+
+.se-delivery-page .table th {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #475569;
+  padding: 15px 12px;
+}
+
+.se-delivery-page .table td {
+  font-size: 13px;
+  padding: 16px 12px;
+  vertical-align: middle;
+  border-color: #edf0f5;
+}
+
+.se-delivery-page .table tbody tr:hover {
+  background: #f8f6ff;
+}
+
+.se-delivery-page .table td:first-child {
+  min-width: 155px;
+}
+
+.se-delivery-page .table td:nth-child(2) {
+  min-width: 170px;
+}
+
+.se-delivery-page .table td:nth-child(4) {
+  max-width: 190px;
+  overflow-wrap: anywhere;
+}
+
+.se-delivery-page .table td:nth-child(5) {
+  max-width: 230px;
+  overflow-wrap: anywhere;
+}
+
+.se-delivery-page .table td:last-child {
+  min-width: 155px;
+}
+
+.se-delivery-page .table td:last-child .btn {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.se-delivery-page .badge {
+  padding: 6px 9px;
+  border-radius: 7px;
+}
+
+@media (max-width: 991.98px) {
+  .se-delivery-page {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .se-delivery-page h1 {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .se-delivery-page .table {
+    min-width: 0;
+  }
+
+  .se-delivery-page .table thead {
+    display: none;
+  }
+
+  .se-delivery-page .table tbody {
+    display: block;
+    padding: 12px;
+  }
+
+  .se-delivery-page .table tbody tr {
+    display: block;
+    margin-bottom: 14px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #e8e5f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(30, 20, 70, .04);
+  }
+
+  .se-delivery-page .table tbody td {
+    display: block;
+    width: 100%;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0eef5;
+    overflow-wrap: anywhere;
+  }
+
+  .se-delivery-page .table tbody td:first-child {
+    font-size: 15px;
+    padding-top: 0;
+  }
+
+  .se-delivery-page .table tbody td:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+    text-align: left !important;
+    white-space: normal !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .se-delivery-page .table tbody td:last-child .btn {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .se-delivery-page .table-responsive {
+    overflow: visible;
+  }
+
+  .se-delivery-page .card-header {
+    padding: 16px !important;
+  }
+}
+
+/* END SPEEDY EXPRESS RESPONSIVE DELIVERY MANAGEMENT */
+
+/* ===== SPEEDY EXPRESS LAYOUT / SCROLL REFINEMENT ===== */
+html {
+  margin: 0;
+  padding: 0;
+  scroll-padding-top: 64px;
+  overscroll-behavior-y: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overscroll-behavior-y: none;
+}
+
+.logistic-layout {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+.logistic-sidebar {
+  flex: 0 0 230px;
+  margin: 0;
+  overscroll-behavior-y: contain;
+}
+
+.logistic-main {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.logistic-top-header {
+  flex: 0 0 64px;
+  min-height: 64px;
+  margin: 0;
+}
+
+.logistic-content {
+  min-width: 0;
+}
+
+@media (max-width: 992px) {
+  .logistic-sidebar {
+    flex: none;
+    width: 230px;
+  }
+
+  .logistic-main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .logistic-top-header {
+    padding-inline: 12px;
+    gap: 8px;
+  }
+
+  .logistic-top-header .header-right {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .logistic-top-header .header-right .search-box {
+    display: none;
+  }
+
+  .logistic-content {
+    padding: 16px 12px;
+  }
+}
+
+/* ===== END SPEEDY EXPRESS LAYOUT / SCROLL REFINEMENT ===== */
+
+/* ===== SPEEDY EXPRESS: REMOVE VERIFIED 24PX TOP GAP =====
+   The browser test confirmed a 24px layout offset.
+   Keep the sidebar and main header aligned without changing their sizes. */
+.logistic-layout {
+  position: relative;
+  top: -24px;
+  margin-bottom: -24px;
+}
+
+/* ===== END TOP GAP FIX ===== */

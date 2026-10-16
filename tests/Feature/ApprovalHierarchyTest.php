@@ -35,7 +35,7 @@ class ApprovalHierarchyTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (['notifications', 'orders', 'products', 'role_user', 'roles', 'logistics', 'users'] as $table) {
+        foreach (['email_verification_otps', 'notifications', 'orders', 'products', 'role_user', 'roles', 'logistics', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -51,6 +51,7 @@ class ApprovalHierarchyTest extends TestCase
      */
     private function migrateApprovalSchema(): void
     {
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -92,6 +93,16 @@ class ApprovalHierarchyTest extends TestCase
             $table->timestamp('logistic_approved_at')->nullable();
             $table->text('logistic_rejection_reason')->nullable();
             $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('email_verification_otps', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique();
+            $table->string('otp_hash');
+            $table->unsignedInteger('attempts')->default(0);
+            $table->timestamp('expires_at');
+            $table->timestamp('last_sent_at');
             $table->timestamps();
         });
 
@@ -470,17 +481,22 @@ class ApprovalHierarchyTest extends TestCase
 
     public function test_buyer_and_logistics_registrations_wait_for_admin_approval(): void
     {
+
         Mail::fake();
         config(['services.googlemaps.key' => null]);
 
         $this->post(route('register'), $this->registrationPayload([
             'role' => 'buyer',
             'email' => 'newbuyer@example.com',
-        ]))->assertRedirect(route('login'));
+            'terms' => '1',
+        ]))
+            ->assertRedirect(route('buyer.email.verify'))
+            ->assertSessionHas('buyer_otp_user_id');
 
         $this->post(route('register'), $this->registrationPayload([
             'role' => 'logistic',
             'email' => 'newlogistics@example.com',
+            'mobile_number' => '09179998888',
             'company_name' => 'New Logistics Co',
             'contact_person' => 'Owner Name',
             'company_email' => 'company@example.com',

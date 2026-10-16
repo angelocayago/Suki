@@ -9,7 +9,7 @@
           <h2 class="text-center mb-4">Apply as Rider</h2>
 
           <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Apply to join one of our logistics partners below. The logistics company will review your application, and once approved, the administrator will give you final access.
+            <i class="bi bi-info-circle"></i> Apply to join one of our logistics partners. Your selected logistics company will review your application. Once approved, you can log in and start receiving delivery assignments.
           </div>
 
           <form method="POST" action="{{ route('apply.rider.store') }}" enctype="multipart/form-data" id="riderApplyForm">
@@ -22,9 +22,9 @@
                 <select name="logistic_id" id="logistic_id" class="form-select" required>
                   <option value="">Select Logistics Company</option>
                   @foreach($logistics as $logistic)
-                    <option value="{{ $logistic->id }}" {{ old('logistic_id') == $logistic->id ? 'selected' : '' }}>
-                      {{ $logistic->company_name }} - {{ $logistic->address ?? 'N/A' }}
-                    </option>
+                  <option value="{{ $logistic->id }}" {{ old('logistic_id') == $logistic->id ? 'selected' : '' }}>
+                    {{ $logistic->company_name }} - {{ $logistic->address ?? 'N/A' }}
+                  </option>
                   @endforeach
                 </select>
                 @error('logistic_id') <div class="text-danger">{{ $message }}</div> @enderror
@@ -169,7 +169,7 @@
             </div>
 
             <div class="alert alert-warning">
-              <i class="bi bi-exclamation-triangle"></i> Your application will be reviewed by the administrator. You will be notified via email once approved.
+              <i class="bi bi-exclamation-triangle"></i> Apply to join one of our logistics partners. Your selected logistics company will review your application. Once approved, you can log in and start receiving delivery assignments.
             </div>
 
             <button type="submit" class="btn btn-bili-hub w-100">Submit Application</button>
@@ -184,14 +184,17 @@
   </div>
 </div>
 
-<script type="application/json" id="auth-page-data">@php $authPageData = [
-  'region' => old('region'),
-  'province' => old('province'),
-  'municipality' => old('municipality'),
-  'barangay' => old('barangay'),
-]; @endphp @json($authPageData)</script>
+<script type="application/json" id="auth-page-data">
+  @php $authPageData = [
+    'region' => old('region'),
+    'province' => old('province'),
+    'municipality' => old('municipality'),
+    'barangay' => old('barangay'),
+  ];
+  @endphp @json($authPageData)
+</script>
 @endsection
 
 @push('scripts')
-  @vite('resources/js/auth/apply-rider.js')
+@vite('resources/js/auth/apply-rider.js')
 @endpush

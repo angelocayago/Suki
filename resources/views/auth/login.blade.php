@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @push('styles')
-  @vite('resources/css/auth/login.css')
+@vite('resources/css/auth/login.css')
 @endpush
 
 @section('content')
@@ -30,13 +30,13 @@
       <p class="text-center text-muted small mb-4">Sign in to your BiliHub account.</p>
 
       @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0" role="alert">
-          <div class="d-flex align-items-center">
-            <i class="bi bi-exclamation-circle-fill me-2"></i>
-            {{ session('error') }}
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0" role="alert">
+        <div class="d-flex align-items-center">
+          <i class="bi bi-exclamation-circle-fill me-2"></i>
+          {{ session('error') }}
         </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
       @endif
 
       <form method="POST" action="{{ route('login') }}" id="loginForm">
@@ -53,12 +53,11 @@
             placeholder="Enter your email address"
             autocomplete="email"
             required
-            autofocus
-          >
+            autofocus>
           @error('email')
-            <div class="invalid-feedback d-block mt-1 small">
-              {{ $message }}
-            </div>
+          <div class="invalid-feedback d-block mt-1 small">
+            {{ $message }}
+          </div>
           @enderror
         </div>
 
@@ -73,16 +72,15 @@
               placeholder="Enter your password"
               autocomplete="current-password"
               required
-              minlength="8"
-            >
+              minlength="8">
             <button type="button" class="btn btn-outline-secondary toggle-password" id="togglePassword" aria-label="Toggle password visibility">
               <i class="bi bi-eye-slash" id="passwordToggleIcon"></i>
             </button>
           </div>
           @error('password')
-            <div class="invalid-feedback d-block mt-1 small">
-              {{ $message }}
-            </div>
+          <div class="invalid-feedback d-block mt-1 small">
+            {{ $message }}
+          </div>
           @enderror
         </div>
 
@@ -95,11 +93,11 @@
         </div>
 
         @if($errors->has('email') && !$errors->has('password'))
-          <div class="alert alert-danger alert-dismissible fade show rounded-2 small mb-3" role="alert">
-            <i class="bi bi-exclamation-circle me-1"></i>
-            Email or password is incorrect.
-            <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
-          </div>
+        <div class="alert alert-danger alert-dismissible fade show rounded-2 small mb-3" role="alert">
+          <i class="bi bi-exclamation-circle me-1"></i>
+          {{ $errors->first('email') }}
+          <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         @endif
 
         <button type="submit" class="btn btn-primary w-100 rounded-xl py-3 fw-semibold mb-4" id="loginButton">
@@ -137,5 +135,5 @@
 @endsection
 
 @push('scripts')
-  @vite('resources/js/auth/login.js')
+@vite('resources/js/auth/login.js')
 @endpush

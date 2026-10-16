@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,17 +8,23 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   @vite([
-    'resources/css/shared.css',
-    'resources/css/seller/dashboard.css',
-    'resources/css/app.css',
-    'resources/css/shared-layout.css',
-    'resources/css/components/footer.css',
-    'resources/css/seller/seller-layout.css',
-    'resources/js/app.js',
-    'resources/js/seller/layout.js',
+  'resources/css/shared.css',
+  'resources/css/seller/dashboard.css',
+  'resources/css/app.css',
+  'resources/css/shared-layout.css',
+  'resources/css/components/footer.css',
+  'resources/css/seller/seller-layout.css',
+  'resources/js/app.js',
+  'resources/js/seller/layout.js',
   ])
+  <style>
+    .seller-main { min-height: 100vh; display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+    .seller-main > .seller-content { flex: 1 0 auto; }
+    .seller-main > footer, .seller-main > .site-footer { flex-shrink: 0; }
+  </style>
   @stack('styles')
 </head>
+
 <body>
   <!-- Mobile Top Navbar -->
   <nav class="navbar navbar-light bg-white d-lg-none border-bottom">
@@ -31,9 +38,9 @@
       <div class="dropdown ms-auto">
         <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
           @if(Auth::user()->logo_url)
-              <img src="{{ Auth::user()->logo_url }}" alt="Logo" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+          <img src="{{ Auth::user()->logo_url }}" alt="Logo" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
           @else
-              <i class="bi bi-person-circle fs-4"></i>
+          <i class="bi bi-person-circle fs-4"></i>
           @endif
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
@@ -84,6 +91,14 @@
           <li class="sidebar-item {{ request()->routeIs('seller.messages*') ? 'active' : '' }}">
             <a href="{{ route('seller.messages.index') }}" class="sidebar-link">
               <i class="bi bi-chat-dots"></i> Messages
+            </a>
+          </li>
+
+          <li class="sidebar-divider">Marketing</li>
+
+          <li class="sidebar-item {{ request()->routeIs('seller.vouchers.*') ? 'active' : '' }}">
+            <a href="{{ route('seller.vouchers.index') }}" class="sidebar-link">
+              <i class="bi bi-ticket-perforated"></i> Vouchers
             </a>
           </li>
 
@@ -140,29 +155,29 @@
             <a href="{{ route('seller.notifications') }}" class="position-relative text-decoration-none">
               <i class="bi bi-bell fs-5" style="color: var(--color-text-dark);"></i>
               @php
-                $seller = Auth::user();
-                $unreadNotifCount = \App\Models\Notification::where('user_id', $seller->id)->where('is_read', false)->count();
-                $pendingOrderCount = \App\Models\Order::whereHas('items.product', function ($query) use ($seller) {
-                  $query->where('user_id', $seller->id);
-                })->whereIn('status', ['pending', 'processing'])->count();
-                $totalUnread = $unreadNotifCount + $pendingOrderCount;
+              $seller = Auth::user();
+              $unreadNotifCount = \App\Models\Notification::where('user_id', $seller->id)->where('is_read', false)->count();
+              $pendingOrderCount = \App\Models\Order::whereHas('items.product', function ($query) use ($seller) {
+              $query->where('user_id', $seller->id);
+              })->whereIn('status', ['pending', 'processing'])->count();
+              $totalUnread = $unreadNotifCount + $pendingOrderCount;
               @endphp
               @if($totalUnread > 0)
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill" style="background-color: var(--color-primary);">
-                  {{ $totalUnread }}
-                </span>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill" style="background-color:var(--color-primary);">
+                {{ $totalUnread }}
+              </span>
               @endif
             </a>
 
             <div class="dropdown">
               <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                 @if(Auth::user()->logo_url)
-                      <img src="{{ Auth::user()->logo_url }}"
-                         alt="Shop Logo"
-                         class="rounded-circle"
-                         style="width: 32px; height: 32px; object-fit: cover; flex-shrink: 0;">
+                <img src="{{ Auth::user()->logo_url }}"
+                  alt="Shop Logo"
+                  class="rounded-circle"
+                  style="width: 32px; height: 32px; object-fit: cover; flex-shrink: 0;">
                 @else
-                  <i class="bi bi-person-circle fs-4" style="color: #6b7280;"></i>
+                <i class="bi bi-person-circle fs-4" style="color: #6b7280;"></i>
                 @endif
                 <span class="d-none d-md-inline ms-2 fw-medium">{{ Auth::user()->name }}</span>
               </a>
@@ -173,7 +188,9 @@
                 <li><a class="dropdown-item" href="{{ route('seller.notifications') }}"><i class="bi bi-bell me-2"></i>Notifications</a></li>
                 <li><a class="dropdown-item" href="{{ route('seller.messages.index') }}"><i class="bi bi-chat-dots me-2"></i>Messages</a></li>
                 <li><a class="dropdown-item" href="{{ route('seller.account') }}"><i class="bi bi-shop me-2"></i>Account</a></li>
-                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <hr class="dropdown-divider">
+                </li>
                 <li>
                   <form method="POST" action="{{ route('logout') }}" class="d-inline">
                     @csrf
@@ -189,16 +206,16 @@
       <!-- Main Content Area -->
       <main class="seller-content">
         @if(session('success'))
-          <div class="alert alert-success alert-dismissible fade show">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
+        <div class="alert alert-success alert-dismissible fade show">
+          {{ session('success') }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         @endif
         @if(session('error'))
-          <div class="alert alert-danger alert-dismissible fade show">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
+        <div class="alert alert-danger alert-dismissible fade show">
+          {{ session('error') }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         @endif
 
         @yield('content')
@@ -213,4 +230,5 @@
   @stack('scripts')
 
 </body>
+
 </html>

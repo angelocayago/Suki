@@ -23,11 +23,11 @@
           </div>
           <div class="col-md-6">
             <label class="form-label text-muted">Logistics Company</label>
-            <p class="fw-bold">{{ $shipment->logistic->company_name ?? 'N/A' }}</p>
+            <p class="fw-bold">{{ $shipment->logistic?->company_name ?? 'N/A' }}</p>
           </div>
           <div class="col-md-6">
-            <label class="form-label text-muted">Rider</label>
-            <p class="fw-bold">{{ $shipment->rider->name ?? 'Unassigned' }}</p>
+            <label class="form-label text-muted">Current Rider</label>
+            <p class="fw-bold">{{ $shipment->rider?->name ?? 'Unassigned' }}</p>
           </div>
           <div class="col-md-6">
             <label class="form-label text-muted">Courier</label>
@@ -42,10 +42,10 @@
             <p class="fw-bold">{{ $shipment->delivery_address }}</p>
           </div>
           @if($shipment->notes)
-            <div class="col-12">
-              <label class="form-label text-muted">Notes</label>
-              <p class="fw-bold">{{ $shipment->notes }}</p>
-            </div>
+          <div class="col-12">
+            <label class="form-label text-muted">Notes</label>
+            <p class="fw-bold">{{ $shipment->notes }}</p>
+          </div>
           @endif
         </div>
       </div>
@@ -53,28 +53,11 @@
 
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white">
-        <h5 class="mb-0">Update Status</h5>
+        <h5 class="mb-0">Shipment Status Monitoring</h5>
       </div>
       <div class="card-body">
-        <form method="POST" action="{{ route('admin.shipments.status', $shipment) }}">
-          @csrf
-          <div class="row g-3">
-            <div class="col-md-8">
-              <select name="status" class="form-select">
-                <option value="pending" {{ $shipment->status == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="assigned" {{ $shipment->status == 'assigned' ? 'selected' : '' }}>Assigned</option>
-                <option value="picked_up" {{ $shipment->status == 'picked_up' ? 'selected' : '' }}>Picked Up</option>
-                <option value="in_transit" {{ $shipment->status == 'in_transit' ? 'selected' : '' }}>In Transit</option>
-                <option value="delivered" {{ $shipment->status == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                <option value="cancelled" {{ $shipment->status == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                <option value="delayed" {{ $shipment->status == 'delayed' ? 'selected' : '' }}>Delayed</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <button type="submit" class="btn btn-bili-hub w-100">Update Status</button>
-            </div>
-          </div>
-        </form>
+        <p class="mb-2">Current status: <strong>{{ ucfirst(str_replace('_', ' ', $shipment->status)) }}</strong></p>
+        <p class="text-muted mb-0">Status changes are handled through the logistics and rider workflows. Admin access is read-only on this page.</p>
       </div>
     </div>
   </div>
@@ -82,79 +65,66 @@
   <div class="col-md-4">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white">
-        <h5 class="mb-0">Assign Rider</h5>
+        <h5 class="mb-0">Rider Assignment Information</h5>
       </div>
       <div class="card-body">
-        <form method="POST" action="{{ route('admin.shipments.assignRider', $shipment) }}">
-          @csrf
-          <div class="mb-3">
-            <label for="rider_id" class="form-label">Select Rider</label>
-            <select name="rider_id" class="form-select" required>
-              <option value="">Select Rider</option>
-              @foreach($riders as $rider)
-                <option value="{{ $rider->id }}" {{ $shipment->rider_id == $rider->id ? 'selected' : '' }}>
-                  {{ $rider->name }} - {{ $rider->vehicle_type ?? 'N/A' }}
-                </option>
-              @endforeach
-            </select>
-          </div>
-          <button type="submit" class="btn btn-bili-hub w-100">Assign Rider</button>
-        </form>
+        <p class="text-muted small mb-3">Rider assignments are managed by the logistics company.</p>
+        <div class="mb-3">
+          <strong>Logistics Company</strong>
+          <div>{{ $shipment->logistic?->company_name ?? 'Not assigned' }}</div>
+        </div>
+        <div class="mb-3">
+          <strong>Pickup Rider</strong>
+          <div>{{ $shipment->pickupRider?->name ?? 'Not assigned' }}</div>
+        </div>
+        <div class="mb-3">
+          <strong>Current Rider</strong>
+          <div>{{ $shipment->rider?->name ?? 'Not assigned' }}</div>
+        </div>
+        <div class="alert alert-info mb-0">
+          Only the logistics company can assign pickup and delivery riders.
+        </div>
       </div>
     </div>
 
     <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <div class="card-header bg-white">
         <h5 class="mb-0">Timeline</h5>
       </div>
       <div class="card-body">
+        @php
+        $steps = [
+        ['label' => 'Created', 'timestamp' => $shipment->created_at],
+        ];
+        if ($shipment->picked_up_at) {
+        $steps[] = ['label' => 'Picked Up', 'timestamp' => $shipment->picked_up_at];
+        }
+        if ($shipment->received_at) {
+        $steps[] = ['label' => 'Received at Sorting Center', 'timestamp' => $shipment->received_at];
+        }
+        if ($shipment->scanned_at) {
+        $steps[] = ['label' => 'Scanned', 'timestamp' => $shipment->scanned_at];
+        }
+        if ($shipment->sorted_at) {
+        $steps[] = ['label' => 'Sorted', 'timestamp' => $shipment->sorted_at];
+        }
+        if ($shipment->staged_at) {
+        $steps[] = ['label' => 'Staged', 'timestamp' => $shipment->staged_at];
+        }
+        if ($shipment->delivered_at) {
+        $steps[] = ['label' => 'Delivered', 'timestamp' => $shipment->delivered_at];
+        }
+        @endphp
         <div class="timeline">
-          @php
-            $steps = [
-              ['label' => 'Created', 'timestamp' => $shipment->created_at, 'class' => 'primary'],
-            ];
-
-            if ($shipment->status === 'assigned' || $shipment->status === 'picked_up' || $shipment->status === 'in_transit' || $shipment->status === 'delivered') {
-              $steps[] = ['label' => 'Assigned', 'timestamp' => $shipment->created_at, 'class' => 'info'];
-            }
-
-            if ($shipment->status === 'picked_up' || $shipment->status === 'in_transit' || $shipment->status === 'delivered') {
-              $steps[] = ['label' => 'Picked Up', 'timestamp' => $shipment->picked_up_at, 'class' => 'warning'];
-            }
-
-            if ($shipment->status === 'in_transit' || $shipment->status === 'delivered') {
-              $steps[] = ['label' => 'In Transit', 'timestamp' => null, 'class' => 'primary'];
-            }
-
-            if ($shipment->status === 'delivered') {
-              $steps[] = ['label' => 'Out for Delivery', 'timestamp' => null, 'class' => 'info'];
-            }
-
-            if ($shipment->status === 'delivered') {
-              $steps[] = ['label' => 'Delivered', 'timestamp' => $shipment->delivered_at, 'class' => 'success'];
-            }
-
-            if ($shipment->status === 'cancelled') {
-              $steps[] = ['label' => 'Cancelled', 'timestamp' => null, 'class' => 'danger'];
-            }
-
-            if ($shipment->status === 'delayed') {
-              $steps[] = ['label' => 'Delayed', 'timestamp' => null, 'class' => 'danger'];
-            }
-          @endphp
-
           @foreach($steps as $step)
-            <div class="timeline-item">
-              <div class="timeline-marker bg-{{ $step['class'] }}"></div>
-              <div class="timeline-content">
-                <h6 class="mb-0">{{ $step['label'] }}</h6>
-                @if($step['timestamp'])
-                  <small class="text-muted">{{ $step['timestamp']->format('M d, Y h:i A') }}</small>
-                @else
-                  <small class="text-muted">Pending</small>
-                @endif
-              </div>
+          <div class="timeline-item mb-3">
+            <div class="timeline-content">
+              <h6 class="mb-1">{{ $step['label'] }}</h6>
+              <small class="text-muted">
+                {{ $step['timestamp']?->format('M d, Y h:i A') ?? 'Pending' }}
+              </small>
             </div>
+          </div>
           @endforeach
         </div>
       </div>

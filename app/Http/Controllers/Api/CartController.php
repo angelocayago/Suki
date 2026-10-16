@@ -67,8 +67,14 @@ class CartController extends Controller
             ];
         });
 
-        $shippingFeeMinor = $subtotalMinor > 0 ? 8000 : 0;
+        // Standardized BiliHub fees.
+        // Shipping: PHP 50.00 for non-empty carts.
+        $shippingFeeMinor = $subtotalMinor > 0 ? 5000 : 0;
+
+        // Buyer service fee: 3%.
         $serviceFeeMinor = intdiv(($subtotalMinor * 3) + 50, 100);
+
+        // Total amount in centavos.
         $totalMinor = $subtotalMinor + $shippingFeeMinor + $serviceFeeMinor;
 
         return response()->json([

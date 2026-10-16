@@ -34,7 +34,7 @@ class AdminApprovalVisibilityTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (['notifications', 'products', 'orders', 'sellers', 'role_user', 'roles', 'logistics', 'users'] as $table) {
+        foreach (['email_verification_otps', 'notifications', 'products', 'orders', 'sellers', 'role_user', 'roles', 'logistics', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -86,6 +86,16 @@ class AdminApprovalVisibilityTest extends TestCase
             $table->timestamp('logistic_approved_at')->nullable();
             $table->text('logistic_rejection_reason')->nullable();
             $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('email_verification_otps', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique();
+            $table->string('otp_hash');
+            $table->unsignedInteger('attempts')->default(0);
+            $table->timestamp('expires_at');
+            $table->timestamp('last_sent_at');
             $table->timestamps();
         });
 
@@ -370,6 +380,7 @@ class AdminApprovalVisibilityTest extends TestCase
         $this->post(route('register'), $this->registrationPayload([
             'role' => 'buyer',
             'email' => 'pending-buyer@example.com',
+            'terms' => '1',
         ]))->assertSessionHasNoErrors();
 
         $this->assertContains('pending-buyer@example.com', $this->pendingRegistrationEmails());
@@ -377,11 +388,57 @@ class AdminApprovalVisibilityTest extends TestCase
         $this->assertSame(0, $this->totalBuyers());
 
         $buyer = User::where('email', 'pending-buyer@example.com')->firstOrFail();
-        $this->actingAs($this->admin())->post(route('admin.registrations.approve', $buyer));
+
+        // Simulate successful email OTP verification.
+        $buyer->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
+
+        // Superadmin can approve only after email verification.
+        $this->actingAs($this->admin())
+            ->post(route('admin.registrations.approve', $buyer))
+            ->assertRedirect(route('admin.registrations.index'));
 
         $this->assertNotContains('pending-buyer@example.com', $this->pendingRegistrationEmails());
         $this->assertContains('pending-buyer@example.com', $this->userManagementEmails());
         $this->assertSame(1, $this->totalBuyers());
+    }
+
+    public function test_superadmin_cannot_approve_unverified_buyer(): void
+    {
+        Mail::fake();
+
+        $this->post(route('register'), $this->registrationPayload([
+            'role' => 'buyer',
+            'email' => 'unverified-buyer@example.com',
+            'terms' => '1',
+        ]))->assertSessionHasNoErrors();
+
+        $buyer = User::where(
+            'email',
+            'unverified-buyer@example.com'
+        )->firstOrFail();
+
+        $this->assertNull($buyer->email_verified_at);
+        $this->assertSame(User::STATUS_PENDING, $buyer->status);
+
+        // Attempt Superadmin approval without email verification.
+        $this->actingAs($this->admin())
+            ->post(route('admin.registrations.approve', $buyer))
+            ->assertSessionHas('error');
+
+        // Buyer must remain pending and unapproved.
+        $buyer->refresh();
+
+        $this->assertSame(User::STATUS_PENDING, $buyer->status);
+        $this->assertNull($buyer->approved_at);
+
+        $this->assertContains(
+            'unverified-buyer@example.com',
+            $this->pendingRegistrationEmails()
+        );
+
+        $this->assertSame(0, $this->totalBuyers());
     }
 
     public function test_pending_logistics_company_is_only_in_registrations(): void

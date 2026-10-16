@@ -1,276 +1,415 @@
 @extends('seller.layout')
 
 @section('content')
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Order Details</h1>
-  <a href="{{ route('seller.orders') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Orders</a>
-</div>
-
-<div class="row">
-  <div class="col-md-8">
-    <div class="table-container mb-4">
-      <h5 class="mb-3">Customer Information</h5>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <strong>Name:</strong> {{ $order->user->name ?? 'N/A' }}
-        </div>
-        <div class="col-md-6 mb-3">
-          <strong>Email:</strong> {{ $order->user->email ?? 'N/A' }}
-        </div>
-        <div class="col-md-6 mb-3">
-          <strong>Phone:</strong> {{ $order->user->phone ?? 'N/A' }}
-        </div>
-        <div class="col-md-6 mb-3">
-          <strong>Order #:</strong> {{ $order->order_number }}
-        </div>
-      </div>
-      <div class="mb-3">
-        <strong>Shipping Address:</strong><br>
-        {{ $order->shipping_address }}
-      </div>
-      <div class="mb-3">
-        <strong>Order Status:</strong> 
-      <span class="badge bg-{{ $order->statusBadgeClass() }}">
-    {{ ucfirst(str_replace('_', ' ', $order->status)) }}
-</span>
-</div>
-
 @php
-    $sellerOrder = $order->sellerOrders->first();
-    $shipment = $sellerOrder?->shipment;
+$sellerOrder = $order->sellerOrders->first();
+$status = $sellerOrder?->status ?? 'pending';
+$shipment = $sellerOrder?->shipment;
+
+$colors = [
+'pending' => 'secondary',
+'confirmed' => 'primary',
+'preparing' => 'info',
+'ready_for_pickup' => 'success',
+'picked_up' => 'warning',
+'in_transit' => 'primary',
+'delivered' => 'success',
+'cancelled' => 'danger',
+];
+
+$statusColor = $colors[$status] ?? 'secondary';
 @endphp
 
-      @if($order->ready_for_pickup && $shipment)
-        <div class="mb-3">
-          <strong>Ready for Pickup:</strong> 
-          <span class="badge bg-success">
-            Shipment #{{ $shipment->tracking_number }}
-          </span>
-        </div>
-        <div class="mb-3">
-          <strong>Shipment Status:</strong>
-          <span class="badge bg-{{ $shipment->statusBadgeClass() }}">
-            {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
-          </span>
-        </div>
-        @if($shipment->rider_id)
-          <div class="mb-3">
-            <strong>Rider Assigned:</strong> {{ $shipment->rider->name ?? 'N/A' }}
-            @if($shipment->rider->phone)
-              <span class="text-muted">| {{ $shipment->rider->phone }}</span>
-            @endif
-          </div>
-        @else
-          <div class="mb-3">
-            <strong>Rider Assignment:</strong> <span class="text-muted">Waiting for rider assignment...</span>
-          </div>
-        @endif
-        @if($shipment->delivered_at)
-          <div class="mb-3">
-            <strong>Delivered At:</strong> {{ \Carbon\Carbon::parse($shipment->delivered_at)->format('M d, Y g:i A') }}
-          </div>
-        @endif
-        @if($shipment->scanned_at_seller)
-          <div class="mb-3">
-            <strong>QR Scanned:</strong>
-            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Rider scanned QR on {{ \Carbon\Carbon::parse($shipment->scanned_at_seller)->format('M d, Y g:i A') }}</span>
-          </div>
-        @endif
-      @endif
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Seller Order Details</h2>
+    <div class="text-muted">
+      {{ $order->order_number }}
+      · Seller Order #{{ $sellerOrder?->id }}
+    </div>
+  </div>
 
-      @if($order->ready_for_pickup && $shipment)
-        <div class="mb-3">
-          <strong>Shipment Progress</strong>
-          <div class="progress" style="height: 20px;">
-            @foreach($shipment->timelineSteps() as $step)
-              @php
-                $isActive = $step['timestamp'] !== null;
-                $bgClass = $isActive ? $step['class'] : 'secondary';
-              @endphp
-              <div class="progress-bar bg-{{ $bgClass }}" role="progressbar" style="width: {{ 100 / count($shipment->timelineSteps()) }}%" title="{{ $step['label'] }}">
-                {{ $step['label'] }}
-              </div>
-            @endforeach
-          </div>
-        </div>
-      @endif
-      @if($order->notes)
-        <div class="mb-3">
-          <strong>Notes:</strong> {{ $order->notes }}
-        </div>
-      @endif
+  <a href="{{ route('seller.orders') }}"
+    class="btn btn-outline-secondary">
+    Back to Orders
+  </a>
+</div>
+
+@if(!$sellerOrder)
+<div class="alert alert-danger">
+  Seller order not found for this account.
+</div>
+@else
+<div class="row g-4">
+
+  <div class="col-lg-8">
+
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Customer Information</h5>
+
+      <p><strong>Name:</strong> {{ $order->user?->name ?? 'N/A' }}</p>
+      <p><strong>Email:</strong> {{ $order->user?->email ?? 'N/A' }}</p>
+      <p><strong>Phone:</strong> {{ $order->user?->phone ?? 'N/A' }}</p>
+
+      @php
+      $shippingAddress = $order->shipping_address;
+
+      if (is_string($shippingAddress)) {
+      $decodedAddress = json_decode($shippingAddress, true);
+
+      if (json_last_error() === JSON_ERROR_NONE && is_array($decodedAddress)) {
+      $shippingAddress = $decodedAddress;
+      }
+      }
+      @endphp
+
+      <div class="mb-3">
+        <strong>Shipping Address:</strong>
+
+        @if(is_array($shippingAddress))
+        <div>{{ $shippingAddress['recipient'] ?? 'N/A' }}</div>
+        <div>{{ $shippingAddress['phone'] ?? 'N/A' }}</div>
+        <div>{{ $shippingAddress['address'] ?? 'N/A' }}</div>
+        @else
+        <div>{{ $shippingAddress ?: 'N/A' }}</div>
+        @endif
+      </div>
+
+
+      <div>
+        <strong>My Order Status:</strong>
+        <span class="badge bg-{{ $statusColor }}">
+          {{ ucwords(str_replace('_', ' ', $status)) }}
+        </span>
+      </div>
     </div>
 
     <div class="table-container mb-4">
-      <h5 class="mb-3">Order Items</h5>
+      <h5 class="mb-3">My Order Items</h5>
+
       <div class="table-responsive">
-        <table class="table">
+        <table class="table align-middle">
           <thead class="table-light">
             <tr>
               <th>Product</th>
               <th>Size</th>
-              <th>Qty</th>
+              <th>Quantity</th>
               <th>Price</th>
               <th>Subtotal</th>
             </tr>
           </thead>
-            <tbody>
-            @php
-              $sellerItems = $order->items->filter(function($item) {
-                return $item->product->user_id === Auth::id();
-              })->load('variation');
-            @endphp
-            @foreach($sellerItems as $item)
-              <tr>
-                <td>
-                  {{ $item->product_name }}
-                  @if($item->variation)
-                    <small class="text-muted d-block">{{ $item->variation->display_name ?: $item->variation->name }}</small>
-                  @endif
-                  @if($item->product && $item->product->stock < $item->quantity)
-                    <span class="badge bg-danger ms-1"><i class="bi bi-exclamation-triangle"></i> Low Stock</span>
-                  @endif
-                </td>
-                <td>{{ $item->size->name ?? ($item->variation ? ($item->variation->display_name ?: $item->variation->name) : 'N/A') }}</td>
-                <td>{{ $item->quantity }}</td>
-                <td>&#8369;{{ number_format(($item->price_minor / 100), 2) }}</td>
-                <td>&#8369;{{ number_format(($item->subtotal_minor / 100), 2) }}</td>
-              </tr>
-            @endforeach
-            </tbody>
+          <tbody>
+            @forelse($sellerOrder->items as $item)
+            <tr>
+              <td>{{ $item->product_name }}</td>
+              <td>{{ $item->size?->name ?? 'N/A' }}</td>
+              <td>{{ $item->quantity }}</td>
+              <td>
+                &#8369;{{ number_format($item->price_minor / 100, 2) }}
+              </td>
+              <td>
+                &#8369;{{ number_format($item->subtotal_minor / 100, 2) }}
+              </td>
+            </tr>
+            @empty
+            <tr>
+              <td colspan="5" class="text-center text-muted">
+                No items found.
+              </td>
+            </tr>
+            @endforelse
+          </tbody>
         </table>
       </div>
     </div>
 
-      <div class="table-container mb-4">
-      <h5 class="mb-3">Order Actions</h5>
-      @if(!$order->ready_for_pickup)
-        @if($order->status == 'placed')
-          <form action="{{ route('seller.orders.updateStatus', $order) }}" method="POST" class="d-inline">
-            @csrf
-            <input type="hidden" name="status" value="confirmed">
-            <button type="submit" class="btn btn-sm btn-primary">
-              <i class="bi bi-check-circle"></i> Accept & Start Processing
-            </button>
-          </form>
-        @endif
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Order Processing</h5>
 
-        @if(in_array($order->status, ['confirmed', 'preparing']))
-          <form action="{{ route('seller.orders.ready', $order) }}" method="POST" class="d-inline" onsubmit="return confirm('Mark all items as ready for pickup? Ensure products are packed and ready for the rider.')">
-            @csrf
-            <button type="submit" class="btn btn-sm btn-warning">
-              <i class="bi bi-box-seam"></i> Mark as Ready for Pickup
-            </button>
-          </form>
-        @endif
-      @endif
+      @if(in_array($status, ['pending', 'placed']))
+      <form method="POST"
+        action="{{ route('seller.orders.updateStatus', $order) }}">
+        @csrf
+        <input type="hidden" name="status" value="confirmed">
+        <button class="btn btn-primary" type="submit">
+          Confirm Order
+        </button>
+      </form>
 
-      @if($order->ready_for_pickup && $shipment)
-        <a href="{{ route('logistic.shipments.show', $shipment) }}" target="_blank" class="btn btn-sm btn-outline-info">
-          <i class="bi bi-printer"></i> Print Shipping Label
-        </a>
-        <a href="{{ route('shipments.qr.label', $shipment) }}" target="_blank" class="btn btn-sm btn-bili-hub">
-          <i class="bi bi-qr-code"></i> Print QR / Barcode Label
-        </a>
-        <div class="mt-2 small text-muted">
-          <i class="bi bi-info-circle"></i> Print the QR label and attach it to the parcel. The rider will scan it upon pickup to confirm and enter the logistics system.
-        </div>
+      @elseif($status === 'confirmed')
+      <form method="POST"
+        action="{{ route('seller.orders.updateStatus', $order) }}">
+        @csrf
+        <input type="hidden" name="status" value="preparing">
+        <button class="btn btn-primary" type="submit">
+          Start Preparing
+        </button>
+      </form>
+
+      @elseif($status === 'preparing')
+      <form method="POST"
+        action="{{ route('seller.orders.ready', $order) }}"
+        onsubmit="return confirm('Are your items packed and ready for pickup?')">
+        @csrf
+        <button class="btn btn-success" type="submit">
+          Mark as Ready for Pickup
+        </button>
+      </form>
+
+      @elseif($status === 'ready_for_pickup')
+      <div class="alert alert-success mb-0">
+        Your parcel is ready for logistics pickup.
+      </div>
+
+      @else
+      <span class="badge bg-{{ $statusColor }}">
+        {{ ucwords(str_replace('_', ' ', $status)) }}
+      </span>
       @endif
     </div>
 
-    @if($order->status == 'reschedule_requested')
-      <div class="table-container mb-4">
-        <h5 class="mb-3">Delivery Failed - Action Required</h5>
-        <div class="alert alert-warning">
-          <i class="bi bi-exclamation-triangle"></i> Delivery failed. Reason: {{ $order->failure_reason ?? 'No reason provided' }}
-        </div>
-        <form action="{{ route('seller.orders.approveReschedule', $order) }}" method="POST" class="d-inline" onsubmit="return confirm('Approve reschedule for this order?')">
+    @if($sellerOrder->return_status !== 'none')
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Return Request</h5>
+
+      <p>
+        <strong>Status:</strong>
+        {{ ucfirst($sellerOrder->return_status) }}
+      </p>
+
+      <p>
+        <strong>Reason:</strong>
+        {{ $sellerOrder->return_reason ?? 'N/A' }}
+      </p>
+
+      @if($sellerOrder->return_status === 'requested')
+      <div class="d-flex gap-2">
+        <form method="POST"
+          action="{{ route('seller.orders.approveReturn', $order) }}"
+          onsubmit="return confirm('Approve this return request?')">
           @csrf
+          <input type="hidden"
+            name="seller_order_id"
+            value="{{ $sellerOrder->id }}">
           <button type="submit" class="btn btn-success btn-sm">
-            <i class="bi bi-check-circle"></i> Approve Reschedule
+            Approve Return
           </button>
         </form>
-        <form action="{{ route('seller.orders.rejectReschedule', $order) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Reject reschedule? Buyer will be asked to return the item instead.')">
+
+        <form method="POST"
+          action="{{ route('seller.orders.rejectReturn', $order) }}"
+          onsubmit="return confirm('Reject this return request?')">
           @csrf
+          <input type="hidden"
+            name="seller_order_id"
+            value="{{ $sellerOrder->id }}">
           <button type="submit" class="btn btn-danger btn-sm">
-            <i class="bi bi-x-circle"></i> Reject Reschedule
+            Reject Return
           </button>
         </form>
       </div>
+      @endif
+    </div>
     @endif
 
-    @if($order->status == 'return_requested')
-      <div class="table-container mb-4">
-        <h5 class="mb-3">Return Request</h5>
-        <div class="alert alert-warning">
-          <i class="bi bi-exclamation-triangle"></i> Buyer requested return for this order. Reason: {{ $order->return_reason ?? 'No reason provided' }}
-        </div>
-        <form action="{{ route('seller.orders.approveReturn', $order) }}" method="POST" class="d-inline" onsubmit="return confirm('Approve return for this order?')">
+
+    {{-- Seller-specific Reschedule Request --}}
+    @if(($sellerOrder->reschedule_status ?? 'none') !== 'none')
+    <div class="table-container mb-4">
+      <h5 class="mb-3">
+        <i class="bi bi-calendar-check me-2"></i>
+        Reschedule Request
+      </h5>
+
+      <p>
+        <strong>Seller Order:</strong>
+        #{{ $sellerOrder->id }}
+      </p>
+
+      <p>
+        <strong>Status:</strong>
+        @php
+        $rescheduleStatus = $sellerOrder->reschedule_status;
+        $rescheduleColor = match ($rescheduleStatus) {
+        'requested' => 'warning',
+        'approved' => 'success',
+        'rejected' => 'danger',
+        default => 'secondary',
+        };
+        @endphp
+
+        <span class="badge bg-{{ $rescheduleColor }}">
+          {{ ucfirst($rescheduleStatus) }}
+        </span>
+      </p>
+
+      <p>
+        <strong>Reason:</strong>
+        {{ $sellerOrder->reschedule_reason ?: 'No reason provided' }}
+      </p>
+
+      @if($sellerOrder->reschedule_requested_at)
+      <p>
+        <strong>Requested At:</strong>
+        {{ $sellerOrder->reschedule_requested_at->format('M d, Y g:i A') }}
+      </p>
+      @endif
+
+      @if($sellerOrder->reschedule_status === 'approved' && $sellerOrder->rescheduled_at)
+      <p>
+        <strong>Approved At:</strong>
+        {{ $sellerOrder->rescheduled_at->format('M d, Y g:i A') }}
+      </p>
+      @endif
+
+      @if($sellerOrder->reschedule_status === 'requested')
+      @if(
+      $shipment &&
+      $shipment->status === 'failed_return_at_sorting_center' &&
+      $shipment->failed_return_received_at !== null
+      )
+      <div class="alert alert-success">
+        Logistics has confirmed receipt of the failed parcel.
+        You may approve the reschedule request.
+      </div>
+      @else
+      <div class="alert alert-warning">
+        Waiting for Logistics to confirm receipt of the failed parcel.
+        Approval is not available yet.
+      </div>
+      @endif
+
+      <div class="d-flex gap-2 flex-wrap">
+        @if(
+        $shipment &&
+        $shipment->status === 'failed_return_at_sorting_center' &&
+        $shipment->failed_return_received_at !== null
+        )
+        <form method="POST"
+          action="{{ route('orders.approveReschedule', $order) }}"
+          onsubmit="return confirm('Approve this seller order reschedule?')">
           @csrf
+
+          <input type="hidden"
+            name="seller_order_id"
+            value="{{ $sellerOrder->id }}">
+
           <button type="submit" class="btn btn-success btn-sm">
-            <i class="bi bi-check-circle"></i> Approve Return
+            <i class="bi bi-check-circle me-1"></i>
+            Approve Reschedule
           </button>
         </form>
-        <form action="{{ route('seller.orders.rejectReturn', $order) }}" method="POST" class="d-inline ms-2" onsubmit="return confirm('Reject return request?')">
+        @endif
+
+        <form method="POST"
+          action="{{ route('orders.rejectReschedule', $order) }}"
+          onsubmit="return confirm('Reject this seller order reschedule?')">
           @csrf
+
+          <input type="hidden"
+            name="seller_order_id"
+            value="{{ $sellerOrder->id }}">
+
           <button type="submit" class="btn btn-danger btn-sm">
-            <i class="bi bi-x-circle"></i> Reject Return
+            <i class="bi bi-x-circle me-1"></i>
+            Reject Reschedule
           </button>
         </form>
       </div>
+      @endif
+    </div>
     @endif
+
 
     <div class="table-container mb-4">
-      <h5 class="mb-3">Update Order Status</h5>
-      <form action="{{ route('seller.orders.updateStatus', $order) }}" method="POST">
-        @csrf
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label for="status" class="form-label">Status</label>
-            <select name="status" id="status" class="form-select" {{ $order->ready_for_pickup ? 'disabled' : '' }} required>
-              <option value="placed" {{ $order->status == 'placed' ? 'selected' : '' }}>Placed</option>
-              <option value="confirmed" {{ $order->status == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-              <option value="preparing" {{ $order->status == 'preparing' ? 'selected' : '' }}>Preparing</option>
-              <option value="ready_for_pickup" {{ $order->status == 'ready_for_pickup' ? 'selected' : '' }} {{ $order->ready_for_pickup ? 'hidden' : '' }}>Ready for Pickup</option>
-              <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }} {{ $order->ready_for_pickup ? 'hidden' : '' }}>Delivered</option>
-              <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-bili-hub" {{ $order->ready_for_pickup ? 'disabled' : '' }}>Update Status</button>
-      </form>
+      <h5 class="mb-3">My Shipment</h5>
+
+      @if($shipment)
+      <p>
+        <strong>Tracking Number:</strong>
+        {{ $shipment->tracking_number }}
+      </p>
+
+      <p>
+        <strong>Shipment Status:</strong>
+        {{ ucwords(str_replace('_', ' ', $shipment->status)) }}
+      </p>
+
+      <p>
+        <strong>Logistics:</strong>
+        {{ $shipment->logistic?->company_name ?? 'Pending assignment' }}
+      </p>
+
+      <p>
+        <strong>Rider:</strong>
+        {{ $shipment->rider?->name ?? 'Waiting for rider assignment' }}
+      </p>
+
+      @if($shipment->delivered_at)
+      <p>
+        <strong>Delivered At:</strong>
+        {{ $shipment->delivered_at->format('M d, Y g:i A') }}
+      </p>
+      @endif
+
+      <a href="{{ route('shipments.qr.label', $shipment) }}"
+        target="_blank"
+        class="btn btn-sm btn-outline-primary">
+        Print QR / Barcode Label
+      </a>
+      @else
+      <div class="text-muted">
+        No shipment created for this seller order yet.
+      </div>
+      @endif
     </div>
+
   </div>
 
-  <div class="col-md-4">
+  <div class="col-lg-4">
     <div class="table-container mb-4">
-      <h5 class="mb-3">Order Summary</h5>
+      <h5 class="mb-3">My Order Summary</h5>
+
       <div class="d-flex justify-content-between mb-2">
         <span>Subtotal</span>
-        <span>&#8369;{{ number_format(($order->subtotal_minor / 100), 2) }}</span>
+        <span>
+          &#8369;{{ number_format($sellerOrder->subtotal_minor / 100, 2) }}
+        </span>
       </div>
-      <div class="d-flex justify-content-between mb-2">
-        <span>Tax</span>
-        <span>&#8369;{{ number_format(($order->tax_minor / 100), 2) }}</span>
-      </div>
+
       <div class="d-flex justify-content-between mb-2">
         <span>Shipping</span>
-        <span>&#8369;{{ number_format(($order->shipping_minor / 100), 2) }}</span>
+        <span>
+          &#8369;{{ number_format($sellerOrder->shipping_minor / 100, 2) }}
+        </span>
       </div>
-      <hr>
-      <div class="d-flex justify-content-between fw-bold">
-        <span>Total</span>
-        <span>&#8369;{{ number_format(($order->total_minor / 100), 2) }}</span>
-      </div>
-    </div>
 
-    <div class="table-container">
-      <h5 class="mb-3">Customer</h5>
-      <p><strong>Name:</strong> {{ $order->user->name ?? 'N/A' }}</p>
-      <p><strong>Email:</strong> {{ $order->user->email ?? 'N/A' }}</p>
-      <p><strong>Phone:</strong> {{ $order->user->phone ?? 'N/A' }}</p>
+      @php
+      $otherChargesMinor = $sellerOrder->total_minor
+      - $sellerOrder->subtotal_minor
+      - $sellerOrder->shipping_minor;
+      @endphp
+
+      @if($otherChargesMinor != 0)
+      <div class="d-flex justify-content-between mb-2">
+        <span>Other allocated charges / adjustments</span>
+        <span>
+          &#8369;{{ number_format($otherChargesMinor / 100, 2) }}
+        </span>
+      </div>
+      @endif
+
+      <hr>
+
+      <div class="d-flex justify-content-between fw-bold">
+        <span>My Total</span>
+        <span>
+          &#8369;{{ number_format($sellerOrder->total_minor / 100, 2) }}
+        </span>
+      </div>
     </div>
   </div>
-</div>
-@endsection
 
+</div>
+@endif
+@endsection

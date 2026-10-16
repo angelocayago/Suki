@@ -23,8 +23,8 @@ return new class extends Migration
         DB::statement('
             UPDATE commissions
             SET
-                order_total_minor = ROUND(order_total * 100)::bigint,
-                amount_minor = ROUND(amount * 100)::bigint
+                order_total_minor = CAST(ROUND(order_total * 100) AS BIGINT),
+                amount_minor = CAST(ROUND(amount * 100) AS BIGINT)
         ');
     }
 

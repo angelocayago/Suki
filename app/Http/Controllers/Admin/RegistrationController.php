@@ -47,9 +47,9 @@ class RegistrationController extends Controller
         } catch (\Throwable $e) {
             logger()->error(
                 'Failed to send registration email to '
-                . $user->email
-                . ': '
-                . $e->getMessage()
+                    . $user->email
+                    . ': '
+                    . $e->getMessage()
             );
         }
     }
@@ -76,12 +76,21 @@ class RegistrationController extends Controller
 
             $query->whereHas(
                 'roles',
-                fn ($q) => $q->where(
+                fn($q) => $q->where(
                     'name',
                     $requestedRole
                 )
             );
         }
+
+        // Buyers and Sellers are reviewable only after email OTP verification.
+        $query->where(function ($q) {
+            $q->whereHas('roles', fn($roles) => $roles->where('name', 'logistics'))
+                ->orWhere(function ($verified) {
+                    $verified->whereNotNull('email_verified_at')
+                        ->whereHas('roles', fn($roles) => $roles->whereIn('name', ['buyer', 'seller']));
+                });
+        });
 
         $applications = $query
             ->latest()
@@ -104,6 +113,12 @@ class RegistrationController extends Controller
                 );
         }
 
+        if (!$user->hasAnyRole(['buyer', 'seller', 'logistics'])) {
+            return redirect()
+                ->route('admin.registrations.index')
+                ->with('error', 'Only Buyer, Seller and Logistics applications require Admin approval.');
+        }
+
         if (!$user->isPending()) {
             return redirect()
                 ->route('admin.registrations.index')
@@ -111,6 +126,11 @@ class RegistrationController extends Controller
                     'error',
                     'This application is no longer pending.'
                 );
+        }
+
+        if ($user->hasAnyRole(['buyer', 'seller']) && $user->email_verified_at === null) {
+            return redirect()->route('admin.registrations.index')
+                ->with('error', 'This applicant must verify their email before Admin review.');
         }
 
         return view(
@@ -143,6 +163,10 @@ class RegistrationController extends Controller
             ->roles()
             ->value('name');
 
+        if (in_array($roleName, ['buyer', 'seller'], true) && $user->email_verified_at === null) {
+            return back()->with('error', 'This applicant must verify their email before approval.');
+        }
+
         if (
             !in_array(
                 $roleName,
@@ -158,6 +182,32 @@ class RegistrationController extends Controller
 
         DB::transaction(
             function () use ($user, $roleName) {
+
+                // Recheck the latest account state while holding a database lock.
+                $lockedUser = User::whereKey($user->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (!$lockedUser->isPending()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'approval' => 'This application has already been processed.',
+                    ]);
+                }
+
+                // Repeat authorization and OTP checks inside the database lock.
+                $lockedRole = $lockedUser->roles()->whereIn('name', ['buyer', 'seller', 'logistics'])->value('name');
+                if (!$lockedRole || $lockedRole !== $roleName) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'approval' => 'This account is not eligible for Admin approval.',
+                    ]);
+                }
+                if (in_array($lockedRole, ['buyer', 'seller'], true) && $lockedUser->email_verified_at === null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'approval' => 'This applicant must verify their email before approval.',
+                    ]);
+                }
+
+                $user = $lockedUser;
                 /*
                 |--------------------------------------------------------------------------
                 | Activate approved user
@@ -192,12 +242,12 @@ class RegistrationController extends Controller
 
                     while (
                         Seller::where('slug', $slug)
-                            ->where(
-                                'user_id',
-                                '!=',
-                                $user->id
-                            )
-                            ->exists()
+                        ->where(
+                            'user_id',
+                            '!=',
+                            $user->id
+                        )
+                        ->exists()
                     ) {
                         $slug = $baseSlug
                             . '-'
@@ -206,10 +256,8 @@ class RegistrationController extends Controller
                         $counter++;
                     }
 
-                    Seller::updateOrCreate(
-                        [
-                            'user_id' => $user->id,
-                        ],
+                    $seller = Seller::updateOrCreate(
+                        ['user_id' => $user->id],
                         [
                             'name' => $shopName,
                             'slug' => $slug,
@@ -219,10 +267,40 @@ class RegistrationController extends Controller
                             'status' => 'approved',
                             'rejection_reason' => null,
                             'commission_bps' => 0,
-                            'pickup_address_id' => null,
                         ]
                     );
-                }
+
+                    // Preserve an existing pickup address.
+                    if (!$seller->pickup_address_id) {
+                        $addressLine1 = collect([
+                            $user->house_number,
+                            $user->street_address,
+                            $user->barangay_name ?: $user->barangay,
+                        ])->filter()->implode(', ');
+
+                        $city = $user->municipality_name ?: $user->municipality;
+                        $province = $user->province_name ?: $user->province;
+
+                        if ($addressLine1 !== '' && $city && $province) {
+                            $pickupAddress = \App\Models\Address::create([
+                                'user_id' => $user->id,
+                                'label' => 'Seller Pickup',
+                                'address_line1' => $addressLine1,
+                                'city' => $city,
+                                'province' => $province,
+                                'country' => 'Philippines',
+                                'phone' => $user->mobile_number ?: $user->phone,
+                                'is_default' => true,
+                                'latitude' => $user->latitude,
+                                'longitude' => $user->longitude,
+                            ]);
+
+                            $seller->update([
+                                'pickup_address_id' => $pickupAddress->id,
+                            ]);
+                        }
+                    }
+                } // End seller approval
 
                 /*
                 |--------------------------------------------------------------------------
@@ -321,16 +399,29 @@ class RegistrationController extends Controller
             );
         }
 
+        if (in_array($roleName, ['buyer', 'seller'], true) && $user->email_verified_at === null) {
+            return back()->with('error', 'This applicant must verify their email before review.');
+        }
+
         DB::transaction(
             function () use (
                 $user,
                 $roleName,
                 $request
             ) {
+                $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                if (
+                    !$user->isPending() || !$user->roles()->where('name', $roleName)->exists()
+                    || (in_array($roleName, ['buyer', 'seller'], true) && $user->email_verified_at === null)
+                ) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'rejection_reason' => 'This application is no longer eligible for review.',
+                    ]);
+                }
                 $user->update([
                     'status' => User::STATUS_REJECTED,
                     'rejection_reason' =>
-                        $request->rejection_reason,
+                    $request->rejection_reason,
                     'approved_at' => null,
                 ]);
 
@@ -348,7 +439,7 @@ class RegistrationController extends Controller
                     )->update([
                         'status' => 'rejected',
                         'rejection_reason' =>
-                            $request->rejection_reason,
+                        $request->rejection_reason,
                     ]);
                 }
 
@@ -364,7 +455,7 @@ class RegistrationController extends Controller
                     )->update([
                         'status' => 'rejected',
                         'rejection_reason' =>
-                            $request->rejection_reason,
+                        $request->rejection_reason,
                         'approved_at' => null,
                     ]);
                 }

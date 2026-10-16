@@ -28,68 +28,37 @@ return new class extends Migration
             $table->unsignedBigInteger('subtotal_minor')->nullable();
         });
 
-        // Backfill existing Order money values from pesos to centavos.
-        DB::statement("
-            UPDATE orders
-            SET subtotal_minor = ROUND(subtotal * 100)::bigint
-            WHERE subtotal IS NOT NULL
-        ");
+        // Convert existing peso values to integer centavos.
+        $moneyColumns = [
+            'orders' => [
+                'subtotal',
+                'tax',
+                'shipping',
+                'total',
+                'amount_collected',
+            ],
+            'seller_orders' => [
+                'subtotal',
+                'shipping',
+                'total',
+            ],
+            'order_items' => [
+                'price',
+                'subtotal',
+            ],
+        ];
 
-        DB::statement("
-            UPDATE orders
-            SET tax_minor = ROUND(tax * 100)::bigint
-            WHERE tax IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE orders
-            SET shipping_minor = ROUND(shipping * 100)::bigint
-            WHERE shipping IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE orders
-            SET total_minor = ROUND(total * 100)::bigint
-            WHERE total IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE orders
-            SET amount_collected_minor = ROUND(amount_collected * 100)::bigint
-            WHERE amount_collected IS NOT NULL
-        ");
-
-        // Backfill SellerOrder money values.
-        DB::statement("
-            UPDATE seller_orders
-            SET subtotal_minor = ROUND(subtotal * 100)::bigint
-            WHERE subtotal IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE seller_orders
-            SET shipping_minor = ROUND(shipping * 100)::bigint
-            WHERE shipping IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE seller_orders
-            SET total_minor = ROUND(total * 100)::bigint
-            WHERE total IS NOT NULL
-        ");
-
-        // Backfill OrderItem money values.
-        DB::statement("
-            UPDATE order_items
-            SET price_minor = ROUND(price * 100)::bigint
-            WHERE price IS NOT NULL
-        ");
-
-        DB::statement("
-            UPDATE order_items
-            SET subtotal_minor = ROUND(subtotal * 100)::bigint
-            WHERE subtotal IS NOT NULL
-        ");
+        foreach ($moneyColumns as $table => $columns) {
+            foreach ($columns as $column) {
+                DB::table($table)
+                    ->whereNotNull($column)
+                    ->update([
+                        "{$column}_minor" => DB::raw(
+                            "CAST(ROUND({$column} * 100) AS BIGINT)"
+                        ),
+                    ]);
+            }
+        }
     }
 
     public function down(): void

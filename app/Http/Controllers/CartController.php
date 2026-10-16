@@ -16,11 +16,15 @@ class CartController extends Controller
             ->get();
 
         $totalMinor = $cartItems->sum(function ($item) {
+            if (!$item->product) {
+                return 0;
+            }
+
             $priceMinor = $item->variation
                 ? (int) $item->variation->effective_price_minor
                 : (int) $item->product->effective_price_minor;
 
-            return $priceMinor * $item->quantity;
+            return $priceMinor * (int) $item->quantity;
         });
 
         $total = $totalMinor / 100;
@@ -28,154 +32,238 @@ class CartController extends Controller
         return view('cart.index', compact('cartItems', 'total'));
     }
 
+    /**
+     * Validate product, variant, size and requested stock.
+     *
+     * Returns an error message or null when valid.
+     */
+    private function validatePurchase(
+        Product $product,
+        int $quantity,
+        ?int $variantId,
+        ?int $sizeId
+    ): ?string {
+        if (
+            $product->status !== 'published' ||
+            $product->compliance_status !== 'approved'
+        ) {
+            return 'This product is not currently available.';
+        }
+
+        if ($quantity < 1) {
+            return 'Quantity must be at least 1.';
+        }
+
+        if ((int) $product->stock < $quantity) {
+            return 'Only ' . (int) $product->stock
+                . ' unit(s) of this product are available.';
+        }
+
+        if ($product->variations()->exists() && !$variantId) {
+            return 'Please select a product variant before purchasing.';
+        }
+
+        if ($variantId) {
+            $variation = $product->variations()
+                ->whereKey($variantId)
+                ->first();
+
+            if (!$variation) {
+                return 'Selected variant is not available for this product.';
+            }
+
+            if ((int) $variation->stock < $quantity) {
+                return 'Only ' . (int) $variation->stock
+                    . ' unit(s) of the selected variant are available.';
+            }
+        }
+
+        $hasSizes = $product->sizes()->exists();
+
+        if ($hasSizes && !$sizeId) {
+            return 'Please select a size before purchasing.';
+        }
+
+        if ($sizeId) {
+            $size = $product->sizes
+                ->firstWhere('id', $sizeId);
+
+            if (!$size) {
+                return 'Selected size is not available for this product.';
+            }
+
+            $sizeStock = (int) ($size->pivot->stock ?? 0);
+
+            if ($sizeStock < $quantity) {
+                return 'Only ' . $sizeStock
+                    . ' unit(s) of the selected size are available.';
+            }
+        }
+
+        return null;
+    }
+
     public function store(Request $request, Product $product)
     {
-        $request->validate([
+        $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
-            'size_id' => 'nullable|exists:sizes,id',
-            'variant_id' => 'nullable|exists:product_variants,id',
+            'size_id' => 'nullable|integer|exists:sizes,id',
+            'variant_id' => 'nullable|integer|exists:product_variants,id',
         ]);
 
-        if (! $product->isPublished() && !($product->user_id === Auth::id())) {
-            return back()->with('error', 'This product is not currently available.');
-        }
+        $quantity = (int) $validated['quantity'];
+        $sizeId = isset($validated['size_id'])
+            ? (int) $validated['size_id']
+            : null;
+        $variantId = isset($validated['variant_id'])
+            ? (int) $validated['variant_id']
+            : null;
 
-        if ($request->filled('variant_id')) {
-            $variation = $product->variations()->where('id', $request->variant_id)->first();
-            if (!$variation) {
-                return back()->with('error', 'Selected variation is invalid.');
-            }
-            if ($variation->stock < $request->quantity) {
-                return back()->with('error', 'Selected variation does not have enough stock.');
-            }
-        }
+        $error = $this->validatePurchase(
+            $product,
+            $quantity,
+            $variantId,
+            $sizeId
+        );
 
-        if ($request->filled('size_id')) {
-            $size = $product->sizes->firstWhere('id', $request->size_id);
-            if (!$size) {
-                return back()->with('error', 'Selected size is not available for this product.');
-            }
-            if (($size->pivot->stock ?? 0) < $request->quantity) {
-                return back()->with('error', 'Selected size "' . $size->name . '" only has ' . ($size->pivot->stock ?? 0) . ' item(s) in stock. You requested ' . $request->quantity . '.');
-            }
+        if ($error) {
+            return back()->with('error', $error);
         }
 
         $cartItem = CartItem::where('user_id', Auth::id())
             ->where('product_id', $product->id)
-            ->where('size_id', $request->size_id)
-            ->where('variant_id', $request->variant_id)
+            ->where('size_id', $sizeId)
+            ->where('variant_id', $variantId)
             ->first();
 
         if ($cartItem) {
-            $cartItem->increment('quantity', $request->quantity);
+            $newQuantity = (int) $cartItem->quantity + $quantity;
+
+            // Validate the combined quantity, not just the new addition.
+            $error = $this->validatePurchase(
+                $product,
+                $newQuantity,
+                $variantId,
+                $sizeId
+            );
+
+            if ($error) {
+                return back()->with('error', $error);
+            }
+
+            $cartItem->update([
+                'quantity' => $newQuantity,
+            ]);
         } else {
             CartItem::create([
                 'user_id' => Auth::id(),
                 'product_id' => $product->id,
-                'size_id' => $request->size_id,
-                'variant_id' => $request->variant_id,
-                'quantity' => $request->quantity,
+                'size_id' => $sizeId,
+                'variant_id' => $variantId,
+                'quantity' => $quantity,
             ]);
         }
 
-        return redirect()->route('cart.index')->with('success', 'Product added to cart.');
+        return redirect()->route('cart.index')
+            ->with('success', 'Product added to cart.');
     }
 
     public function update(Request $request, CartItem $cartItem)
     {
-        $request->validate([
+        abort_unless(
+            (int) $cartItem->user_id === (int) Auth::id(),
+            403
+        );
+
+        $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
         ]);
 
         $product = $cartItem->product;
 
-        if ($cartItem->variation) {
-            if ($cartItem->variation->stock < $request->quantity) {
-                return back()->with('error', 'Selected variation does not have enough stock.');
-            }
+        if (!$product) {
+            return back()->with(
+                'error',
+                'This product is no longer available.'
+            );
         }
 
-        if ($cartItem->size_id) {
-            $size = $product->sizes->firstWhere('id', $cartItem->size_id);
-            if ($size && ($size->pivot->stock ?? 0) < $request->quantity) {
-                return back()->with('error', 'Selected size "' . $size->name . '" only has ' . ($size->pivot->stock ?? 0) . ' item(s) in stock.');
-            }
+        $error = $this->validatePurchase(
+            $product,
+            (int) $validated['quantity'],
+            $cartItem->variant_id
+                ? (int) $cartItem->variant_id
+                : null,
+            $cartItem->size_id
+                ? (int) $cartItem->size_id
+                : null
+        );
+
+        if ($error) {
+            return back()->with('error', $error);
         }
 
-        $cartItem->update(['quantity' => $request->quantity]);
+        $cartItem->update([
+            'quantity' => (int) $validated['quantity'],
+        ]);
 
-        return redirect()->route('cart.index')->with('success', 'Cart updated.');
+        return redirect()->route('cart.index')
+            ->with('success', 'Cart updated.');
     }
 
     public function destroy(CartItem $cartItem)
     {
+        abort_unless(
+            (int) $cartItem->user_id === (int) Auth::id(),
+            403
+        );
+
         $cartItem->delete();
 
-        return redirect()->route('cart.index')->with('success', 'Item removed from cart.');
+        return redirect()->route('cart.index')
+            ->with('success', 'Item removed from cart.');
     }
 
     public function buyNow(Request $request, Product $product)
     {
-        $request->validate([
+        $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
-            'size_id' => 'nullable|exists:sizes,id',
-            'variant_id' => 'nullable|exists:product_variants,id',
+            'size_id' => 'nullable|integer|exists:sizes,id',
+            'variant_id' => 'nullable|integer|exists:product_variants,id',
         ]);
 
-        if (! $product->isPublished() && !($product->user_id === Auth::id())) {
-            return back()->with('error', 'This product is not currently available.');
+        $quantity = (int) $validated['quantity'];
+        $sizeId = isset($validated['size_id'])
+            ? (int) $validated['size_id']
+            : null;
+        $variantId = isset($validated['variant_id'])
+            ? (int) $validated['variant_id']
+            : null;
+
+        $error = $this->validatePurchase(
+            $product,
+            $quantity,
+            $variantId,
+            $sizeId
+        );
+
+        if ($error) {
+            return back()->with('error', $error);
         }
 
-        $hasAvailableSize = $product->sizes->count() == 0;
-
-        if (!$hasAvailableSize && $request->filled('size_id')) {
-            $size = $product->sizes->firstWhere('id', $request->size_id);
-            if ($size) {
-                $hasAvailableSize = ($size->pivot->stock ?? 0) >= $request->quantity;
-            }
-        } elseif (!$hasAvailableSize) {
-            $hasAvailableSize = $product->sizes->contains(function ($size) {
-                return $size->pivot->stock > 0;
-            });
-        }
-
-        if ($product->stock <= 0 || !$hasAvailableSize) {
-            return back()->with('error', 'This product is currently out of stock.');
-        }
-
-        $variation = null;
-        if ($request->filled('variant_id')) {
-            $variation = $product->variations()->where('id', $request->variant_id)->first();
-            if (!$variation) {
-                return back()->with('error', 'Selected variation is invalid.');
-            }
-            if ($variation->stock < $request->quantity) {
-                return back()->with('error', 'Selected variation does not have enough stock.');
-            }
-        }
-
-        if ($request->filled('size_id')) {
-            $size = $product->sizes->firstWhere('id', $request->size_id);
-            if (!$size) {
-                return back()->with('error', 'Selected size is not available for this product.');
-            }
-            if (($size->pivot->stock ?? 0) < $request->quantity) {
-                return back()->with('error', 'Selected size "' . $size->name . '" only has ' . ($size->pivot->stock ?? 0) . ' item(s) in stock. You requested ' . $request->quantity . '.');
-            }
-        }
-
-        CartItem::where('user_id', Auth::id())->delete();
-
-        $cartItem = CartItem::create([
-            'user_id' => Auth::id(),
+        // Keep existing Buy Now session structure.
+        // Regular cart items are not modified.
+        $request->session()->put('checkout.buy_now', [
             'product_id' => $product->id,
-            'size_id' => $request->size_id,
-            'variant_id' => $variation ? $variation->id : null,
-            'quantity' => $request->quantity,
-            'is_buy_now' => true,
+            'size_id' => $sizeId,
+            'variant_id' => $variantId,
+            'quantity' => $quantity,
         ]);
 
-        return redirect()->route('checkout.index')->with('success', 'Proceeding to checkout for ' . $product->name . '.');
+        return redirect()->route('checkout.index')
+            ->with(
+                'success',
+                'Proceeding to checkout for ' . $product->name . '.'
+            );
     }
 }
-

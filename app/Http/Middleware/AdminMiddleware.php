@@ -10,8 +10,14 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
+        $user = Auth::user();
+
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Unauthorized action.');
+        }
+
+        if (!$user->isActive()) {
+            abort(403, 'Your administrator account is not active.');
         }
 
         return $next($request);

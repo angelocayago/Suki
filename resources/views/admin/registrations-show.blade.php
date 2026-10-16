@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-  $roleName = $user->roles()->value('name');
+$roleName = $user->roles()->value('name');
 @endphp
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
   <h1 class="h2">Review Application</h1>
@@ -14,93 +14,147 @@
     <div class="table-container mb-4">
       <h5 class="mb-3">Applicant Information</h5>
       <table class="table table-borderless">
-        <tr><th class="w-40">Name</th><td>{{ $user->name }}</td></tr>
-        <tr><th>Email</th><td>{{ $user->email }}</td></tr>
-        <tr><th>Mobile</th><td>{{ $user->mobile_number ?? 'N/A' }}</td></tr>
-        <tr><th>Role</th><td><span class="badge bg-info text-capitalize">{{ $roleName ?? 'N/A' }}</span></td></tr>
-        <tr><th>Sex</th><td>{{ $user->sex ?? 'N/A' }}</td></tr>
-        <tr><th>Birthday</th><td>{{ $user->birthday ?? 'N/A' }}</td></tr>
-        <tr><th>Address</th><td>
-          {{ $user->house_number }} {{ $user->street_address }}, {{ $user->barangay }},
-          {{ $user->municipality }}, {{ $user->province }}
-        </td></tr>
+        <tr>
+          <th class="w-40">Name</th>
+          <td>{{ $user->name }}</td>
+        </tr>
+        <tr>
+          <th>Email</th>
+          <td>{{ $user->email }}</td>
+        </tr>
+        <tr>
+          <th>Mobile</th>
+          <td>{{ $user->mobile_number ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Role</th>
+          <td><span class="badge bg-info text-capitalize">{{ $roleName ?? 'N/A' }}</span></td>
+        </tr>
+        <tr>
+          <th>Sex</th>
+          <td>{{ $user->sex ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Birthday</th>
+          <td>{{ $user->birthday ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Address</th>
+          <td>
+            {{ collect([
+            trim(($user->house_number ?? '') . ' ' . ($user->street_address ?? '')),
+            $user->barangay_name,
+            $user->municipality_name,
+            $user->province_name,
+            $user->region_name,
+        ])->filter(fn ($value) => filled($value))->implode(', ') ?: 'N/A' }}
+          </td>
+        </tr>
       </table>
     </div>
 
-     @if($roleName === 'seller')
-      <div class="table-container mb-4">
-        <h5 class="mb-3">Seller Details</h5>
-        <table class="table table-borderless">
-          <tr><th class="w-40">Business Name</th><td>{{ $user->business_name ?? 'N/A' }}</td></tr>
-          <tr><th>Selling Categories</th>
-            <td>
-              @foreach($user->selling_categories ?? [] as $catId)
-                <span class="badge bg-light text-dark">{{ \App\Models\Category::find($catId)->name ?? $catId }}</span>
-              @endforeach
-            </td>
-          </tr>
-        </table>
-        @if($user->business_permit)
-          <a href="{{ asset('storage/' . $user->business_permit) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-file-earmark-pdf"></i> View Business Permit
-          </a>
-        @endif
-      </div>
+    @if($roleName === 'seller')
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Seller Details</h5>
+      <table class="table table-borderless">
+        <tr>
+          <th class="w-40">Business Name</th>
+          <td>{{ $user->business_name ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Selling Categories</th>
+          <td>
+            @foreach($user->selling_categories ?? [] as $catId)
+            <span class="badge bg-light text-dark">{{ \App\Models\Category::find($catId)->name ?? $catId }}</span>
+            @endforeach
+          </td>
+        </tr>
+      </table>
+      @if($user->business_permit)
+      <a href="{{ asset('storage/' . $user->business_permit) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-file-earmark-pdf"></i> View Business Permit
+      </a>
+      @endif
+    </div>
     @endif
 
-     @if($roleName === 'logistics')
-      <div class="table-container mb-4">
-        <h5 class="mb-3">Logistics Company Details</h5>
-        @php
-          $logistic = \App\Models\Logistic::where('owner_user_id', $user->id)->first();
-        @endphp
-        @if($logistic)
-          <table class="table table-borderless">
-            <tr><th class="w-40">Company Name</th><td>{{ $logistic->company_name ?? 'N/A' }}</td></tr>
-            <tr><th>Contact Person</th><td>{{ $logistic->contact_person ?? 'N/A' }}</td></tr>
-            <tr><th>Email</th><td>{{ $logistic->email ?? 'N/A' }}</td></tr>
-            <tr><th>Phone</th><td>{{ $logistic->phone ?? 'N/A' }}</td></tr>
-            <tr><th>Address</th><td>{{ $logistic->address ?? 'N/A' }}</td></tr>
-            <tr><th>Status</th><td><span class="badge bg-{{ $logistic->status == 'active' ? 'success' : ($logistic->status == 'pending' ? 'warning' : ($logistic->status == 'suspended' ? 'danger' : 'secondary')) }}">{{ ucfirst($logistic->status) }}</span></td></tr>
-          </table>
-          @if($logistic->business_permit)
-            <a href="{{ asset('storage/' . $logistic->business_permit) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-file-earmark-pdf"></i> View Business Permit / DTI
-            </a>
-          @endif
-          @if($logistic->logo_url)
-            <img src="{{ $logistic->logo_url }}" alt="Company Logo" class="mt-2" style="max-height: 80px;">
-          @endif
-        @else
-          <p class="text-muted">No logistic company record found.</p>
-        @endif
-      </div>
+    @if($roleName === 'logistics')
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Logistics Company Details</h5>
+      @php
+      $logistic = \App\Models\Logistic::where('owner_user_id', $user->id)->first();
+      @endphp
+      @if($logistic)
+      <table class="table table-borderless">
+        <tr>
+          <th class="w-40">Company Name</th>
+          <td>{{ $logistic->company_name ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Contact Person</th>
+          <td>{{ $logistic->contact_person ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Email</th>
+          <td>{{ $logistic->email ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Phone</th>
+          <td>{{ $logistic->phone ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Address</th>
+          <td>{{ $logistic->address ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Status</th>
+          <td><span class="badge bg-{{ $logistic->status == 'active' ? 'success' : ($logistic->status == 'pending' ? 'warning' : ($logistic->status == 'suspended' ? 'danger' : 'secondary')) }}">{{ ucfirst($logistic->status) }}</span></td>
+        </tr>
+      </table>
+      @if($logistic->business_permit)
+      <a href="{{ asset('storage/' . $logistic->business_permit) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-file-earmark-pdf"></i> View Business Permit / DTI
+      </a>
+      @endif
+      @if($logistic->logo_url)
+      <img src="{{ $logistic->logo_url }}" alt="Company Logo" class="mt-2" style="max-height: 80px;">
+      @endif
+      @else
+      <p class="text-muted">No logistic company record found.</p>
+      @endif
+    </div>
     @endif
 
-     @if($roleName === 'rider')
-      <div class="table-container mb-4">
-        <h5 class="mb-3">Rider Details</h5>
-        <table class="table table-borderless">
-          <tr><th class="w-40">Vehicle Type</th><td>{{ $user->vehicle_type ?? 'N/A' }}</td></tr>
-          <tr><th>License Number</th><td>{{ $user->license_number ?? 'N/A' }}</td></tr>
-        </table>
-        @if($user->or_document)
-          <a href="{{ asset('storage/' . $user->or_document) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-file-earmark"></i> View OR</a>
-        @endif
-        @if($user->cr_document)
-          <a href="{{ asset('storage/' . $user->cr_document) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> View CR</a>
-        @endif
-      </div>
+    @if($roleName === 'rider')
+    <div class="table-container mb-4">
+      <h5 class="mb-3">Rider Details</h5>
+      <table class="table table-borderless">
+        <tr>
+          <th class="w-40">Vehicle Type</th>
+          <td>{{ $user->vehicle_type ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>License Number</th>
+          <td>{{ $user->license_number ?? 'N/A' }}</td>
+        </tr>
+      </table>
+      @if($user->or_document)
+      <a href="{{ asset('storage/' . $user->or_document) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-file-earmark"></i> View OR</a>
+      @endif
+      @if($user->cr_document)
+      <a href="{{ asset('storage/' . $user->cr_document) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> View CR</a>
+      @endif
+    </div>
     @endif
 
     <div class="table-container">
       <h5 class="mb-3">Identity Verification</h5>
       @if($user->id_verification)
-        <a href="{{ asset('storage/' . $user->id_verification) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-file-earmark-person"></i> View ID Verification
-        </a>
+      <a href="{{ asset('storage/' . $user->id_verification) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-file-earmark-person"></i> View ID Verification
+      </a>
       @else
-        <span class="text-muted">No document uploaded.</span>
+      <span class="text-muted">No document uploaded.</span>
       @endif
     </div>
   </div>

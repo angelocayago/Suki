@@ -18,8 +18,11 @@ const initSubmitLock = (formId, busyLabel = 'Submitting...') => {
 
     let submitted = false;
 
-    form.addEventListener('submit', () => {
-        if (submitted) return;
+    form.addEventListener('submit', (event) => {
+        if (submitted) {
+            event.preventDefault();
+            return;
+        }
 
         submitted = true;
         button.disabled = true;

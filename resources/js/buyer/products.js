@@ -1,3 +1,4 @@
+
 const readPayload = (id) => {
     const element = document.getElementById(id);
     if (!element) return null;
@@ -18,94 +19,196 @@ const initProducts = () => {
     const mainProductImage = document.getElementById('main-product-image');
     const productData = readPayload('product-page-data');
     const thumbs = document.querySelectorAll('.variation-thumb');
-    const productMainImageUrl = typeof productData?.mainImageUrl === 'string'
-        ? productData.mainImageUrl
-        : mainProductImage?.getAttribute('src') || '';
-    const payloadVariations = Array.isArray(productData?.variations) ? productData.variations : [];
-    const variations = payloadVariations.length > 0 ? payloadVariations : Array.from(thumbs, (thumb) => ({
-        id: thumb.getAttribute('data-variation-id'),
-        stock: Number(thumb.getAttribute('data-variation-stock')) || 0,
-        price: Number(thumb.getAttribute('data-variation-price')) || 0,
-        originalPrice: Number(thumb.getAttribute('data-variation-original-price')) || 0,
-        image: thumb.getAttribute('data-variation-image') || productMainImageUrl,
-        name: thumb.getAttribute('data-variation-name') || ''
-    }));
+
+    const productMainImageUrl =
+        typeof productData?.mainImageUrl === 'string'
+            ? productData.mainImageUrl
+            : mainProductImage?.getAttribute('src') || '';
+
+    const payloadVariations = Array.isArray(productData?.variations)
+        ? productData.variations
+        : [];
+
+    const variations = payloadVariations.length > 0
+        ? payloadVariations
+        : Array.from(thumbs, (thumb) => ({
+            id: thumb.getAttribute('data-variation-id'),
+            stock: Number(thumb.getAttribute('data-variation-stock')) || 0,
+            price: Number(thumb.getAttribute('data-variation-price')) || 0,
+            originalPrice:
+                Number(thumb.getAttribute('data-variation-original-price')) || 0,
+            image:
+                thumb.getAttribute('data-variation-image') || productMainImageUrl,
+            name: thumb.getAttribute('data-variation-name') || ''
+        }));
+
     const quantityMax = Number(cartQty?.max);
     const productStock = Number(productData?.stock);
-    const fallbackStock = Number.isFinite(productStock) ? productStock : (Number.isFinite(quantityMax) ? quantityMax : 0);
+
+    const fallbackStock = Number.isFinite(productStock)
+        ? productStock
+        : Number.isFinite(quantityMax)
+            ? quantityMax
+            : 0;
+
     let selectedVariationId = null;
 
     const hasMultipleVariations = () => variations.length > 1;
 
     const computeStockLimit = () => {
-        const limits = [];
-        if (selectedVariationId !== null) {
-            const variation = variations.find((item) => String(item.id) === String(selectedVariationId));
-            if (variation && Number.isFinite(Number(variation.stock))) limits.push(Number(variation.stock));
+        if (variations.length > 0 && selectedVariationId === null) {
+            return 0;
         }
+
+        const limits = [];
+
+        if (selectedVariationId !== null) {
+            const variation = variations.find(
+                (item) => String(item.id) === String(selectedVariationId)
+            );
+
+            if (!variation) return 0;
+
+            const stock = Number(variation.stock);
+
+            if (!Number.isFinite(stock)) return 0;
+
+            limits.push(Math.max(0, Math.floor(stock)));
+        } else {
+            limits.push(Math.max(0, Math.floor(fallbackStock)));
+        }
+
         if (sizeSelect && sizeSelect.value) {
             const option = sizeSelect.options[sizeSelect.selectedIndex];
-            const stock = Number(option?.dataset.stock);
-            if (Number.isFinite(stock)) limits.push(stock);
+            const rawStock = option?.dataset.stock;
+
+            if (rawStock !== undefined && rawStock !== '') {
+                const stock = Number(rawStock);
+
+                if (Number.isFinite(stock)) {
+                    limits.push(Math.max(0, Math.floor(stock)));
+                }
+            }
         }
-        if (limits.length === 0) limits.push(fallbackStock);
-        let minimum = Math.min(...limits);
-        if (!Number.isFinite(minimum) || minimum < 1) minimum = 1;
-        return minimum;
+
+        return limits.length ? Math.min(...limits) : 0;
     };
 
     const updateButtons = () => {
         const limit = computeStockLimit();
-        let canPurchase = limit >= 1;
-        if (hasMultipleVariations()) canPurchase = canPurchase && selectedVariationId !== null;
+
+        const variationRequired = variations.length > 0 && selectedVariationId === null;
+
+        const canPurchase = limit > 0 && !variationRequired;
+
         if (cartBtn) cartBtn.disabled = !canPurchase;
         if (buyBtn) buyBtn.disabled = !canPurchase;
     };
 
-    const updateQuantityLimit = () => {
-        if (cartQty) {
-            const limit = computeStockLimit();
-            cartQty.max = String(limit);
-            if (parseInt(cartQty.value, 10) > limit) cartQty.value = '1';
+    const normalizeQuantity = () => {
+        const limit = computeStockLimit();
+
+        if (!cartQty) return limit > 0 ? 1 : 0;
+
+        cartQty.max = String(limit);
+        cartQty.disabled = limit <= 0;
+
+        if (limit <= 0) {
+            cartQty.value = '0';
+            return 0;
         }
+
+        const entered = Number(cartQty.value);
+
+        const quantity = Number.isFinite(entered)
+            ? Math.min(limit, Math.max(1, Math.floor(entered)))
+            : 1;
+
+        cartQty.value = String(quantity);
+
+        return quantity;
+    };
+
+    const updateQuantityLimit = () => {
+        const variationRequired =
+            variations.length > 0 && selectedVariationId === null;
+
+        if (cartQty) {
+            cartQty.placeholder = variationRequired
+                ? 'Select a variant first'
+                : 'Enter quantity';
+
+            if (variationRequired) {
+                cartQty.value = '';
+                cartQty.max = '0';
+                cartQty.disabled = true;
+            } else {
+                normalizeQuantity();
+            }
+        }
+
         updateButtons();
     };
 
+    if (cartQty) {
+        cartQty.addEventListener('input', () => {
+            if (cartQty.value === '') return;
+            normalizeQuantity();
+        });
+
+        cartQty.addEventListener('change', updateQuantityLimit);
+    }
+
     const syncHiddenSize = () => {
         const value = sizeSelect ? sizeSelect.value : '';
+
         const cartSize = document.getElementById('cart-size-id');
         const buySize = document.getElementById('buy-size-id');
+
         if (cartSize) cartSize.value = value;
         if (buySize) buySize.value = value;
+
         updateQuantityLimit();
     };
 
     const updateStockDisplay = (stock) => {
         const stockDisplay = document.getElementById('stock-display');
         const stockAmount = document.getElementById('stock-amount');
+
         if (!stockDisplay || !stockAmount) return;
+
         stockDisplay.className = '';
+
         if (stock > 0) {
             stockDisplay.className = 'text-muted d-block';
-            stockAmount.textContent = `${stock} ${stock === 1 ? 'unit' : 'units'} available`;
+            stockAmount.textContent =
+                `${stock} ${stock === 1 ? 'unit' : 'units'} available`;
         } else {
             stockDisplay.className = 'badge bg-danger rounded-pill';
-            stockDisplay.id = 'stock-display';
             stockDisplay.textContent = 'Sold Out';
         }
     };
 
     window.selectVariation = (id, stock, price, originalPrice, image, name) => {
-        if (stock <= 0) return;
+        thumbs.forEach((thumb) => {
+            thumb.classList.remove('variation-selected');
+        });
 
-        thumbs.forEach((thumb) => thumb.classList.remove('variation-selected'));
-        const clicked = document.querySelector(`[data-variation-id="${id}"]`);
+        const clicked = Array.from(thumbs).find(
+            (thumb) => thumb.getAttribute('data-variation-id') === String(id)
+        );
+
         if (clicked) clicked.classList.add('variation-selected');
 
         selectedVariationId = id;
-        const selectedVariation = document.getElementById('selected-variation-id');
-        const cartVariation = document.getElementById('cart-variation-id');
-        const buyVariation = document.getElementById('buy-variation-id');
+
+        const selectedVariation =
+            document.getElementById('selected-variation-id');
+        const cartVariation =
+            document.getElementById('cart-variation-id');
+        const buyVariation =
+            document.getElementById('buy-variation-id');
+
         if (selectedVariation) selectedVariation.value = id;
         if (cartVariation) cartVariation.value = id;
         if (buyVariation) buyVariation.value = id;
@@ -113,94 +216,100 @@ const initProducts = () => {
         if (mainProductImage && image) {
             mainProductImage.src = image;
             mainProductImage.style.opacity = '0';
+
             setTimeout(() => {
                 mainProductImage.style.opacity = '1';
             }, 150);
         }
 
-        
         const displayPrice = document.getElementById('display-price');
-const originalPriceElement = document.getElementById('original-price');
-const discountBadge = document.getElementById('discount-badge');
+        const originalPriceElement =
+            document.getElementById('original-price');
+        const discountBadge =
+            document.getElementById('discount-badge');
 
-const currentPrice = parseFloat(price);
-const previousPrice = parseFloat(originalPrice);
+        const currentPrice = parseFloat(price);
+        const previousPrice = parseFloat(originalPrice);
 
-if (displayPrice && Number.isFinite(currentPrice)) {
-    displayPrice.textContent = `₱${currentPrice.toFixed(2)}`;
+        if (displayPrice && Number.isFinite(currentPrice)) {
+            displayPrice.textContent = `\u20B1${currentPrice.toFixed(2)}`;
 
-    const hasDiscount =
-        Number.isFinite(previousPrice) &&
-        previousPrice > 0 &&
-        currentPrice < previousPrice;
+            const hasDiscount =
+                Number.isFinite(previousPrice) &&
+                previousPrice > 0 &&
+                currentPrice < previousPrice;
 
-    if (hasDiscount) {
-        displayPrice.classList.add('text-danger');
+            if (hasDiscount) {
+                displayPrice.classList.add('text-danger');
 
-        if (originalPriceElement) {
-            originalPriceElement.textContent = `₱${previousPrice.toFixed(2)}`;
-            originalPriceElement.style.display = '';
+                if (originalPriceElement) {
+                    originalPriceElement.textContent = `\u20B1${previousPrice.toFixed(2)}`;
+                    originalPriceElement.style.display = '';
+                }
+
+                if (discountBadge) {
+                    const discountPercent = Math.round(
+                        (1 - currentPrice / previousPrice) * 100
+                    );
+
+                    discountBadge.textContent = `-${discountPercent}%`;
+                    discountBadge.style.display = '';
+                }
+            } else {
+                displayPrice.classList.remove('text-danger');
+
+                if (originalPriceElement) {
+                    originalPriceElement.style.display = 'none';
+                }
+
+                if (discountBadge) {
+                    discountBadge.style.display = 'none';
+                }
+            }
         }
-
-        if (discountBadge) {
-            const discountPercent = Math.round(
-                (1 - currentPrice / previousPrice) * 100
-            );
-
-            discountBadge.textContent = `-${discountPercent}%`;
-            discountBadge.style.display = '';
-        }
-    } else {
-        displayPrice.classList.remove('text-danger');
-
-        if (originalPriceElement) {
-            originalPriceElement.style.display = 'none';
-        }
-
-        if (discountBadge) {
-            discountBadge.style.display = 'none';
-        }
-    }
-}
 
         updateStockDisplay(stock);
+
         const info = document.getElementById('selected-variant-info');
         const nameElement = document.getElementById('selected-variant-name');
+
         if (info && nameElement) {
             nameElement.textContent = name;
             info.style.display = 'block';
         }
+
         updateQuantityLimit();
     };
 
-    window.addToCart = () => {
-        if (hasMultipleVariations() && selectedVariationId === null) {
+    const submitPurchase = (formId, quantityId) => {
+        if (variations.length > 0 && selectedVariationId === null) {
             window.alert('Please select a product option first.');
             return;
         }
-        const quantityInput = document.getElementById('cart-quantity');
-        const submitQty = document.getElementById('cart-submit-qty');
-        let quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-        if (!Number.isFinite(quantity)) quantity = 1;
-        const quantityLimit = computeStockLimit();
-        if (quantity > quantityLimit) quantity = quantityLimit;
-        if (submitQty) submitQty.value = String(quantity);
-        document.getElementById('cart-form')?.submit();
+
+        const quantity = normalizeQuantity();
+
+        if (quantity <= 0) {
+            window.alert('This product is currently out of stock.');
+            updateButtons();
+            return;
+        }
+
+        const hiddenQuantity = document.getElementById(quantityId);
+
+        if (hiddenQuantity) {
+            hiddenQuantity.value = String(quantity);
+        }
+
+        document.getElementById(formId)?.submit();
+    };
+
+    window.addToCart = () => {
+        submitPurchase('cart-form', 'cart-submit-qty');
     };
 
     window.placeOrder = () => {
-        if (hasMultipleVariations() && selectedVariationId === null) {
-            window.alert('Please select a product option first.');
-            return;
-        }
-        const quantityInput = document.getElementById('cart-quantity');
-        const buyQty = document.getElementById('buy-quantity');
-        let quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-        if (!Number.isFinite(quantity)) quantity = 1;
-        const quantityLimit = computeStockLimit();
-        if (quantity > quantityLimit) quantity = quantityLimit;
-        if (buyQty) buyQty.value = String(quantity);
-        document.getElementById('buynow-form')?.submit();
+        submitPurchase('buynow-form', 'buy-quantity');
     };
 
     if (sizeSelect) {
@@ -211,41 +320,85 @@ if (displayPrice && Number.isFinite(currentPrice)) {
     thumbs.forEach((thumb) => {
         thumb.addEventListener('click', () => {
             const id = thumb.getAttribute('data-variation-id');
-            const stock = parseInt(thumb.getAttribute('data-variation-stock'), 10);
-            const price = parseFloat(thumb.getAttribute('data-variation-price'));
-            const originalPrice = parseFloat(thumb.getAttribute('data-variation-original-price')) || price;
-            const image = thumb.getAttribute('data-variation-image') || productMainImageUrl;
-            const name = thumb.getAttribute('data-variation-name') || '';
-            window.selectVariation(id, stock, price, originalPrice, image, name);
+            const stock = parseInt(
+                thumb.getAttribute('data-variation-stock'),
+                10
+            );
+
+            const price = parseFloat(
+                thumb.getAttribute('data-variation-price')
+            );
+
+            const originalPrice =
+                parseFloat(
+                    thumb.getAttribute('data-variation-original-price')
+                ) || price;
+
+            const image =
+                thumb.getAttribute('data-variation-image') ||
+                productMainImageUrl;
+
+            const name =
+                thumb.getAttribute('data-variation-name') || '';
+
+            window.selectVariation(
+                id,
+                stock,
+                price,
+                originalPrice,
+                image,
+                name
+            );
         });
     });
 
-    updateButtons();
+    updateQuantityLimit();
 
     const modal = document.getElementById('secondaryImageModal');
     const bootstrapApi = window.bootstrap;
+
     if (modal && bootstrapApi && bootstrapApi.Carousel) {
         modal.addEventListener('shown.bs.modal', () => {
-            const carouselElement = document.getElementById('lightbox-carousel');
+            const carouselElement =
+                document.getElementById('lightbox-carousel');
+
             if (!carouselElement) return;
-            const carousel = bootstrapApi.Carousel.getOrCreateInstance(carouselElement);
-            const items = carouselElement.querySelectorAll('.carousel-item');
-            const currentIndexElement = document.getElementById('current-image-index');
+
+            const carousel =
+                bootstrapApi.Carousel.getOrCreateInstance(carouselElement);
+
+            const items =
+                carouselElement.querySelectorAll('.carousel-item');
+
+            const currentIndexElement =
+                document.getElementById('current-image-index');
+
             const updateIndex = () => {
-                const active = carouselElement.querySelector('.carousel-item.active');
+                const active =
+                    carouselElement.querySelector('.carousel-item.active');
+
                 if (active && currentIndexElement) {
-                    currentIndexElement.textContent = String(Array.from(items).indexOf(active) + 1);
+                    currentIndexElement.textContent = String(
+                        Array.from(items).indexOf(active) + 1
+                    );
                 }
             };
+
             carousel.cycle();
             updateIndex();
-            carouselElement.addEventListener('slide.bs.carousel', updateIndex);
+
+            carouselElement.addEventListener(
+                'slide.bs.carousel',
+                updateIndex
+            );
         });
     }
 };
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initProducts, { once: true });
+    document.addEventListener('DOMContentLoaded', initProducts, {
+        once: true
+    });
 } else {
     initProducts();
 }
