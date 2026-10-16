@@ -32,10 +32,10 @@ class RegistrationController extends Controller
         $application = $onboarding->register($request->validated());
         $request->session()->put('verification_user_id', $application->user_id);
         try {
-            $verification->send($application->user, 'email', false);
+            $verification->sendUnified($application->user, false);
         } catch (VerificationDeliveryException) {
             return redirect()->route('verification.contact.show')
-                ->with('error', 'Your application was saved, but we could not send the email code. Please use Resend code.');
+                ->with('error', 'Your application was saved, but we could not deliver the verification code. Please use Resend code.');
         }
 
         return redirect()

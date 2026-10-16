@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\SmsSender;
+use App\Mail\AccountVerificationOtpMail;
 use App\Models\Application;
 use App\Models\Category;
 use App\Models\Role;
@@ -10,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -17,6 +20,17 @@ use Tests\TestCase;
 class PhaseOneBSellerOnboardingTest extends TestCase
 {
     use RefreshDatabase;
+
+    private SellerOnboardingSmsSender $sms;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->sms = new SellerOnboardingSmsSender();
+        $this->app->instance(SmsSender::class, $this->sms);
+        Mail::fake();
+    }
 
     public function test_registration_creates_a_complete_pending_seller_application(): void
     {
@@ -48,6 +62,16 @@ class PhaseOneBSellerOnboardingTest extends TestCase
         $this->assertSame('pending', $application->status);
         $this->assertSame($seller->id, $application->application_data['seller_id']);
         $this->assertCount(2, $application->sellerDocuments);
+
+        $this->assertDatabaseHas('account_verifications', [
+            'user_id' => $user->id,
+            'channel' => 'unified',
+            'verified_at' => null,
+        ]);
+        $this->assertDatabaseMissing('account_verifications', ['user_id' => $user->id, 'channel' => 'email']);
+        $this->assertDatabaseMissing('account_verifications', ['user_id' => $user->id, 'channel' => 'sms']);
+        Mail::assertSent(AccountVerificationOtpMail::class, 1);
+        $this->assertCount(1, $this->sms->messages);
 
         foreach ($application->sellerDocuments as $document) {
             $this->assertSame('seller_documents', $document->disk);
@@ -221,5 +245,15 @@ class PhaseOneBSellerOnboardingTest extends TestCase
             'terms' => '1',
             'status' => 'approved',
         ];
+    }
+}
+
+class SellerOnboardingSmsSender implements SmsSender
+{
+    public array $messages = [];
+
+    public function send(string $phone, string $message): void
+    {
+        $this->messages[] = compact('phone', 'message');
     }
 }

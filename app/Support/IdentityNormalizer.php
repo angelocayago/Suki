@@ -13,7 +13,10 @@ final class IdentityNormalizer
 
     public static function philippinePhone(?string $phone): string
     {
-        $value = preg_replace('/[\s()-]+/', '', trim((string) $phone));
+        // Keep spaces and punctuation in an invalid submission so the owning
+        // FormRequest can return a useful field error. Only the documented
+        // +63 representation is normalized to the public 09XXXXXXXXX form.
+        $value = trim((string) $phone);
 
         if (preg_match('/^\+639\d{9}$/', $value)) {
             return '0'.substr($value, 3);

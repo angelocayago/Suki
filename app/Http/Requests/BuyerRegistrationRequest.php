@@ -21,9 +21,9 @@ class BuyerRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'last_name' => ['required', 'string', 'max:100'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'middle_initial' => ['nullable', 'string', 'max:10'],
+            'last_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
+            'first_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
+            'middle_initial' => ['nullable', 'string', 'regex:/^\pL$/u'],
             'sex' => ['required', 'string', 'max:20'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->where(fn ($q) => $q->whereRaw('LOWER(email) = ?', [$this->input('email')]))],
             'phone' => ['required', 'regex:/^09\d{9}$/', Rule::unique('users', 'phone')],
@@ -36,5 +36,10 @@ class BuyerRegistrationRequest extends FormRequest
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'terms' => ['accepted'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['first_name.regex' => 'Please enter a valid name.', 'last_name.regex' => 'Please enter a valid name.', 'middle_initial.regex' => 'Middle initial must be one letter.', 'phone.regex' => 'Mobile number must be 11 digits and start with 09.'];
     }
 }

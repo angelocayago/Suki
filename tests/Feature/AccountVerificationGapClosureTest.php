@@ -55,16 +55,19 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->assertSame(1, User::query()->count());
     }
 
-    public function test_valid_email_then_sms_codes_activate_buyer_without_admin_approval(): void
+    public function test_unified_code_verifies_buyer_email_and_mobile_and_activates_without_admin_approval(): void
     {
         $user = $this->verificationUser('buyer');
         $service = app(AccountVerificationService::class);
-        $service->send($user, 'email', false);
-        $emailCode = $this->lastEmailCode();
-        $this->assertFalse($service->verify($user, 'email', $emailCode));
-        $service->send($user->fresh(), 'sms', false);
-        $this->assertTrue($service->verify($user->fresh(), 'sms', $this->sms->lastCode()));
-        $this->assertSame('active', $user->fresh()->status);
+        $service->sendUnified($user, false);
+        $code = $this->lastEmailCode();
+
+        $this->assertSame($code, $this->sms->lastCode());
+        $this->assertTrue($service->verifyUnified($user->fresh(), $code));
+        $verified = $user->fresh();
+        $this->assertSame('active', $verified->status);
+        $this->assertNotNull($verified->email_verified_at);
+        $this->assertNotNull($verified->phone_verified_at);
     }
 
     public function test_wrong_code_counts_attempt_and_correct_code_cannot_be_reused(): void
@@ -86,18 +89,16 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->expectException(ValidationException::class); $service->verify($user, 'email', $code);
     }
 
-    public function test_resend_invalidates_old_email_and_sms_codes(): void
+    public function test_unified_resend_invalidates_the_old_code_for_both_contact_channels(): void
     {
         $user = $this->verificationUser(); $service = app(AccountVerificationService::class);
-        $service->send($user, 'email', false); $oldEmail = $this->lastEmailCode();
-        $service->send($user, 'email', false); $newEmail = $this->lastEmailCode();
-        $this->assertNotSame($oldEmail, $newEmail);
-        try { $service->verify($user, 'email', $oldEmail); $this->fail('Old email OTP accepted.'); } catch (ValidationException) {}
-        $service->verify($user, 'email', $newEmail);
-        $service->send($user->fresh(), 'sms', false); $oldSms = $this->sms->lastCode();
-        $service->send($user->fresh(), 'sms', false); $newSms = $this->sms->lastCode();
-        try { $service->verify($user->fresh(), 'sms', $oldSms); $this->fail('Old SMS OTP accepted.'); } catch (ValidationException) {}
-        $this->assertTrue($service->verify($user->fresh(), 'sms', $newSms));
+        $service->sendUnified($user, false); $oldCode = $this->lastEmailCode();
+        $service->sendUnified($user, false); $newCode = $this->lastEmailCode();
+
+        $this->assertNotSame($oldCode, $newCode);
+        $this->assertSame($newCode, $this->sms->lastCode());
+        try { $service->verifyUnified($user, $oldCode); $this->fail('Old unified OTP accepted.'); } catch (ValidationException) {}
+        $this->assertTrue($service->verifyUnified($user->fresh(), $newCode));
     }
 
     public function test_resend_cooldown_and_attempt_limit_are_enforced(): void

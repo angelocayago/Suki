@@ -2649,8 +2649,8 @@ Route::post('/my-account/profile', function (
     }
 
     $validated = $request->validate([
-        'first_name' => 'required|string|max:100',
-        'last_name' => 'required|string|max:100',
+        'first_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
+        'last_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
         'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore(auth()->id())],
         'phone' => ['required', 'string', 'max:30', Rule::unique('users')->ignore(auth()->id())],
     ]);

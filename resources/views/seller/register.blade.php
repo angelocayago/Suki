@@ -384,6 +384,8 @@
                 type="text"
                 name="first_name"
                 value="{{ old('first_name') }}"
+                autocomplete="given-name"
+                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                 required
                 placeholder="First name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -404,6 +406,8 @@
                 type="text"
                 name="last_name"
                 value="{{ old('last_name') }}"
+                autocomplete="family-name"
+                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                 required
                 placeholder="Last name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -424,6 +428,8 @@
                 type="text"
                 name="middle_initial"
                 value="{{ old('middle_initial') }}"
+                maxlength="1"
+                pattern="[A-Za-zÀ-ÿÑñ]"
                 placeholder="M"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
@@ -518,10 +524,14 @@
             type="text"
             name="phone"
             value="{{ old('phone') }}"
+            inputmode="numeric"
+            maxlength="11"
+            pattern="09[0-9]{9}"
             required
             placeholder="09XXXXXXXXX"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
         >
+        <p class="mt-1 text-xs text-gray-500">Numbers only. Use 11 digits starting with 09.</p>
 
     </div>
 

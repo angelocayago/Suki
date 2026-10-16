@@ -154,6 +154,8 @@
                                 type="text"
                                 name="first_name"
                                 value="{{ old('first_name') }}"
+                                autocomplete="given-name"
+                                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 required
                                 placeholder="Enter first name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -176,6 +178,8 @@
                                 type="text"
                                 name="last_name"
                                 value="{{ old('last_name') }}"
+                                autocomplete="family-name"
+                                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 required
                                 placeholder="Enter last name"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -202,6 +206,8 @@
                                 type="text"
                                 name="middle_initial"
                                 value="{{ old('middle_initial') }}"
+                                maxlength="1"
+                                pattern="[A-Za-zÀ-ÿÑñ]"
                                 maxlength="5"
                                 placeholder="e.g. A."
                                 class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm uppercase outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -289,6 +295,9 @@
                                     type="tel"
                                     name="phone"
                                     value="{{ old('phone') }}"
+                                    inputmode="numeric"
+                                    maxlength="11"
+                                    pattern="09[0-9]{9}"
                                     required
                                     placeholder="09XXXXXXXXX"
                                     class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"

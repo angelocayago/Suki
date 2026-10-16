@@ -3,16 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $channel === 'email' ? 'Verify Email' : 'Verify Mobile Number' }} - SUKI SHOP</title>
+    <title>Verify Contact Details - SUKI SHOP</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-[#F8FAF8] px-5 py-12 text-gray-800">
 <main class="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-7 shadow-sm">
     <a href="{{ route('buyer.home') }}"><img src="{{ asset('images/suki-logo.png') }}" alt="SUKI SHOP" class="mx-auto h-16 w-auto"></a>
     <div class="mt-7 text-center">
-        <p class="text-xs font-semibold uppercase tracking-wider text-[#1F6F5B]">Step {{ $channel === 'email' ? '1 of 2' : '2 of 2' }}</p>
-        <h1 class="mt-2 text-2xl font-bold">{{ $channel === 'email' ? 'Verify your email' : 'Verify your mobile number' }}</h1>
-        <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $destination }}</strong>. Codes expire after 5 minutes.</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-[#1F6F5B]">Contact verification</p>
+        <h1 class="mt-2 text-2xl font-bold">{{ $riderOnly ? 'Verify your mobile number' : 'Verify your contact details' }}</h1>
+        @if($riderOnly)
+            <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $phone }}</strong>. Codes expire after 5 minutes.</p>
+        @else
+            <p class="mt-2 text-sm text-gray-600">Enter the same 6-digit code sent to <strong>{{ $email }}</strong> and <strong>{{ $phone }}</strong>. Codes expire after 5 minutes.</p>
+        @endif
     </div>
 
     @if(session('success')) <div class="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-800">{{ session('success') }}</div> @endif
@@ -23,12 +27,12 @@
         <label class="block text-sm font-semibold" for="code">Verification code</label>
         <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus
                class="w-full rounded-xl border border-gray-300 px-4 py-3 text-center text-2xl tracking-[.45em] focus:border-[#1F6F5B] focus:outline-none">
-        <button data-submit-button class="w-full rounded-xl bg-[#1F6F5B] px-4 py-3 font-semibold text-white hover:bg-[#185a4a]">Verify {{ $channel === 'email' ? 'Email' : 'Mobile Number' }}</button>
+        <button data-submit-button class="w-full rounded-xl bg-[#1F6F5B] px-4 py-3 font-semibold text-white hover:bg-[#185a4a]">Verify Code</button>
     </form>
     <form method="POST" action="{{ route('verification.contact.resend') }}" class="mt-3 text-center">
         @csrf
         <button data-submit-button class="text-sm font-semibold text-[#1F6F5B] hover:underline">Resend code</button>
-        <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies.</p>
+        <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies. {{ $riderOnly ? '' : 'A new code is sent to both contacts.' }}</p>
     </form>
 </main>
 <script>

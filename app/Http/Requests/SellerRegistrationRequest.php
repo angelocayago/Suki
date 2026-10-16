@@ -33,9 +33,9 @@ class SellerRegistrationRequest extends FormRequest
         ];
 
         return [
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'middle_initial' => ['nullable', 'string', 'max:5'],
+            'first_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
+            'last_name' => ['required', 'string', 'max:100', 'regex:/^[\pL]+(?:[ \'\-][\pL]+)*$/u'],
+            'middle_initial' => ['nullable', 'string', 'regex:/^\pL$/u'],
             'sex' => ['required', Rule::in(['Male', 'Female'])],
             'birthday' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
             'phone' => ['required', 'string', 'regex:/^09\d{9}$/', Rule::unique('users', 'phone')],
@@ -65,6 +65,9 @@ class SellerRegistrationRequest extends FormRequest
         return [
             'birthday.before_or_equal' => 'Sellers must be at least 18 years old.',
             'phone.regex' => 'The phone number must use the 09XXXXXXXXX format.',
+            'first_name.regex' => 'Please enter a valid name.',
+            'last_name.regex' => 'Please enter a valid name.',
+            'middle_initial.regex' => 'Middle initial must be one letter.',
             'tin.regex' => 'The TIN must use the XXX-XXX-XXX-XXX format.',
             'business_permit.required_if' => 'A business permit is required for business sellers.',
         ];

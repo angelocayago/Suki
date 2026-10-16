@@ -213,6 +213,8 @@
                                 id="last_name"
                                 name="last_name"
                                 value="{{ old('last_name') }}"
+                                autocomplete="family-name"
+                                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 placeholder="Last name"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
@@ -234,6 +236,8 @@
                                 id="first_name"
                                 name="first_name"
                                 value="{{ old('first_name') }}"
+                                autocomplete="given-name"
+                                pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 placeholder="First name"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
@@ -255,8 +259,9 @@
                                 id="middle_initial"
                                 name="middle_initial"
                                 value="{{ old('middle_initial') }}"
-                                maxlength="10"
-                                placeholder="e.g. M."
+                                maxlength="1"
+                                pattern="[A-Za-zÀ-ÿÑñ]"
+                                placeholder="e.g. M"
                                 class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                             >
                         </div>
@@ -350,11 +355,15 @@
                                     id="phone"
                                     name="phone"
                                     value="{{ old('phone') }}"
-                                    placeholder="Enter contact number"
+                                    inputmode="numeric"
+                                    maxlength="11"
+                                    pattern="09[0-9]{9}"
+                                    placeholder="09XXXXXXXXX"
                                     class="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
                                 >
                             </div>
+                            <p class="mt-1 text-xs text-gray-500">Numbers only. Use 11 digits starting with 09.</p>
                         </div>
 
 

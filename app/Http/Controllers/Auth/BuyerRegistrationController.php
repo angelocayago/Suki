@@ -44,11 +44,11 @@ class BuyerRegistrationController extends Controller
 
         $request->session()->put('verification_user_id', $user->id);
         try {
-            $verification->send($user, 'email', false);
+            $verification->sendUnified($user, false);
         } catch (VerificationDeliveryException) {
             return redirect()->route('verification.contact.show')
-                ->with('error', 'Your account was created, but we could not send the email code. Please use Resend code.');
+                ->with('error', 'Your account was created, but we could not deliver the verification code. Please use Resend code.');
         }
-        return redirect()->route('verification.contact.show')->with('success', 'Account created. Verify your email, then your mobile number.');
+        return redirect()->route('verification.contact.show')->with('success', 'Account created. The same verification code was sent to your email and mobile number.');
     }
 }
