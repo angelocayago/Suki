@@ -75,6 +75,12 @@ RUN mkdir -p storage/framework/cache \
     chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
+# Startup script for Render
+COPY start.sh /usr/local/bin/start.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
+    && chmod +x /usr/local/bin/start.sh
+
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["/usr/local/bin/start.sh"]]
