@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderManagementController;
 use App\Http\Controllers\Admin\ProductModerationController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\ReportController as PhaseFiveReportController;
 use App\Http\Controllers\Admin\SellerComplianceController;
 use App\Http\Controllers\Admin\SellerComplianceEvidenceController;
 use App\Http\Controllers\Admin\SellerManagementController;
@@ -3325,11 +3326,8 @@ Route::delete('/seller/promotions/{promotion}', function (
 // SELLER REPORTS & ANALYTICS
 // =====================================================
 
-Route::get('/seller/reports', function () {
-
-    return view('seller.reports');
-
-})->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+Route::get('/seller/reports', [PhaseFiveReportController::class, 'seller'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.reports');
 
 
@@ -4818,11 +4816,8 @@ Route::get('/logistics/monitoring', function () {
 // LOGISTICS REPORTS
 // =====================================================
 
-Route::get('/logistics/reports', function () {
-
-    return view('logistics.reports');
-
-})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+Route::get('/logistics/reports', [PhaseFiveReportController::class, 'logistics'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
     ->name('logistics.reports');
 
 // =====================================================
@@ -5069,6 +5064,7 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
     Route::get('/rider/dashboard', [RiderFulfillmentController::class, 'dashboard'])->name('rider.dashboard');
     Route::get('/rider/deliveries', [RiderFulfillmentController::class, 'deliveries'])->name('rider.deliveries');
     Route::get('/rider/history', [RiderFulfillmentController::class, 'history'])->name('rider.history');
+    Route::get('/rider/reports', [PhaseFiveReportController::class, 'rider'])->name('rider.reports');
     Route::post('/rider/erp-orders/{sellerOrder}/accept-pickup', [RiderFulfillmentController::class, 'accept'])
         ->name('rider.database.pickup.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
@@ -5502,7 +5498,7 @@ $registerAdminPortalRoutes = function (): void {
         Route::get('/orders/{order}', [OrderManagementController::class, 'show'])->name('orders.show');
         Route::get('/commission', [CommissionController::class, 'index'])->name('commission');
         Route::patch('/commission/{seller}', [CommissionController::class, 'updateRate'])->name('commission.rate');
-        Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+        Route::get('/reports', [PhaseFiveReportController::class, 'admin'])->name('reports');
 
         Route::get('/settings', [SettingController::class, 'index'])->name('settings');
         Route::patch('/settings/platform', [SettingController::class, 'updatePlatform'])->name('settings.platform');

@@ -27,6 +27,8 @@ class OrderItem extends Model
         // New architecture fields
         'seller_order_id',
         'product_id',
+        'category_id_snapshot',
+        'category_name_snapshot',
         'product_variant_id',
         'variant_name',
         'unit_price_minor',
@@ -48,6 +50,7 @@ class OrderItem extends Model
             'unit_price_minor' => 'integer',
             'commission_bps_snapshot' => 'integer',
             'commission_minor' => 'integer',
+            'category_id_snapshot' => 'integer',
         ];
     }
 

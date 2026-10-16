@@ -1,0 +1,10 @@
+@extends('admin.layout')
+@section('title', 'Reports')
+@section('content')
+<div class="space-y-5"><h1 class="text-2xl font-bold">Platform reports</h1>
+<form class="flex flex-wrap gap-2 rounded border bg-white p-3"><input type="date" name="from" value="{{ request('from') }}" class="rounded border p-2"><input type="date" name="to" value="{{ request('to') }}" class="rounded border p-2"><button class="rounded bg-[#173F35] px-3 text-white">Filter</button><button name="export" value="1" class="rounded border px-3">Export CSV</button></form>
+<div class="grid gap-3 md:grid-cols-4">@foreach(['Raw merchandise'=>'raw_minor','Product commission'=>'commission_minor','Seller discounts'=>'seller_discount_minor','Shipping collected'=>'shipping_minor'] as $label=>$key)<div class="rounded border bg-white p-4"><p class="text-sm text-gray-500">{{$label}}</p><b>₱{{number_format($data['summary'][$key]/100,2)}}</b></div>@endforeach</div>
+<p class="text-sm">Completed seller orders: <b>{{$data['completed_orders']}}</b> · Cancelled seller orders: <b>{{$data['cancelled_orders']}}</b> · Platform-funded promotions: <b>₱{{number_format($data['summary']['platform_discount_minor']/100,2)}}</b></p>
+<div class="rounded border bg-white p-4"><h2 class="font-bold">Seller performance</h2><table class="mt-3 w-full text-sm"><thead><tr><th>Seller</th><th>Orders</th><th>Raw</th><th>Commission</th><th>Net earnings</th></tr></thead><tbody>@forelse($data['seller_performance'] as $row)<tr class="border-t"><td>{{$row['seller']}}</td><td>{{$row['completed_orders']}}</td><td>₱{{number_format($row['raw_minor']/100,2)}}</td><td>₱{{number_format($row['commission_minor']/100,2)}}</td><td>₱{{number_format($row['net_minor']/100,2)}}</td></tr>@empty<tr><td colspan="5">No completed data.</td></tr>@endforelse</tbody></table></div>
+<div class="rounded border bg-white p-4"><h2 class="font-bold">Payout overview</h2><p>Pending ₱{{number_format($data['payouts']['pending_minor']/100,2)}} · Approved ₱{{number_format($data['payouts']['approved_minor']/100,2)}} · Paid ₱{{number_format($data['payouts']['paid_minor']/100,2)}}</p></div></div>
+@endsection

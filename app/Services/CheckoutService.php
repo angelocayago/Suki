@@ -202,6 +202,8 @@ class CheckoutService
                         'seller_id' => $seller->user_id,
                         'seller_order_id' => $sellerOrder->id,
                         'product_id' => $product->id,
+                        'category_id_snapshot' => $product->category_id,
+                        'category_name_snapshot' => $product->category?->name,
                         'product_variant_id' => $variant->id,
                         'product_slug' => $product->slug,
                         'product_name' => $product->name,
