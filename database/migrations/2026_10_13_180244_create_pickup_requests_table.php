@@ -35,11 +35,13 @@ return new class extends Migration
         });
 
         // PostgreSQL: only one active offer per shipment.
-        DB::statement("
-            CREATE UNIQUE INDEX pickup_requests_one_active_offer
-            ON pickup_requests (shipment_id)
-            WHERE status = 'offered'
-        ");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+        CREATE UNIQUE INDEX pickup_requests_one_active_offer
+        ON pickup_requests (shipment_id)
+        WHERE status = 'offered'
+    ");
+        }
     }
 
     public function down(): void

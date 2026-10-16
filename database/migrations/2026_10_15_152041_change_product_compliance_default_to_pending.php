@@ -7,15 +7,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement(
-            "ALTER TABLE products ALTER COLUMN compliance_status SET DEFAULT 'pending'"
-        );
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement(
+                "ALTER TABLE products ALTER COLUMN compliance_status SET DEFAULT 'pending'"
+            );
+        }
     }
 
     public function down(): void
     {
-        DB::statement(
-            "ALTER TABLE products ALTER COLUMN compliance_status SET DEFAULT 'approved'"
-        );
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement(
+                "ALTER TABLE products ALTER COLUMN compliance_status SET DEFAULT 'approved'"
+            );
+        }
     }
 };
