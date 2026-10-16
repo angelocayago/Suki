@@ -52,6 +52,12 @@
                         </select>
                         <button class="rounded-xl bg-[#173F35] px-4 py-2 text-xs font-semibold text-white">Assign Rider</button>
                     </form>
+                @elseif(($order['status'] ?? '') === 'assigned_to_rider' && empty($order['rider_index']))
+                    <form method="POST" action="{{ route('logistics.database.delivery-rider.reassign', $order['id']) }}" class="flex gap-2">
+                        @csrf
+                        <select name="rider_id" required class="rounded-xl border border-[#DDE6E1] px-3 py-2 text-xs"><option value="">Reassign delivery rider</option>@foreach($riders as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@endforeach</select>
+                        <button class="rounded-xl bg-[#173F35] px-4 py-2 text-xs font-semibold text-white">Reassign Rider</button>
+                    </form>
                 @else
                     <span class="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
                         Assigned to {{ $order['rider_name'] ?? 'rider' }}

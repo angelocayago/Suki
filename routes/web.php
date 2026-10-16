@@ -5086,6 +5086,7 @@ Route::post('/logistics/orders/{order}/status', function (
 // Phase 2 database-backed fulfillment routes. The legacy session closures above
 // remain available as controller fallbacks when no database records exist.
 Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(function () {
+    Route::post('/rider/availability', [\App\Http\Controllers\Rider\AvailabilityController::class, 'update'])->name('rider.availability.update');
     Route::get('/rider/dashboard', [RiderFulfillmentController::class, 'dashboard'])->name('rider.dashboard');
     Route::get('/rider/deliveries', [RiderFulfillmentController::class, 'deliveries'])->name('rider.deliveries');
     Route::get('/rider/history', [RiderFulfillmentController::class, 'history'])->name('rider.history');
@@ -5094,6 +5095,8 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
         ->name('rider.database.pickup.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
         ->name('rider.database.pickup.decline');
+    Route::post('/rider/erp-orders/{sellerOrder}/accept-delivery', [RiderFulfillmentController::class, 'acceptDelivery'])->name('rider.database.delivery.accept');
+    Route::post('/rider/erp-orders/{sellerOrder}/decline-delivery', [RiderFulfillmentController::class, 'declineDelivery'])->name('rider.database.delivery.decline');
     Route::post('/rider/erp-orders/{sellerOrder}/status', [RiderFulfillmentController::class, 'update'])
         ->name('rider.database.order.status');
     Route::post('/rider/erp-orders/{sellerOrder}/failed-delivery', [RiderFulfillmentController::class, 'failed'])
@@ -5114,11 +5117,14 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::get('/logistics/parcels', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.parcels');
     Route::get('/logistics/sorting', [LogisticsFulfillmentController::class, 'sorting'])->name('logistics.sorting');
     Route::get('/logistics/assignments', [LogisticsFulfillmentController::class, 'assignments'])->name('logistics.assignments');
+    Route::get('/logistics/parcel-lookup', [LogisticsFulfillmentController::class, 'lookup'])->name('logistics.parcels.lookup');
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
     Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
         ->name('logistics.database.orders.receive');
     Route::post('/logistics/erp-orders/{sellerOrder}/pickup-rider', [LogisticsFulfillmentController::class, 'assignPickup'])
         ->name('logistics.database.pickup-rider.assign');
+    Route::post('/logistics/erp-orders/{sellerOrder}/delivery-rider', [LogisticsFulfillmentController::class, 'reassignDelivery'])
+        ->name('logistics.database.delivery-rider.reassign');
     Route::post('/logistics/erp-orders/{sellerOrder}/status', [LogisticsFulfillmentController::class, 'update'])
         ->name('logistics.database.order.status');
     Route::post('/logistics/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'logisticsShipment'])

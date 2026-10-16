@@ -11,6 +11,16 @@
     <div class="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
 @endif
 
+<form method="POST" action="{{ route('rider.availability.update') }}" class="mb-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+    @csrf
+    <span class="font-semibold text-gray-800">Availability</span>
+    <select name="availability" class="rounded-lg border-gray-300 text-sm">
+        <option value="ONLINE" @selected(($availability ?? 'ONLINE') === 'ONLINE')>Online</option>
+        <option value="OFFLINE" @selected(($availability ?? 'ONLINE') === 'OFFLINE')>Offline</option>
+    </select>
+    <button class="rounded-lg bg-[#173F35] px-3 py-2 text-xs font-semibold text-white">Update</button>
+</form>
+
 @php
     /*
     |--------------------------------------------------------------------------
@@ -429,6 +439,17 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                 @endif
 
                             @elseif ($status === 'assigned_to_rider')
+
+                                @if(($order['source'] ?? '') === 'database' && empty($order['delivery_accepted_at']))
+                                    <form method="POST" action="{{ route('rider.database.delivery.accept', $orderId) }}" class="mb-2">
+                                        @csrf
+                                        <button type="submit" class="w-full rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B]">Accept Delivery</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('rider.database.delivery.decline', $orderId) }}" class="mb-2" onsubmit="return confirm('Decline this delivery assignment?');">
+                                        @csrf
+                                        <button type="submit" class="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700">Decline Delivery</button>
+                                    </form>
+                                @endif
 
                                 <form
                                     method="POST"

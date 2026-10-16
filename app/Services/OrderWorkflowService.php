@@ -55,11 +55,7 @@ class OrderWorkflowService
             }
 
             $rider->loadMissing(['user', 'logisticsProvider']);
-            if (
-                ! $rider->is_active || ! $rider->approved_at || ! $rider->user || ! $rider->user->hasRole('rider')
-                || $rider->user->status !== 'active' || $rider->user->is_suspended
-                || $rider->logistics_provider_id !== $provider->id || $rider->logisticsProvider?->status !== 'approved'
-            ) {
+            if (! $rider->approved_at || ! $rider->isOperationallyAvailable() || $rider->logistics_provider_id !== $provider->id) {
                 throw ValidationException::withMessages(['pickup_rider_id' => 'Select an active rider from your approved logistics provider.']);
             }
 
@@ -215,15 +211,7 @@ class OrderWorkflowService
                     $rider->loadMissing(['user', 'logisticsProvider']);
                 }
 
-                if (
-                    ! $rider instanceof Rider
-                    || ! $rider->is_active
-                    || ! $rider->user
-                    || ! $rider->user->hasRole('rider')
-                    || $rider->user->status !== 'active'
-                    || $rider->user->is_suspended
-                    || $rider->logisticsProvider?->status !== 'approved'
-                ) {
+                if (! $rider instanceof Rider || ! $rider->isOperationallyAvailable()) {
                     throw ValidationException::withMessages([
                         'rider_id' => 'An active delivery rider is required.',
                     ]);
@@ -273,6 +261,68 @@ class OrderWorkflowService
             }
 
             return $lockedOrder->fresh(['order', 'seller', 'shipment']);
+        });
+    }
+
+    /** Acknowledge final-mile work without advancing the ERP delivery state. */
+    public function acceptDelivery(SellerOrder $sellerOrder, Rider $rider): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $rider) {
+            $locked = SellerOrder::query()->with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()->with('rider.user')->where('seller_order_id', $locked->id)->lockForUpdate()->first();
+            if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id !== $rider->id) {
+                throw new AuthorizationException('Only the assigned rider may accept this delivery before dispatch.');
+            }
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if (! $rider->isOperationallyAvailable()) {
+                throw new AuthorizationException('Only an online active rider may accept a delivery.');
+            }
+            if (! $shipment->delivery_accepted_at) {
+                $shipment->update(['delivery_accepted_at' => now()]);
+                $this->recordEvent($shipment, 'DELIVERY_ACCEPTED', $rider->user);
+            }
+            return $shipment->fresh();
+        });
+    }
+
+    public function reassignDeliveryRider(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, Rider $rider): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $provider, $actor, $rider) {
+            $locked = SellerOrder::query()->with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()->where('seller_order_id', $locked->id)->lockForUpdate()->first();
+            if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id) {
+                throw ValidationException::withMessages(['order' => 'Only an unaccepted, requeued delivery may be reassigned.']);
+            }
+            if (! $actor->hasRole('logistics') || $provider->user_id !== $actor->id || $provider->status !== 'approved' || $shipment->logistics_provider_id !== $provider->id) {
+                throw new AuthorizationException('Only the owning logistics provider may reassign this delivery.');
+            }
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if (! $rider->isOperationallyAvailable() || $rider->logistics_provider_id !== $provider->id) {
+                throw ValidationException::withMessages(['rider_id' => 'Select an online active rider from your provider.']);
+            }
+            $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null]);
+            $this->recordEvent($shipment, 'DELIVERY_RIDER_REASSIGNED', $actor, 'Delivery rider assigned to '.$rider->user->full_name.'.');
+            return $shipment->fresh();
+        });
+    }
+
+    /** Requeue final-mile work before acceptance; preserve provider and ERP state. */
+    public function declineDelivery(SellerOrder $sellerOrder, Rider $rider): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $rider) {
+            Order::query()->whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $locked = SellerOrder::query()->with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()->with('rider.user')->where('seller_order_id', $locked->id)->lockForUpdate()->first();
+            if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id !== $rider->id || $shipment->delivery_accepted_at) {
+                throw new AuthorizationException('Only the assigned rider may decline before accepting a delivery.');
+            }
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if (! $rider->isOperationallyEligible() || $shipment->logistics_provider_id !== $rider->logistics_provider_id) {
+                throw new AuthorizationException('An inactive rider cannot decline operational work.');
+            }
+            $shipment->update(['rider_id' => null]);
+            $this->recordEvent($shipment, 'DELIVERY_DECLINED', $rider->user, 'Delivery declined; parcel requeued for logistics reassignment.');
+            return $shipment->fresh();
         });
     }
 

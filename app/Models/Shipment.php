@@ -29,6 +29,7 @@ class Shipment extends Model
         'workflow_status',
         'sorting_area',
         'pickup_accepted_at',
+        'delivery_accepted_at',
         'status_changed_at',
         'fee_minor',
         'cod_amount_minor',
@@ -54,6 +55,7 @@ class Shipment extends Model
             'location_updated_at' => 'datetime',
             'workflow_status' => OrderStatus::class,
             'pickup_accepted_at' => 'datetime',
+            'delivery_accepted_at' => 'datetime',
             'status_changed_at' => 'datetime',
         ];
     }

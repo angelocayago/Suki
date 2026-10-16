@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LogisticsProvider;
 use App\Models\Rider;
 use App\Models\SellerOrder;
+use App\Models\Shipment;
 use App\Services\OrderWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,21 @@ class FulfillmentController extends Controller
         ]);
     }
 
+    public function lookup(Request $request): View
+    {
+        $provider = $this->providerFor($request);
+        $data = $request->validate(['tracking_code' => ['nullable', 'string', 'max:100']]);
+        $shipment = null;
+        if (filled($data['tracking_code'] ?? null)) {
+            $shipment = Shipment::query()
+                ->with(['sellerOrder.order', 'sellerOrder.seller'])
+                ->whereRaw('UPPER(tracking_code) = ?', [strtoupper(trim($data['tracking_code']))])
+                ->where('logistics_provider_id', $provider->id)
+                ->first();
+        }
+        return view('logistics.parcel-lookup', compact('shipment'));
+    }
+
     public function receive(
         Request $request,
         SellerOrder $sellerOrder,
@@ -113,6 +129,16 @@ class FulfillmentController extends Controller
         $workflow->assignPickupRider($sellerOrder, $provider, $request->user(), $rider);
 
         return back()->with('success', 'Pickup rider assignment saved. The rider must still accept the pickup.');
+    }
+
+    public function reassignDelivery(Request $request, SellerOrder $sellerOrder, OrderWorkflowService $workflow): RedirectResponse
+    {
+        $data = $request->validate(['rider_id' => ['required', 'integer']]);
+        $provider = $this->providerFor($request);
+        $rider = $provider->riders()->with(['user', 'logisticsProvider'])->findOrFail($data['rider_id']);
+        $workflow->reassignDeliveryRider($sellerOrder, $provider, $request->user(), $rider);
+
+        return back()->with('success', 'Delivery rider reassigned.');
     }
 
     private function providerFor(Request $request): LogisticsProvider
@@ -184,7 +210,8 @@ class FulfillmentController extends Controller
             'pickup_rider_id' => $shipment->pickup_rider_id,
             'pickup_assignment_open' => $sellerOrder->workflow_status === OrderStatus::ReadyForPickup && ! $shipment->pickup_accepted_at,
             'assignment_history' => $shipment->events->filter(fn ($event) => in_array($event->status, [
-                'PICKUP_RIDER_ASSIGNED', 'PICKUP_RIDER_REASSIGNED', 'PICKUP_ACCEPTED', 'PICKUP_DECLINED', 'ASSIGNED_TO_RIDER',
+                'PICKUP_RIDER_ASSIGNED', 'PICKUP_RIDER_REASSIGNED', 'PICKUP_ACCEPTED', 'PICKUP_DECLINED',
+                'ASSIGNED_TO_RIDER', 'DELIVERY_ACCEPTED', 'DELIVERY_DECLINED', 'DELIVERY_RIDER_REASSIGNED',
             ], true))->values(),
             'pickup_rider' => [
                 'first_name' => $shipment->pickupRider?->user?->first_name,
@@ -203,6 +230,7 @@ class FulfillmentController extends Controller
     {
         return $provider->riders()
             ->where('is_active', true)
+            ->where(fn ($query) => $query->where('availability', 'ONLINE')->orWhereNull('availability'))
             ->whereNotNull('approved_at')
             ->whereHas('user', fn ($query) => $query
                 ->where('status', 'active')

@@ -36,6 +36,7 @@ class FulfillmentController extends Controller
             'orders' => $orders->isNotEmpty() ? $orders->all() : $request->session()->get('orders', []),
             'riderId' => $rider->id,
             'riderName' => $rider->user->full_name,
+            'availability' => $rider->availability,
         ]);
     }
 
@@ -69,6 +70,20 @@ class FulfillmentController extends Controller
         $workflow->declinePickup($sellerOrder, $this->riderFor($request));
 
         return back()->with('success', 'Pickup declined. Logistics can assign another available rider.');
+    }
+
+    public function acceptDelivery(Request $request, SellerOrder $sellerOrder, OrderWorkflowService $workflow): RedirectResponse
+    {
+        $workflow->acceptDelivery($sellerOrder, $this->riderFor($request));
+
+        return back()->with('success', 'Delivery assignment accepted.');
+    }
+
+    public function declineDelivery(Request $request, SellerOrder $sellerOrder, OrderWorkflowService $workflow): RedirectResponse
+    {
+        $workflow->declineDelivery($sellerOrder, $this->riderFor($request));
+
+        return back()->with('success', 'Delivery assignment declined and returned to logistics for reassignment.');
     }
 
     public function update(
@@ -189,6 +204,7 @@ class FulfillmentController extends Controller
             'pickup_accepted_at' => $shipment?->pickup_accepted_at?->toDateTimeString(),
             'rider_index' => $shipment?->rider_id,
             'rider_name' => $shipment?->rider?->user?->full_name,
+            'delivery_accepted_at' => $shipment?->delivery_accepted_at?->toDateTimeString(),
             'has_failed_attempt' => $shipment?->events->contains('status', 'DELIVERY_ATTEMPT_FAILED') ?? false,
             'failure_reason' => $shipment?->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->last()?->note,
             'created_at' => $sellerOrder->created_at?->toDateTimeString(),

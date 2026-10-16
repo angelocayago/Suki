@@ -21,6 +21,7 @@ class Rider extends Model
         'drivers_license_path',
         'vehicle_document_path',
         'is_active',
+        'availability',
         'approved_by',
         'approved_at',
     ];
@@ -73,5 +74,27 @@ class Rider extends Model
     public function conversationParticipations(): HasMany
     {
         return $this->hasMany(ConversationParticipant::class);
+    }
+
+    public function isOperationallyAvailable(): bool
+    {
+        return ($this->availability ?? 'ONLINE') === 'ONLINE'
+            && $this->isOperationallyEligible();
+    }
+
+    /**
+     * Account approval/activation and operational availability are separate.
+     * A missing availability value is treated as ONLINE by
+     * isOperationallyAvailable(), so pre-migration riders retain their
+     * existing assignment semantics.
+     */
+    public function isOperationallyEligible(): bool
+    {
+        return $this->is_active
+            && $this->user?->hasRole('rider')
+            && $this->user?->status === 'active'
+            && ! $this->user?->is_suspended
+            && $this->user?->hasVerifiedContacts()
+            && $this->logisticsProvider?->status === 'approved';
     }
 }
