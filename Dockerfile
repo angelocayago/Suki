@@ -14,7 +14,7 @@ RUN npm run build
 
 FROM php:8.4-apache
 
-# Install system dependencies + PHP extensions
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -51,7 +51,7 @@ RUN composer install \
     --prefer-dist \
     --optimize-autoloader
 
-# Copy compiled Vite assets from frontend build
+# Copy compiled Vite assets
 COPY --from=frontend /app/public/build ./public/build
 
 # Laravel setup
@@ -60,7 +60,7 @@ RUN php artisan config:clear && \
     php artisan view:clear && \
     php artisan storage:link
 
-# Configure Apache document root for Laravel
+# Configure Apache document root
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
     /etc/apache2/sites-available/000-default.conf
 
@@ -83,4 +83,4 @@ RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
 
 EXPOSE 80
 
-CMD ["/usr/local/bin/start.sh"]]
+CMD ["/usr/local/bin/start.sh"]
