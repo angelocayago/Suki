@@ -113,7 +113,7 @@ class SellerDocumentRegistrationTest extends TestCase
             $this->post(route('seller.register.submit'), [
                 ...$registration,
                 'government_id' => $this->fakePdf('identity.pdf'),
-            ])->assertRedirect(route('seller.dashboard'));
+            ])->assertRedirect(route('login'));
         }
 
         $this->assertDatabaseHas('users', ['phone' => '09189876543']);
@@ -187,7 +187,7 @@ class SellerDocumentRegistrationTest extends TestCase
             ...$registration,
             'government_id' => $this->fakePdf('identity.pdf'),
         ])
-            ->assertRedirect(route('seller.dashboard'))
+            ->assertRedirect(route('login'))
             ->assertSessionDoesntHaveErrors('birthday');
     }
 
@@ -294,7 +294,7 @@ class SellerDocumentRegistrationTest extends TestCase
             ...$registration,
             'government_id' => $this->fakePdf('identity.pdf'),
         ])
-            ->assertRedirect(route('seller.dashboard'))
+            ->assertRedirect(route('login'))
             ->assertSessionDoesntHaveErrors('birthday');
     }
 
@@ -374,7 +374,7 @@ class SellerDocumentRegistrationTest extends TestCase
             'bir_form_2303' => $this->fakePdf('bir.pdf'),
         ]);
 
-        $response->assertRedirect(route('seller.dashboard'));
+        $response->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseCount('sellers', 1);
@@ -416,7 +416,7 @@ class SellerDocumentRegistrationTest extends TestCase
             ...$this->validRegistrationData('Individual'),
             'government_id' => $this->fakePdf('identity.pdf'),
             'business_permit' => $this->fakePdf('permit.pdf'),
-        ])->assertRedirect(route('seller.dashboard'));
+        ])->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('seller_documents', 2);
         $this->assertDatabaseHas('seller_documents', [

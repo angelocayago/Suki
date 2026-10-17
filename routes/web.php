@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use App\Support\SellerAccount;
+use App\Http\Controllers\Seller\StoreProfileController;
 use App\Models\BuyerEmailVerification;
 use App\Models\Seller;
 use App\Models\Address;
@@ -2932,6 +2934,11 @@ Route::post('/my-account/addresses/{address}/delete', function (
 
 $requireSeller = function () {
 
+    if (Auth::check()) {
+        SellerAccount::sync(SellerAccount::current());
+        return null;
+    }
+
     if (!session('seller_logged_in')) {
 
         $intendedUrl = request()->isMethod('GET')
@@ -3454,47 +3461,15 @@ Route::post('/seller/register', function (Request $request) use ($fetchPsgcData)
 
 
 
-    session()->put('seller_profile', [
-    'shop_name' => $request->business_name,
+    // Registration creates a pending store; it does not grant approval or authenticate it.
+    session()->forget(['seller_profile', 'seller_logged_in']);
 
-    'business_category' => $request->business_category,
-    'seller_type' => $request->seller_type,
-    'tin' => substr($normalizedTin, 0, 3) . '-' .
-        substr($normalizedTin, 3, 3) . '-' .
-        substr($normalizedTin, 6, 3) . '-' .
-        substr($normalizedTin, 9, 3),
-
-    'seller_name' => $request->first_name . ' ' . $request->last_name,
-
-    'phone' => $normalizedPhone,
-
-    'email' => $request->email,
-
-    'region' => $resolvedAddress['region'],
-    'province' => $resolvedAddress['province'],
-    'municipality' => $resolvedAddress['city'],
-    'barangay' => $resolvedAddress['barangay'],
-    'address' => $request->address,
-    'postal_code' => $request->postal_code,
-
-    'valid_id' => $documentPaths['government_id'],
-    'business_permit' => $documentPaths['business_permit'] ?? null,
-    'documents' => $documentPaths,
-
-    'password_hash' => Hash::make($request->password),
-
-    'status' => 'approved',
-    'created_at' => now()->format('Y-m-d H:i:s'),
-]);
-
-    session()->put('seller_logged_in', true);
-
-    return redirect()
-        ->route('seller.dashboard')
-        ->with(
-            'success',
-            'Your SUKI SHOP Seller account has been created successfully!'
-        );
+    return redirect()->route('login')->with(
+        'success',
+        app()->environment('local')
+            ? 'Your seller registration was saved. You can sign in for local development while approval is pending.'
+            : 'Your seller registration was saved. You can sign in after your store is approved.'
+    );
 
 })->name('seller.register.submit');
 
@@ -3518,152 +3493,44 @@ Route::get('/seller', function () use ($requireSeller) {
 // SELLER STORE PROFILE
 // =====================================================
 
-Route::get('/seller/store-profile', function () use ($requireSeller) {
-
+Route::get('/seller/store-profile', function (Request $request) use ($requireSeller) {
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
 
-    return view('seller.store-profile');
-
+    return app(StoreProfileController::class)->show();
 })->name('seller.store.profile');
 
-Route::post('/seller/store-profile/profile', function (
-    Request $request
-) use ($requireSeller) {
-
+Route::post('/seller/store-profile/profile', function (Request $request) use ($requireSeller) {
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
 
-    $request->validate([
-        'phone' => 'required|string|max:30',
-        'description' => 'nullable|string|max:500',
-        'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-    ]);
-
-    $profile = session('seller_profile', []);
-
-    $profile['phone'] = $request->phone;
-    $profile['description'] = $request->description;
-
-    if ($request->hasFile('profile_photo')) {
-
-        if (! empty($profile['profile_photo'])) {
-            Storage::disk('public')->delete($profile['profile_photo']);
-        }
-
-        $profile['profile_photo'] = $request
-            ->file('profile_photo')
-            ->store('seller-profiles', 'public');
-    }
-
-    session()->put('seller_profile', $profile);
-
-    return redirect(route('seller.store.profile') . '#shop-profile')
-        ->with('success', 'Shop profile updated successfully.');
-
+    return app(StoreProfileController::class)->update($request);
 })->name('seller.store.profile.update');
 
-
-Route::post('/seller/store-profile/photo/remove', function () use ($requireSeller) {
-
+Route::post('/seller/store-profile/photo/remove', function (Request $request) use ($requireSeller) {
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
 
-    $profile = session('seller_profile', []);
-
-    if (! empty($profile['profile_photo'])) {
-
-        Storage::disk('public')->delete($profile['profile_photo']);
-
-        unset($profile['profile_photo']);
-
-        session()->put('seller_profile', $profile);
-    }
-
-    return redirect(route('seller.store.profile') . '#shop-profile')
-        ->with('success', 'Shop photo removed successfully.');
-
+    return app(StoreProfileController::class)->removeImage($request);
 })->name('seller.store.profile.photo.remove');
 
-
-Route::post('/seller/store-profile/address', function (
-    Request $request
-) use ($requireSeller) {
-
+Route::post('/seller/store-profile/address', function (Request $request) use ($requireSeller, $fetchPsgcData) {
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
 
-    $request->validate([
-        'province' => 'required|string|max:100',
-        'municipality' => 'required|string|max:100',
-        'barangay' => 'required|string|max:100',
-        'address' => 'required|string|max:255',
-    ]);
-
-    $profile = session('seller_profile', []);
-
-    $profile['province'] = $request->province;
-    $profile['municipality'] = $request->municipality;
-    $profile['barangay'] = $request->barangay;
-    $profile['address'] = $request->address;
-
-    session()->put('seller_profile', $profile);
-
-    return redirect(route('seller.store.profile') . '#pickup-address')
-        ->with('success', 'Pickup address updated successfully.');
-
+    return app(StoreProfileController::class)->updateAddress($request, $fetchPsgcData);
 })->name('seller.store.address.update');
 
-
-Route::post('/seller/store-profile/password', function (
-    Request $request
-) use ($requireSeller) {
-
+Route::post('/seller/store-profile/password', function (Request $request) use ($requireSeller) {
     if ($redirect = $requireSeller()) {
         return $redirect;
     }
 
-    $request->validate([
-        'current_password' => 'required|string',
-        'password' => 'required|string|min:8|confirmed',
-    ]);
-
-    $profile = session('seller_profile', []);
-
-    $currentPasswordHash = $profile['password_hash'] ?? null;
-
-    if (
-        ! $currentPasswordHash ||
-        ! Hash::check($request->current_password, $currentPasswordHash)
-    ) {
-        return back()
-            ->withErrors([
-                'current_password' => 'The current password is incorrect.',
-            ])
-            ->withInput();
-    }
-
-    if (
-        Hash::check($request->password, $currentPasswordHash)
-    ) {
-        return back()
-            ->withErrors([
-                'password' => 'The new password must be different from your current password.',
-            ])
-            ->withInput();
-    }
-
-    $profile['password_hash'] = Hash::make($request->password);
-
-    session()->put('seller_profile', $profile);
-
-    return redirect(route('seller.store.profile') . '#security')
-        ->with('success', 'Password updated successfully.');
-
+    return app(StoreProfileController::class)->updatePassword($request);
 })->name('seller.store.password.update');
 
 
@@ -6993,6 +6860,11 @@ Route::get('/login', function () {
         /** @var User $user */
         $user = Auth::user();
 
+        if ($user->isSeller()) {
+            SellerAccount::sync(SellerAccount::current());
+            return redirect()->route('seller.dashboard');
+        }
+
         if ($user->hasRole('superadmin')) {
             return redirect()
                 ->route('superadmin.dashboard');
@@ -7224,6 +7096,20 @@ Route::post('/login', function (Request $request) {
             );
     }
 
+
+    if ($user->isSeller()) {
+        try {
+            $seller = SellerAccount::current();
+            SellerAccount::sync($seller);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->withErrors(['login' => $exception->getMessage()])->onlyInput('login');
+        }
+
+        return redirect()->intended(route('seller.dashboard'))->with('success', 'Welcome back to SUKI SHOP Seller Centre.');
+    }
 
     // =====================================================
     // OTHER / UNSUPPORTED ROLES

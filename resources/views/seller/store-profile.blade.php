@@ -1,13 +1,13 @@
 @extends('layouts.seller')
 
-@section('title', 'Account Management')
-@section('page-title', 'Account Management')
+@section('title', 'Store Profile')
+@section('page-title', 'Store Profile')
 @section('page-subtitle', 'Your shop profile, pickup address and security')
 
 @section('content')
 
 @php
-    $profile = session('seller_profile', []);
+    // The controller provides values from the authenticated owner's persisted store.
 
     $shopName = $profile['shop_name'] ?? '';
     $businessCategory = $profile['business_category'] ?? '';
@@ -21,6 +21,13 @@
     $municipality = $profile['municipality'] ?? '';
     $barangay = $profile['barangay'] ?? '';
     $streetAddress = $profile['address'] ?? '';
+
+    $initialAddressValues = [
+        'region' => old('region', $profile['region']),
+        'province' => old('province', $province),
+        'municipality' => old('municipality', $municipality),
+        'barangay' => old('barangay', $barangay),
+    ];
 
     $profilePhoto = $profile['profile_photo'] ?? null;
 
@@ -209,141 +216,82 @@
             @csrf
 
 
-            {{-- PROFILE PHOTO --}}
-            <div
-                class="flex flex-col gap-5
-                       sm:flex-row sm:items-start"
-            >
-
-
-                <div class="shrink-0">
-
-                    @if($profilePhoto)
-
-                        <img
-                            id="shopPhotoPreview"
-                            src="{{ asset('storage/' . $profilePhoto) }}"
-                            alt="{{ $shopName ?: 'Shop photo' }}"
-                            class="h-24 w-24
-                                   rounded-full
-                                   border border-gray-200
-                                   object-cover shadow-sm"
-                        >
-
-                    @else
-
-                        <div
-                            id="shopPhotoPlaceholder"
-                            class="flex h-24 w-24
-                                   items-center justify-center
-                                   rounded-full
-                                   border border-gray-200
-                                   bg-[#EEF7F3]
-                                   text-[#1F6F5B]"
-                        >
-
-                            <i
-                                data-lucide="store"
-                                class="h-9 w-9"
-                            ></i>
-
-                        </div>
-
-
-                        <img
-                            id="shopPhotoPreview"
-                            src=""
-                            alt="Shop photo preview"
-                            class="hidden h-24 w-24
-                                   rounded-full
-                                   border border-gray-200
-                                   object-cover shadow-sm"
-                        >
-
-                    @endif
-
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="shopId" class="text-sm font-medium text-gray-700">Shop ID</label>
+                    <input id="shopId" readonly value="{{ $store->shop_code }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 bg-gray-50">
                 </div>
-
-
-
-                <div class="min-w-0 flex-1">
-
-                    <p
-                        class="text-sm font-semibold
-                               text-gray-800"
-                    >
-                        {{ $shopName ?: 'Business name not available' }}
-                    </p>
-
-
-                    <p
-                        class="mt-1 text-xs
-                               leading-5 text-gray-400"
-                    >
-                        Add a photo that represents your shop.
-                    </p>
-
-
-                    <div
-                        class="mt-3 flex flex-wrap
-                               items-center gap-3"
-                    >
-
-                        <label
-                            for="profile_photo"
-                            class="cursor-pointer
-                                   rounded-xl
-                                   border border-gray-200
-                                   bg-white
-                                   px-4 py-2
-                                   text-xs font-semibold
-                                   text-[#1F6F5B]
-                                   transition
-                                   hover:bg-gray-50"
-                        >
-                            Change photo
-                        </label>
-
-
-                        <input
-                            id="profile_photo"
-                            name="profile_photo"
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                            class="hidden"
-                        >
-
-
-                        @if($profilePhoto)
-
-                            <button
-                                type="submit"
-                                formaction="{{ route('seller.store.profile.photo.remove') }}"
-                                class="text-xs font-medium
-                                       text-red-500
-                                       hover:text-red-600"
-                            >
-                                Remove photo
-                            </button>
-
-                        @endif
-
-                    </div>
-
-
-                    <p
-                        id="photoFileName"
-                        class="mt-2 text-[11px]
-                               text-gray-400"
-                    >
-                        JPG, PNG or WEBP · max 2 MB.
-                    </p>
-
+                <div>
+                    <label for="assignedCategory" class="text-sm font-medium text-gray-700">Assigned Main Category / Line of Business</label>
+                    <input id="assignedCategory" readonly value="{{ $businessCategory }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 bg-gray-50">
+                    <p class="mt-1 text-xs text-gray-400">Assigned during registration. Contact support for category concerns.</p>
                 </div>
-
+            </div>
+            <div>
+                <label for="shop_name" class="text-sm font-medium text-gray-700">Store Name <span class="text-red-500">*</span></label>
+                <input id="shop_name" name="shop_name" required minlength="3" maxlength="30" value="{{ old('shop_name', $shopName) }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10">
+                @error('shop_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
 
+            {{-- STORE LOGO --}}
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+                <div class="shrink-0">
+                    <img
+                        id="shopPhotoPreview"
+                        @if($profilePhoto) src="{{ asset('storage/' . $profilePhoto) }}" @endif
+                        alt="Store logo"
+                        class="{{ $profilePhoto ? '' : 'hidden' }} h-36 w-36 rounded-[28px] border border-gray-200 bg-[#F8FAF8] object-contain p-2 shadow-sm sm:h-40 sm:w-40"
+                    >
+                    <div
+                        id="shopPhotoPlaceholder"
+                        class="{{ $profilePhoto ? 'hidden' : '' }} flex h-36 w-36 items-center justify-center rounded-[28px] border border-gray-200 bg-[#EEF7F3] text-[#1F6F5B] sm:h-40 sm:w-40"
+                    >
+                        <i data-lucide="store" class="h-10 w-10" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-gray-800">Store Logo</p>
+                    <p class="mt-1 text-xs leading-5 text-gray-400">Upload a store logo that represents your business.</p>
+                    <div class="mt-3 flex flex-wrap items-center gap-3">
+                        <label for="profile_photo" class="sr-only">Store logo image file</label>
+                        <input id="profile_photo" name="profile_photo" type="file" tabindex="-1" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="logoUploadHelp logoUploadStatus" class="sr-only">
+                        <button id="logoUploadButton" type="button" aria-controls="profile_photo" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-[#1F6F5B] transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1F6F5B]/40">
+                            {{ $profilePhoto ? 'Replace image' : 'Upload image' }}
+                        </button>
+                        @if($profilePhoto)
+                            <button type="submit" name="image" value="logo" formnovalidate formaction="{{ route('seller.store.profile.photo.remove') }}" aria-label="Remove store logo" class="rounded-xl px-3 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400/40">Remove image</button>
+                        @endif
+                    </div>
+                    <p id="logoUploadHelp" class="mt-2 text-[11px] text-gray-400">JPG, PNG or WEBP - max 2 MB.</p>
+                    <p id="logoUploadStatus" role="status" class="mt-1 text-xs text-[#52635B]"></p>
+                    @error('profile_photo')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+            </div>
 
+            {{-- STORE BANNER --}}
+            <div>
+                <p class="text-sm font-medium text-gray-700">Store Banner</p>
+                <img
+                    id="storeBannerPreview"
+                    @if($profile['banner_path']) src="{{ asset('storage/' . $profile['banner_path']) }}" @endif
+                    alt="Store banner"
+                    class="{{ $profile['banner_path'] ? '' : 'hidden' }} mt-2 h-32 w-full rounded-xl border border-gray-200 object-cover object-center sm:h-40"
+                >
+                <p id="storeBannerPlaceholder" class="{{ $profile['banner_path'] ? 'hidden' : '' }} mt-2 flex h-32 w-full items-center justify-center rounded-xl border border-gray-200 bg-[#F8FAF8] text-xs text-gray-400 sm:h-40">No store banner uploaded.</p>
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <label for="storeBanner" class="sr-only">Store banner image file</label>
+                    <input id="storeBanner" name="banner" type="file" tabindex="-1" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="bannerUploadHelp bannerUploadStatus" class="sr-only">
+                    <button id="bannerUploadButton" type="button" aria-controls="storeBanner" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-[#1F6F5B] transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1F6F5B]/40">
+                        {{ $profile['banner_path'] ? 'Replace image' : 'Upload image' }}
+                    </button>
+                    @if($profile['banner_path'])
+                        <button type="submit" name="image" value="banner" formnovalidate formaction="{{ route('seller.store.profile.photo.remove') }}" aria-label="Remove store banner" class="rounded-xl px-3 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400/40">Remove image</button>
+                    @endif
+                </div>
+                <p id="bannerUploadHelp" class="mt-2 text-[11px] text-gray-400">JPG, PNG or WEBP - max 5 MB.</p>
+                <p id="bannerUploadStatus" role="status" class="mt-1 text-xs text-[#52635B]"></p>
+                @error('banner')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
 
             {{-- CONTACT NUMBER --}}
             <div>
@@ -353,7 +301,7 @@
                     class="text-sm font-medium
                            text-gray-700"
                 >
-                    Contact number
+                    Business contact number
                     <span class="text-red-500">*</span>
                 </label>
 
@@ -389,6 +337,8 @@
 
 
 
+            <p class="text-xs text-gray-400">This is the store pickup contact. Your personal phone and login email are unchanged.</p>
+            @error('phone')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             {{-- DESCRIPTION --}}
             <div>
 
@@ -458,6 +408,7 @@
 
 
 
+            @error('description')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             <button
                 type="submit"
                 class="rounded-xl
@@ -468,7 +419,7 @@
                        transition
                        hover:bg-[#155244]"
             >
-                Save profile
+                Save store profile
             </button>
 
         </form>
@@ -520,172 +471,43 @@
             @csrf
 
 
-            <div
-                class="grid grid-cols-1
-                       gap-5 md:grid-cols-3"
-            >
-
-
-                {{-- PROVINCE --}}
+            <p class="text-xs text-gray-400">Select your address from the live PSGC locations. Saving creates a separate pickup address when the original is personal or shared.</p>
+            <p class="text-xs text-gray-500">Saved pickup address: {{ collect([$streetAddress, $barangay, $municipality, $province, $profile['region'], $profile['postal_code']])->filter()->implode(', ') ?: 'Not set' }}</p>
+            <p id="profileAddressStatus" class="text-xs text-amber-700" role="status"></p>
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-
-                    <label
-                        for="profileProvince"
-                        class="text-sm font-medium
-                               text-gray-700"
-                    >
-                        Province
-                        <span class="text-red-500">*</span>
-                    </label>
-
-
-                    <select
-                        id="profileProvince"
-                        name="province"
-                        required
-                        class="mt-2 w-full
-                               rounded-xl
-                               border border-gray-200
-                               bg-white
-                               px-4 py-3
-                               text-sm text-gray-700
-                               outline-none
-                               focus:border-[#1F6F5B]
-                               focus:ring-2
-                               focus:ring-[#1F6F5B]/10"
-                    >
-
-                        @if($province)
-
-                            <option
-                                value="{{ $province }}"
-                                selected
-                            >
-                                {{ $province }}
-                            </option>
-
-                        @else
-
-                            <option value="">
-                                Loading provinces...
-                            </option>
-
-                        @endif
-
-                    </select>
-
+                    <label for="profileRegion" class="text-sm font-medium text-gray-700">Region</label>
+                    <select id="profileRegion" name="region" required class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"><option value="">Loading locations...</option></select>
+                    @error('region')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-
-
-
-                {{-- MUNICIPALITY --}}
                 <div>
-
-                    <label
-                        for="profileMunicipality"
-                        class="text-sm font-medium
-                               text-gray-700"
-                    >
-                        Municipality / City
-                        <span class="text-red-500">*</span>
-                    </label>
-
-
-                    <select
-                        id="profileMunicipality"
-                        name="municipality"
-                        required
-                        class="mt-2 w-full
-                               rounded-xl
-                               border border-gray-200
-                               bg-white
-                               px-4 py-3
-                               text-sm text-gray-700
-                               outline-none
-                               focus:border-[#1F6F5B]
-                               focus:ring-2
-                               focus:ring-[#1F6F5B]/10
-                               disabled:bg-gray-50"
-                    >
-
-                        @if($municipality)
-
-                            <option
-                                value="{{ $municipality }}"
-                                selected
-                            >
-                                {{ $municipality }}
-                            </option>
-
-                        @else
-
-                            <option value="">
-                                Select province first
-                            </option>
-
-                        @endif
-
-                    </select>
-
+                    <label for="profileProvince" class="text-sm font-medium text-gray-700">Province</label>
+                    <select id="profileProvince" name="province"  class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"><option value="">Loading locations...</option></select>
+                    @error('province')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-
-
-
-                {{-- BARANGAY --}}
                 <div>
-
-                    <label
-                        for="profileBarangay"
-                        class="text-sm font-medium
-                               text-gray-700"
-                    >
-                        Barangay
-                        <span class="text-red-500">*</span>
-                    </label>
-
-
-                    <select
-                        id="profileBarangay"
-                        name="barangay"
-                        required
-                        class="mt-2 w-full
-                               rounded-xl
-                               border border-gray-200
-                               bg-white
-                               px-4 py-3
-                               text-sm text-gray-700
-                               outline-none
-                               focus:border-[#1F6F5B]
-                               focus:ring-2
-                               focus:ring-[#1F6F5B]/10
-                               disabled:bg-gray-50"
-                    >
-
-                        @if($barangay)
-
-                            <option
-                                value="{{ $barangay }}"
-                                selected
-                            >
-                                {{ $barangay }}
-                            </option>
-
-                        @else
-
-                            <option value="">
-                                Select municipality/city first
-                            </option>
-
-                        @endif
-
-                    </select>
-
+                    <label for="profileMunicipality" class="text-sm font-medium text-gray-700">Municipality / City</label>
+                    <select id="profileMunicipality" name="municipality" required class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"><option value="">Loading locations...</option></select>
+                    @error('municipality')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-
+                <div>
+                    <label for="profileBarangay" class="text-sm font-medium text-gray-700">Barangay</label>
+                    <select id="profileBarangay" name="barangay" required class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"><option value="">Loading locations...</option></select>
+                    @error('barangay')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="profilePostalCode" class="text-sm font-medium text-gray-700">Postal code</label>
+                    <input id="profilePostalCode" name="postal_code" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" value="{{ old('postal_code', $profile['postal_code']) }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10">
+                    @error('postal_code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="pickupPhone" class="text-sm font-medium text-gray-700">Pickup contact number</label>
+                    <input id="pickupPhone" name="pickup_phone" required value="{{ old('pickup_phone', $phone) }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10">
+                    @error('pickup_phone')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
             </div>
 
-
-
+            @error('address')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             {{-- STREET ADDRESS --}}
             <div>
 
@@ -948,9 +770,7 @@
                    text-xs leading-5
                    text-gray-500"
         >
-            Business name, line of business, account holder,
-            e-mail and verification information are based on
-            the details already submitted during registration.
+            Store details are loaded from your saved shop record. The assigned category cannot be changed here. Account-holder and login e-mail details are read-only; personal profile management is a separate future feature.
         </div>
 
     </section>
@@ -1194,581 +1014,129 @@ document.addEventListener('DOMContentLoaded', function () {
     |--------------------------------------------------------------------------
     */
 
-    const photoInput =
-        document.getElementById('profile_photo');
+    function bindImageUpload(inputId, previewId, placeholderId, buttonId, statusId, maxMegabytes) {
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        const placeholder = document.getElementById(placeholderId);
+        const button = document.getElementById(buttonId);
+        const status = document.getElementById(statusId);
+        const savedSource = preview.getAttribute('src');
+        let previewUrl;
 
-    const photoPreview =
-        document.getElementById('shopPhotoPreview');
-
-    const photoPlaceholder =
-        document.getElementById('shopPhotoPlaceholder');
-
-    const photoFileName =
-        document.getElementById('photoFileName');
-
-
-    if (photoInput) {
-
-        photoInput.addEventListener(
-            'change',
-            function () {
-
-                const file =
-                    this.files
-                        ? this.files[0]
-                        : null;
-
-
-                if (!file) {
-                    return;
-                }
-
-
-                if (photoFileName) {
-
-                    photoFileName.textContent =
-                        file.name;
-
-                }
-
-
-                if (photoPreview) {
-
-                    photoPreview.src =
-                        URL.createObjectURL(file);
-
-                    photoPreview.classList.remove(
-                        'hidden'
-                    );
-
-                }
-
-
-                if (photoPlaceholder) {
-
-                    photoPlaceholder.classList.add(
-                        'hidden'
-                    );
-
-                }
-
-            }
-        );
-
-    }
-
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PICKUP ADDRESS
-    |--------------------------------------------------------------------------
-    |
-    | Uses the PSGC proxy routes already existing in your routes/web.php.
-    |
-    */
-
-    const provinceSelect =
-        document.getElementById('profileProvince');
-
-    const municipalitySelect =
-        document.getElementById(
-            'profileMunicipality'
-        );
-
-    const barangaySelect =
-        document.getElementById(
-            'profileBarangay'
-        );
-
-
-    const currentProvince =
-        @json(old('province', $province));
-
-    const currentMunicipality =
-        @json(old('municipality', $municipality));
-
-    const currentBarangay =
-        @json(old('barangay', $barangay));
-
-
-    const PSGC_API_BASE =
-        '/api/psgc';
-
-
-
-    function populateSelect(
-        select,
-        placeholder,
-        items,
-        selectedValue = ''
-    ) {
-
-        if (!select) {
-            return;
+        function releasePreview() {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
         }
-
-
-        select.innerHTML = '';
-
-
-        const placeholderOption =
-            document.createElement('option');
-
-        placeholderOption.value = '';
-
-        placeholderOption.textContent =
-            placeholder;
-
-        select.appendChild(
-            placeholderOption
-        );
-
-
-        items.forEach(function (item) {
-
-            const option =
-                document.createElement('option');
-
-            option.value =
-                item.name;
-
-            option.textContent =
-                item.name;
-
-            option.dataset.code =
-                item.code;
-
-
-            if (
-                selectedValue
-                && item.name === selectedValue
-            ) {
-
-                option.selected =
-                    true;
-
+        function resetPreview() {
+            releasePreview();
+            if (savedSource) preview.src = savedSource;
+            else preview.removeAttribute('src');
+            preview.classList.toggle('hidden', !savedSource);
+            placeholder.classList.toggle('hidden', Boolean(savedSource));
+            button.textContent = savedSource ? 'Replace image' : 'Upload image';
+        }
+        button.addEventListener('click', () => input.click());
+        input.addEventListener('change', function () {
+            const file = input.files[0];
+            if (!file) return;
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxMegabytes * 1024 * 1024) {
+                input.value = '';
+                resetPreview();
+                status.textContent = 'Choose a JPG, PNG or WEBP image up to ' + maxMegabytes + ' MB.';
+                return;
             }
-
-
-            select.appendChild(
-                option
-            );
-
+            releasePreview();
+            previewUrl = URL.createObjectURL(file);
+            preview.src = previewUrl;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            button.textContent = 'Replace image';
+            status.textContent = 'Image selected. Save store profile to upload.';
         });
-
+        window.addEventListener('pagehide', function (event) {
+            if (!event.persisted) releasePreview();
+        });
     }
+    bindImageUpload('profile_photo', 'shopPhotoPreview', 'shopPhotoPlaceholder', 'logoUploadButton', 'logoUploadStatus', 2);
+    bindImageUpload('storeBanner', 'storeBannerPreview', 'storeBannerPlaceholder', 'bannerUploadButton', 'bannerUploadStatus', 5);
 
+    const fields = {
+        region: document.getElementById('profileRegion'),
+        province: document.getElementById('profileProvince'),
+        municipality: document.getElementById('profileMunicipality'),
+        barangay: document.getElementById('profileBarangay'),
+    };
+    const saved = @json($initialAddressValues);
+    const addressStatus = document.getElementById('profileAddressStatus');
+    const addressForm = fields.region.closest('form');
+    const addressSubmit = addressForm.querySelector('button[type="submit"]');
+    let addressVersion = 0;
 
-
-    function setSingleOption(
-        select,
-        value,
-        fallbackText
-    ) {
-
-        if (!select) {
-            return;
-        }
-
-
-        select.innerHTML = '';
-
-
-        const option =
-            document.createElement('option');
-
-
-        option.value =
-            value || '';
-
-        option.textContent =
-            value || fallbackText;
-
-
-        select.appendChild(
-            option
-        );
-
+    function populate(name, items, selected = '') {
+        const select = fields[name];
+        select.replaceChildren(new Option('Select ' + name, ''));
+        items.forEach(item => select.add(new Option(item.name, item.code, false, item.code === selected || item.name === selected)));
+        select.disabled = !items.length;
+        if (name === 'province') select.required = items.length > 0;
     }
-
-
-
-    async function fetchJson(url) {
-
-        const response =
-            await fetch(url);
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                'Unable to load location data.'
-            );
-
-        }
-
-
+    async function locations(path) {
+        const response = await fetch(@json(url('/api/psgc')) + '/' + path, {headers: {Accept: 'application/json'}});
+        if (!response.ok) throw new Error('Location data is unavailable. Reload the page to try again.');
         return response.json();
-
     }
-
-
-
-    async function loadBarangays(
-        municipalityCode,
-        selectedBarangay = ''
-    ) {
-
-        if (
-            !barangaySelect
-            || !municipalityCode
-        ) {
+    async function loadAddress(from, initial = false) {
+        const version = ++addressVersion;
+        addressSubmit.disabled = true;
+        addressStatus.textContent = 'Loading locations...';
+        const order = ['region', 'province', 'municipality', 'barangay'];
+        const start = order.indexOf(from);
+        const selected = Object.fromEntries(order.map(name => [name, initial ? saved[name] : fields[name].value]));
+        order.slice(start).forEach(name => populate(name, []));
+        try {
+            if (from === 'region') {
+                const items = await locations('regions');
+                if (version !== addressVersion) return;
+                populate('region', items, selected.region);
+            }
+            if (start <= 1 && fields.region.value) {
+                const items = await locations('regions/' + fields.region.value + '/provinces');
+                if (version !== addressVersion) return;
+                populate('province', items, initial ? selected.province : '');
+            }
+            if (start <= 2 && fields.region.value && (fields.province.disabled || fields.province.value)) {
+                const path = fields.province.disabled ? 'regions/' + fields.region.value : 'provinces/' + fields.province.value;
+                const items = await locations(path + '/cities-municipalities');
+                if (version !== addressVersion) return;
+                populate('municipality', items, initial ? selected.municipality : '');
+            }
+            if (fields.municipality.value) {
+                const items = await locations('cities-municipalities/' + fields.municipality.value + '/barangays');
+                if (version !== addressVersion) return;
+                populate('barangay', items, initial ? selected.barangay : '');
+            }
+            addressStatus.textContent = '';
+        } catch (error) {
+            if (version !== addressVersion) return;
+            addressStatus.textContent = error.message;
             return;
         }
-
-
-        barangaySelect.disabled =
-            true;
-
-        setSingleOption(
-            barangaySelect,
-            '',
-            'Loading barangays...'
-        );
-
-
-        try {
-
-            const barangays =
-                await fetchJson(
-                    `${PSGC_API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
-                );
-
-
-            populateSelect(
-                barangaySelect,
-                'Select barangay',
-                barangays,
-                selectedBarangay
-            );
-
-
-            barangaySelect.disabled =
-                false;
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            setSingleOption(
-                barangaySelect,
-                selectedBarangay,
-                'Unable to load barangays'
-            );
-
-
-            barangaySelect.disabled =
-                false;
-
-        }
-
+        if (version === addressVersion) addressSubmit.disabled = false;
     }
+    fields.region.addEventListener('change', () => loadAddress('province'));
+    fields.province.addEventListener('change', () => loadAddress('municipality'));
+    fields.municipality.addEventListener('change', () => loadAddress('barangay'));
+    loadAddress('region', true);
 
-
-
-    async function loadMunicipalities(
-        provinceCode,
-        selectedMunicipality = '',
-        selectedBarangay = ''
-    ) {
-
-        if (
-            !municipalitySelect
-            || !provinceCode
-        ) {
-            return;
-        }
-
-
-        municipalitySelect.disabled =
-            true;
-
-
-        setSingleOption(
-            municipalitySelect,
-            '',
-            'Loading municipalities/cities...'
-        );
-
-
-        if (barangaySelect) {
-
-            barangaySelect.disabled =
-                true;
-
-            setSingleOption(
-                barangaySelect,
-                '',
-                'Select municipality/city first'
-            );
-
-        }
-
-
-        try {
-
-            const municipalities =
-                await fetchJson(
-                    `${PSGC_API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
-                );
-
-
-            populateSelect(
-                municipalitySelect,
-                'Select municipality/city',
-                municipalities,
-                selectedMunicipality
-            );
-
-
-            municipalitySelect.disabled =
-                false;
-
-
-            const selectedOption =
-                Array.from(
-                    municipalitySelect.options
-                ).find(function (option) {
-
-                    return option.value
-                        === selectedMunicipality;
-
-                });
-
-
-            if (
-                selectedOption
-                && selectedOption.dataset.code
-            ) {
-
-                await loadBarangays(
-                    selectedOption.dataset.code,
-                    selectedBarangay
-                );
-
+    document.querySelectorAll('main form').forEach(form => {
+        form.addEventListener('submit', event => {
+            if (form.dataset.submitting) {
+                event.preventDefault();
+                return;
             }
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            setSingleOption(
-                municipalitySelect,
-                selectedMunicipality,
-                'Unable to load municipalities/cities'
-            );
-
-
-            municipalitySelect.disabled =
-                false;
-
-
-            if (barangaySelect) {
-
-                setSingleOption(
-                    barangaySelect,
-                    selectedBarangay,
-                    'Select municipality/city first'
-                );
-
-
-                barangaySelect.disabled =
-                    false;
-
-            }
-
-        }
-
-    }
-
-
-
-    async function loadProvinces() {
-
-        if (!provinceSelect) {
-            return;
-        }
-
-
-        try {
-
-            const provinces =
-                await fetchJson(
-                    `${PSGC_API_BASE}/provinces`
-                );
-
-
-            populateSelect(
-                provinceSelect,
-                'Select province',
-                provinces,
-                currentProvince
-            );
-
-
-            const selectedOption =
-                Array.from(
-                    provinceSelect.options
-                ).find(function (option) {
-
-                    return option.value
-                        === currentProvince;
-
-                });
-
-
-            if (
-                selectedOption
-                && selectedOption.dataset.code
-            ) {
-
-                await loadMunicipalities(
-                    selectedOption.dataset.code,
-                    currentMunicipality,
-                    currentBarangay
-                );
-
-            } else {
-
-                if (municipalitySelect) {
-
-                    municipalitySelect.disabled =
-                        true;
-
-                }
-
-
-                if (barangaySelect) {
-
-                    barangaySelect.disabled =
-                        true;
-
-                }
-
-            }
-
-        } catch (error) {
-
-            console.error(error);
-
-        }
-
-    }
-
-
-
-    if (
-        provinceSelect
-        && municipalitySelect
-        && barangaySelect
-    ) {
-
-
-        provinceSelect.addEventListener(
-            'change',
-            async function () {
-
-                const selectedOption =
-                    this.options[
-                        this.selectedIndex
-                    ];
-
-
-                const provinceCode =
-                    selectedOption
-                        ? selectedOption.dataset.code
-                        : null;
-
-
-                if (!provinceCode) {
-
-                    setSingleOption(
-                        municipalitySelect,
-                        '',
-                        'Select province first'
-                    );
-
-                    municipalitySelect.disabled =
-                        true;
-
-
-                    setSingleOption(
-                        barangaySelect,
-                        '',
-                        'Select municipality/city first'
-                    );
-
-                    barangaySelect.disabled =
-                        true;
-
-                    return;
-                }
-
-
-                await loadMunicipalities(
-                    provinceCode
-                );
-
-            }
-        );
-
-
-
-        municipalitySelect.addEventListener(
-            'change',
-            async function () {
-
-                const selectedOption =
-                    this.options[
-                        this.selectedIndex
-                    ];
-
-
-                const municipalityCode =
-                    selectedOption
-                        ? selectedOption.dataset.code
-                        : null;
-
-
-                if (!municipalityCode) {
-
-                    setSingleOption(
-                        barangaySelect,
-                        '',
-                        'Select municipality/city first'
-                    );
-
-                    barangaySelect.disabled =
-                        true;
-
-                    return;
-                }
-
-
-                await loadBarangays(
-                    municipalityCode
-                );
-
-            }
-        );
-
-
-        loadProvinces();
-
-    }
+            form.dataset.submitting = 'true';
+            if (event.submitter) event.submitter.setAttribute('aria-disabled', 'true');
+        });
+    });
 
 });
 

@@ -37,6 +37,14 @@ class Seller extends Model
         ];
     }
 
+    /** Read-only shop display code; the persisted primary key remains unchanged. */
+    public function getShopCodeAttribute(): ?string
+    {
+        $id = $this->getKey();
+
+        return $id === null ? null : 'SHOP-'.str_pad((string) $id, 5, '0', STR_PAD_LEFT);
+    }
+
     /**
      * User who owns this shop.
      */
