@@ -60,8 +60,11 @@ RUN php artisan config:clear && \
     php artisan view:clear && \
     php artisan storage:link
 
-# Configure Apache document root for Laravel
+# Configure Apache document root and Render HTTP port
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
+    /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' \
     /etc/apache2/sites-available/000-default.conf
 
 # Laravel writable directories
@@ -81,6 +84,6 @@ COPY start.sh /usr/local/bin/start.sh
 RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
     && chmod +x /usr/local/bin/start.sh
 
-EXPOSE 80
+EXPOSE 10000
 
 CMD ["/usr/local/bin/start.sh"]
