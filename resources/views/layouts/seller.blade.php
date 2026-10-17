@@ -49,9 +49,6 @@
 
     $sellerProfile = session('seller_profile', []);
 
-    $shopName = $sellerProfile['shop_name']
-        ?? 'Everyday Finds PH';
-
     $sellerName = $sellerProfile['seller_name']
         ?? 'Seller';
 
@@ -100,7 +97,7 @@
 
         {{-- BRAND --}}
         <div
-            class="seller-sidebar-brand flex h-[82px]
+            class="seller-sidebar-brand flex h-[82px] shrink-0
                    items-center justify-between
                    border-b border-white/10
                    px-5"
@@ -155,86 +152,20 @@
             <button
                 id="sellerSidebarCollapse"
                 type="button"
-                class="seller-sidebar-collapse hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 lg:flex"
+                class="seller-sidebar-collapse flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40"
                 aria-label="Collapse sidebar"
                 aria-expanded="true"
                 aria-controls="sellerSidebar"
                 title="Collapse sidebar"
             >
-                <i data-lucide="panel-left-close" class="h-[18px] w-[18px] transition-transform duration-300"></i>
+                <i data-lucide="menu" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
             </button>
 
         </div>
 
 
-        {{-- STORE --}}
-        <div class="seller-sidebar-store-wrap px-4 pt-5">
-
-            <a
-    href="{{ route('seller.store.profile') }}"
-    aria-label="{{ $shopName }} store profile"
-    title="{{ $shopName }}"
-    class="block"
->
-
-    <div
-        class="seller-sidebar-store-card rounded-2xl
-               border border-white/10
-               bg-white/[0.06]
-               p-4
-               transition
-               hover:bg-white/[0.10]"
-    >
-
-        <div class="seller-sidebar-store-content flex items-center gap-3">
-
-            <div
-                class="flex h-10 w-10
-                       shrink-0
-                       items-center justify-center
-                       rounded-xl
-                       bg-[#DDF3EC]
-                       text-[#173F35]"
-            >
-
-                <i
-                    data-lucide="store"
-                    class="h-[18px] w-[18px]"
-                ></i>
-
-            </div>
-
-
-            <div class="seller-sidebar-store-copy min-w-0">
-
-                <p
-                    class="truncate
-                           text-[13px]
-                           font-semibold
-                           text-white"
-                >
-                    {{ $shopName }}
-                </p>
-
-                <p
-                    class="mt-0.5
-                           text-[10px]
-                           text-white/45"
-                >
-                    Active seller account
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</a>
-
-
         {{-- NAVIGATION --}}
-        <nav class="flex-1 overflow-y-auto px-4 py-5">
+        <nav aria-label="Seller navigation" class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-5">
 
             <p
                 class="seller-sidebar-section-label
@@ -245,7 +176,7 @@
                        tracking-[0.18em]
                        text-white/35"
             >
-                Workspace
+                WORKSPACE
             </p>
 
 
@@ -257,6 +188,7 @@
                     href="{{ route('seller.dashboard') }}"
                     aria-label="Dashboard"
                     title="Dashboard"
+                    @if(request()->routeIs('seller.dashboard')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -281,11 +213,20 @@
                 </a>
 
 
+            </div>
+
+            <p class="seller-sidebar-section-label mb-2 mt-7 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                STORE MANAGEMENT
+            </p>
+
+            <div class="space-y-1">
+
                 {{-- ORDERS --}}
                 <a
                     href="{{ route('seller.orders') }}"
                     aria-label="Orders"
                     title="Orders"
+                    @if(request()->routeIs('seller.orders', 'seller.orders.*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -294,7 +235,7 @@
                         text-[13px]
                         font-medium
                         transition
-                        {{ request()->routeIs('seller.orders')
+                        {{ request()->routeIs('seller.orders', 'seller.orders.*')
                             ? 'bg-white text-[#173F35] shadow-sm'
                             : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
                     "
@@ -315,6 +256,7 @@
                     href="{{ route('seller.products') }}"
                     aria-label="Products"
                     title="Products"
+                    @if(request()->routeIs('seller.products*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -344,6 +286,7 @@
                     href="{{ route('seller.inventory') }}"
                     aria-label="Inventory"
                     title="Inventory"
+                    @if(request()->routeIs('seller.inventory*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -368,11 +311,20 @@
                 </a>
 
 
+            </div>
+
+            <p class="seller-sidebar-section-label mb-2 mt-7 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                FINANCE &amp; ANALYTICS
+            </p>
+
+            <div class="space-y-1">
+
                 {{-- SALES --}}
                 <a
                     href="{{ route('seller.sales') }}"
-                    aria-label="Sales"
-                    title="Sales"
+                    aria-label="Earnings &amp; Payouts"
+                    title="Earnings &amp; Payouts"
+                    @if(request()->routeIs('seller.sales', 'seller.sales.*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -381,7 +333,7 @@
                         text-[13px]
                         font-medium
                         transition
-                        {{ request()->routeIs('seller.sales')
+                        {{ request()->routeIs('seller.sales', 'seller.sales.*')
                             ? 'bg-white text-[#173F35] shadow-sm'
                             : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
                     "
@@ -391,7 +343,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span class="seller-sidebar-link-label">Sales</span>
+                    <span class="seller-sidebar-link-label">Earnings &amp; Payouts</span>
                 </a>
 
 
@@ -400,6 +352,7 @@
                     href="{{ route('seller.reports') }}"
                     aria-label="Reports"
                     title="Reports"
+                    @if(request()->routeIs('seller.reports', 'seller.reports.*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -408,7 +361,7 @@
                         text-[13px]
                         font-medium
                         transition
-                        {{ request()->routeIs('seller.reports')
+                        {{ request()->routeIs('seller.reports', 'seller.reports.*')
                             ? 'bg-white text-[#173F35] shadow-sm'
                             : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
                     "
@@ -428,6 +381,7 @@
                     href="{{ route('seller.promotions') }}"
                     aria-label="Promotions"
                     title="Promotions"
+                    @if(request()->routeIs('seller.promotions*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
                         flex items-center gap-3
@@ -454,6 +408,55 @@
             </div>
 
 
+            <p class="seller-sidebar-section-label mb-2 mt-7 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                CUSTOMER SERVICE
+            </p>
+
+            <div class="space-y-1">
+
+                <span
+                    role="link"
+                    aria-disabled="true"
+                    aria-label="Messages (Coming soon)"
+                    title="Messages - Coming soon"
+                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
+                >
+                    <i data-lucide="message-circle" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                    <span class="seller-sidebar-link-label min-w-0">
+                        Messages
+                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
+                    </span>
+                </span>
+
+                <span
+                    role="link"
+                    aria-disabled="true"
+                    aria-label="Notifications (Coming soon)"
+                    title="Notifications - Coming soon"
+                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
+                >
+                    <i data-lucide="bell" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                    <span class="seller-sidebar-link-label min-w-0">
+                        Notifications
+                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
+                    </span>
+                </span>
+
+                <span
+                    role="link"
+                    aria-disabled="true"
+                    aria-label="Reviews (Coming soon)"
+                    title="Reviews - Coming soon"
+                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
+                >
+                    <i data-lucide="star" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                    <span class="seller-sidebar-link-label min-w-0">
+                        Reviews
+                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
+                    </span>
+                </span>
+            </div>
+
             {{-- STORE SECTION --}}
             <p
                 class="seller-sidebar-section-label mb-2 mt-7 px-3
@@ -463,7 +466,7 @@
                        tracking-[0.18em]
                        text-white/35"
             >
-                Store
+                STORE
             </p>
 
 
@@ -472,6 +475,7 @@
                 <a
                     href="{{ route('buyer.home') }}"
                     target="_blank"
+                    rel="noopener noreferrer"
                     aria-label="View Marketplace"
                     title="View Marketplace"
                     class="flex items-center gap-3
@@ -497,65 +501,52 @@
 
             </div>
 
+            <p class="seller-sidebar-section-label mb-2 mt-7 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                ACCOUNT
+            </p>
+
+            <div class="space-y-1">
+
+                <a
+                    href="{{ route('seller.store.profile') }}"
+                    aria-label="Store Profile"
+                    title="Store Profile"
+                    @if(request()->routeIs('seller.store.*')) aria-current="page" @endif
+                    class="seller-sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition
+                        {{ request()->routeIs('seller.store.*')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}"
+                >
+                    <i data-lucide="store" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                    <span class="seller-sidebar-link-label">Store Profile</span>
+                </a>
+
+                <span
+                    role="link"
+                    aria-disabled="true"
+                    aria-label="My Profile (Coming soon)"
+                    title="My Profile - Coming soon"
+                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
+                >
+                    <i data-lucide="user-round" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                    <span class="seller-sidebar-link-label min-w-0">
+                        My Profile
+                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
+                    </span>
+                </span>
+            </div>
+
         </nav>
 
 
         {{-- SIDEBAR FOOTER --}}
         <div
-            class="border-t border-white/10
+            class="seller-sidebar-footer shrink-0 border-t border-white/10
                    p-4"
         >
 
-            <div
-                class="seller-sidebar-user mb-3
-                       flex items-center gap-3
-                       rounded-xl
-                       px-2 py-2"
-            >
-
-                <div
-                    class="flex h-9 w-9
-                           shrink-0
-                           items-center justify-center
-                           rounded-xl
-                           bg-white/10"
-                >
-
-                    <i
-                        data-lucide="user-round"
-                        class="h-4 w-4 text-white/75"
-                    ></i>
-
-                </div>
-
-
-                <div class="seller-sidebar-user-copy min-w-0 flex-1">
-
-                    <p
-                        class="truncate
-                               text-xs
-                               font-semibold
-                               text-white"
-                    >
-                        {{ $sellerName }}
-                    </p>
-
-                    <p
-                        class="truncate
-                               text-[9px]
-                               uppercase
-                               tracking-[0.1em]
-                               text-white/35"
-                    >
-                        Seller
-                    </p>
-
-                </div>
-
-            </div>
-
-
             <form
+                id="sellerLogoutForm"
                 action="{{ route('logout') }}"
                 method="POST"
             >
@@ -563,7 +554,10 @@
                 @csrf
 
                 <button
-                    type="submit"
+                    id="sellerLogoutTrigger"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-controls="sellerLogoutDialog"
                     aria-label="Sign Out"
                     title="Sign Out"
                     class="seller-sidebar-signout flex w-full
@@ -592,6 +586,34 @@
         </div>
 
     </aside>
+
+    <dialog
+        id="sellerLogoutDialog"
+        aria-labelledby="sellerLogoutTitle"
+        aria-describedby="sellerLogoutDescription"
+        class="m-auto max-h-[90dvh] w-[min(440px,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-[#DDE6E1] bg-[#F8FAF8] p-6 text-[#24312C] shadow-2xl backdrop:bg-[#102C25]/55 backdrop:backdrop-blur-sm"
+    >
+        <h2 id="sellerLogoutTitle" class="text-lg font-semibold text-[#173F35]">
+            Are you sure you want to log out?
+        </h2>
+        <p id="sellerLogoutDescription" class="mt-2 text-sm text-[#52635B]">
+            You will be signed out of your seller account.
+        </p>
+        <div class="mt-6 flex flex-wrap justify-end gap-3">
+            <button
+                id="sellerLogoutCancel"
+                type="button"
+                autofocus
+                class="rounded-xl border border-[#DDE6E1] bg-white px-4 py-2.5 text-sm font-medium text-[#173F35] transition hover:bg-[#EEF4F0] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
+            >No, Cancel</button>
+            <button
+                id="sellerLogoutConfirm"
+                type="submit"
+                form="sellerLogoutForm"
+                class="rounded-xl bg-[#173F35] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#245546] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40 disabled:cursor-wait disabled:opacity-60"
+            >Yes, Log Out</button>
+        </div>
+    </dialog>
 
 
     {{-- =========================================================
@@ -629,8 +651,11 @@
                            border border-[#DDE6E1]
                            bg-white
                            text-[#52635B]
+                           focus:outline-none focus:ring-2 focus:ring-[#173F35]/40
                            lg:hidden"
                     aria-label="Open navigation"
+                    aria-expanded="false"
+                    aria-controls="sellerSidebar"
                 >
 
                     <i
@@ -696,7 +721,7 @@
 
 
                 {{-- ACTIONS --}}
-                <div class="flex items-center gap-2">
+                <div class="relative flex shrink-0 items-center gap-2">
 
                     <a
                         href="{{ route('buyer.home') }}"
@@ -752,6 +777,66 @@
 
                     </a>
 
+
+                    <div id="sellerNotificationsControl">
+                        <button
+                            id="sellerNotificationsToggle"
+                            type="button"
+                            aria-label="Notifications"
+                            aria-expanded="false"
+                            aria-controls="sellerNotificationsPanel"
+                            class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#52635B] transition hover:bg-[#F3F7F5] hover:text-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
+                        >
+                            <i data-lucide="bell" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                        </button>
+                        <div
+                            id="sellerNotificationsPanel"
+                            hidden
+                            role="region"
+                            aria-labelledby="sellerNotificationsHeading"
+                            class="absolute right-0 top-full z-40 mt-3 max-h-[70dvh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-[#DDE6E1] bg-white p-4 text-sm text-[#24312C] shadow-lg"
+                        >
+                            <h2 id="sellerNotificationsHeading" class="font-semibold text-[#173F35]">Notifications</h2>
+                            <p class="mt-2 text-xs leading-relaxed text-[#52635B]">Seller notifications are not available yet.</p>
+                        </div>
+                    </div>
+
+                    <div id="sellerAccountControl">
+                        <button
+                            id="sellerAccountToggle"
+                            type="button"
+                            aria-label="Seller account"
+                            aria-expanded="false"
+                            aria-controls="sellerAccountPanel"
+                            class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#52635B] transition hover:bg-[#F3F7F5] hover:text-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
+                        >
+                            <i data-lucide="user-round" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                        </button>
+                        <div
+                            id="sellerAccountPanel"
+                            hidden
+                            role="region"
+                            aria-labelledby="sellerAccountHeading"
+                            class="absolute right-0 top-full z-40 mt-3 max-h-[70dvh] w-[min(240px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-[#DDE6E1] bg-white p-2 text-sm text-[#24312C] shadow-lg"
+                        >
+                            <h2 id="sellerAccountHeading" class="truncate px-3 py-2 font-semibold text-[#173F35]">{{ $sellerName }}</h2>
+                            <span role="link" aria-disabled="true" class="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[#89958F]">
+                                <i data-lucide="user-round" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                                <span>My Profile <span class="block text-[10px]">Coming soon</span></span>
+                            </span>
+                            <button
+                                id="sellerAccountLogout"
+                                type="button"
+                                aria-haspopup="dialog"
+                                aria-controls="sellerLogoutDialog"
+                                class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-[#173F35] transition hover:bg-[#F3F7F5] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
+                            >
+                                <i data-lucide="log-out" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
@@ -804,107 +889,159 @@
                 document.documentElement;
 
 
-            function openSidebar() {
+            const logoutForm = document.getElementById('sellerLogoutForm');
+            const logoutTrigger = document.getElementById('sellerLogoutTrigger');
+            const logoutDialog = document.getElementById('sellerLogoutDialog');
+            const cancelLogout = document.getElementById('sellerLogoutCancel');
+            const confirmLogout = document.getElementById('sellerLogoutConfirm');
+            let logoutSubmitting = false;
+            let logoutReturnFocus = logoutTrigger;
+            const accountToggle = document.getElementById('sellerAccountToggle');
+            const accountLogout = document.getElementById('sellerAccountLogout');
+            const dropdowns = [
+                {
+                    control: document.getElementById('sellerNotificationsControl'),
+                    toggle: document.getElementById('sellerNotificationsToggle'),
+                    panel: document.getElementById('sellerNotificationsPanel'),
+                },
+                {
+                    control: document.getElementById('sellerAccountControl'),
+                    toggle: accountToggle,
+                    panel: document.getElementById('sellerAccountPanel'),
+                },
+            ];
+            let activeDropdown = null;
 
-                if (!sidebar || !overlay) {
-                    return;
-                }
-
-                sidebar.classList.remove('-translate-x-full');
-
-                overlay.classList.remove('hidden');
-
-                document.body.classList.add('overflow-hidden');
-
+            function closeDropdown(restoreFocus = false) {
+                if (!activeDropdown) return;
+                const previous = activeDropdown;
+                activeDropdown = null;
+                previous.panel.hidden = true;
+                previous.toggle.setAttribute('aria-expanded', 'false');
+                if (restoreFocus) previous.toggle.focus();
             }
 
+            dropdowns.forEach(function (dropdown) {
+                dropdown.toggle.addEventListener('click', function () {
+                    const wasOpen = activeDropdown === dropdown;
+                    closeDropdown();
+                    if (!wasOpen) {
+                        dropdown.panel.hidden = false;
+                        dropdown.toggle.setAttribute('aria-expanded', 'true');
+                        activeDropdown = dropdown;
+                    }
+                });
+            });
+            document.addEventListener('click', function (event) {
+                if (activeDropdown && !activeDropdown.control.contains(event.target)) {
+                    closeDropdown();
+                }
+            });
+            document.addEventListener('focusin', function (event) {
+                if (activeDropdown && !activeDropdown.control.contains(event.target)) {
+                    closeDropdown();
+                }
+            });
+
+            function isMobileSidebarOpen() {
+                return window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full');
+            }
+
+            function syncSidebarState() {
+                const mobileOpen = isMobileSidebarOpen();
+                const expanded = window.innerWidth < 1024
+                    ? mobileOpen
+                    : !root.classList.contains('seller-sidebar-collapsed');
+                const label = expanded ? 'Collapse sidebar' : 'Expand sidebar';
+
+                collapseButton.setAttribute('aria-expanded', String(expanded));
+                collapseButton.setAttribute('aria-label', label);
+                collapseButton.setAttribute('title', label);
+                openButton.setAttribute('aria-expanded', String(mobileOpen));
+                openButton.setAttribute('aria-label', mobileOpen ? 'Close navigation' : 'Open navigation');
+                overlay.classList.toggle('hidden', !mobileOpen);
+                document.body.classList.toggle('overflow-hidden', mobileOpen || logoutDialog.open);
+            }
 
             function closeSidebar() {
+                sidebar.classList.add('-translate-x-full');
+                syncSidebarState();
+            }
 
-                if (!sidebar || !overlay) {
+            function toggleSidebar() {
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.toggle('-translate-x-full');
+                } else {
+                    root.classList.toggle('seller-sidebar-collapsed');
+                }
+                syncSidebarState();
+            }
+
+            openButton.addEventListener('click', toggleSidebar);
+            collapseButton.addEventListener('click', toggleSidebar);
+            overlay.addEventListener('click', function () {
+                closeSidebar();
+                openButton.focus();
+            });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && activeDropdown) {
+                    closeDropdown(true);
+                    event.preventDefault();
+                    return;
+                }
+                if (event.key === 'Escape' && !logoutDialog.open && isMobileSidebarOpen()) {
+                    closeSidebar();
+                    openButton.focus();
+                }
+            });
+            window.addEventListener('resize', function () {
+                if (window.innerWidth >= 1024) {
+                    sidebar.classList.add('-translate-x-full');
+                }
+                syncSidebarState();
+            });
+
+            function openLogoutDialog(returnFocus = logoutTrigger) {
+                if (!logoutDialog.open && !logoutSubmitting) {
+                    logoutReturnFocus = returnFocus;
+                    closeDropdown();
+                    logoutDialog.showModal();
+                    cancelLogout.focus();
+                    syncSidebarState();
+                }
+            }
+
+            logoutTrigger.addEventListener('click', function () {
+                openLogoutDialog();
+            });
+            accountLogout.addEventListener('click', function () {
+                openLogoutDialog(accountToggle);
+            });
+            cancelLogout.addEventListener('click', function () {
+                logoutDialog.close();
+            });
+            logoutDialog.addEventListener('close', function () {
+                syncSidebarState();
+                logoutReturnFocus.focus();
+            });
+            logoutForm.addEventListener('submit', function (event) {
+                if (logoutSubmitting) {
+                    event.preventDefault();
+                    return;
+                }
+                if (!logoutDialog.open || event.submitter !== confirmLogout) {
+                    event.preventDefault();
+                    openLogoutDialog();
                     return;
                 }
 
-                sidebar.classList.add('-translate-x-full');
+                // Allow the original CSRF-protected POST only after confirmation.
+                logoutSubmitting = true;
+                confirmLogout.disabled = true;
+                cancelLogout.disabled = true;
+            });
 
-                overlay.classList.add('hidden');
-
-                document.body.classList.remove('overflow-hidden');
-
-            }
-
-
-            if (openButton) {
-
-                openButton.addEventListener(
-                    'click',
-                    openSidebar
-                );
-
-            }
-
-            if (collapseButton) {
-
-                collapseButton.addEventListener(
-                    'click',
-                    function () {
-
-                        const isCollapsed =
-                            root.classList.toggle('seller-sidebar-collapsed');
-
-                        const label =
-                            isCollapsed
-                                ? 'Expand sidebar'
-                                : 'Collapse sidebar';
-
-                        collapseButton.setAttribute(
-                            'aria-label',
-                            label
-                        );
-
-                        collapseButton.setAttribute(
-                            'title',
-                            label
-                        );
-
-                        collapseButton.setAttribute(
-                            'aria-expanded',
-                            String(!isCollapsed)
-                        );
-
-                    }
-                );
-
-            }
-
-
-            if (overlay) {
-
-                overlay.addEventListener(
-                    'click',
-                    closeSidebar
-                );
-
-            }
-
-
-            window.addEventListener(
-                'resize',
-                function () {
-
-                    if (window.innerWidth >= 1024) {
-
-                        overlay?.classList.add('hidden');
-
-                        document.body.classList.remove(
-                            'overflow-hidden'
-                        );
-
-                    }
-
-                }
-            );
-
+            syncSidebarState();
 
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();

@@ -291,9 +291,17 @@ body {
         transform .3s ease;
 }
 
+#sellerSidebar .seller-sidebar-link > i,
+#sellerSidebar .seller-sidebar-link > svg {
+    flex-shrink: 0;
+}
+
+#sellerSidebar .seller-sidebar-link-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .seller-sidebar-brand-copy,
-.seller-sidebar-store-copy,
-.seller-sidebar-user-copy,
 .seller-sidebar-link-label,
 .seller-sidebar-signout-label,
 .seller-sidebar-section-label {
@@ -315,62 +323,34 @@ body {
     }
 
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand {
+        justify-content: center;
         gap: 0;
-        padding-right: 3px;
-        padding-left: 3px;
+        padding: 6px 0;
     }
 
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link {
-        flex: 0 0 36px;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link > div:first-child {
-        width: 36px;
-        height: 36px;
-        flex: 0 0 36px;
-        border-radius: 10px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link img {
-        width: 30px;
-        height: 30px;
+        display: none;
     }
 
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-copy,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-copy,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user-copy,
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout-label {
-        max-width: 0;
-        overflow: hidden;
-        opacity: 0;
-        transform: translateX(-5px);
-        white-space: nowrap;
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout-label,
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-section-label {
+        display: none;
     }
 
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse {
         width: 30px;
-        height: 34px;
+        height: 30px;
         flex: 0 0 30px;
         border-radius: 9px;
     }
 
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse svg {
-        transform: rotate(180deg);
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-wrap {
-        padding: 12px 8px 0;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-card {
-        padding: 8px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-content {
-        justify-content: center;
+    html.seller-sidebar-collapsed #sellerSidebar nav,
+    html.seller-sidebar-collapsed #sellerSidebar nav > div {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     html.seller-sidebar-collapsed #sellerSidebar nav {
@@ -378,39 +358,35 @@ body {
         padding-left: 8px;
     }
 
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-section-label {
-        height: 0;
-        max-width: 0;
-        margin: 0;
-        overflow: hidden;
-        padding: 0;
-        opacity: 0;
+    html.seller-sidebar-collapsed #sellerSidebar nav > div {
+        flex-shrink: 0;
     }
 
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link {
-        justify-content: center;
-        gap: 0;
-        overflow: hidden;
-        padding-right: 0;
-        padding-left: 0;
+    html.seller-sidebar-collapsed #sellerSidebar nav > div > * {
+        margin-block: 0;
     }
 
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label {
-        display: inline-block;
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-footer {
+        padding: 16px 8px;
     }
 
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user {
-        justify-content: center;
-        gap: 0;
-        padding-right: 0;
-        padding-left: 0;
-    }
-
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link,
     html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout {
+        display: flex;
+        align-items: center;
         justify-content: center;
+        width: 100%;
+        height: 44px;
+        flex-shrink: 0;
         gap: 0;
-        padding-right: 0;
-        padding-left: 0;
+        padding: 0;
+    }
+
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link > :is(i, svg),
+    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout > :is(i, svg) {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
     }
 
 }
