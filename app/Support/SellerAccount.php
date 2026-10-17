@@ -38,7 +38,7 @@ class SellerAccount
         return [
             'shop_id' => $seller->id,
             'shop_name' => $seller->name,
-            'business_category' => $seller->business_category,
+            'business_category' => SellerCategories::display($seller->business_category),
             'seller_type' => $seller->seller_type,
             'tin' => $seller->tin,
             'description' => $seller->description,
@@ -64,6 +64,7 @@ class SellerAccount
         $profile = self::profile($seller);
         session()->put('seller_profile', $profile);
         session()->put('seller_logged_in', true);
+        SellerProducts::sync($seller);
 
         return $profile;
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Seller;
+use App\Support\PhilippineAddress;
 use App\Support\SellerAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,42 +112,11 @@ class StoreProfileController extends Controller
             'postal_code' => ['required', 'regex:/\A[0-9]{4}\z/'],
             'pickup_phone' => ['required', 'string', 'regex:/\A(?:09[0-9]{9}|\+639[0-9]{9})\z/'],
         ]);
-        $get = function (string $path) use ($fetchPsgcData) {
-            $items = $fetchPsgcData($path);
-            if ($items === null) {
-                throw ValidationException::withMessages(['region' => 'Address data could not be verified. Please try again later.']);
-            }
-
-            return collect($items);
-        };
-        $select = function ($items, $code, $field) {
-            $item = $items->firstWhere('code', $code);
-            if (! $item) {
-                throw ValidationException::withMessages([$field => 'Select a location belonging to the selected administrative area.']);
-            }
-
-            return $item;
-        };
-        $region = $select($get('regions'), $data['region'], 'region');
-        $provinces = $get('regions/'.$region['code'].'/provinces');
-        $province = null;
-        if ($provinces->isNotEmpty()) {
-            $province = $select($provinces, $data['province'] ?? '', 'province');
-            $cities = $get('provinces/'.$province['code'].'/cities-municipalities');
-        } else {
-            if (! empty($data['province'])) {
-                throw ValidationException::withMessages(['province' => 'This region does not have provinces.']);
-            }
-            $cities = $get('regions/'.$region['code'].'/cities-municipalities');
-        }
-        $city = $select($cities, $data['municipality'], 'municipality');
-        $barangay = $select($get('cities-municipalities/'.$city['code'].'/barangays'), $data['barangay'], 'barangay');
-        DB::transaction(function () use ($seller, $data, $region, $province, $city, $barangay) {
+        $location = PhilippineAddress::resolve($data, $fetchPsgcData);
+        DB::transaction(function () use ($seller, $data, $location) {
             $locked = Seller::whereKey($seller->id)->lockForUpdate()->firstOrFail();
             $address = $this->editablePickup($locked);
-            $address->fill([
-                'region' => $region['name'], 'province' => $province['name'] ?? '',
-                'city' => $city['name'], 'barangay' => $barangay['name'],
+            $address->fill($location + [
                 'line1' => $data['address'], 'postal_code' => $data['postal_code'],
                 'phone' => $this->phone($data['pickup_phone']),
             ])->save();
@@ -170,7 +140,7 @@ class StoreProfileController extends Controller
         }
         $seller->owner->forceFill(['password' => Hash::make($data['password']), 'remember_token' => Str::random(60)])->save();
 
-        return redirect(route('seller.store.profile').'#security')->with('success', 'Password updated successfully.');
+        return redirect(route('seller.profile').'#security')->with('success', 'Password updated successfully.');
     }
 
     private function editablePickup(Seller $seller): Address

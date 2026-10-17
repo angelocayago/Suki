@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Support\SellerAccount;
 use App\Http\Controllers\Seller\StoreProfileController;
+use App\Http\Controllers\Seller\MyProfileController;
 use App\Models\BuyerEmailVerification;
 use App\Models\Seller;
 use App\Models\Address;
@@ -3535,6 +3536,52 @@ Route::post('/seller/store-profile/password', function (Request $request) use ($
 
 
 // =====================================================
+// SELLER PERSONAL PROFILE
+// =====================================================
+
+Route::middleware('auth')->group(function () use ($requireSeller, $fetchPsgcData) {
+    Route::get('/seller/my-profile', function (Request $request) use ($requireSeller) {
+        if ($redirect = $requireSeller()) {
+            return $redirect;
+        }
+
+        return app(MyProfileController::class)->show();
+    })->name('seller.profile');
+
+    Route::post('/seller/my-profile', function (Request $request) use ($requireSeller) {
+        if ($redirect = $requireSeller()) {
+            return $redirect;
+        }
+
+        return app(MyProfileController::class)->update($request);
+    })->name('seller.profile.update');
+
+    Route::post('/seller/my-profile/photo', function (Request $request) use ($requireSeller) {
+        if ($redirect = $requireSeller()) {
+            return $redirect;
+        }
+
+        return app(MyProfileController::class)->updatePhoto($request);
+    })->name('seller.profile.photo.update');
+
+    Route::post('/seller/my-profile/photo/remove', function (Request $request) use ($requireSeller) {
+        if ($redirect = $requireSeller()) {
+            return $redirect;
+        }
+
+        return app(MyProfileController::class)->removePhoto();
+    })->name('seller.profile.photo.remove');
+
+    Route::post('/seller/my-profile/address', function (Request $request) use ($requireSeller, $fetchPsgcData) {
+        if ($redirect = $requireSeller()) {
+            return $redirect;
+        }
+
+        return app(MyProfileController::class)->updateAddress($request, $fetchPsgcData);
+    })->name('seller.profile.address.update');
+});
+
+// =====================================================
 // SELLER PRODUCTS
 // =====================================================
 
@@ -3544,7 +3591,7 @@ Route::get('/seller/products', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
+    $products = \App\Support\SellerProducts::sync(\App\Support\SellerAccount::current());
 
     return view('seller.products', [
         'products' => $products,
@@ -3563,7 +3610,7 @@ Route::get('/seller/products/create', function () use ($requireSeller) {
         return $redirect;
     }
 
-    return view('seller.products-create');
+    return app(\App\Http\Controllers\Seller\ProductController::class)->create();
 
 })->name('seller.products.create');
 
@@ -3580,130 +3627,7 @@ Route::post('/seller/products', function (
         return $redirect;
     }
 
-    $sellerCategory = session('seller_profile.business_category');
-    $registeredCategories = config('seller_categories', []);
-
-    if (!array_key_exists($sellerCategory, $registeredCategories)) {
-        abort(403, 'A valid business category is required to add products.');
-    }
-
-    $isDraft = $request->input('submit_action') === 'draft';
-    $required = $isDraft ? 'nullable' : 'required';
-    $hasVariations = $request->boolean('has_variations');
-
-    $request->validate([
-        'name' => "{$required}|string|max:150",
-        'subcategory' => [
-            $isDraft ? 'nullable' : 'required',
-            'string',
-            \Illuminate\Validation\Rule::in($registeredCategories[$sellerCategory]),
-        ],
-        'description' => "{$required}|string|max:3000",
-        'price' => "{$required}|numeric|min:0",
-        'sale_price' => [
-            $isDraft ? 'nullable' : 'required_if:on_sale,1',
-            'numeric',
-            'min:0',
-            'lt:price',
-        ],
-        'on_sale' => 'nullable|boolean',
-        'stock' => "{$required}|integer|min:0",
-        'low_stock_threshold' => 'nullable|integer|min:0',
-        'sku' => 'nullable|string|max:50',
-        'status' => $isDraft ? 'nullable|in:active,inactive' : 'required|in:active,inactive',
-        'images' => $isDraft ? 'nullable|array|max:5' : 'required|array|min:1|max:5',
-        'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-        'additional_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        'product_video' => 'nullable|file|mimes:mp4,mov,avi,webm|max:10240',
-        'has_variations' => 'nullable|boolean',
-        'variation_name' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
-        'variation_name.*' => !$isDraft && $hasVariations ? 'required|string|max:100' : 'nullable|string|max:100',
-        'variation_value' => !$isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
-        'variation_value.*' => !$isDraft && $hasVariations ? 'required|string|max:255' : 'nullable|string|max:255',
-    ]);
-
-    $imageUrls = collect($request->file('images', []))
-        ->map(function ($image) {
-            $path = $image->store('products', 'public');
-
-            return Storage::disk('public')->url($path);
-        })
-        ->all();
-
-    $additionalImageUrl = $request->hasFile('additional_image')
-        ? Storage::disk('public')->url(
-            $request->file('additional_image')->store('products', 'public')
-        )
-        : null;
-
-    $productVideoUrl = $request->hasFile('product_video')
-        ? Storage::disk('public')->url(
-            $request->file('product_video')->store('products/videos', 'public')
-        )
-        : null;
-
-    $products = session()->get('seller_products', []);
-
-    $productId = 'P' . str_pad(
-        count($products) + 1,
-        4,
-        '0',
-        STR_PAD_LEFT
-    );
-
-    $products[$productId] = [
-        'id' => $productId,
-        'name' => $request->name,
-        'category' => $sellerCategory,
-        'subcategory' => $request->subcategory,
-        'brand' => $request->brand,
-        'description' => $request->description,
-        'image' => $imageUrls[0] ?? null,
-        'images' => $imageUrls,
-        'additional_image' => $additionalImageUrl,
-        'product_video' => $productVideoUrl,
-
-        'regular_price' => $request->filled('price') ? (float) $request->price : null,
-        'price' => $request->boolean('on_sale')
-            ? (float) $request->sale_price
-            : ($request->filled('price') ? (float) $request->price : null),
-        'on_sale' => $request->boolean('on_sale'),
-        'sale_price' => $request->filled('sale_price') ? (float) $request->sale_price : null,
-        'stock' => (int) $request->stock,
-        'low_stock_threshold' => (int) $request->input('low_stock_threshold', 5),
-
-        'sku' => $request->sku,
-        'status' => $isDraft ? 'draft' : $request->status,
-
-        'weight' => $request->weight,
-        'length' => $request->length,
-        'width' => $request->width,
-        'height' => $request->height,
-
-        'has_variations' => $request->boolean('has_variations'),
-        'variation_names' => $request->boolean('has_variations')
-            ? array_values(array_filter($request->variation_name ?? []))
-            : [],
-        'variation_values' => $request->boolean('has_variations')
-            ? array_values(array_filter($request->variation_value ?? []))
-            : [],
-
-        'shipping_options' => $request->shipping_options ?? [],
-
-        'sold' => 0,
-
-        'created_at' => now()->format('Y-m-d H:i:s'),
-        'updated_at' => now()->format('Y-m-d H:i:s'),
-    ];
-
-    session()->put('seller_products', $products);
-
-    return redirect()
-        ->route('seller.products')
-        ->with(
-            'success',
-            $isDraft ? 'Product saved as a draft.' : 'Product added successfully.'
-        );
+    return app(\App\Http\Controllers\Seller\ProductController::class)->store($request);
 
 })->name('seller.products.store');
 
@@ -3719,15 +3643,7 @@ Route::get('/seller/products/{product}/edit', function (
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    return view('seller.products-edit', [
-        'product' => $products[$productId],
-    ]);
+    return app(\App\Http\Controllers\Seller\ProductController::class)->edit($productId);
 
 })->name('seller.products.edit');
 
@@ -3744,61 +3660,7 @@ Route::put('/seller/products/{product}', function (
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $isDraft = $request->input('status') === 'draft';
-    $required = $isDraft ? 'nullable' : 'required';
-
-    $request->validate([
-        'name' => "{$required}|string|max:150",
-        'category' => "{$required}|string|max:100",
-        'description' => "{$required}|string|max:3000",
-        'price' => "{$required}|numeric|min:0",
-        'stock' => "{$required}|integer|min:0",
-        'sku' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive,draft',
-    ]);
-
-    $products[$productId] = array_merge(
-        $products[$productId],
-        [
-            'name' => $request->name,
-            'category' => $request->category,
-            'brand' => $request->brand,
-            'description' => $request->description,
-
-            'price' => (float) $request->price,
-            'stock' => (int) $request->stock,
-
-            'sku' => $request->sku,
-            'status' => $request->status,
-
-            'weight' => $request->weight,
-            'length' => $request->length,
-            'width' => $request->width,
-            'height' => $request->height,
-
-            'variation_names' => $request->variation_name ?? [],
-            'variation_values' => $request->variation_value ?? [],
-
-            'shipping_options' => $request->shipping_options ?? [],
-
-            'updated_at' => now()->format('Y-m-d H:i:s'),
-        ]
-    );
-
-    session()->put('seller_products', $products);
-
-    return redirect()
-        ->route('seller.products')
-        ->with(
-            'success',
-            'Product updated successfully.'
-        );
+    return app(\App\Http\Controllers\Seller\ProductController::class)->update($request, $productId);
 
 })->name('seller.products.update');
 
@@ -3813,7 +3675,7 @@ Route::get('/seller/inventory', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
+    $products = \App\Support\SellerProducts::sync(\App\Support\SellerAccount::current());
 
     return view('seller.inventory', [
         'products' => $products,
@@ -3830,19 +3692,7 @@ Route::post('/seller/inventory/{product}/increase', function (
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $products[$productId]['stock'] =
-        (int) ($products[$productId]['stock'] ?? 0) + 1;
-
-    $products[$productId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    session()->put('seller_products', $products);
+    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, 1);
 
     return back()->with(
         'success',
@@ -3860,23 +3710,7 @@ Route::post('/seller/inventory/{product}/decrease', function (
         return $redirect;
     }
 
-    $products = session()->get('seller_products', []);
-
-    if (!isset($products[$productId])) {
-        abort(404);
-    }
-
-    $currentStock =
-        (int) ($products[$productId]['stock'] ?? 0);
-
-    if ($currentStock > 0) {
-        $products[$productId]['stock'] = $currentStock - 1;
-    }
-
-    $products[$productId]['updated_at'] =
-        now()->format('Y-m-d H:i:s');
-
-    session()->put('seller_products', $products);
+    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, -1);
 
     return back()->with(
         'success',

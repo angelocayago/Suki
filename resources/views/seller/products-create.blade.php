@@ -14,8 +14,8 @@
         'suki_rider',
         'logistics_partner'
     ]);
-    $sellerCategory = session('seller_profile.business_category', '');
-    $productSubcategories = config('seller_categories', []);
+
+
 @endphp
 
 
@@ -396,73 +396,7 @@
                                md:grid-cols-3"
                     >
 
-                        {{-- CATEGORY --}}
-                        <div>
-
-                            <label
-                                for="category"
-                                class="mb-2
-                                       block
-                                       text-xs
-                                       font-semibold
-                                       text-[#34483F]"
-                            >
-                                Category
-
-                                <span class="text-red-500">
-                                    *
-                                </span>
-                            </label                            >
-
-                            <input
-                                type="hidden"
-                                name="category"
-                                value="{{ $sellerCategory }}"
-                            >
-
-                            <div
-                                class="flex h-11 items-center rounded-xl border border-[#DDE6E1] bg-[#F7F9F8] px-4 text-sm text-[#52635B]"
-                                aria-readonly="true"
-                            >
-                                {{ $sellerCategory ?: 'Business category is missing from your seller profile' }}
-                            </div>
-
-                            <p class="mt-1.5 text-[10px] leading-4 text-[#8C9992]">
-                                This is set from your registered business category.
-                            </p>
-
-                        </div>
-
-
-                        {{-- SUBCATEGORY --}}
-                        <div>
-
-                            <label
-                                for="subcategory"
-                                class="mb-2 block text-xs font-semibold text-[#34483F]"
-                            >
-                                Subcategory
-                            </label>
-
-                            <select
-                                id="subcategory"
-                                name="subcategory"
-                                required
-                                class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white px-4 text-sm text-[#34483F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
-                            >
-                                <option value="">Select subcategory</option>
-                                @foreach($productSubcategories[$sellerCategory] ?? [] as $subcategory)
-                                    <option
-                                        value="{{ $subcategory }}"
-                                        {{ old('subcategory') === $subcategory ? 'selected' : '' }}
-                                    >
-                                        {{ $subcategory }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                        </div>
-
+                        @include('seller.partials.product-category')
 
                         {{-- BRAND --}}
                         <div>

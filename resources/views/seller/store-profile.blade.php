@@ -2,7 +2,7 @@
 
 @section('title', 'Store Profile')
 @section('page-title', 'Store Profile')
-@section('page-subtitle', 'Your shop profile, pickup address and security')
+@section('page-subtitle', 'Your shop profile and pickup address')
 
 @section('content')
 
@@ -44,14 +44,6 @@
         $isVerified = $isVerified
             && ! empty($storedSellerDocuments[$requiredSellerDocument]);
     }
-
-    $accountStatus = match ($status) {
-        'approved' => 'Active',
-        'pending' => 'Pending',
-        'suspended' => 'Suspended',
-        'rejected' => 'Rejected',
-        default => 'Not available',
-    };
 
     $memberSince = null;
 
@@ -160,21 +152,7 @@
         </a>
 
 
-        <a
-            href="#security"
-            class="rounded-full border border-gray-200
-                   bg-white px-4 py-2
-                   text-xs font-medium text-gray-600
-                   shadow-sm transition
-                   hover:border-[#1F6F5B]
-                   hover:text-[#1F6F5B]"
-        >
-            Security
-        </a>
-
     </div>
-
-
 
 
     {{-- =====================================================
@@ -427,9 +405,6 @@
     </section>
 
 
-
-
-
     {{-- =====================================================
         PICKUP ADDRESS
     ====================================================== --}}
@@ -561,9 +536,6 @@
     </section>
 
 
-
-
-
     {{-- =====================================================
         BUSINESS AND VERIFICATION
     ====================================================== --}}
@@ -686,31 +658,7 @@
 
                 <div class="mt-1">
 
-                    @if($isVerified)
-
-                        <span
-                            class="rounded-full
-                                   bg-emerald-50
-                                   px-2.5 py-1
-                                   text-xs font-medium
-                                   text-emerald-600"
-                        >
-                            Verified
-                        </span>
-
-                    @else
-
-                        <span
-                            class="rounded-full
-                                   bg-amber-50
-                                   px-2.5 py-1
-                                   text-xs font-medium
-                                   text-amber-700"
-                        >
-                            Pending
-                        </span>
-
-                    @endif
+                    <x-seller-status-badge :status="$isVerified ? 'verified' : 'pending'" />
 
                 </div>
 
@@ -722,20 +670,12 @@
             <div>
 
                 <p class="text-[11px] text-gray-400">
-                    Account status
+                    Store approval status
                 </p>
 
                 <div class="mt-1">
 
-                    <span
-                        class="rounded-full
-                               bg-[#EEF7F3]
-                               px-2.5 py-1
-                               text-xs font-medium
-                               text-[#1F6F5B]"
-                    >
-                        {{ $accountStatus }}
-                    </span>
+                    <x-seller-status-badge :status="$status" />
 
                 </div>
 
@@ -770,188 +710,8 @@
                    text-xs leading-5
                    text-gray-500"
         >
-            Store details are loaded from your saved shop record. The assigned category cannot be changed here. Account-holder and login e-mail details are read-only; personal profile management is a separate future feature.
+            Store details are loaded from your saved shop record. The assigned category cannot be changed here. Account-holder and login e-mail details are read-only; personal profile management is available in My Profile.
         </div>
-
-    </section>
-
-
-
-
-
-    {{-- =====================================================
-        SECURITY
-    ====================================================== --}}
-
-    <section
-        id="security"
-        class="scroll-mt-28
-               rounded-2xl
-               border border-gray-200
-               bg-white
-               p-6 shadow-sm
-               sm:p-7"
-    >
-
-        <div class="mb-6">
-
-            <p
-                class="text-xs font-bold
-                       uppercase tracking-[0.08em]
-                       text-[#1F6F5B]"
-            >
-                Security
-            </p>
-
-
-            <p class="mt-1 text-xs text-gray-400">
-                Change your password.
-            </p>
-
-        </div>
-
-
-
-        <form
-            action="{{ route('seller.store.password.update') }}"
-            method="POST"
-            class="max-w-xl space-y-5"
-        >
-
-            @csrf
-
-
-
-            {{-- CURRENT PASSWORD --}}
-            <div>
-
-                <label
-                    for="currentPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    Current password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="currentPassword"
-                    type="password"
-                    name="current_password"
-                    required
-                    autocomplete="current-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-            </div>
-
-
-
-            {{-- NEW PASSWORD --}}
-            <div>
-
-                <label
-                    for="newPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    New password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="newPassword"
-                    type="password"
-                    name="password"
-                    required
-                    minlength="8"
-                    autocomplete="new-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-
-                <p
-                    class="mt-2 text-[11px]
-                           text-gray-400"
-                >
-                    At least 8 characters and different
-                    from your current password.
-                </p>
-
-            </div>
-
-
-
-            {{-- CONFIRM PASSWORD --}}
-            <div>
-
-                <label
-                    for="confirmPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    Confirm new password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="confirmPassword"
-                    type="password"
-                    name="password_confirmation"
-                    required
-                    minlength="8"
-                    autocomplete="new-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-            </div>
-
-
-
-            <button
-                type="submit"
-                class="rounded-xl
-                       bg-[#1F6F5B]
-                       px-5 py-3
-                       text-sm font-semibold
-                       text-white
-                       transition
-                       hover:bg-[#155244]"
-            >
-                Update password
-            </button>
-
-        </form>
 
     </section>
 
@@ -1014,118 +774,11 @@ document.addEventListener('DOMContentLoaded', function () {
     |--------------------------------------------------------------------------
     */
 
-    function bindImageUpload(inputId, previewId, placeholderId, buttonId, statusId, maxMegabytes) {
-        const input = document.getElementById(inputId);
-        const preview = document.getElementById(previewId);
-        const placeholder = document.getElementById(placeholderId);
-        const button = document.getElementById(buttonId);
-        const status = document.getElementById(statusId);
-        const savedSource = preview.getAttribute('src');
-        let previewUrl;
-
-        function releasePreview() {
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
-            previewUrl = null;
-        }
-        function resetPreview() {
-            releasePreview();
-            if (savedSource) preview.src = savedSource;
-            else preview.removeAttribute('src');
-            preview.classList.toggle('hidden', !savedSource);
-            placeholder.classList.toggle('hidden', Boolean(savedSource));
-            button.textContent = savedSource ? 'Replace image' : 'Upload image';
-        }
-        button.addEventListener('click', () => input.click());
-        input.addEventListener('change', function () {
-            const file = input.files[0];
-            if (!file) return;
-            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxMegabytes * 1024 * 1024) {
-                input.value = '';
-                resetPreview();
-                status.textContent = 'Choose a JPG, PNG or WEBP image up to ' + maxMegabytes + ' MB.';
-                return;
-            }
-            releasePreview();
-            previewUrl = URL.createObjectURL(file);
-            preview.src = previewUrl;
-            preview.classList.remove('hidden');
-            placeholder.classList.add('hidden');
-            button.textContent = 'Replace image';
-            status.textContent = 'Image selected. Save store profile to upload.';
-        });
-        window.addEventListener('pagehide', function (event) {
-            if (!event.persisted) releasePreview();
-        });
-    }
+    @include('seller.partials.image-upload-script')
     bindImageUpload('profile_photo', 'shopPhotoPreview', 'shopPhotoPlaceholder', 'logoUploadButton', 'logoUploadStatus', 2);
     bindImageUpload('storeBanner', 'storeBannerPreview', 'storeBannerPlaceholder', 'bannerUploadButton', 'bannerUploadStatus', 5);
 
-    const fields = {
-        region: document.getElementById('profileRegion'),
-        province: document.getElementById('profileProvince'),
-        municipality: document.getElementById('profileMunicipality'),
-        barangay: document.getElementById('profileBarangay'),
-    };
-    const saved = @json($initialAddressValues);
-    const addressStatus = document.getElementById('profileAddressStatus');
-    const addressForm = fields.region.closest('form');
-    const addressSubmit = addressForm.querySelector('button[type="submit"]');
-    let addressVersion = 0;
-
-    function populate(name, items, selected = '') {
-        const select = fields[name];
-        select.replaceChildren(new Option('Select ' + name, ''));
-        items.forEach(item => select.add(new Option(item.name, item.code, false, item.code === selected || item.name === selected)));
-        select.disabled = !items.length;
-        if (name === 'province') select.required = items.length > 0;
-    }
-    async function locations(path) {
-        const response = await fetch(@json(url('/api/psgc')) + '/' + path, {headers: {Accept: 'application/json'}});
-        if (!response.ok) throw new Error('Location data is unavailable. Reload the page to try again.');
-        return response.json();
-    }
-    async function loadAddress(from, initial = false) {
-        const version = ++addressVersion;
-        addressSubmit.disabled = true;
-        addressStatus.textContent = 'Loading locations...';
-        const order = ['region', 'province', 'municipality', 'barangay'];
-        const start = order.indexOf(from);
-        const selected = Object.fromEntries(order.map(name => [name, initial ? saved[name] : fields[name].value]));
-        order.slice(start).forEach(name => populate(name, []));
-        try {
-            if (from === 'region') {
-                const items = await locations('regions');
-                if (version !== addressVersion) return;
-                populate('region', items, selected.region);
-            }
-            if (start <= 1 && fields.region.value) {
-                const items = await locations('regions/' + fields.region.value + '/provinces');
-                if (version !== addressVersion) return;
-                populate('province', items, initial ? selected.province : '');
-            }
-            if (start <= 2 && fields.region.value && (fields.province.disabled || fields.province.value)) {
-                const path = fields.province.disabled ? 'regions/' + fields.region.value : 'provinces/' + fields.province.value;
-                const items = await locations(path + '/cities-municipalities');
-                if (version !== addressVersion) return;
-                populate('municipality', items, initial ? selected.municipality : '');
-            }
-            if (fields.municipality.value) {
-                const items = await locations('cities-municipalities/' + fields.municipality.value + '/barangays');
-                if (version !== addressVersion) return;
-                populate('barangay', items, initial ? selected.barangay : '');
-            }
-            addressStatus.textContent = '';
-        } catch (error) {
-            if (version !== addressVersion) return;
-            addressStatus.textContent = error.message;
-            return;
-        }
-        if (version === addressVersion) addressSubmit.disabled = false;
-    }
-    fields.region.addEventListener('change', () => loadAddress('province'));
-    fields.province.addEventListener('change', () => loadAddress('municipality'));
-    fields.municipality.addEventListener('change', () => loadAddress('barangay'));
-    loadAddress('region', true);
+    @include('seller.partials.address-script')
 
     document.querySelectorAll('main form').forEach(form => {
         form.addEventListener('submit', event => {

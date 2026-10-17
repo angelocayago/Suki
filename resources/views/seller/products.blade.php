@@ -36,6 +36,12 @@
 
 @endphp
 
+@if(!empty(session('seller_products_legacy_review')))
+    <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-xs leading-5 text-amber-800" role="status">
+        Earlier listings need an ownership review before they can appear here. Contact support before ending this session.
+    </div>
+@endif
+
 
 {{-- =========================================================
     ALERT

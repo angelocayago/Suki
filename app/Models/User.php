@@ -175,4 +175,12 @@ class User extends Authenticatable
             ($this->last_name ?? '')
         );
     }
+
+    /** Personal seller display code, based on the owner rather than the shop. */
+    public function getSellerCodeAttribute(): ?string
+    {
+        $id = $this->getKey();
+
+        return $id === null ? null : 'SLR-'.str_pad((string) $id, 5, '0', STR_PAD_LEFT);
+    }
 }

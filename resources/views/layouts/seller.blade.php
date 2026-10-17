@@ -49,8 +49,11 @@
 
     $sellerProfile = session('seller_profile', []);
 
-    $sellerName = $sellerProfile['seller_name']
-        ?? 'Seller';
+    $sellerOwner = auth()->user();
+    $sellerName = $sellerOwner?->isSeller()
+        ? $sellerOwner->name
+        : ($sellerProfile['seller_name'] ?? 'Seller');
+    $sellerPersonalPhoto = $sellerOwner?->isSeller() ? $sellerOwner->profile_photo_path : null;
 
 @endphp
 
@@ -521,19 +524,19 @@
                     <span class="seller-sidebar-link-label">Store Profile</span>
                 </a>
 
-                <span
-                    role="link"
-                    aria-disabled="true"
-                    aria-label="My Profile (Coming soon)"
-                    title="My Profile - Coming soon"
-                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
+                <a
+                    href="{{ route('seller.profile') }}"
+                    aria-label="My Profile"
+                    title="My Profile"
+                    @if(request()->routeIs('seller.profile', 'seller.profile.*')) aria-current="page" @endif
+                    class="seller-sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition
+                        {{ request()->routeIs('seller.profile', 'seller.profile.*')
+                            ? 'bg-white text-[#173F35] shadow-sm'
+                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}"
                 >
                     <i data-lucide="user-round" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
-                    <span class="seller-sidebar-link-label min-w-0">
-                        My Profile
-                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
-                    </span>
-                </span>
+                    <span class="seller-sidebar-link-label">My Profile</span>
+                </a>
             </div>
 
         </nav>
@@ -810,7 +813,11 @@
                             aria-controls="sellerAccountPanel"
                             class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#52635B] transition hover:bg-[#F3F7F5] hover:text-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
                         >
-                            <i data-lucide="user-round" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                            @if($sellerPersonalPhoto)
+                                <img src="{{ asset('storage/' . $sellerPersonalPhoto) }}" alt="Your profile photo" class="h-8 w-8 rounded-lg object-cover">
+                            @else
+                                <i data-lucide="user-round" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                            @endif
                         </button>
                         <div
                             id="sellerAccountPanel"
@@ -820,10 +827,10 @@
                             class="absolute right-0 top-full z-40 mt-3 max-h-[70dvh] w-[min(240px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-[#DDE6E1] bg-white p-2 text-sm text-[#24312C] shadow-lg"
                         >
                             <h2 id="sellerAccountHeading" class="truncate px-3 py-2 font-semibold text-[#173F35]">{{ $sellerName }}</h2>
-                            <span role="link" aria-disabled="true" class="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[#89958F]">
+                            <a href="{{ route('seller.profile') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[#173F35] transition hover:bg-[#F3F7F5] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40">
                                 <i data-lucide="user-round" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
-                                <span>My Profile <span class="block text-[10px]">Coming soon</span></span>
-                            </span>
+                                My Profile
+                            </a>
                             <button
                                 id="sellerAccountLogout"
                                 type="button"

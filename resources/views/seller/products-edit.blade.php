@@ -512,92 +512,11 @@
                     <div
                         class="grid grid-cols-1
                                gap-5
-                               md:grid-cols-2"
+                               md:grid-cols-3"
                     >
 
 
-                        {{-- CATEGORY --}}
-                        <div>
-
-                            <label
-                                for="category"
-                                class="mb-2
-                                       block
-                                       text-xs
-                                       font-semibold
-                                       text-[#34483F]"
-                            >
-                                Category
-
-                                <span class="text-red-500">
-                                    *
-                                </span>
-                            </label>
-
-
-                            <div class="relative">
-
-                                <select
-                                    id="category"
-                                    name="category"
-                                    required
-                                    class="h-11 w-full
-                                           appearance-none
-                                           rounded-xl
-                                           border border-[#DDE6E1]
-                                           bg-white
-                                           px-4 pr-10
-                                           text-sm
-                                           text-[#52635B]
-                                           focus:border-[#1F6F5B]
-                                           focus:ring-4
-                                           focus:ring-[#DDF3EC]/70"
-                                >
-
-                                    @foreach([
-                                        'Electronics',
-                                        'Fashion',
-                                        'Beauty',
-                                        'Home & Living',
-                                        'Groceries',
-                                        'Health',
-                                        'Sports',
-                                        'Toys & Hobbies',
-                                        'Automotive',
-                                        'Pet Supplies',
-                                        'Books & Stationery',
-                                        'Others'
-                                    ] as $category)
-
-                                        <option
-                                            value="{{ $category }}"
-                                            {{ old(
-                                                'category',
-                                                $product['category'] ?? ''
-                                            ) === $category ? 'selected' : '' }}
-                                        >
-                                            {{ $category }}
-                                        </option>
-
-                                    @endforeach
-
-                                </select>
-
-
-                                <i
-                                    data-lucide="chevron-down"
-                                    class="pointer-events-none
-                                           absolute
-                                           right-3.5 top-1/2
-                                           h-4 w-4
-                                           -translate-y-1/2
-                                           text-[#8A9791]"
-                                ></i>
-
-                            </div>
-
-                        </div>
-
+                        @include('seller.partials.product-category')
 
                         {{-- BRAND --}}
                         <div>
