@@ -129,7 +129,7 @@ $deadlinePassed = $product->isResubmitDeadlinePassed();
       @if($product->video_path)
       <div class="mb-2">
         <video controls class="rounded shadow-sm" style="max-width: 100%; max-height: 200px;">
-          <source src="{{ asset('storage/' . $product->video_path) }}" type="video/mp4">
+          <source src="{{ $product->video_url }}" type="video/mp4">
           Your browser does not support the video tag.
         </video>
         <div class="mt-2">
@@ -220,11 +220,11 @@ $deadlinePassed = $product->isResubmitDeadlinePassed();
               <div class="col-md-4">
                 <label class="form-label form-label-sm mb-0">Variant Name</label>
                 <input type="text"
-                       name="variations[{{ $variantIndex }}][name]"
-                       class="form-control form-control-sm"
-                       value="{{ old('variations.'.$variantIndex.'.name', $variation->name) }}"
-                       placeholder="e.g. Police Car, Fire Truck"
-                       maxlength="255">
+                  name="variations[{{ $variantIndex }}][name]"
+                  class="form-control form-control-sm"
+                  value="{{ old('variations.'.$variantIndex.'.name', $variation->name) }}"
+                  placeholder="e.g. Police Car, Fire Truck"
+                  maxlength="255">
               </div>
               <div class="col-md-4">
                 <label class="form-label form-label-sm mb-0">Image</label>
@@ -297,10 +297,10 @@ $deadlinePassed = $product->isResubmitDeadlinePassed();
               <div class="col-md-4">
                 <label class="form-label form-label-sm mb-0">Variant Name</label>
                 <input type="text"
-                       name="variations[0][name]"
-                       class="form-control form-control-sm"
-                       placeholder="e.g. Police Car, Fire Truck"
-                       maxlength="255">
+                  name="variations[0][name]"
+                  class="form-control form-control-sm"
+                  placeholder="e.g. Police Car, Fire Truck"
+                  maxlength="255">
               </div>
               <div class="col-md-4">
                 <label class="form-label form-label-sm mb-0">Image</label>
@@ -454,5 +454,3 @@ $deadlinePassed = $product->isResubmitDeadlinePassed();
 @push('scripts')
 @vite('resources/js/seller/products/edit.js')
 @endpush
-
-

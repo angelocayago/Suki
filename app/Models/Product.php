@@ -269,11 +269,12 @@ class Product extends Model
 
     public function getVideoUrlAttribute()
     {
-        if ($this->video_path) {
-            return asset('storage/' . $this->video_path);
+        if (!$this->video_path) {
+            return null;
         }
 
-        return null;
+        return \Illuminate\Support\Facades\Storage::disk('s3')
+            ->url($this->video_path);
     }
 
     public function hasVideo(): bool

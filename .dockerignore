@@ -47,3 +47,12 @@ storage/app/public/*
 phpunit.xml.bak
 *.sqlite
 *.sqlite3
+
+# Exclude local development backups and temporary files
+*.bak
+*.bak-*
+*.backup-*
+*-backup
+*-backup-*
+*.encoding-backup
+ntent .start.sh

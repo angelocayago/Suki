@@ -35,101 +35,101 @@ class DashboardController extends Controller
         ]);
     }
     public function index()
-{
-    $seller = Auth::user();
+    {
+        $seller = Auth::user();
 
-    $totalProducts = $seller->products()->count();
+        $totalProducts = $seller->products()->count();
 
-    $totalOrders = Order::whereHas('items.product', function ($query) use ($seller) {
-        $query->where('user_id', $seller->id);
-    })->count();
+        $totalOrders = Order::whereHas('items.product', function ($query) use ($seller) {
+            $query->where('user_id', $seller->id);
+        })->count();
 
-    $shopId = $seller->seller?->id;
+        $shopId = $seller->seller?->id;
 
-    // Total revenue: delivered seller orders only
-    $totalRevenue = $shopId
-        ? SellerOrder::where('seller_id', $shopId)
+        // Total revenue: delivered seller orders only
+        $totalRevenue = $shopId
+            ? SellerOrder::where('seller_id', $shopId)
             ->whereHas('order', function ($query) {
                 $query->whereIn('status', ['delivered', 'completed']);
             })
             ->sum('total_minor') / 100
-        : 0;
+            : 0;
 
-    // Revenue graph: use the same source as Total Revenue
-   // Revenue graph: always show the last 7 calendar days
-$revenueData = collect();
+        // Revenue graph: use the same source as Total Revenue
+        // Revenue graph: always show the last 7 calendar days
+        $revenueData = collect();
 
-for ($i = 6; $i >= 0; $i--) {
-    $date = now()->subDays($i);
-    $revenueData->put($date->format('M d'), 0);
-}
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $revenueData->put($date->format('M d'), 0);
+        }
 
-if ($shopId) {
-    $deliveredSellerOrders = SellerOrder::where('seller_id', $shopId)
-        ->whereHas('order', function ($query) {
-            $query->whereIn('status', ['delivered', 'completed'])
-                ->whereDate('ordered_at', '>=', now()->subDays(6)->startOfDay());
+        if ($shopId) {
+            $deliveredSellerOrders = SellerOrder::where('seller_id', $shopId)
+                ->whereHas('order', function ($query) {
+                    $query->whereIn('status', ['delivered', 'completed'])
+                        ->whereDate('ordered_at', '>=', now()->subDays(6)->startOfDay());
+                })
+                ->with('order')
+                ->get();
+
+            foreach ($deliveredSellerOrders as $sellerOrder) {
+                $date = $sellerOrder->order?->ordered_at
+                    ?? $sellerOrder->order?->created_at;
+
+                if (!$date) {
+                    continue;
+                }
+
+                $label = $date->format('M d');
+
+                if ($revenueData->has($label)) {
+                    $revenueData[$label] += $sellerOrder->total_minor / 100;
+                }
+            }
+        }
+
+        $revenueData = $revenueData->map(
+            fn($amount) => round($amount, 2)
+        );
+
+        $recentOrders = Order::whereHas('items.product', function ($query) use ($seller) {
+            $query->where('user_id', $seller->id);
         })
-        ->with('order')
-        ->get();
+            ->with(['user', 'items.product'])
+            ->latest()
+            ->take(5)
+            ->get();
 
-    foreach ($deliveredSellerOrders as $sellerOrder) {
-        $date = $sellerOrder->order?->ordered_at
-            ?? $sellerOrder->order?->created_at;
+        $totalCustomers = Order::whereHas('items.product', function ($query) use ($seller) {
+            $query->where('user_id', $seller->id);
+        })
+            ->where('status', '!=', 'cancelled')
+            ->distinct('user_id')
+            ->count('user_id');
 
-        if (!$date) {
-            continue;
-        }
+        $lowStockProducts = $seller->products()
+            ->where('stock', '>', 0)
+            ->whereRaw('stock <= COALESCE(low_stock_threshold, 10)')
+            ->orderBy('stock')
+            ->limit(5)
+            ->get();
 
-        $label = $date->format('M d');
+        $reviewsCount = Review::whereHas('product', function ($query) use ($seller) {
+            $query->where('user_id', $seller->id);
+        })->count();
 
-        if ($revenueData->has($label)) {
-            $revenueData[$label] += $sellerOrder->total_minor / 100;
-        }
+        return view('seller.dashboard', compact(
+            'totalProducts',
+            'totalOrders',
+            'totalRevenue',
+            'revenueData',
+            'recentOrders',
+            'totalCustomers',
+            'lowStockProducts',
+            'reviewsCount'
+        ));
     }
-}
-
-$revenueData = $revenueData->map(
-    fn ($amount) => round($amount, 2)
-);
-
-    $recentOrders = Order::whereHas('items.product', function ($query) use ($seller) {
-        $query->where('user_id', $seller->id);
-    })
-        ->with(['user', 'items.product'])
-        ->latest()
-        ->take(5)
-        ->get();
-
-    $totalCustomers = Order::whereHas('items.product', function ($query) use ($seller) {
-        $query->where('user_id', $seller->id);
-    })
-        ->where('status', '!=', 'cancelled')
-        ->distinct('user_id')
-        ->count('user_id');
-
-    $lowStockProducts = $seller->products()
-    ->where('stock', '>', 0)
-    ->whereRaw('stock <= COALESCE(low_stock_threshold, 10)')
-    ->orderBy('stock')
-    ->limit(5)
-    ->get();
-
-    $reviewsCount = Review::whereHas('product', function ($query) use ($seller) {
-        $query->where('user_id', $seller->id);
-    })->count();
-
-    return view('seller.dashboard', compact(
-        'totalProducts',
-        'totalOrders',
-        'totalRevenue',
-        'revenueData',
-        'recentOrders',
-        'totalCustomers',
-        'lowStockProducts',
-        'reviewsCount'
-    ));
-}
     public function products(Request $request)
     {
         $seller = Auth::user();
@@ -157,7 +157,10 @@ $revenueData = $revenueData->map(
         $subcategoryGroups = Category::whereNotNull('parent_id')->get()->groupBy('parent_id');
         $sizes = Size::all();
         return view('seller.products.create', compact(
-            'categories', 'sizes', 'allowedCategoryIds', 'subcategoryGroups'
+            'categories',
+            'sizes',
+            'allowedCategoryIds',
+            'subcategoryGroups'
         ));
     }
 
@@ -224,7 +227,7 @@ $revenueData = $revenueData->map(
 
         $videoPath = null;
         if ($request->hasFile('video')) {
-            $videoPath = $request->file('video')->store('products', 'public');
+            $videoPath = $request->file('video')->store('products', 's3');
         }
 
         $secondaryImagePath = null;
@@ -440,8 +443,15 @@ $revenueData = $revenueData->map(
         }
 
         $data = $request->only([
-            'name', 'description', 'stock', 'category_id', 'subcategory_id',
-            'sku', 'low_stock_threshold', 'attributes', 'status',
+            'name',
+            'description',
+            'stock',
+            'category_id',
+            'subcategory_id',
+            'sku',
+            'low_stock_threshold',
+            'attributes',
+            'status',
         ]);
         $priceMinor = (int) round((float) $request->price * 100);
         $data['price_minor'] = $priceMinor;
@@ -453,83 +463,83 @@ $revenueData = $revenueData->map(
             }
         }
 
+        $oldVideoPath = null;
+
         if ($request->hasFile('video')) {
-            if ($product->video_path) {
-                \Storage::disk('public')->delete($product->video_path);
-            }
-            $data['video_path'] = $request->file('video')->store('products', 'public');
+            $newVideoPath = $request->file('video')->store('products', 's3');
+
+            $oldVideoPath = $product->video_path;
+            $data['video_path'] = $newVideoPath;
         }
 
-        if ($request->filled('remove_video')) {
-            if ($product->video_path) {
-                \Storage::disk('public')->delete($product->video_path);
-            }
+        if ($request->boolean('remove_video') && ! $request->hasFile('video')) {
+            $oldVideoPath = $product->video_path;
             $data['video_path'] = null;
         }
 
-       if ($request->hasFile('secondary_image')) {
-    if ($product->secondary_image_path) {
-        try {
-            if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
-                \Storage::disk('s3')->delete($product->secondary_image_path);
-            } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
-                \Storage::disk('public')->delete($product->secondary_image_path);
+        if ($request->hasFile('secondary_image')) {
+            if ($product->secondary_image_path) {
+                try {
+                    if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
+                        \Storage::disk('s3')->delete($product->secondary_image_path);
+                    } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
+                        \Storage::disk('public')->delete($product->secondary_image_path);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Could not delete old secondary product image.', [
+                        'product_id' => $product->id,
+                        'image' => $product->secondary_image_path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-        } catch (\Throwable $e) {
-            \Log::warning('Could not delete old secondary product image.', [
-                'product_id' => $product->id,
-                'image' => $product->secondary_image_path,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
 
-    $data['secondary_image_path'] = $request
-        ->file('secondary_image')
-        ->store('products', 's3');
-}
+            $data['secondary_image_path'] = $request
+                ->file('secondary_image')
+                ->store('products', 's3');
+        }
 
         if ($request->filled('remove_secondary_image')) {
-    if ($product->secondary_image_path) {
-        try {
-            if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
-                \Storage::disk('s3')->delete($product->secondary_image_path);
-            } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
-                \Storage::disk('public')->delete($product->secondary_image_path);
+            if ($product->secondary_image_path) {
+                try {
+                    if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
+                        \Storage::disk('s3')->delete($product->secondary_image_path);
+                    } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
+                        \Storage::disk('public')->delete($product->secondary_image_path);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Could not delete secondary product image.', [
+                        'product_id' => $product->id,
+                        'image' => $product->secondary_image_path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-        } catch (\Throwable $e) {
-            \Log::warning('Could not delete secondary product image.', [
-                'product_id' => $product->id,
-                'image' => $product->secondary_image_path,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
 
-    $data['secondary_image_path'] = null;
-}
+            $data['secondary_image_path'] = null;
+        }
 
         if (!empty($request->remove_images)) {
             $toRemove = $product->images()->whereIn('id', $request->remove_images)->get();
             foreach ($toRemove as $img) {
-    try {
-        if (\Storage::disk('s3')->exists($img->path)) {
-            \Storage::disk('s3')->delete($img->path);
-        } elseif (\Storage::disk('public')->exists($img->path)) {
-            \Storage::disk('public')->delete($img->path);
-        }
-    } catch (\Throwable $e) {
-        \Log::warning('Could not delete product image.', [
-            'product_id' => $product->id,
-            'image_id' => $img->id,
-            'image' => $img->path,
-            'error' => $e->getMessage(),
-        ]);
-    }
+                try {
+                    if (\Storage::disk('s3')->exists($img->path)) {
+                        \Storage::disk('s3')->delete($img->path);
+                    } elseif (\Storage::disk('public')->exists($img->path)) {
+                        \Storage::disk('public')->delete($img->path);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Could not delete product image.', [
+                        'product_id' => $product->id,
+                        'image_id' => $img->id,
+                        'image' => $img->path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
 
-    $product->variations()->where('image_id', $img->id)->delete();
-    $img->delete();
-}
+                $product->variations()->where('image_id', $img->id)->delete();
+                $img->delete();
+            }
             $removedPaths = $toRemove->pluck('path')->toArray();
             if ($product->image && in_array($product->image, $removedPaths, true)) {
                 $nextImg = $product->fresh()->images()->orderBy('sort_order')->orderBy('id')->first();
@@ -623,20 +633,20 @@ $revenueData = $revenueData->map(
                     if ($existingVar) {
                         if (isset($variationData['image']) && $variationData['image']) {
                             if ($existingVar->image) {
-    try {
-        if (\Storage::disk('s3')->exists($existingVar->image)) {
-            \Storage::disk('s3')->delete($existingVar->image);
-        } elseif (\Storage::disk('public')->exists($existingVar->image)) {
-            \Storage::disk('public')->delete($existingVar->image);
-        }
-    } catch (\Throwable $e) {
-        \Log::warning('Could not delete old variant image.', [
-            'variant_id' => $existingVar->id,
-            'image' => $existingVar->image,
-            'error' => $e->getMessage(),
-        ]);
-    }
-}
+                                try {
+                                    if (\Storage::disk('s3')->exists($existingVar->image)) {
+                                        \Storage::disk('s3')->delete($existingVar->image);
+                                    } elseif (\Storage::disk('public')->exists($existingVar->image)) {
+                                        \Storage::disk('public')->delete($existingVar->image);
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Could not delete old variant image.', [
+                                        'variant_id' => $existingVar->id,
+                                        'image' => $existingVar->image,
+                                        'error' => $e->getMessage(),
+                                    ]);
+                                }
+                            }
                             $payload['image'] = $variationData['image']->store('products', 's3');
                         }
                         $existingVar->update($payload);
@@ -737,7 +747,7 @@ $revenueData = $revenueData->map(
 
         if ($wasFlagged && !$isDraft) {
             $product = $product->fresh();
-            $admins = \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->get();
+            $admins = \App\Models\User::whereHas('roles', fn($q) => $q->where('name', 'admin'))->get();
             foreach ($admins as $admin) {
                 \App\Models\Notification::create([
                     'user_id' => $admin->id,
@@ -752,6 +762,18 @@ $revenueData = $revenueData->map(
         $msg = $isDraft
             ? 'Product saved as draft.'
             : ($wasFlagged ? 'Product updated and resubmitted for admin review.' : 'Product updated successfully.');
+
+        // Clean up the old video only after the product update workflow succeeds.
+        if ($oldVideoPath !== null) {
+            try {
+                Storage::disk('s3')->delete($oldVideoPath);
+            } catch (\Throwable $e) {
+                \Log::warning('Could not delete old product video.', [
+                    'product_id' => $product->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return redirect()->route('seller.products')->with('success', $msg);
     }
@@ -777,7 +799,7 @@ $revenueData = $revenueData->map(
             'flagged_at' => null,
         ]);
 
-        $admins = \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->get();
+        $admins = \App\Models\User::whereHas('roles', fn($q) => $q->where('name', 'admin'))->get();
         foreach ($admins as $admin) {
             \App\Models\Notification::create([
                 'user_id' => $admin->id,
@@ -837,58 +859,58 @@ $revenueData = $revenueData->map(
         }
 
         foreach ($product->images as $img) {
-    try {
-        if (\Storage::disk('s3')->exists($img->path)) {
-            \Storage::disk('s3')->delete($img->path);
-        } elseif (\Storage::disk('public')->exists($img->path)) {
-            \Storage::disk('public')->delete($img->path);
+            try {
+                if (\Storage::disk('s3')->exists($img->path)) {
+                    \Storage::disk('s3')->delete($img->path);
+                } elseif (\Storage::disk('public')->exists($img->path)) {
+                    \Storage::disk('public')->delete($img->path);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Could not delete product image during product deletion.', [
+                    'product_id' => $product->id,
+                    'image_id' => $img->id,
+                    'image' => $img->path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
-    } catch (\Throwable $e) {
-        \Log::warning('Could not delete product image during product deletion.', [
-            'product_id' => $product->id,
-            'image_id' => $img->id,
-            'image' => $img->path,
-            'error' => $e->getMessage(),
-        ]);
-    }
-}
 
         foreach ($product->variations as $variant) {
-    if (!$variant->image) {
-        continue;
-    }
+            if (!$variant->image) {
+                continue;
+            }
 
-    try {
-        if (\Storage::disk('s3')->exists($variant->image)) {
-            \Storage::disk('s3')->delete($variant->image);
-        } elseif (\Storage::disk('public')->exists($variant->image)) {
-            \Storage::disk('public')->delete($variant->image);
+            try {
+                if (\Storage::disk('s3')->exists($variant->image)) {
+                    \Storage::disk('s3')->delete($variant->image);
+                } elseif (\Storage::disk('public')->exists($variant->image)) {
+                    \Storage::disk('public')->delete($variant->image);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Could not delete variant image during product deletion.', [
+                    'product_id' => $product->id,
+                    'variant_id' => $variant->id,
+                    'image' => $variant->image,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
-    } catch (\Throwable $e) {
-        \Log::warning('Could not delete variant image during product deletion.', [
-            'product_id' => $product->id,
-            'variant_id' => $variant->id,
-            'image' => $variant->image,
-            'error' => $e->getMessage(),
-        ]);
-    }
-}
 
         if ($product->secondary_image_path) {
-    try {
-        if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
-            \Storage::disk('s3')->delete($product->secondary_image_path);
-        } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
-            \Storage::disk('public')->delete($product->secondary_image_path);
+            try {
+                if (\Storage::disk('s3')->exists($product->secondary_image_path)) {
+                    \Storage::disk('s3')->delete($product->secondary_image_path);
+                } elseif (\Storage::disk('public')->exists($product->secondary_image_path)) {
+                    \Storage::disk('public')->delete($product->secondary_image_path);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Could not delete secondary image during product deletion.', [
+                    'product_id' => $product->id,
+                    'image' => $product->secondary_image_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
-    } catch (\Throwable $e) {
-        \Log::warning('Could not delete secondary image during product deletion.', [
-            'product_id' => $product->id,
-            'image' => $product->secondary_image_path,
-            'error' => $e->getMessage(),
-        ]);
-    }
-}
 
         $name = $product->name;
         $product->delete();
@@ -1425,15 +1447,15 @@ $revenueData = $revenueData->map(
 
         $owner = $sellerOrder->seller?->owner ?? $legacySeller;
 
-       $address = collect([
-    $owner?->business_name,
-    $owner?->house_number,
-    $owner?->street_address,
-    $owner?->barangay_name ?: $owner?->barangay,
-    $owner?->municipality_name ?: $owner?->municipality,
-    $owner?->province_name ?: $owner?->province,
-    $owner?->region_name ?: $owner?->region,
-])->filter()->implode(', ');
+        $address = collect([
+            $owner?->business_name,
+            $owner?->house_number,
+            $owner?->street_address,
+            $owner?->barangay_name ?: $owner?->barangay,
+            $owner?->municipality_name ?: $owner?->municipality,
+            $owner?->province_name ?: $owner?->province,
+            $owner?->region_name ?: $owner?->region,
+        ])->filter()->implode(', ');
 
         return $address !== '' ? $address : 'Seller address';
     }
@@ -1518,8 +1540,15 @@ $revenueData = $revenueData->map(
             ->sortKeys();
 
         return view('seller.reports', compact(
-            'orders', 'totalSales', 'totalOrders', 'deliveredOrders',
-            'cancelledOrders', 'pendingOrders', 'processingOrders', 'shippedOrders', 'chartData'
+            'orders',
+            'totalSales',
+            'totalOrders',
+            'deliveredOrders',
+            'cancelledOrders',
+            'pendingOrders',
+            'processingOrders',
+            'shippedOrders',
+            'chartData'
         ));
     }
 
@@ -1599,23 +1628,23 @@ $revenueData = $revenueData->map(
         ];
 
         if ($request->hasFile('logo')) {
-    // Delete the previous logo from whichever storage currently owns it.
-    if ($user->logo) {
-        try {
-            if (Storage::disk('s3')->exists($user->logo)) {
-                Storage::disk('s3')->delete($user->logo);
-            } elseif (Storage::disk('public')->exists($user->logo)) {
-                Storage::disk('public')->delete($user->logo);
+            // Delete the previous logo from whichever storage currently owns it.
+            if ($user->logo) {
+                try {
+                    if (Storage::disk('s3')->exists($user->logo)) {
+                        Storage::disk('s3')->delete($user->logo);
+                    } elseif (Storage::disk('public')->exists($user->logo)) {
+                        Storage::disk('public')->delete($user->logo);
+                    }
+                } catch (\Throwable $e) {
+                    // Do not block the account update if old-file cleanup fails.
+                    report($e);
+                }
             }
-        } catch (\Throwable $e) {
-            // Do not block the account update if old-file cleanup fails.
-            report($e);
-        }
-    }
 
-    // New seller logos are stored persistently in Supabase Storage.
-    $userData['logo'] = $request->file('logo')->store('logos', 's3');
-}
+            // New seller logos are stored persistently in Supabase Storage.
+            $userData['logo'] = $request->file('logo')->store('logos', 's3');
+        }
 
         $user->update($userData);
 
@@ -1638,7 +1667,7 @@ $revenueData = $revenueData->map(
             'appeal_message' => ['required', 'string', 'max:2000'],
         ]);
 
-        $admins = User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->get();
+        $admins = User::whereHas('roles', fn($q) => $q->where('name', 'admin'))->get();
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
