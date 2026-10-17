@@ -414,6 +414,11 @@ class User extends Authenticatable
         return $this->hasOne(Seller::class);
     }
 
+    public function sellerRegistrationDetail()
+    {
+        return $this->hasOne(SellerRegistrationDetail::class);
+    }
+
     public function getLogoUrlAttribute(): ?string
     {
         if (!$this->logo) {

@@ -1,3 +1,6 @@
+import { initSellerType } from './seller-type.js';
+import { initRegistrationValidation } from '../shared/registration-validation.js';
+import { initLogisticsPostal } from './logistics-postal';
 import { initAddressCascade } from '../shared/address-cascade.js';
 import { initAgeFromBirthday } from '../shared/age-from-birthday.js';
 import { initSubmitLock } from '../shared/submit-lock.js';
@@ -13,44 +16,78 @@ const readPayload = (id) => {
     }
 };
 
+
 const initRoleSections = () => {
     const roleSelect = document.getElementById('role');
     const sellerSection = document.getElementById('seller-section');
     const logisticSection = document.getElementById('logistic-section');
     const businessPermitField = document.getElementById('business-permit-field');
-
-    // Buyer Terms and Privacy Policy
     const buyerTermsSection = document.getElementById('buyerTermsSection');
     const termsCheckbox = document.getElementById('terms');
 
     if (!roleSelect) return;
 
+    const roleFields = [
+        ...document.querySelectorAll(
+            '#seller-section input, #seller-section select, ' +
+            '#logistic-section input, #logistic-section select, ' +
+            '#logistic-section textarea'
+        ),
+    ];
+
+    const originalRequired = new Map(
+        roleFields.map(field => [field, field.required])
+    );
+
     const updateSections = () => {
-        const isBuyer = roleSelect.value === 'buyer';
+        const role = roleSelect.value;
+        const isSeller = role === 'seller';
+        const isLogistic = role === 'logistic';
+        const hasValidRole = ['buyer', 'seller', 'logistic'].includes(role);
 
-        // Existing role sections
-        sellerSection?.classList.toggle('d-none', roleSelect.value !== 'seller');
-        logisticSection?.classList.toggle('d-none', roleSelect.value !== 'logistic');
-        businessPermitField?.classList.toggle('d-none', roleSelect.value !== 'seller');
+        document.getElementById('seller-heading')
+            ?.classList.toggle('d-none', !isSeller);
 
-        // Buyer-only Terms and Privacy Policy
+        document.getElementById('logistic-heading')
+            ?.classList.toggle('d-none', !isLogistic);
+
+        sellerSection?.classList.toggle('d-none', !isSeller);
+        logisticSection?.classList.toggle('d-none', !isLogistic);
+
+        businessPermitField?.classList.toggle(
+            'd-none',
+            !(isSeller || isLogistic)
+        );
+
         if (buyerTermsSection) {
-            buyerTermsSection.style.display = isBuyer ? '' : 'none';
+            buyerTermsSection.style.display = hasValidRole ? '' : 'none';
         }
 
         if (termsCheckbox) {
-            termsCheckbox.required = isBuyer;
+            termsCheckbox.required = hasValidRole;
+        }
 
-            if (!isBuyer) {
-                termsCheckbox.checked = false;
-            }
+        roleFields.forEach(field => {
+            const belongsToSeller = sellerSection?.contains(field);
+            const belongsToLogistic = logisticSection?.contains(field);
+
+            const active =
+                (belongsToSeller && isSeller) ||
+                (belongsToLogistic && isLogistic);
+
+            field.required = active && originalRequired.get(field);
+        });
+
+        const businessPermitInput = document.getElementById('business_permit');
+
+        if (businessPermitInput) {
+            businessPermitInput.required = isSeller || isLogistic;
         }
     };
 
     roleSelect.addEventListener('change', updateSections);
     updateSections();
 };
-
 const initGeocoding = (geocodeKey) => {
     const addressInput = document.getElementById('api_address');
     const regionSelect = document.getElementById('region');
@@ -137,8 +174,8 @@ const initPasswordValidation = () => {
             element.classList.toggle('text-muted', !passed);
 
             element.textContent =
-                `${passed ? '✓' : '○'} ${ruleLabels[rule]}`;
-        });
+                `${passed ? '\u2713' : '\u25CB'} ${ruleLabels[rule]}`;
+});
 
         let message = '';
 
@@ -209,7 +246,9 @@ const initSubmitLockForRegister = () => initSubmitLock('registerForm', 'Submitti
 const initRegister = () => {
     const data = readPayload('auth-page-data') || {};
     initSubmitLockForRegister();
+    initRegistrationValidation('registerForm');
     initRoleSections();
+        initSellerType();
     initAgeFromBirthday();
     initPasswordValidation();
     initPasswordToggles();
@@ -228,6 +267,37 @@ const initRegister = () => {
         savedMunicipality: data.municipality || '',
         savedBarangay: data.barangay || '',
     });
+    initAddressCascade({
+        regionSelect: document.getElementById('business_region_select'),
+        provinceSelect: document.getElementById('business_province_select'),
+        municipalitySelect: document.getElementById('business_city_select'),
+        barangaySelect: document.getElementById('business_barangay_select'),
+        municipalityField: document.getElementById('business_city_field'),
+        regionNameInput: document.getElementById('business_region'),
+        provinceNameInput: document.getElementById('business_province'),
+        municipalityNameInput: document.getElementById('business_city'),
+        barangayNameInput: document.getElementById('business_barangay'),
+        savedRegion: document.getElementById('business_region')?.value || '',
+        savedProvince: document.getElementById('business_province')?.value || '',
+        savedMunicipality: document.getElementById('business_city')?.value || '',
+        savedBarangay: document.getElementById('business_barangay')?.value || '',
+    });
+    initAddressCascade({
+        regionSelect: document.getElementById('pickup_region_select'),
+        provinceSelect: document.getElementById('pickup_province_select'),
+        municipalitySelect: document.getElementById('pickup_city_select'),
+        barangaySelect: document.getElementById('pickup_barangay_select'),
+        municipalityField: document.getElementById('pickup_city_field'),
+        regionNameInput: document.getElementById('pickup_region'),
+        provinceNameInput: document.getElementById('pickup_province'),
+        municipalityNameInput: document.getElementById('pickup_city'),
+        barangayNameInput: document.getElementById('pickup_barangay'),
+        savedRegion: document.getElementById('pickup_region')?.value || '',
+        savedProvince: document.getElementById('pickup_province')?.value || '',
+        savedMunicipality: document.getElementById('pickup_city')?.value || '',
+        savedBarangay: document.getElementById('pickup_barangay')?.value || '',
+    });
+    initLogisticsPostal();
     initGeocoding(data.geocodeKey || '');
 };
 
@@ -239,7 +309,7 @@ if (document.readyState === 'loading') {
 
 export { initRegister };
 
-// Middle Initial: allow only one letter, including Ñ/ñ.
+// Middle Initial: allow only one letter, including Ãƒâ€˜/ÃƒÂ±.
 const middleInitialInput = document.getElementById('middle_name');
 
 if (middleInitialInput) {

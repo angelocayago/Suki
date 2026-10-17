@@ -7,8 +7,10 @@ use App\Models\Category;
 use App\Models\User;
 use App\Models\Size;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -145,47 +147,88 @@ class SocialAuthController extends Controller
             'business_permit' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
 
-        $idPath = null;
-        if ($request->hasFile('id_verification')) {
-            $idPath = $request->file('id_verification')->store('customer-documents', 'public');
+
+        $uploadedPaths = [];
+
+        try {
+            $idPath = $request->file('id_verification')
+                ->store('customer-documents', 'supabase_private');
+
+            if (!$idPath) {
+                throw new \RuntimeException('ID verification upload failed.');
+            }
+
+            $uploadedPaths[] = $idPath;
+
+            $businessPermitPath = null;
+
+            if (
+                $validated['role'] === 'seller'
+                && $request->hasFile('business_permit')
+            ) {
+                $businessPermitPath = $request->file('business_permit')
+                    ->store('seller-documents', 'supabase_private');
+
+                if (!$businessPermitPath) {
+                    throw new \RuntimeException('Business permit upload failed.');
+                }
+
+                $uploadedPaths[] = $businessPermitPath;
+            }
+
+            $name = $validated['last_name'] . ', '
+                . $validated['first_name'] . ' '
+                . ($validated['middle_name'] ?? '');
+
+            $user = DB::transaction(function () use (
+                $validated,
+                $socialUser,
+                $name,
+                $idPath,
+                $businessPermitPath
+            ) {
+                return User::create([
+                    'name' => $name,
+                    'first_name' => $validated['first_name'],
+                    'middle_name' => $validated['middle_name'] ?? null,
+                    'last_name' => $validated['last_name'],
+                    'sex' => $validated['sex'],
+                    'email' => $socialUser['email'],
+                    'mobile_number' => $validated['mobile_number'],
+                    'birthday' => $validated['birthday'],
+                    'age' => $validated['age'],
+                    'role' => $validated['role'],
+                    'region' => $validated['region'],
+                    'region_name' => $validated['region_name'],
+                    'province' => $validated['province'],
+                    'province_name' => $validated['province_name'],
+                    'municipality' => $validated['municipality'],
+                    'municipality_name' => $validated['municipality_name'],
+                    'barangay' => $validated['barangay'],
+                    'barangay_name' => $validated['barangay_name'],
+                    'house_number' => $validated['house_number'],
+                    'street_address' => $validated['street_address'],
+                    'id_verification' => $idPath,
+                    'business_name' => $validated['business_name'] ?? null,
+                    'selling_categories' => $validated['selling_categories'] ?? null,
+                    'business_permit' => $businessPermitPath,
+                    'password' => Hash::make(Str::random(16)),
+                    'status' => User::STATUS_PENDING,
+                    'email_verified_at' => now(),
+                ]);
+            });
+        } catch (\Throwable $e) {
+            foreach ($uploadedPaths as $path) {
+                try {
+                    Storage::disk('supabase_private')->delete($path);
+                } catch (\Throwable $cleanupException) {
+                    report($cleanupException);
+                }
+            }
+
+            throw $e;
         }
 
-        $businessPermitPath = null;
-        if ($request->hasFile('business_permit')) {
-            $businessPermitPath = $request->file('business_permit')->store('seller-documents', 'public');
-        }
-
-        $name = $validated['last_name'] . ', ' . $validated['first_name'] . ' ' . $validated['middle_name'];
-
-        $user = User::create([
-            'name' => $name,
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'],
-            'last_name' => $validated['last_name'],
-            'sex' => $validated['sex'],
-            'email' => $socialUser['email'],
-            'mobile_number' => $validated['mobile_number'],
-            'birthday' => $validated['birthday'],
-            'age' => $validated['age'],
-            'role' => $validated['role'],
-            'region' => $validated['region'],
-            'region_name' => $validated['region_name'],
-            'province' => $validated['province'],
-            'province_name' => $validated['province_name'],
-            'municipality' => $validated['municipality'],
-            'municipality_name' => $validated['municipality_name'],
-            'barangay' => $validated['barangay'],
-            'barangay_name' => $validated['barangay_name'],
-            'house_number' => $validated['house_number'],
-            'street_address' => $validated['street_address'],
-            'id_verification' => $idPath,
-            'business_name' => $validated['business_name'] ?? null,
-            'selling_categories' => $validated['selling_categories'] ?? null,
-            'business_permit' => $businessPermitPath,
-            'password' => Hash::make(Str::random(16)),
-            'status' => User::STATUS_PENDING,
-            'email_verified_at' => now(),
-        ]);
 
         session()->forget('social_user');
 

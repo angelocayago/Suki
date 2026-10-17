@@ -122,6 +122,23 @@ class ApprovalHierarchyTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('owner_user_id');
             $table->string('company_name');
+            $table->string('sec_registration_number')->nullable();
+            $table->string('tin')->nullable();
+
+            $table->string('business_region')->nullable();
+            $table->string('business_province')->nullable();
+            $table->string('business_city')->nullable();
+            $table->string('business_barangay')->nullable();
+            $table->string('business_street')->nullable();
+            $table->string('business_postal_code')->nullable();
+
+            $table->string('contact_first_name')->nullable();
+            $table->string('contact_last_name')->nullable();
+            $table->string('contact_position')->nullable();
+
+            $table->text('service_areas')->nullable();
+            $table->string('sec_certificate')->nullable();
+            $table->string('bir_form_2303')->nullable();
             $table->string('contact_person')->nullable();
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
@@ -482,6 +499,7 @@ class ApprovalHierarchyTest extends TestCase
     public function test_buyer_and_logistics_registrations_wait_for_admin_approval(): void
     {
 
+
         Mail::fake();
         config(['services.googlemaps.key' => null]);
 
@@ -493,17 +511,38 @@ class ApprovalHierarchyTest extends TestCase
             ->assertRedirect(route('buyer.email.verify'))
             ->assertSessionHas('buyer_otp_user_id');
 
+
         $this->post(route('register'), $this->registrationPayload([
             'role' => 'logistic',
             'email' => 'newlogistics@example.com',
             'mobile_number' => '09179998888',
             'company_name' => 'New Logistics Co',
-            'contact_person' => 'Owner Name',
+            'sec_registration_number' => 'SEC-TEST-2026-001',
+            'tin' => '123456789',
+            'business_region' => 'NCR',
+            'business_province' => 'Metro Manila',
+            'business_city' => 'Quezon City',
+            'business_barangay' => 'Poblacion',
+            'business_street' => 'Test Street',
+            'business_postal_code' => '1100',
+            'contact_first_name' => 'Owner',
+            'contact_last_name' => 'Name',
+            'contact_position' => 'Manager',
             'company_email' => 'company@example.com',
             'company_phone' => '09181234567',
-            'company_address' => 'Quezon City',
-            'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'service_areas' => 'Quezon City, Manila',
+            'terms' => '1',
+            'business_permit' => UploadedFile::fake()->create(
+                'permit.pdf', 100, 'application/pdf'
+            ),
+            'sec_certificate' => UploadedFile::fake()->create(
+                'sec-certificate.pdf', 100, 'application/pdf'
+            ),
+            'bir_form_2303' => UploadedFile::fake()->create(
+                'bir-2303.pdf', 100, 'application/pdf'
+            ),
         ]))->assertRedirect(route('login'));
+
 
         $buyer = User::where('email', 'newbuyer@example.com')->firstOrFail();
         $logisticsOwner = User::where('email', 'newlogistics@example.com')->firstOrFail();
@@ -519,7 +558,9 @@ class ApprovalHierarchyTest extends TestCase
 
         $admin = $this->makeUser('admin');
 
-        $this->actingAs($admin)->post(route('admin.registrations.approve', $logisticsOwner));
+        $this->actingAs($admin)
+            ->post(route('admin.registrations.approve', $logisticsOwner))
+            ->assertRedirect(route('admin.registrations.index'));
 
         $this->assertSame(User::STATUS_ACTIVE, $logisticsOwner->fresh()->status);
         $this->assertSame('active', $logistic->fresh()->status);

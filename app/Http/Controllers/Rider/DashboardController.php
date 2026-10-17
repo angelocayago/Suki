@@ -1997,18 +1997,13 @@ class DashboardController extends Controller
                     }
 
                     $proofPath = $request->file('proof_of_delivery')
-
-                        ->store('proof-of-delivery', 'public');
+                        ->store('proof-of-delivery', 'supabase_private');
 
                     if (!$proofPath) {
-
                         throw new \RuntimeException(
-
                             'Proof of delivery upload failed.'
-
                         );
                     }
-
                     $shipment->update([
 
                         'status' => 'delivered',
@@ -2206,12 +2201,13 @@ class DashboardController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-
             if ($proofPath !== null) {
-
-                \Illuminate\Support\Facades\Storage::disk('public')
-
-                    ->delete($proofPath);
+                try {
+                    \Illuminate\Support\Facades\Storage::disk('supabase_private')
+                        ->delete($proofPath);
+                } catch (\Throwable $cleanupException) {
+                    report($cleanupException);
+                }
             }
 
             throw $e;

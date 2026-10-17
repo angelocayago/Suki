@@ -84,6 +84,8 @@ class SellerRescheduleTest extends TestCase
 
             $table->string('email')->unique();
 
+            $table->timestamp('email_verified_at')->nullable();
+
             $table->string('password');
 
             $table->string('status')->default('active');
@@ -263,6 +265,9 @@ class SellerRescheduleTest extends TestCase
             'status' => 'active',
 
         ]);
+
+        $buyer->email_verified_at = now();
+        $buyer->save();
 
 
 
@@ -448,11 +453,7 @@ class SellerRescheduleTest extends TestCase
 
         );
 
-
-
         $response->assertSessionHas('success');
-
-
 
         $this->assertDatabaseHas('seller_orders', [
 

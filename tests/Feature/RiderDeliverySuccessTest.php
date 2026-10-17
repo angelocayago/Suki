@@ -27,7 +27,7 @@ class RiderDeliverySuccessTest extends TestCase
         }
 
         $this->createSchema();
-        Storage::fake('public');
+        Storage::fake('supabase_private');
     }
 
     private function createSchema(): void
@@ -280,7 +280,7 @@ class RiderDeliverySuccessTest extends TestCase
         $this->assertSame('delivered', $shipment->status);
         $this->assertNotNull($shipment->delivered_at);
         $this->assertNotEmpty($shipment->proof_of_delivery);
-        Storage::disk('public')->assertExists($shipment->proof_of_delivery);
+        Storage::disk('supabase_private')->assertExists($shipment->proof_of_delivery);
         $this->assertSame('Customer', $shipment->delivered_to);
         $this->assertDatabaseHas('seller_orders', ['id' => $sellerOrderId, 'status' => 'delivered']);
         $this->assertDatabaseHas('orders', [

@@ -44,8 +44,11 @@ class AuthenticatedSessionController extends Controller
 
         if (
             $user->isCustomer() &&
-            $user->isPending() &&
-            $user->email_verified_at === null
+            $user->email_verified_at === null &&
+            (
+                $user->isPending() ||
+                $user->isActive()
+            )
         ) {
             $buyerId = $user->id;
 

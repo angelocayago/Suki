@@ -430,41 +430,85 @@ class LogisticController extends Controller
             'cr_document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'middle_name' => null,
-            'last_name' => $validated['last_name'],
-            'name' => $validated['last_name'] . ', ' . $validated['first_name'],
-            'sex' => 'Male',
-            'email' => $validated['email'],
-            'mobile_number' => $validated['mobile_number'],
-            'birthday' => $validated['birthday'],
-            'age' => $validated['age'],
-            'province' => $logistic->address ?? '',
-            'municipality' => '',
-            'barangay' => '',
-            'house_number' => '',
-            'street_address' => '',
-            'password' => Hash::make($validated['password']),
-            'phone' => $validated['mobile_number'],
-            'status' => User::STATUS_ACTIVE,
-            'vehicle_type' => $validated['vehicle_type'],
-            'license_number' => $validated['license_number'],
-            'logistic_id' => $logistic->id,
-            'logistic_status' => 'approved',
-            'logistic_approved_at' => now(),
-        ]);
 
-        $riderRole = \App\Models\Role::where('name', 'rider')->firstOrFail();
-        $user->roles()->syncWithoutDetaching([$riderRole->id]);
+        $uploadedPaths = [];
 
-        if ($request->hasFile('or_document')) {
-            $user->update(['or_document' => $request->file('or_document')->store('rider-documents', 'public')]);
+        try {
+            // Upload required rider documents to private storage.
+            $orPath = $request->file('or_document')
+                ->store('rider-documents', 'supabase_private');
+
+            if (!$orPath) {
+                throw new \RuntimeException('OR document upload failed.');
+            }
+
+            $uploadedPaths[] = $orPath;
+
+            $crPath = $request->file('cr_document')
+                ->store('rider-documents', 'supabase_private');
+
+            if (!$crPath) {
+                throw new \RuntimeException('CR document upload failed.');
+            }
+
+            $uploadedPaths[] = $crPath;
+
+            // Create rider and assign role atomically.
+            $user = DB::transaction(function () use (
+                $validated,
+                $logistic,
+                $orPath,
+                $crPath
+            ) {
+                $user = User::create([
+                    'first_name' => $validated['first_name'],
+                    'middle_name' => null,
+                    'last_name' => $validated['last_name'],
+                    'name' => $validated['last_name'] . ', ' . $validated['first_name'],
+                    'sex' => 'Male',
+                    'email' => $validated['email'],
+                    'mobile_number' => $validated['mobile_number'],
+                    'birthday' => $validated['birthday'],
+                    'age' => $validated['age'],
+                    'province' => $logistic->address ?? '',
+                    'municipality' => '',
+                    'barangay' => '',
+                    'house_number' => '',
+                    'street_address' => '',
+                    'password' => Hash::make($validated['password']),
+                    'phone' => $validated['mobile_number'],
+                    'status' => User::STATUS_ACTIVE,
+                    'vehicle_type' => $validated['vehicle_type'],
+                    'license_number' => $validated['license_number'],
+                    'logistic_id' => $logistic->id,
+                    'logistic_status' => 'approved',
+                    'logistic_approved_at' => now(),
+                    'or_document' => $orPath,
+                    'cr_document' => $crPath,
+                ]);
+
+                $riderRole = \App\Models\Role::where('name', 'rider')
+                    ->firstOrFail();
+
+                $user->roles()->syncWithoutDetaching([
+                    $riderRole->id,
+                ]);
+
+                return $user;
+            });
+        } catch (\Throwable $e) {
+            // Delete only files uploaded during this attempt.
+            foreach ($uploadedPaths as $path) {
+                try {
+                    Storage::disk('supabase_private')->delete($path);
+                } catch (\Throwable $cleanupException) {
+                    report($cleanupException);
+                }
+            }
+
+            throw $e;
         }
 
-        if ($request->hasFile('cr_document')) {
-            $user->update(['cr_document' => $request->file('cr_document')->store('rider-documents', 'public')]);
-        }
 
         $this->createNotification(
             $user->id,

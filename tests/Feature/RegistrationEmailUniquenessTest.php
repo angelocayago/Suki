@@ -30,6 +30,28 @@ class RegistrationEmailUniquenessTest extends TestCase
             );
         }
 
+        // PostgreSQL REGEXP_REPLACE compatibility for SQLite tests only.
+        $pdo = \Illuminate\Support\Facades\DB::connection()->getPdo();
+
+        $pdo->sqliteCreateFunction(
+            'REGEXP_REPLACE',
+            function ($value, $pattern, $replacement, $flags = '') {
+                if ($value === null) {
+                    return null;
+                }
+
+                $result = preg_replace(
+                    '~' . str_replace('~', '\~', $pattern) . '~',
+                    $replacement,
+                    (string) $value,
+                    $flags === 'g' ? -1 : 1
+                );
+
+                return $result;
+            },
+            -1
+        );
+
         $this->migrateRegistrationSchema();
 
         foreach (['buyer', 'seller', 'logistics', 'rider', 'admin'] as $role) {
@@ -50,6 +72,7 @@ class RegistrationEmailUniquenessTest extends TestCase
 
             foreach (
                 [
+                    'seller_registration_details',
                     'email_verification_otps',
                     'notifications',
                     'role_user',
@@ -114,6 +137,24 @@ class RegistrationEmailUniquenessTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('seller_registration_details', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique()->constrained('users')->cascadeOnDelete();
+            $table->string('seller_type');
+            $table->string('tin');
+            $table->string('dti_registration_number')->nullable();
+            $table->string('sec_registration_number')->nullable();
+            $table->string('dti_certificate')->nullable();
+            $table->string('sec_certificate')->nullable();
+            $table->string('bir_form_2303')->nullable();
+            $table->string('pickup_region');
+            $table->string('pickup_province');
+            $table->string('pickup_city');
+            $table->string('pickup_barangay');
+            $table->string('pickup_street');
+            $table->string('pickup_postal_code', 4);
+            $table->timestamps();
+        });
         Schema::create('email_verification_otps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')
@@ -152,6 +193,27 @@ class RegistrationEmailUniquenessTest extends TestCase
             $table->decimal('longitude', 10, 7)->nullable();
             $table->string('logo')->nullable();
             $table->string('business_permit')->nullable();
+
+            // Logistics registration details
+            $table->string('sec_registration_number')->nullable();
+            $table->string('tin')->nullable();
+
+            $table->string('business_region')->nullable();
+            $table->string('business_province')->nullable();
+            $table->string('business_city')->nullable();
+            $table->string('business_barangay')->nullable();
+            $table->string('business_street')->nullable();
+            $table->string('business_postal_code')->nullable();
+
+            $table->string('contact_first_name')->nullable();
+            $table->string('contact_last_name')->nullable();
+            $table->string('contact_position')->nullable();
+
+            $table->text('service_areas')->nullable();
+
+            $table->string('sec_certificate')->nullable();
+            $table->string('bir_form_2303')->nullable();
+
             $table->string('status')->default('pending');
             $table->text('rejection_reason')->nullable();
             $table->timestamp('approved_at')->nullable();
@@ -265,24 +327,225 @@ class RegistrationEmailUniquenessTest extends TestCase
     public function test_new_seller_email_creates_one_user_with_one_role(): void
     {
         Mail::fake();
+        Storage::fake('supabase_private');
 
-        $this->post(route('register'), $this->registrationPayload([
+        $response = $this->post(route('register'), $this->registrationPayload([
             'role' => 'seller',
             'email' => 'newseller@example.com',
             'business_name' => 'Santos Store',
             'selling_categories' => [1],
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
-        ]))->assertSessionHasNoErrors();
+            'seller_type' => 'sole_proprietorship',
+            'seller_tin' => '123456789',
+            'dti_registration_number' => 'DTI-2026-001',
+            'dti_certificate' => UploadedFile::fake()->create('dti.pdf', 100, 'application/pdf'),
+            'pickup_region' => 'CALABARZON',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_barangay' => 'Poblacion',
+            'pickup_street' => 'Rizal Street',
+            'pickup_postal_code' => '4009',
+        ]));
+
+        $response->assertSessionHasNoErrors();
 
         $this->assertSame(1, User::where('email', 'newseller@example.com')->count());
 
         $user = User::where('email', 'newseller@example.com')->firstOrFail();
+
         $this->assertTrue($user->isSeller());
         $this->assertFalse($user->isCustomer());
         $this->assertSame(User::STATUS_PENDING, $user->status);
         $this->assertSame(1, $user->roles()->count());
-    }
 
+        $this->assertDatabaseHas('seller_registration_details', [
+            'user_id' => $user->id,
+            'seller_type' => 'sole_proprietorship',
+            'tin' => '123456789',
+            'dti_registration_number' => 'DTI-2026-001',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_postal_code' => '4009',
+        ]);
+
+        $details = \App\Models\SellerRegistrationDetail::where(
+            'user_id',
+            $user->id
+        )->firstOrFail();
+
+        $this->assertNotNull($details->dti_certificate);
+
+        Storage::disk('supabase_private')->assertExists(
+            $details->dti_certificate
+        );
+    }
+    public function test_seller_registration_supports_all_business_types(): void
+    {
+        Mail::fake();
+        Storage::fake('supabase_private');
+
+        $types = [
+            'individual' => [],
+            'partnership' => [
+                'seller_sec_registration_number' => 'SEC-2026-001',
+                'seller_sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            ],
+            'corporation' => [
+                'seller_sec_registration_number' => 'SEC-2026-002',
+                'seller_sec_certificate' => UploadedFile::fake()->create('sec-corp.pdf', 100, 'application/pdf'),
+                'seller_bir_form_2303' => UploadedFile::fake()->create('bir.pdf', 100, 'application/pdf'),
+            ],
+        ];
+
+        foreach ($types as $type => $extraFields) {
+            $email = $type . '@example.com';
+
+            $mobileNumbers = [
+                'individual' => '09171234561',
+                'partnership' => '09171234562',
+                'corporation' => '09171234563',
+            ];
+
+            $payload = array_merge(
+                $this->registrationPayload([
+                    'role' => 'seller',
+                    'email' => $email,
+                    'mobile_number' => $mobileNumbers[$type],
+                    'business_name' => ucfirst($type) . ' Store',
+                    'selling_categories' => [1],
+                    'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+                    'seller_type' => $type,
+                    'seller_tin' => '123456789',
+                    'pickup_region' => 'CALABARZON',
+                    'pickup_province' => 'Laguna',
+                    'pickup_city' => 'Santa Cruz',
+                    'pickup_barangay' => 'Poblacion',
+                    'pickup_street' => 'Rizal Street',
+                    'pickup_postal_code' => '4009',
+                ]),
+                $extraFields
+            );
+
+            $response = $this->post(route('register'), $payload);
+            $response->assertSessionHasNoErrors();
+
+            $user = User::where('email', $email)->firstOrFail();
+
+            $this->assertSame(User::STATUS_PENDING, $user->status);
+
+            $details = \App\Models\SellerRegistrationDetail::where(
+                'user_id',
+                $user->id
+            )->firstOrFail();
+
+            $this->assertSame($type, $details->seller_type);
+
+            if ($type !== 'individual') {
+                $this->assertNotNull($details->sec_certificate);
+                Storage::disk('supabase_private')->assertExists(
+                    $details->sec_certificate
+                );
+            }
+
+            if ($type === 'corporation') {
+                $this->assertNotNull($details->bir_form_2303);
+                Storage::disk('supabase_private')->assertExists(
+                    $details->bir_form_2303
+                );
+            }
+        }
+    }
+    public function test_sole_proprietorship_requires_dti_certificate(): void
+    {
+        Mail::fake();
+        Storage::fake('supabase_private');
+
+        $email = 'seller-no-dti@example.com';
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'role' => 'seller',
+            'email' => $email,
+            'business_name' => 'No DTI Store',
+            'selling_categories' => [1],
+            'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'seller_type' => 'sole_proprietorship',
+            'seller_tin' => '123456789',
+            'dti_registration_number' => 'DTI-2026-001',
+            'pickup_region' => 'CALABARZON',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_barangay' => 'Poblacion',
+            'pickup_street' => 'Rizal Street',
+            'pickup_postal_code' => '4009',
+        ]));
+
+        $response->assertSessionHasErrors(['dti_certificate']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => $email,
+        ]);
+    }
+    public function test_partnership_requires_sec_certificate(): void
+    {
+        Mail::fake();
+        Storage::fake('supabase_private');
+
+        $email = 'seller-no-sec@example.com';
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'role' => 'seller',
+            'email' => $email,
+            'business_name' => 'No SEC Store',
+            'selling_categories' => [1],
+            'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'seller_type' => 'partnership',
+            'seller_tin' => '123456789',
+            'seller_sec_registration_number' => 'SEC-2026-001',
+            'pickup_region' => 'CALABARZON',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_barangay' => 'Poblacion',
+            'pickup_street' => 'Rizal Street',
+            'pickup_postal_code' => '4009',
+        ]));
+
+        $response->assertSessionHasErrors(['seller_sec_certificate']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => $email,
+        ]);
+    }
+    public function test_corporation_requires_bir_form_2303(): void
+    {
+        Mail::fake();
+        Storage::fake('supabase_private');
+
+        $email = 'seller-no-bir@example.com';
+
+        $response = $this->post(route('register'), $this->registrationPayload([
+            'role' => 'seller',
+            'email' => $email,
+            'business_name' => 'No BIR Corporation',
+            'selling_categories' => [1],
+            'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'seller_type' => 'corporation',
+            'seller_tin' => '123456789',
+            'seller_sec_registration_number' => 'SEC-2026-003',
+            'seller_sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            'pickup_region' => 'CALABARZON',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_barangay' => 'Poblacion',
+            'pickup_street' => 'Rizal Street',
+            'pickup_postal_code' => '4009',
+        ]));
+
+        $response->assertSessionHasErrors(['seller_bir_form_2303']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => $email,
+        ]);
+    }
     public function test_new_logistics_email_creates_one_user_and_one_company(): void
     {
         Mail::fake();
@@ -295,7 +558,21 @@ class RegistrationEmailUniquenessTest extends TestCase
             'company_email' => 'company@example.com',
             'company_phone' => '09181234567',
             'company_address' => 'Quezon City',
+            'sec_registration_number' => 'SEC-2026-LOG-001',
+            'tin' => '123456789',
+            'business_region' => 'NCR',
+            'business_province' => 'Metro Manila',
+            'business_city' => 'Quezon City',
+            'business_barangay' => 'Commonwealth',
+            'business_street' => 'Commonwealth Avenue',
+            'business_postal_code' => '1121',
+            'contact_first_name' => 'Owner',
+            'contact_last_name' => 'Santos',
+            'contact_position' => 'Operations Manager',
+            'service_areas' => 'Quezon City, Metro Manila',
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            'bir_form_2303' => UploadedFile::fake()->create('bir.pdf', 100, 'application/pdf'),
         ]))->assertSessionHasNoErrors();
 
         $this->assertSame(1, User::where('email', 'newlogistics@example.com')->count());
@@ -333,7 +610,15 @@ class RegistrationEmailUniquenessTest extends TestCase
         $admin = User::factory()->create(['status' => User::STATUS_ACTIVE]);
         $admin->roles()->syncWithoutDetaching([Role::where('name', 'admin')->value('id')]);
 
-        $this->post(route('register'), $this->registrationPayload());
+        $this->post(route('register'), $this->registrationPayload())
+            ->assertSessionHasNoErrors();
+
+        // Simulate successful email OTP verification.
+        $buyer = User::where('email', 'newuser@example.com')->firstOrFail();
+
+        $buyer->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
 
         $this->actingAs($admin)
             ->get(route('admin.registrations.index'))
@@ -442,7 +727,21 @@ class RegistrationEmailUniquenessTest extends TestCase
             'company_email' => 'company@example.com',
             'company_phone' => '09181234567',
             'company_address' => 'Quezon City',
+            'sec_registration_number' => 'SEC-2026-LOG-001',
+            'tin' => '123456789',
+            'business_region' => 'NCR',
+            'business_province' => 'Metro Manila',
+            'business_city' => 'Quezon City',
+            'business_barangay' => 'Commonwealth',
+            'business_street' => 'Commonwealth Avenue',
+            'business_postal_code' => '1121',
+            'contact_first_name' => 'Owner',
+            'contact_last_name' => 'Santos',
+            'contact_position' => 'Operations Manager',
+            'service_areas' => 'Quezon City, Metro Manila',
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            'bir_form_2303' => UploadedFile::fake()->create('bir.pdf', 100, 'application/pdf'),
         ]))->assertSessionHasNoErrors();
 
         $this->post(route('register'), $this->registrationPayload([
@@ -453,7 +752,21 @@ class RegistrationEmailUniquenessTest extends TestCase
             'company_email' => 'company@example.com',
             'company_phone' => '09181234567',
             'company_address' => 'Quezon City',
+            'sec_registration_number' => 'SEC-2026-LOG-001',
+            'tin' => '123456789',
+            'business_region' => 'NCR',
+            'business_province' => 'Metro Manila',
+            'business_city' => 'Quezon City',
+            'business_barangay' => 'Commonwealth',
+            'business_street' => 'Commonwealth Avenue',
+            'business_postal_code' => '1121',
+            'contact_first_name' => 'Owner',
+            'contact_last_name' => 'Santos',
+            'contact_position' => 'Operations Manager',
+            'service_areas' => 'Quezon City, Metro Manila',
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+            'sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            'bir_form_2303' => UploadedFile::fake()->create('bir.pdf', 100, 'application/pdf'),
         ]))->assertSessionHasNoErrors();
 
         $user = User::where('email', 'newlogistics@example.com')->firstOrFail();

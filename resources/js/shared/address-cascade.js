@@ -1,30 +1,47 @@
+
 const ncrRegionCode = '1300000000';
 
 async function fetchJson(url) {
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
     return response.json();
 }
 
 function populateSelect(select, items, savedValue, placeholder) {
     if (!select) return;
-    select.innerHTML = `<option value="">${placeholder}</option>`;
+
+    select.innerHTML = '';
+    select.add(new Option(placeholder, ''));
+
     items.forEach((item) => {
-        const option = document.createElement('option');
-        option.value = item.code;
-        option.textContent = item.name;
+        const option = new Option(item.name, item.code);
         option.dataset.name = item.name;
-        if (String(item.code) === String(savedValue || '') || item.name === savedValue) {
+
+        if (
+            String(item.code) === String(savedValue || '') ||
+            item.name === savedValue
+        ) {
             option.selected = true;
         }
-        select.appendChild(option);
+
+        select.add(option);
     });
 }
 
 function syncSelectedName(select, input) {
     if (!input) return;
+
     const option = select?.options[select.selectedIndex];
-    input.value = option?.value ? option.dataset.name || option.textContent : '';
+
+    input.value = option?.value
+        ? option.dataset.name || option.textContent
+        : '';
 }
 
 export async function initAddressCascade(config) {
@@ -48,108 +65,359 @@ export async function initAddressCascade(config) {
         savedBarangay = '',
     } = config;
 
-    if (!regionSelect || !provinceSelect || !municipalitySelect || !barangaySelect) return;
+    if (
+        !regionSelect ||
+        !provinceSelect ||
+        !municipalitySelect ||
+        !barangaySelect
+    ) {
+        return;
+    }
 
-    regionSelect.addEventListener('change', () => {
-        if (regionHidden) regionHidden.value = regionSelect.value;
-        syncSelectedName(regionSelect, regionNameInput);
-        populateSelect(provinceSelect, [], '', 'Select Province/City');
-        populateSelect(municipalitySelect, [], '', 'Select Municipality');
+    let regionRequestId = 0;
+    let provinceRequestId = 0;
+    let barangayRequestId = 0;
+
+    // Saved selections are used only during initial restoration.
+    let restoring = Boolean(savedRegion);
+
+    function clearField(hidden, nameInput) {
+        if (hidden) hidden.value = '';
+        if (nameInput) nameInput.value = '';
+    }
+
+    function resetBarangay() {
+        barangayRequestId++;
+
         populateSelect(barangaySelect, [], '', 'Select Barangay');
         barangaySelect.disabled = true;
+
+        clearField(barangayHidden, barangayNameInput);
+    }
+
+    function resetMunicipality() {
+        populateSelect(
+            municipalitySelect,
+            [],
+            '',
+            'Select Municipality'
+        );
+
         municipalitySelect.disabled = true;
+
+        clearField(municipalityHidden, municipalityNameInput);
+        resetBarangay();
+    }
+
+    function resetProvince() {
+        provinceRequestId++;
+
+        populateSelect(
+            provinceSelect,
+            [],
+            '',
+            'Select Province/City'
+        );
+
         provinceSelect.disabled = true;
 
-        if (!regionSelect.value) return;
+        clearField(provinceHidden, provinceNameInput);
+        resetMunicipality();
+    }
 
-        provinceSelect.disabled = false;
-        if (regionSelect.value === ncrRegionCode) {
-            if (municipalityField) municipalityField.style.display = 'none';
-            fetchJson(`/api/addresses/regions/${regionSelect.value}/cities`)
-                .then((items) => {
-                    populateSelect(provinceSelect, items, savedProvince, 'Select Province/City');
-                    if (savedProvince) provinceSelect.dispatchEvent(new Event('change'));
-                })
-                .catch(() => {});
-            return;
+    regionSelect.addEventListener('change', () => {
+        const requestId = ++regionRequestId;
+        const regionCode = regionSelect.value;
+
+        const shouldRestore = restoring;
+        restoring = false;
+
+        if (regionHidden) {
+            regionHidden.value = regionCode;
         }
 
-        if (municipalityField) municipalityField.style.display = 'block';
-        fetchJson(`/api/addresses/regions/${regionSelect.value}/provinces`)
+        syncSelectedName(regionSelect, regionNameInput);
+        resetProvince();
+
+        if (municipalityField) {
+            municipalityField.style.display =
+                regionCode === ncrRegionCode ? 'none' : 'block';
+        }
+
+        if (!regionCode) return;
+
+        const isNcr = regionCode === ncrRegionCode;
+
+        const url = isNcr
+            ? `/api/addresses/regions/${regionCode}/cities`
+            : `/api/addresses/regions/${regionCode}/provinces`;
+
+        fetchJson(url)
             .then((items) => {
-                populateSelect(provinceSelect, items, savedProvince, 'Select Province/City');
-                if (savedProvince) provinceSelect.dispatchEvent(new Event('change'));
+                if (requestId !== regionRequestId) return;
+
+                populateSelect(
+                    provinceSelect,
+                    items,
+                    shouldRestore ? savedProvince : '',
+                    'Select Province/City'
+                );
+
+                provinceSelect.disabled = false;
+
+                if (shouldRestore && provinceSelect.value) {
+                    provinceSelect.dispatchEvent(
+                        new Event('change', { bubbles: true })
+                    );
+                }
             })
-            .catch(() => {});
+            .catch((error) => {
+                if (requestId === regionRequestId) {
+                    provinceSelect.disabled = true;
+                    console.error('Unable to load provinces:', error);
+                }
+            });
     });
 
     provinceSelect.addEventListener('change', () => {
-        if (provinceHidden) provinceHidden.value = provinceSelect.value;
+        const requestId = ++provinceRequestId;
+        const provinceCode = provinceSelect.value;
+        const regionCode = regionSelect.value;
+
+        const shouldRestore =
+            Boolean(savedProvince) &&
+            (
+                provinceCode === savedProvince ||
+                provinceSelect.options[
+                    provinceSelect.selectedIndex
+                ]?.dataset.name === savedProvince
+            ) &&
+            Boolean(savedRegion) &&
+            (
+                regionCode === savedRegion ||
+                regionSelect.options[
+                    regionSelect.selectedIndex
+                ]?.dataset.name === savedRegion
+            );
+
+        if (provinceHidden) {
+            provinceHidden.value = provinceCode;
+        }
+
         syncSelectedName(provinceSelect, provinceNameInput);
-        populateSelect(municipalitySelect, [], '', 'Select Municipality');
-        populateSelect(barangaySelect, [], '', 'Select Barangay');
-        barangaySelect.disabled = true;
-        municipalitySelect.disabled = true;
+        resetMunicipality();
 
-        if (!provinceSelect.value) return;
+        if (!provinceCode) return;
 
-        const selectedProvince = provinceSelect.options[provinceSelect.selectedIndex];
-        if (regionSelect.value === ncrRegionCode) {
-            barangaySelect.disabled = false;
-            municipalitySelect.disabled = false;
-            if (municipalityField) municipalityField.style.display = 'none';
-            if (selectedProvince) {
-                municipalitySelect.innerHTML = '';
-                const option = document.createElement('option');
-                option.value = selectedProvince.value;
-                option.textContent = selectedProvince.textContent;
-                option.dataset.name = selectedProvince.dataset.name || selectedProvince.textContent;
-                option.selected = true;
-                municipalitySelect.appendChild(option);
-                if (municipalityHidden) municipalityHidden.value = option.value;
-                if (municipalityNameInput) municipalityNameInput.value = option.dataset.name;
+        if (regionCode === ncrRegionCode) {
+            if (municipalityField) {
+                municipalityField.style.display = 'none';
             }
-            fetchJson(`/api/addresses/cities/${provinceSelect.value}/barangays`)
-                .then((items) => populateSelect(barangaySelect, items, savedBarangay, 'Select Barangay'))
-                .catch(() => {});
+
+            const selectedProvince =
+                provinceSelect.options[provinceSelect.selectedIndex];
+
+            if (selectedProvince) {
+                populateSelect(
+                    municipalitySelect,
+                    [{
+                        code: selectedProvince.value,
+                        name: selectedProvince.dataset.name ||
+                            selectedProvince.textContent,
+                    }],
+                    selectedProvince.value,
+                    'Select Municipality'
+                );
+
+                municipalitySelect.disabled = false;
+
+                if (municipalityHidden) {
+                    municipalityHidden.value = selectedProvince.value;
+                }
+
+                syncSelectedName(
+                    municipalitySelect,
+                    municipalityNameInput
+                );
+            }
+
+            const barangayId = ++barangayRequestId;
+
+            fetchJson(
+                `/api/addresses/cities/${provinceCode}/barangays`
+            )
+                .then((items) => {
+                    if (
+                        requestId !== provinceRequestId ||
+                        barangayId !== barangayRequestId
+                    ) {
+                        return;
+                    }
+
+                    populateSelect(
+                        barangaySelect,
+                        items,
+                        shouldRestore ? savedBarangay : '',
+                        'Select Barangay'
+                    );
+
+                    barangaySelect.disabled = false;
+
+                    if (barangaySelect.value) {
+                        barangaySelect.dispatchEvent(
+                            new Event('change', { bubbles: true })
+                        );
+                    }
+                })
+                .catch((error) => {
+                    if (barangayId === barangayRequestId) {
+                        barangaySelect.disabled = true;
+                        console.error('Unable to load barangays:', error);
+                    }
+                });
+
             return;
         }
 
-        if (municipalityField) municipalityField.style.display = 'block';
-        municipalitySelect.disabled = false;
-        fetchJson(`/api/addresses/provinces/${provinceSelect.value}/municipalities`)
+        if (municipalityField) {
+            municipalityField.style.display = 'block';
+        }
+
+        fetchJson(
+            `/api/addresses/provinces/${provinceCode}/municipalities`
+        )
             .then((items) => {
-                populateSelect(municipalitySelect, items, savedMunicipality, 'Select Municipality');
-                if (savedMunicipality) municipalitySelect.dispatchEvent(new Event('change'));
+                if (requestId !== provinceRequestId) return;
+
+                populateSelect(
+                    municipalitySelect,
+                    items,
+                    shouldRestore ? savedMunicipality : '',
+                    'Select Municipality'
+                );
+
+                municipalitySelect.disabled = false;
+
+                if (shouldRestore && municipalitySelect.value) {
+                    municipalitySelect.dispatchEvent(
+                        new Event('change', { bubbles: true })
+                    );
+                }
             })
-            .catch(() => {});
+            .catch((error) => {
+                if (requestId === provinceRequestId) {
+                    municipalitySelect.disabled = true;
+                    console.error('Unable to load municipalities:', error);
+                }
+            });
     });
 
     municipalitySelect.addEventListener('change', () => {
-        if (municipalityHidden) municipalityHidden.value = municipalitySelect.value;
-        syncSelectedName(municipalitySelect, municipalityNameInput);
+        const municipalityCode = municipalitySelect.value;
+        const requestId = ++barangayRequestId;
+
+        const selectedMunicipality =
+            municipalitySelect.options[municipalitySelect.selectedIndex];
+
+        const selectedProvince =
+            provinceSelect.options[provinceSelect.selectedIndex];
+
+        const selectedRegion =
+            regionSelect.options[regionSelect.selectedIndex];
+
+        const shouldRestore =
+            Boolean(savedRegion) &&
+            Boolean(savedProvince) &&
+            Boolean(savedMunicipality) &&
+            (
+                regionSelect.value === savedRegion ||
+                selectedRegion?.dataset.name === savedRegion
+            ) &&
+            (
+                provinceSelect.value === savedProvince ||
+                selectedProvince?.dataset.name === savedProvince
+            ) &&
+            (
+                municipalityCode === savedMunicipality ||
+                selectedMunicipality?.dataset.name === savedMunicipality
+            );
+
+        if (municipalityHidden) {
+            municipalityHidden.value = municipalityCode;
+        }
+
+        syncSelectedName(
+            municipalitySelect,
+            municipalityNameInput
+        );
+
         populateSelect(barangaySelect, [], '', 'Select Barangay');
         barangaySelect.disabled = true;
 
-        if (!municipalitySelect.value) return;
+        clearField(barangayHidden, barangayNameInput);
 
-        barangaySelect.disabled = false;
-        fetchJson(`/api/addresses/municipalities/${municipalitySelect.value}/barangays`)
-            .then((items) => populateSelect(barangaySelect, items, savedBarangay, 'Select Barangay'))
-            .catch(() => {});
+        if (!municipalityCode) return;
+
+        fetchJson(
+            `/api/addresses/municipalities/${municipalityCode}/barangays`
+        )
+            .then((items) => {
+                if (requestId !== barangayRequestId) return;
+
+                populateSelect(
+                    barangaySelect,
+                    items,
+                    shouldRestore ? savedBarangay : '',
+                    'Select Barangay'
+                );
+
+                barangaySelect.disabled = false;
+
+                if (barangaySelect.value) {
+                    barangaySelect.dispatchEvent(
+                        new Event('change', { bubbles: true })
+                    );
+                }
+            })
+            .catch((error) => {
+                if (requestId === barangayRequestId) {
+                    barangaySelect.disabled = true;
+                    console.error('Unable to load barangays:', error);
+                }
+            });
     });
 
     barangaySelect.addEventListener('change', () => {
-        if (barangayHidden) barangayHidden.value = barangaySelect.value;
+        if (barangayHidden) {
+            barangayHidden.value = barangaySelect.value;
+        }
+
         syncSelectedName(barangaySelect, barangayNameInput);
     });
 
     try {
         const regions = await fetchJson('/api/addresses/regions');
-        populateSelect(regionSelect, regions, savedRegion, 'Select Region');
+
+        populateSelect(
+            regionSelect,
+            regions,
+            savedRegion,
+            'Select Region'
+        );
+
         syncSelectedName(regionSelect, regionNameInput);
-        if (savedRegion) regionSelect.dispatchEvent(new Event('change'));
-    } catch {
+
+        if (regionHidden) {
+            regionHidden.value = regionSelect.value;
+        }
+
+        if (savedRegion && regionSelect.value) {
+            regionSelect.dispatchEvent(
+                new Event('change', { bubbles: true })
+            );
+        }
+    } catch (error) {
         populateSelect(regionSelect, [], '', 'Select Region');
+        console.error('Unable to load regions:', error);
     }
 }

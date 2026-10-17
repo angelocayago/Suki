@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Logistic extends Model
 {
+
     protected $fillable = [
         'owner_user_id',
         'company_name',
@@ -24,7 +25,32 @@ class Logistic extends Model
         'approved_at',
         'logo',
         'business_permit',
+
+        // Company registration
+        'sec_registration_number',
+        'tin',
+
+        // Business address
+        'business_region',
+        'business_province',
+        'business_city',
+        'business_barangay',
+        'business_street',
+        'business_postal_code',
+
+        // Authorized contact person
+        'contact_first_name',
+        'contact_last_name',
+        'contact_position',
+
+        // Operations
+        'service_areas',
+
+        // Private registration documents
+        'sec_certificate',
+        'bir_form_2303',
     ];
+
 
     protected $casts = [
         'approved_at' => 'datetime',

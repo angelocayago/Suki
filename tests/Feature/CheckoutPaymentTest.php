@@ -31,6 +31,7 @@ class CheckoutPaymentTest extends TestCase
             $table->string('password');
             $table->string('status')->default('pending');
             $table->timestamp('approved_at')->nullable();
+            $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
@@ -61,7 +62,12 @@ class CheckoutPaymentTest extends TestCase
             'password' => bcrypt('password'),
             'status' => User::STATUS_ACTIVE,
             'approved_at' => now(),
+            'email_verified_at' => now(),
         ]);
+        $user->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
+
         $roleId = DB::table('roles')->insertGetId([
             'name' => 'buyer',
             'created_at' => now(),

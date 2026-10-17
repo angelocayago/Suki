@@ -179,6 +179,17 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/', [RegistrationController::class, 'index'])->name('index');
 
+            Route::get(
+                '/{user}/documents/{type}',
+                [\App\Http\Controllers\PrivateDocumentController::class, 'showRegistrationDocument']
+            )->whereIn('type', [
+                'id_verification',
+                'business_permit',
+                'logistic_permit',
+                'or_document',
+                'cr_document',
+            ])->name('documents.show');
+
             Route::get('/{user}', [RegistrationController::class, 'show'])->name('show');
 
             Route::post('/{user}/approve', [RegistrationController::class, 'approve'])->name('approve');
@@ -477,6 +488,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/shipments/{shipment}', [RiderDashboardController::class, 'showShipment'])
 
             ->name('shipments.show');
+
+        Route::get(
+            '/shipments/{shipment}/proof',
+            [\App\Http\Controllers\PrivateDocumentController::class, 'showShipmentProof']
+        )->name('shipments.proof');
 
 
 

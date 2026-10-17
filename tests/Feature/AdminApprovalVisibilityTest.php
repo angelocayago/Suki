@@ -21,6 +21,31 @@ class AdminApprovalVisibilityTest extends TestCase
 
         $this->migrateSchema();
 
+        // PostgreSQL REGEXP_REPLACE compatibility for SQLite tests only.
+        if (
+            config('database.default') === 'sqlite' &&
+            config('database.connections.sqlite.database') === ':memory:'
+        ) {
+            $pdo = \Illuminate\Support\Facades\DB::connection()->getPdo();
+
+            $pdo->sqliteCreateFunction(
+                'REGEXP_REPLACE',
+                function ($value, $pattern, $replacement, $flags = '') {
+                    if ($value === null) {
+                        return null;
+                    }
+
+                    return preg_replace(
+                        '~' . str_replace('~', '\~', $pattern) . '~',
+                        $replacement,
+                        (string) $value,
+                        $flags === 'g' ? -1 : 1
+                    );
+                },
+                -1
+            );
+        }
+
         foreach (['buyer', 'seller', 'logistics', 'rider', 'admin'] as $role) {
             Role::firstOrCreate(['name' => $role]);
         }
@@ -34,7 +59,7 @@ class AdminApprovalVisibilityTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (['email_verification_otps', 'notifications', 'products', 'orders', 'sellers', 'role_user', 'roles', 'logistics', 'users'] as $table) {
+        foreach (['seller_registration_details', 'email_verification_otps', 'notifications', 'products', 'orders', 'sellers', 'addresses', 'role_user', 'roles', 'logistics', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -89,6 +114,25 @@ class AdminApprovalVisibilityTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('seller_registration_details', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique()->constrained('users')->cascadeOnDelete();
+            $table->string('seller_type');
+            $table->string('tin');
+            $table->string('dti_registration_number')->nullable();
+            $table->string('sec_registration_number')->nullable();
+            $table->string('dti_certificate')->nullable();
+            $table->string('sec_certificate')->nullable();
+            $table->string('bir_form_2303')->nullable();
+            $table->string('pickup_region');
+            $table->string('pickup_province');
+            $table->string('pickup_city');
+            $table->string('pickup_barangay');
+            $table->string('pickup_street');
+            $table->string('pickup_postal_code');
+            $table->timestamps();
+        });
+
         Schema::create('email_verification_otps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique();
@@ -115,6 +159,20 @@ class AdminApprovalVisibilityTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('owner_user_id');
             $table->string('company_name');
+            $table->string('sec_registration_number')->nullable();
+            $table->string('tin')->nullable();
+            $table->string('business_region')->nullable();
+            $table->string('business_province')->nullable();
+            $table->string('business_city')->nullable();
+            $table->string('business_barangay')->nullable();
+            $table->string('business_street')->nullable();
+            $table->string('business_postal_code')->nullable();
+            $table->string('contact_first_name')->nullable();
+            $table->string('contact_last_name')->nullable();
+            $table->string('contact_position')->nullable();
+            $table->json('service_areas')->nullable();
+            $table->string('sec_certificate')->nullable();
+            $table->string('bir_form_2303')->nullable();
             $table->string('contact_person')->nullable();
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
@@ -127,6 +185,23 @@ class AdminApprovalVisibilityTest extends TestCase
             $table->string('status')->default('pending');
             $table->text('rejection_reason')->nullable();
             $table->timestamp('approved_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('addresses', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->string('label')->nullable();
+            $table->string('address_line1');
+            $table->string('address_line2')->nullable();
+            $table->string('city');
+            $table->string('province');
+            $table->string('postal_code')->nullable();
+            $table->string('country')->default('Philippines');
+            $table->string('phone')->nullable();
+            $table->boolean('is_default')->default(false);
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 10, 7)->nullable();
             $table->timestamps();
         });
 
@@ -189,9 +264,11 @@ class AdminApprovalVisibilityTest extends TestCase
     private function registrationPayload(array $overrides = []): array
     {
         Storage::fake('public');
+        Storage::fake('supabase_private');
 
         return array_merge([
             'role' => 'seller',
+            'terms' => '1',
             'first_name' => 'Test',
             'last_name' => 'Seller',
             'sex' => 'Female',
@@ -208,6 +285,16 @@ class AdminApprovalVisibilityTest extends TestCase
             'id_verification' => UploadedFile::fake()->create('id.pdf', 100, 'application/pdf'),
             'business_name' => 'Test Store',
             'selling_categories' => [1],
+            'seller_type' => 'sole_proprietorship',
+            'seller_tin' => '123456789',
+            'dti_registration_number' => 'DTI-2026-001',
+            'dti_certificate' => UploadedFile::fake()->create('dti.pdf', 100, 'application/pdf'),
+            'pickup_region' => 'CALABARZON',
+            'pickup_province' => 'Laguna',
+            'pickup_city' => 'Santa Cruz',
+            'pickup_barangay' => 'Poblacion',
+            'pickup_street' => 'Rizal Street',
+            'pickup_postal_code' => '4009',
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
         ], $overrides);
     }
@@ -219,7 +306,14 @@ class AdminApprovalVisibilityTest extends TestCase
         $this->post(route('register'), $this->registrationPayload(['email' => $email]))
             ->assertSessionHasNoErrors();
 
-        return User::where('email', $email)->firstOrFail();
+        $seller = User::where('email', $email)->firstOrFail();
+
+        // Simulate successful email OTP verification.
+        $seller->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
+
+        return $seller->fresh();
     }
 
     private function sellerManagementEmails(): array
@@ -383,16 +477,22 @@ class AdminApprovalVisibilityTest extends TestCase
             'terms' => '1',
         ]))->assertSessionHasNoErrors();
 
-        $this->assertContains('pending-buyer@example.com', $this->pendingRegistrationEmails());
+        $buyer = User::where('email', 'pending-buyer@example.com')->firstOrFail();
+
+        // Before OTP verification, buyer is not yet in the admin queue.
+        $this->assertNotContains('pending-buyer@example.com', $this->pendingRegistrationEmails());
         $this->assertNotContains('pending-buyer@example.com', $this->userManagementEmails());
         $this->assertSame(0, $this->totalBuyers());
-
-        $buyer = User::where('email', 'pending-buyer@example.com')->firstOrFail();
 
         // Simulate successful email OTP verification.
         $buyer->forceFill([
             'email_verified_at' => now(),
         ])->save();
+
+        // Verified buyer is now visible for admin review, but not yet approved.
+        $this->assertContains('pending-buyer@example.com', $this->pendingRegistrationEmails());
+        $this->assertNotContains('pending-buyer@example.com', $this->userManagementEmails());
+        $this->assertSame(0, $this->totalBuyers());
 
         // Superadmin can approve only after email verification.
         $this->actingAs($this->admin())
@@ -433,7 +533,7 @@ class AdminApprovalVisibilityTest extends TestCase
         $this->assertSame(User::STATUS_PENDING, $buyer->status);
         $this->assertNull($buyer->approved_at);
 
-        $this->assertContains(
+        $this->assertNotContains(
             'unverified-buyer@example.com',
             $this->pendingRegistrationEmails()
         );
@@ -449,7 +549,21 @@ class AdminApprovalVisibilityTest extends TestCase
             'role' => 'logistic',
             'email' => 'pending-logistics@example.com',
             'company_name' => 'Pending Logistics Co',
+            'sec_registration_number' => 'SEC-2026-001',
+            'tin' => '123456789',
+            'business_region' => 'NCR',
+            'business_province' => 'Metro Manila',
+            'business_city' => 'Quezon City',
+            'business_barangay' => 'Commonwealth',
+            'business_street' => 'Commonwealth Avenue',
+            'business_postal_code' => '1121',
+            'contact_first_name' => 'Juan',
+            'contact_last_name' => 'Dela Cruz',
+            'contact_position' => 'Owner',
             'contact_person' => 'Owner Name',
+            'service_areas' => 'Metro Manila',
+            'sec_certificate' => UploadedFile::fake()->create('sec.pdf', 100, 'application/pdf'),
+            'bir_form_2303' => UploadedFile::fake()->create('bir.pdf', 100, 'application/pdf'),
             'company_email' => 'company@example.com',
             'company_phone' => '09181234567',
             'company_address' => 'Quezon City',

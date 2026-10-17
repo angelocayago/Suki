@@ -73,6 +73,7 @@ class CheckoutStockTest extends TestCase
             $table->string('status')->default('pending');
 
             $table->timestamp('approved_at')->nullable();
+            $table->timestamp('email_verified_at')->nullable();
 
             $table->rememberToken();
 
@@ -113,6 +114,9 @@ class CheckoutStockTest extends TestCase
             $table->id();
 
             $table->foreignId('seller_id');
+            $table->foreignId('user_id')->nullable();
+            $table->string('status')->default('published');
+            $table->string('compliance_status')->default('approved');
 
             $table->string('name');
 
@@ -192,6 +196,9 @@ class CheckoutStockTest extends TestCase
             $table->unsignedBigInteger('shipping_minor');
 
             $table->unsignedBigInteger('total_minor');
+            $table->unsignedBigInteger('discount_minor')->default(0);
+            $table->unsignedBigInteger('seller_discount_minor')->default(0);
+            $table->unsignedBigInteger('platform_discount_minor')->default(0);
 
             $table->text('shipping_address');
 
@@ -227,6 +234,9 @@ class CheckoutStockTest extends TestCase
             $table->unsignedBigInteger('shipping_minor');
 
             $table->unsignedBigInteger('total_minor');
+            $table->unsignedBigInteger('discount_minor')->default(0);
+            $table->unsignedBigInteger('seller_discount_minor')->default(0);
+            $table->unsignedBigInteger('platform_discount_minor')->default(0);
 
             $table->timestamps();
         });
@@ -290,6 +300,9 @@ class CheckoutStockTest extends TestCase
             $table->integer('quantity');
 
             $table->unsignedBigInteger('subtotal_minor');
+            $table->unsignedBigInteger('discount_minor')->default(0);
+            $table->unsignedBigInteger('seller_discount_minor')->default(0);
+            $table->unsignedBigInteger('platform_discount_minor')->default(0);
 
             $table->timestamps();
         });
@@ -327,6 +340,7 @@ class CheckoutStockTest extends TestCase
         $user->status = User::STATUS_ACTIVE;
 
         $user->approved_at = now();
+        $user->email_verified_at = now();
 
         $user->save();
 
@@ -384,6 +398,8 @@ class CheckoutStockTest extends TestCase
         $productId = DB::table('products')->insertGetId([
 
             'seller_id' => $sellerId,
+              'status' => 'published',
+              'compliance_status' => 'approved',
 
             'name' => $name,
 

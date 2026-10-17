@@ -35,6 +35,8 @@ class RiderRescheduleIntegrationTest extends TestCase
             $table->string('status')->default('active');
             $table->string('logistic_status')->nullable();
             $table->unsignedBigInteger('logistic_id')->nullable();
+            $table->unsignedBigInteger('hub_id')->nullable();
+            $table->string('assigned_zone')->nullable();
             $table->string('availability_status')->default('available');
             $table->integer('current_load')->default(0);
             $table->integer('max_capacity')->default(5);
@@ -69,6 +71,8 @@ class RiderRescheduleIntegrationTest extends TestCase
         Schema::create('shipments', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('logistic_id')->nullable();
+            $table->unsignedBigInteger('hub_id')->nullable();
+            $table->string('delivery_zone')->nullable();
             $table->unsignedBigInteger('seller_order_id');
             $table->unsignedBigInteger('rider_id')->nullable();
             $table->string('tracking_number')->unique();
@@ -90,6 +94,8 @@ class RiderRescheduleIntegrationTest extends TestCase
             'password' => 'password',
             'status' => 'active',
             'logistic_id' => 10,
+            'hub_id' => 1,
+            'assigned_zone' => 'Santa Cruz',
             'logistic_status' => 'approved',
             'availability_status' => 'available',
             'current_load' => 0,
@@ -112,6 +118,8 @@ class RiderRescheduleIntegrationTest extends TestCase
         ]);
         $shipmentId = DB::table('shipments')->insertGetId([
             'logistic_id' => 10,
+            'hub_id' => 1,
+            'delivery_zone' => 'Santa Cruz',
             'seller_order_id' => $sellerOrderId,
             'tracking_number' => 'TRACK-RESCHEDULE-1',
             'status' => 'failed_return_at_sorting_center',
