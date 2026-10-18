@@ -91,11 +91,12 @@ class PhaseThreeProductUnificationTest extends TestCase
     public function test_database_catalog_is_primary_on_buyer_pages(): void
     {
         [, $seller] = $this->seller('marketplace-seller');
+        $buyer = $this->userWithRole('buyer');
         $category = $this->category('Home & Living');
         $visible = $this->product($seller, $category, 'Database Marketplace Product', 'MARKET-001');
         $hidden = $this->product($seller, $category, 'Inactive Database Product', 'MARKET-002', false);
 
-        $this->get(route('buyer.home'))
+        $this->actingAs($buyer)->get(route('buyer.home'))
             ->assertOk()
             ->assertSee($visible->name)
             ->assertDontSee('Minimalist Shoulder Bag')

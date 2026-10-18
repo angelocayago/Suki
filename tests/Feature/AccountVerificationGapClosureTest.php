@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -32,6 +33,12 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->sms = new FakeSmsSender();
         $this->app->instance(SmsSender::class, $this->sms);
         Mail::fake();
+        Http::fake([
+            'https://psgc.cloud/api/v2/regions' => Http::response(['data' => [['code'=>'01','name'=>'Region A']]]),
+            'https://psgc.cloud/api/v2/regions/01/provinces' => Http::response(['data' => [['code'=>'0101','name'=>'Province A']]]),
+            'https://psgc.cloud/api/v2/provinces/0101/cities-municipalities' => Http::response(['data' => [['code'=>'010101','name'=>'City A']]]),
+            'https://psgc.cloud/api/v2/cities-municipalities/010101/barangays' => Http::response(['data' => [['code'=>'010101001','name'=>'Barangay A']]]),
+        ]);
     }
 
     public function test_buyer_registration_normalizes_identity_and_requires_verification_without_admin_application(): void
@@ -40,6 +47,7 @@ class AccountVerificationGapClosureTest extends TestCase
         $response = $this->post(route('register.submit'), $this->buyerPayload(['email' => '  NEW@Example.COM ', 'phone' => '+639171234567']));
         $user = User::query()->where('email', 'new@example.com')->firstOrFail();
         $response->assertRedirect(route('verification.contact.show'));
+        $this->assertGuest();
         $this->assertSame('09171234567', $user->phone);
         $this->assertSame('pending', $user->status);
         $this->assertNotNull($user->verification_required_at);
@@ -55,19 +63,19 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->assertSame(1, User::query()->count());
     }
 
-    public function test_unified_code_verifies_buyer_email_and_mobile_and_activates_without_admin_approval(): void
+    public function test_email_code_verifies_buyer_and_activates_without_admin_approval(): void
     {
         $user = $this->verificationUser('buyer');
         $service = app(AccountVerificationService::class);
-        $service->sendUnified($user, false);
+        $service->send($user, 'email', false);
         $code = $this->lastEmailCode();
 
-        $this->assertSame($code, $this->sms->lastCode());
-        $this->assertTrue($service->verifyUnified($user->fresh(), $code));
+        $this->assertCount(0, $this->sms->messages);
+        $this->assertTrue($service->verify($user->fresh(), 'email', $code));
         $verified = $user->fresh();
         $this->assertSame('active', $verified->status);
         $this->assertNotNull($verified->email_verified_at);
-        $this->assertNotNull($verified->phone_verified_at);
+        $this->assertNull($verified->phone_verified_at);
     }
 
     public function test_wrong_code_counts_attempt_and_correct_code_cannot_be_reused(): void
@@ -89,16 +97,16 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->expectException(ValidationException::class); $service->verify($user, 'email', $code);
     }
 
-    public function test_unified_resend_invalidates_the_old_code_for_both_contact_channels(): void
+    public function test_email_resend_invalidates_the_old_code(): void
     {
         $user = $this->verificationUser(); $service = app(AccountVerificationService::class);
-        $service->sendUnified($user, false); $oldCode = $this->lastEmailCode();
-        $service->sendUnified($user, false); $newCode = $this->lastEmailCode();
+        $service->send($user, 'email', false); $oldCode = $this->lastEmailCode();
+        $service->send($user, 'email', false); $newCode = $this->lastEmailCode();
 
         $this->assertNotSame($oldCode, $newCode);
-        $this->assertSame($newCode, $this->sms->lastCode());
-        try { $service->verifyUnified($user, $oldCode); $this->fail('Old unified OTP accepted.'); } catch (ValidationException) {}
-        $this->assertTrue($service->verifyUnified($user->fresh(), $newCode));
+        $this->assertCount(0, $this->sms->messages);
+        try { $service->verify($user, 'email', $oldCode); $this->fail('Old email OTP accepted.'); } catch (ValidationException) {}
+        $this->assertTrue($service->verify($user->fresh(), 'email', $newCode));
     }
 
     public function test_resend_cooldown_and_attempt_limit_are_enforced(): void
@@ -148,13 +156,13 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_seller_and_logistics_remain_pending_after_both_contacts_are_verified(): void
+    public function test_seller_and_logistics_remain_pending_after_email_is_verified(): void
     {
         foreach (['seller', 'logistics'] as $role) {
             $user = $this->verificationUser($role); $service = app(AccountVerificationService::class);
             $service->send($user, 'email', false); $service->verify($user, 'email', $this->lastEmailCode());
-            $service->send($user->fresh(), 'sms', false); $service->verify($user->fresh(), 'sms', $this->sms->lastCode());
             $this->assertSame('pending', $user->fresh()->status);
+            $this->assertNull($user->fresh()->phone_verified_at);
         }
     }
 
@@ -192,7 +200,7 @@ class AccountVerificationGapClosureTest extends TestCase
 
     private function verificationUser(string $role = 'buyer'): User
     {
-        $user = User::factory()->create(['role'=>$role,'email'=>$role.uniqid().'@example.com','phone'=>'09'.random_int(100000000,999999999),'status'=>'pending','verification_required_at'=>now(),'password'=>'password']);
+        $user = User::factory()->create(['role'=>$role,'email'=>$role.uniqid().'@example.com','phone'=>'09'.random_int(100000000,999999999),'status'=>'pending','verification_required_at'=>now(),'email_verified_at'=>null,'phone_verified_at'=>null,'password'=>'password']);
         $user->roles()->attach(Role::query()->firstOrCreate(['name'=>$role])); return $user;
     }
     private function lastEmailCode(): string
@@ -201,7 +209,7 @@ class AccountVerificationGapClosureTest extends TestCase
     }
     private function buyerPayload(array $overrides = []): array
     {
-        return array_merge(['last_name'=>'Buyer','first_name'=>'New','middle_initial'=>'Q','sex'=>'Female','email'=>'new@example.com','phone'=>'09171234567','birthday'=>'1998-01-01','province'=>'Laguna','municipality'=>'Santa Cruz','barangay'=>'Poblacion','street_address'=>'10 Main St','government_id'=>UploadedFile::fake()->create('id.jpg', 50, 'image/jpeg'),'password'=>'password123','password_confirmation'=>'password123','terms'=>'1'], $overrides);
+        return array_merge(['last_name'=>'Buyer','first_name'=>'New','middle_initial'=>'Q','sex'=>'Female','email'=>'new@example.com','phone'=>'09171234567','birthday'=>'1998-01-01','region'=>'01','province'=>'0101','municipality'=>'010101','barangay'=>'010101001','street_address'=>'10 Main St','government_id'=>UploadedFile::fake()->create('id.jpg', 50, 'image/jpeg'),'password'=>'Password1!','password_confirmation'=>'Password1!','terms'=>'1'], $overrides);
     }
 
     private function lastActivationToken(): string

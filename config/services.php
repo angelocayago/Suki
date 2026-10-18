@@ -43,6 +43,12 @@ return [
         'timeout' => env('SMS_TIMEOUT', 10),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
     'maptiler' => [
         // A full MapTiler-compatible style URL. Keep keys in .env, never in source.
         'style_url' => env('MAPTILER_STYLE_URL'),

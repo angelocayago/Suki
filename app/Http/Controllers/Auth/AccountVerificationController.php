@@ -33,7 +33,7 @@ class AccountVerificationController extends Controller
         $validated = $request->validate(['code' => ['required', 'digits:6']]);
         $complete = $user->hasRole('rider')
             ? $service->verify($user, 'sms', $validated['code'])
-            : $service->verifyUnified($user, $validated['code']);
+            : $service->verify($user, 'email', $validated['code']);
 
         if ($complete) {
             return $this->finished($request, $user->fresh());
@@ -47,7 +47,7 @@ class AccountVerificationController extends Controller
         $user = $this->pendingUser($request);
         try {
             if ($user->hasRole('rider')) $service->send($user, 'sms');
-            else $service->sendUnified($user);
+            else $service->send($user, 'email');
         } catch (VerificationDeliveryException) {
             return back()->with('error', 'We could not deliver a new verification code. Please try again.');
         }

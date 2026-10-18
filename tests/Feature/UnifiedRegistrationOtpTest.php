@@ -28,70 +28,67 @@ class UnifiedRegistrationOtpTest extends TestCase
         Mail::fake();
     }
 
-    public function test_public_registration_uses_one_same_code_for_email_and_sms_and_verifies_both_contacts(): void
+    public function test_email_challenge_verifies_buyer_without_marking_phone_verified(): void
     {
         $user = $this->user('buyer');
         $service = app(AccountVerificationService::class);
-        $service->sendUnified($user, false);
+        $service->send($user, 'email', false);
 
         $mailCode = $this->mailCode();
-        $this->assertSame($mailCode, $this->sms->lastCode());
+        $this->assertCount(0, $this->sms->messages);
         $this->assertDatabaseCount('account_verifications', 1);
-        $this->assertDatabaseHas('account_verifications', ['user_id' => $user->id, 'channel' => 'unified']);
+        $this->assertDatabaseHas('account_verifications', ['user_id' => $user->id, 'channel' => 'email']);
+        $this->assertNotSame($mailCode, AccountVerification::query()->value('code_hash'));
 
-        $this->assertTrue($service->verifyUnified($user, $mailCode));
+        $this->assertTrue($service->verify($user, 'email', $mailCode));
         $user->refresh();
         $this->assertNotNull($user->email_verified_at);
-        $this->assertNotNull($user->phone_verified_at);
+        $this->assertNull($user->phone_verified_at);
         $this->assertSame('active', $user->status);
     }
 
-    public function test_seller_and_logistics_remain_pending_after_unified_verification(): void
+    public function test_seller_and_logistics_remain_pending_after_email_verification(): void
     {
         foreach (['seller', 'logistics'] as $role) {
             $user = $this->user($role);
             $service = app(AccountVerificationService::class);
-            $service->sendUnified($user, false);
-            $service->verifyUnified($user, $this->mailCode());
+            $service->send($user, 'email', false);
+            $service->verify($user, 'email', $this->mailCode());
             $this->assertSame('pending', $user->fresh()->status);
             $this->assertTrue($user->fresh()->hasVerifiedContacts());
         }
     }
 
-    public function test_unified_resend_replaces_only_after_both_deliveries_succeed_and_old_code_cannot_be_reused(): void
+    public function test_email_resend_invalidates_old_code(): void
     {
         $user = $this->user();
         $service = app(AccountVerificationService::class);
-        $service->sendUnified($user, false);
+        $service->send($user, 'email', false);
         $oldCode = $this->mailCode();
         $oldHash = AccountVerification::query()->value('code_hash');
 
-        $this->sms->fail = true;
-        try { $service->sendUnified($user, false); $this->fail('Failed delivery replaced the code.'); } catch (VerificationDeliveryException) {}
-        $this->assertSame($oldHash, AccountVerification::query()->value('code_hash'));
-
-        $this->sms->fail = false;
-        $service->sendUnified($user, false);
+        $service->send($user, 'email', false);
         $newCode = $this->mailCode();
         $this->assertNotSame($oldCode, $newCode);
-        try { $service->verifyUnified($user, $oldCode); $this->fail('Old code was accepted.'); } catch (ValidationException) {}
-        $this->assertTrue($service->verifyUnified($user, $newCode));
+        $this->assertNotSame($oldHash, AccountVerification::query()->value('code_hash'));
+        try { $service->verify($user, 'email', $oldCode); $this->fail('Old code was accepted.'); } catch (ValidationException) {}
+        $this->assertTrue($service->verify($user, 'email', $newCode));
     }
 
-    public function test_unified_code_is_expiring_one_time_and_attempt_limited(): void
+    public function test_email_code_is_one_time_and_counts_attempts(): void
     {
         $user = $this->user(); $service = app(AccountVerificationService::class);
-        $service->sendUnified($user, false); $code = $this->mailCode();
-        try { $service->verifyUnified($user, '000000'); $this->fail('Wrong code accepted.'); } catch (ValidationException) {}
+        $service->send($user, 'email', false); $code = $this->mailCode();
+        try { $service->verify($user, 'email', '000000'); $this->fail('Wrong code accepted.'); } catch (ValidationException) {}
         $this->assertSame(1, AccountVerification::query()->value('attempts'));
-        $service->verifyUnified($user, $code);
+        $service->verify($user, 'email', $code);
         $this->expectException(ValidationException::class);
-        $service->verifyUnified($user, $code);
+        $service->verify($user, 'email', $code);
     }
 
     private function user(string $role = 'buyer'): User
     {
-        $user = User::factory()->create(['role' => $role, 'status' => 'pending', 'phone' => '0917'.random_int(1000000, 9999999), 'verification_required_at' => now()]);
+        $user = User::factory()->create(['role' => $role, 'status' => 'pending', 'phone' => '0917'.random_int(1000000, 9999999), 'verification_required_at' => now(), 'email_verified_at' => null, 'phone_verified_at' => null]);
         $user->roles()->attach(Role::query()->firstOrCreate(['name' => $role]));
         return $user;
     }

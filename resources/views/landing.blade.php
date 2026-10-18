@@ -152,7 +152,6 @@
 
 @endphp
 
-
 <main class="landing-page">
 
 
@@ -227,13 +226,30 @@
 
                     <div class="nav-actions">
 
+                        @auth
+                            <form
+                                method="POST"
+                                action="{{ route('login.switch') }}"
+                                class="landing-login-switch"
+                            >
+                                @csrf
 
+                                <button
+                                    type="submit"
+                                    class="login-link"
+                                    aria-label="Log in with a different account"
+                                >
+                                    Log In
+                                </button>
+                            </form>
+                        @else
                         <a
                             href="{{ route('login') }}"
                             class="login-link"
                         >
                             Log In
                         </a>
+                        @endauth
 
 
                         <a

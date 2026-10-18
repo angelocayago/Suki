@@ -7,9 +7,12 @@ use App\Http\Requests\SellerRegistrationRequest;
 use App\Models\Category;
 use App\Services\SellerOnboardingService;
 use App\Services\AccountVerificationService;
+use App\Services\GoogleRegistrationService;
+use App\Services\PhilippineAddressService;
 use App\Exceptions\VerificationDeliveryException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 
 class RegistrationController extends Controller
 {
@@ -27,12 +30,29 @@ class RegistrationController extends Controller
     public function store(
         SellerRegistrationRequest $request,
         SellerOnboardingService $onboarding,
-        AccountVerificationService $verification
+        AccountVerificationService $verification,
+        GoogleRegistrationService $google,
+        PhilippineAddressService $addresses
     ): RedirectResponse {
-        $application = $onboarding->register($request->validated());
-        $request->session()->put('verification_user_id', $application->user_id);
+        $data = $request->validated();
         try {
-            $verification->sendUnified($application->user, false);
+            $data = array_merge($data, $addresses->resolve($data));
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->withInput();
+        }
+
+        $google->assertMatches($request, $data['email'], 'seller');
+        $application = $onboarding->register($data, fn ($user) => $google->linkIfPending($request, $user, 'seller'));
+        $request->session()->put('verification_user_id', $application->user_id);
+        if ($application->user->oauth_provider === 'google') {
+            $google->clearPending($request);
+            $request->session()->forget('verification_user_id');
+            return redirect()->route('login')->with('success', 'Google verified your email. Your application remains pending administrator approval.');
+        }
+        try {
+            $verification->send($application->user, 'email', false);
         } catch (VerificationDeliveryException) {
             return redirect()->route('verification.contact.show')
                 ->with('error', 'Your application was saved, but we could not deliver the verification code. Please use Resend code.');
@@ -40,6 +60,6 @@ class RegistrationController extends Controller
 
         return redirect()
             ->route('verification.contact.show')
-            ->with('success', 'Application saved. Verify your email and mobile number before administrator review.');
+            ->with('success', 'Application saved. Verify your email before administrator review.');
     }
 }

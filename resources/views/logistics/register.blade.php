@@ -153,7 +153,7 @@
                             <input
                                 type="text"
                                 name="first_name"
-                                value="{{ old('first_name') }}"
+                                value="{{ old('first_name', data_get(session('google_registration'), 'given_name')) }}"
                                 autocomplete="given-name"
                                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 required
@@ -177,7 +177,7 @@
                             <input
                                 type="text"
                                 name="last_name"
-                                value="{{ old('last_name') }}"
+                                value="{{ old('last_name', data_get(session('google_registration'), 'family_name')) }}"
                                 autocomplete="family-name"
                                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 required
@@ -263,7 +263,8 @@
                                 <input
                                     type="email"
                                     name="email"
-                                    value="{{ old('email') }}"
+                                    value="{{ old('email', data_get(session('google_registration'), 'email')) }}"
+                                    @if(session('google_registration')) readonly @endif
                                     required
                                     placeholder="you@example.com"
                                     class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -464,9 +465,45 @@
                     </div>
 
 
-                    <label class="mb-2 block text-sm font-medium text-gray-700">
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-                        Complete Address
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700" for="region">Region *</label>
+                            <select id="region" name="region" required class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10">
+                                <option value="">Loading regions...</option>
+                            </select>
+                            @error('region') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700" for="province">Province <span id="province-required">*</span></label>
+                            <select id="province" name="province" disabled class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50">
+                                <option value="">Select region first</option>
+                            </select>
+                            @error('province') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700" for="municipality">City / Municipality *</label>
+                            <select id="municipality" name="municipality" required disabled class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50">
+                                <option value="">Select province first</option>
+                            </select>
+                            @error('municipality') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700" for="barangay">Barangay *</label>
+                            <select id="barangay" name="barangay" required disabled class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50">
+                                <option value="">Select city / municipality first</option>
+                            </select>
+                            @error('barangay') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                    </div>
+
+                    <label class="mb-2 mt-5 block text-sm font-medium text-gray-700">
+
+                        Street / Building Address *
 
                     </label>
 
@@ -475,7 +512,7 @@
                         name="address"
                         rows="4"
                         required
-                        placeholder="House/Building No., Street, Barangay, Municipality/City, Province"
+                        placeholder="House/Building No., Street, subdivision"
                         class="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                     >{{ old('address') }}</textarea>
 
@@ -618,13 +655,13 @@
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
                     <div class="mb-5">
                         <h2 class="text-lg font-semibold text-gray-900">Account Security</h2>
-                        <p class="mt-1 text-sm text-gray-500">Create the password you will use after administrator approval.</p>
+                        <p class="mt-1 text-sm text-gray-500">Create the password you will use after administrator approval. Use at least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>
                     </div>
 
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <div>
                             <label for="password" class="mb-2 block text-sm font-medium text-gray-700">Password</label>
-                            <input id="password" type="password" name="password" required minlength="8"
+                            <input id="password" type="password" name="password" required minlength="8" autocomplete="new-password"
                                 class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#1F6F5B]/10">
                             @error('password')
                                 <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
@@ -633,8 +670,11 @@
 
                         <div>
                             <label for="password_confirmation" class="mb-2 block text-sm font-medium text-gray-700">Confirm Password</label>
-                            <input id="password_confirmation" type="password" name="password_confirmation" required minlength="8"
+                            <input id="password_confirmation" type="password" name="password_confirmation" required minlength="8" autocomplete="new-password"
                                 class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#1F6F5B]/10">
+                            @error('password_confirmation')
+                                <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
                 </section>
@@ -857,6 +897,9 @@
 
         </form>
 
+        <div class="mt-6 text-center text-sm text-gray-500">or</div>
+        <a class="mt-3 block rounded border px-4 py-3 text-center font-semibold" href="{{ route('auth.google.redirect', ['intent' => 'logistics']) }}"><span aria-hidden="true">G</span> Continue with Google</a>
+
     </main>
 
 </div>
@@ -896,6 +939,128 @@
 
     });
 
+</script>
+
+<script>
+    // Browser lookups are restricted to Laravel's internal address routes.
+    const addressApi = '/address';
+    const regionSelect = document.getElementById('region');
+    const provinceSelect = document.getElementById('province');
+    const municipalitySelect = document.getElementById('municipality');
+    const barangaySelect = document.getElementById('barangay');
+    const oldRegion = @json(old('region'));
+    const oldProvince = @json(old('province'));
+    const oldMunicipality = @json(old('municipality'));
+    const oldBarangay = @json(old('barangay'));
+    const provinceRequired = document.getElementById('province-required');
+
+    function resetAddressSelect(select, placeholder) {
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        select.disabled = true;
+    }
+
+    function setAddressOptions(select, placeholder, items, selected = '') {
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        items.sort((a, b) => a.name.localeCompare(b.name)).forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.code;
+            option.textContent = item.name;
+            option.selected = item.code === selected;
+            select.appendChild(option);
+        });
+        select.disabled = items.length === 0;
+    }
+
+    async function addressItems(path) {
+        const response = await fetch(`${addressApi}/${path}`, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`Address request failed: ${response.status}`);
+        const payload = await response.json();
+        return Array.isArray(payload) ? payload : [];
+    }
+
+    function resetProvince() {
+        resetAddressSelect(provinceSelect, 'Select province');
+        provinceSelect.required = false;
+        provinceRequired.classList.add('hidden');
+    }
+
+    function resetMunicipalities() { resetAddressSelect(municipalitySelect, 'Select city / municipality'); }
+    function resetBarangays() { resetAddressSelect(barangaySelect, 'Select barangay'); }
+
+    async function loadBarangays(cityCode, restore = false) {
+        resetBarangays();
+        barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+        try {
+            setAddressOptions(barangaySelect, 'Select barangay', await addressItems(`cities-municipalities/${encodeURIComponent(cityCode)}/barangays`), restore ? oldBarangay : '');
+        } catch (_) {
+            resetAddressSelect(barangaySelect, 'Unable to load barangays. Please retry.');
+        }
+    }
+
+    async function loadMunicipalities(parentCode, isRegion = false, restore = false) {
+        resetMunicipalities();
+        resetBarangays();
+        municipalitySelect.innerHTML = '<option value="">Loading cities / municipalities...</option>';
+        try {
+            const parent = isRegion ? 'regions' : 'provinces';
+            setAddressOptions(municipalitySelect, 'Select city / municipality', await addressItems(`${parent}/${encodeURIComponent(parentCode)}/cities-municipalities`), restore ? oldMunicipality : '');
+            if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+        } catch (_) {
+            resetAddressSelect(municipalitySelect, 'Unable to load cities / municipalities. Please retry.');
+        }
+    }
+
+    async function loadRegionChildren(regionCode, restore = false) {
+        resetProvince();
+        resetMunicipalities();
+        resetBarangays();
+        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+        try {
+            const provinces = await addressItems(`regions/${encodeURIComponent(regionCode)}/provinces`);
+            if (provinces.length > 0) {
+                setAddressOptions(provinceSelect, 'Select province', provinces, restore ? oldProvince : '');
+                provinceSelect.required = true;
+                provinceRequired.classList.remove('hidden');
+                if (restore && oldProvince) await loadMunicipalities(oldProvince, false, true);
+                return;
+            }
+
+            resetProvince();
+            await loadMunicipalities(regionCode, true, restore);
+        } catch (_) {
+            resetAddressSelect(provinceSelect, 'Unable to load provinces. Please retry.');
+        }
+    }
+
+    async function loadRegions() {
+        regionSelect.disabled = true;
+        try {
+            setAddressOptions(regionSelect, 'Select region', await addressItems('regions'), oldRegion);
+            if (oldRegion) await loadRegionChildren(oldRegion, true);
+        } catch (_) {
+            resetAddressSelect(regionSelect, 'Unable to load regions. Please retry.');
+            regionSelect.disabled = false;
+        }
+    }
+
+    if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
+        regionSelect.addEventListener('change', () => {
+            if (!regionSelect.value) {
+                resetProvince(); resetMunicipalities(); resetBarangays();
+                return;
+            }
+            loadRegionChildren(regionSelect.value);
+        });
+        provinceSelect.addEventListener('change', () => {
+            resetMunicipalities(); resetBarangays();
+            if (provinceSelect.value) loadMunicipalities(provinceSelect.value);
+        });
+        municipalitySelect.addEventListener('change', () => {
+            resetBarangays();
+            if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
+        });
+        loadRegions();
+    }
 </script>
 
 @endsection

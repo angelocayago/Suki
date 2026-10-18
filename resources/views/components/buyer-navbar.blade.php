@@ -456,39 +456,7 @@
 
 
                 @else
-
-
-                    <a
-                        href="{{ route('login') }}"
-                        class="hidden
-                               rounded-xl
-                               px-3 py-2
-                               text-xs font-semibold
-                               text-[#52635B]
-                               transition
-                               hover:text-[#173F35]
-                               sm:inline-flex"
-                    >
-                        Log In
-                    </a>
-
-
-                    <a
-                        href="{{ route('register') }}"
-                        class="hidden
-                               rounded-xl
-                               bg-[#173F35]
-                               px-4 py-2.5
-                               text-xs font-semibold
-                               text-white
-                               transition
-                               hover:bg-[#1F6F5B]
-                               sm:inline-flex"
-                    >
-                        Create account
-                    </a>
-
-
+                    {{-- Public auth CTAs belong to the canonical landing page. --}}
                 @endif
 
             </div>

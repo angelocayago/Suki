@@ -212,7 +212,7 @@
                                 type="text"
                                 id="last_name"
                                 name="last_name"
-                                value="{{ old('last_name') }}"
+                                value="{{ old('last_name', data_get(session('google_registration'), 'family_name')) }}"
                                 autocomplete="family-name"
                                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 placeholder="Last name"
@@ -235,7 +235,7 @@
                                 type="text"
                                 id="first_name"
                                 name="first_name"
-                                value="{{ old('first_name') }}"
+                                value="{{ old('first_name', data_get(session('google_registration'), 'given_name')) }}"
                                 autocomplete="given-name"
                                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                                 placeholder="First name"
@@ -386,7 +386,8 @@
                                     type="email"
                                     id="email"
                                     name="email"
-                                    value="{{ old('email') }}"
+                                value="{{ old('email', data_get(session('google_registration'), 'email')) }}"
+                                @if(session('google_registration')) readonly @endif
                                     placeholder="Enter email address"
                                     class="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                     required
@@ -410,20 +411,28 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
+                            <div>
+                                <label for="region" class="block text-sm font-medium text-gray-700 mb-2">Region <span class="text-red-500">*</span></label>
+                                <select id="region" name="region" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400" required>
+                                    <option value="">Loading regions...</option>
+                                </select>
+                                @error('region') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
                             <!-- Province -->
                             <div>
                                 <label
                                     for="province"
                                     class="block text-sm font-medium text-gray-700 mb-2"
                                 >
-                                    Province <span class="text-red-500">*</span>
+                                    Province <span id="province-required" class="text-red-500">*</span>
                                 </label>
 
                                 <select
                                     id="province"
                                     name="province"
                                     class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-50 disabled:text-gray-400"
-                                    required
+                                    disabled
                                 >
                                     <option value="">Loading provinces...</option>
                                 </select>
@@ -542,13 +551,16 @@
                                 id="password"
                                 name="password"
                                 placeholder="Create a password"
-                                class="w-full pl-11 pr-12 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                minlength="8"
+                                aria-describedby="password-help password-error"
+                                aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+                                class="w-full pl-11 pr-12 py-3 rounded-lg border {{ $errors->has('password') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
 
                             <button
                                 type="button"
-                                onclick="togglePassword('password', 'passwordIcon')"
+                                onclick="togglePassword('password', 'passwordIcon', this)"
                                 class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1F6F5B] transition"
                                 aria-label="Show password"
                             >
@@ -562,6 +574,33 @@
                             </button>
 
                         </div>
+
+                        <p
+                            id="password-help"
+                            class="mt-1 text-xs text-gray-500"
+                        >
+                            Password must be at least 8 characters and include uppercase and lowercase letters, a number, and a special character.
+                        </p>
+
+                        <ul
+                            id="password-requirements"
+                            class="mt-2 space-y-1 text-xs text-gray-500"
+                            aria-live="polite"
+                        >
+                            <li data-password-requirement="length">At least 8 characters</li>
+                            <li data-password-requirement="uppercase">An uppercase letter</li>
+                            <li data-password-requirement="lowercase">A lowercase letter</li>
+                            <li data-password-requirement="number">A number</li>
+                            <li data-password-requirement="symbol">A special character</li>
+                        </ul>
+
+                        <p
+                            id="password-error"
+                            class="mt-1 text-xs text-red-600 {{ $errors->has('password') ? '' : 'hidden' }}"
+                            role="alert"
+                        >
+                            {{ $errors->first('password') }}
+                        </p>
 
                     </div>
 
@@ -588,13 +627,15 @@
                                 id="password_confirmation"
                                 name="password_confirmation"
                                 placeholder="Confirm your password"
-                                class="w-full pl-11 pr-12 py-3 rounded-lg border border-gray-300 bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                                aria-describedby="password-match-feedback password-confirmation-error"
+                                aria-invalid="{{ $errors->has('password') || $errors->has('password_confirmation') ? 'true' : 'false' }}"
+                                class="w-full pl-11 pr-12 py-3 rounded-lg border {{ $errors->has('password') || $errors->has('password_confirmation') ? 'border-red-500' : 'border-gray-300' }} bg-white text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
                                 required
                             >
 
                             <button
                                 type="button"
-                                onclick="togglePassword('password_confirmation', 'confirmPasswordIcon')"
+                                onclick="togglePassword('password_confirmation', 'confirmPasswordIcon', this)"
                                 class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1F6F5B] transition"
                                 aria-label="Show password"
                             >
@@ -608,6 +649,22 @@
                             </button>
 
                         </div>
+
+                        <p
+                            id="password-match-feedback"
+                            class="mt-1 text-xs text-gray-500"
+                            aria-live="polite"
+                        >
+                            Re-enter your password to confirm it.
+                        </p>
+
+                        <p
+                            id="password-confirmation-error"
+                            class="mt-1 text-xs text-red-600 {{ $errors->has('password_confirmation') ? '' : 'hidden' }}"
+                            role="alert"
+                        >
+                            {{ $errors->first('password_confirmation') }}
+                        </p>
 
                     </div>
 
@@ -661,6 +718,9 @@
                     </button>
 
                 </form>
+
+                <div class="auth-divider"><span>OR</span></div>
+                <a href="{{ route('auth.google.redirect', ['intent' => 'buyer']) }}" class="auth-submit block text-center"><span aria-hidden="true">G</span> Continue with Google</a>
 
 
                 <!-- ================================================= -->
@@ -849,13 +909,76 @@
                 calculateAge();
             }
 
+            // Browser feedback mirrors the server's actual Buyer rule: at
+            // least eight characters and a matching confirmation. The server
+            // remains authoritative for every submission.
+            const passwordInput = document.getElementById('password');
+            const passwordConfirmationInput = document.getElementById('password_confirmation');
+            const passwordMatchFeedback = document.getElementById('password-match-feedback');
+            const passwordRequirements = {
+                length: value => value.length >= 8,
+                uppercase: value => /[A-Z]/.test(value),
+                lowercase: value => /[a-z]/.test(value),
+                number: value => /[0-9]/.test(value),
+                symbol: value => /[\p{P}\p{S}]/u.test(value),
+            };
 
-            // =====================================================
-            // PHILIPPINE ADDRESS - PSGC CLOUD
-            // =====================================================
+            function updatePasswordRequirements() {
+                if (!passwordInput) {
+                    return;
+                }
 
-            const API_BASE =
-                'https://psgc.cloud/api/v2';
+                Object.entries(passwordRequirements).forEach(([name, passes]) => {
+                    const item = document.querySelector(
+                        `[data-password-requirement="${name}"]`
+                    );
+
+                    if (!item) {
+                        return;
+                    }
+
+                    item.classList.toggle('text-green-700', passes(passwordInput.value));
+                    item.classList.toggle('text-gray-500', !passes(passwordInput.value));
+                });
+            }
+
+            function updatePasswordMatchFeedback() {
+                if (!passwordInput || !passwordConfirmationInput || !passwordMatchFeedback) {
+                    return;
+                }
+
+                const confirmation = passwordConfirmationInput.value;
+
+                if (!confirmation) {
+                    passwordMatchFeedback.textContent = 'Re-enter your password to confirm it.';
+                    passwordMatchFeedback.className = 'mt-1 text-xs text-gray-500';
+                    passwordConfirmationInput.setAttribute('aria-invalid', 'false');
+                    return;
+                }
+
+                if (passwordInput.value === confirmation) {
+                    passwordMatchFeedback.textContent = 'Passwords match.';
+                    passwordMatchFeedback.className = 'mt-1 text-xs text-green-700';
+                    passwordConfirmationInput.setAttribute('aria-invalid', 'false');
+                    return;
+                }
+
+                passwordMatchFeedback.textContent = 'Passwords do not match.';
+                passwordMatchFeedback.className = 'mt-1 text-xs text-red-600';
+                passwordConfirmationInput.setAttribute('aria-invalid', 'true');
+            }
+
+            passwordInput?.addEventListener('input', function () {
+                updatePasswordRequirements();
+                updatePasswordMatchFeedback();
+            });
+            passwordConfirmationInput?.addEventListener('input', updatePasswordMatchFeedback);
+
+
+            // Philippine address cascade. The browser speaks only to our
+            // narrow Laravel endpoints; upstream PSGC access is server-side.
+            const API_BASE = '/address';
+            const regionSelect = document.getElementById('region');
 
             const provinceSelect =
                 document.getElementById('province');
@@ -868,6 +991,9 @@
 
             const oldProvince =
                 @json(old('province'));
+
+            const oldRegion =
+                @json(old('region'));
 
             const oldMunicipality =
                 @json(old('municipality'));
@@ -927,79 +1053,60 @@
             }
 
 
-            async function loadProvinces() {
+            function resetProvince() {
+                provinceSelect.innerHTML = '<option value="">Select province</option>';
                 provinceSelect.disabled = true;
+                provinceSelect.required = false;
+                document.getElementById('province-required').classList.add('hidden');
+            }
 
+            function setOptions(select, placeholder, items, selected = '') {
+                select.innerHTML = `<option value="">${placeholder}</option>`;
+                items.sort((a, b) => a.name.localeCompare(b.name)).forEach((item) => {
+                    const option = document.createElement('option');
+                    option.value = item.code;
+                    option.textContent = item.name;
+                    option.selected = item.code === selected;
+                    select.appendChild(option);
+                });
+                select.disabled = items.length === 0;
+            }
+
+            async function loadRegions() {
+                regionSelect.disabled = true;
+                try {
+                    const regions = await fetchItems(`${API_BASE}/regions`);
+                    setOptions(regionSelect, 'Select region', regions, oldRegion);
+                    if (oldRegion) await loadRegionChildren(oldRegion, true);
+                } catch (_) {
+                    regionSelect.innerHTML = '<option value="">Unable to load regions</option>';
+                    regionSelect.disabled = false;
+                }
+            }
+
+            async function loadRegionChildren(regionCode, restore = false) {
+                resetProvince(); resetMunicipalities(); resetBarangays();
+                provinceSelect.disabled = true;
                 provinceSelect.innerHTML =
                     '<option value="">Loading provinces...</option>';
-
-                resetMunicipalities();
-                resetBarangays();
-
                 try {
-                    const provinces =
-                        await fetchItems(
-                            `${API_BASE}/provinces`
-                        );
-
-                    provinces.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
-                    );
-
-                    provinceSelect.innerHTML =
-                        '<option value="">Select province</option>';
-
-                    provinces.forEach(function (province) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            province.name;
-
-                        option.textContent =
-                            province.name;
-
-                        option.dataset.code =
-                            province.code;
-
-                        provinceSelect.appendChild(option);
-                    });
-
-                    provinceSelect.disabled = false;
-
-                    if (oldProvince) {
-                        const matchingProvince =
-                            provinces.find(
-                                province =>
-                                    province.name === oldProvince
-                            );
-
-                        if (matchingProvince) {
-                            provinceSelect.value =
-                                matchingProvince.name;
-
-                            await loadMunicipalities(
-                                matchingProvince.code
-                            );
-                        }
+                    const provinces = await fetchItems(`${API_BASE}/regions/${encodeURIComponent(regionCode)}/provinces`);
+                    if (provinces.length) {
+                        setOptions(provinceSelect, 'Select province', provinces, restore ? oldProvince : '');
+                        provinceSelect.required = true;
+                        document.getElementById('province-required').classList.remove('hidden');
+                        if (restore && oldProvince) await loadMunicipalities(oldProvince, true);
+                    } else {
+                        resetProvince();
+                        await loadMunicipalities(regionCode, restore, true);
                     }
-
-                } catch (error) {
-                    console.error(
-                        'Unable to load provinces:',
-                        error
-                    );
-
-                    provinceSelect.innerHTML =
-                        '<option value="">Unable to load provinces</option>';
-
-                    provinceSelect.disabled = false;
+                } catch (_) {
+                    provinceSelect.innerHTML = '<option value="">Unable to load provinces</option>';
                 }
             }
 
 
-            async function loadMunicipalities(provinceCode) {
+            async function loadMunicipalities(parentCode, restore = false, isRegion = false) {
                 resetMunicipalities();
                 resetBarangays();
 
@@ -1007,120 +1114,37 @@
                     '<option value="">Loading municipalities / cities...</option>';
 
                 try {
-                    const municipalities =
-                        await fetchItems(
-                            `${API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
-                        );
-
-                    municipalities.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
-                    );
-
-                    municipalitySelect.innerHTML =
-                        '<option value="">Select municipality / city</option>';
-
-                    municipalities.forEach(function (municipality) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            municipality.name;
-
-                        option.textContent =
-                            municipality.name;
-
-                        option.dataset.code =
-                            municipality.code;
-
-                        municipalitySelect.appendChild(option);
-                    });
-
-                    municipalitySelect.disabled = false;
-
-                    if (oldMunicipality) {
-                        const matchingMunicipality =
-                            municipalities.find(
-                                municipality =>
-                                    municipality.name === oldMunicipality
-                            );
-
-                        if (matchingMunicipality) {
-                            municipalitySelect.value =
-                                matchingMunicipality.name;
-
-                            await loadBarangays(
-                                matchingMunicipality.code
-                            );
-                        }
-                    }
-
-                } catch (error) {
-                    console.error(
-                        'Unable to load municipalities:',
-                        error
-                    );
-
-                    municipalitySelect.innerHTML =
-                        '<option value="">Unable to load municipalities / cities</option>';
-
-                    municipalitySelect.disabled = false;
+                    const base = isRegion ? 'regions' : 'provinces';
+                    const municipalities = await fetchItems(`${API_BASE}/${base}/${encodeURIComponent(parentCode)}/cities-municipalities`);
+                    setOptions(municipalitySelect, 'Select municipality / city', municipalities, restore ? oldMunicipality : '');
+                    if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+                } catch (_) {
+                    municipalitySelect.innerHTML = '<option value="">Unable to load municipalities / cities</option>';
                 }
             }
 
 
-            async function loadBarangays(municipalityCode) {
+            async function loadBarangays(municipalityCode, restore = false) {
                 resetBarangays();
 
                 barangaySelect.innerHTML =
                     '<option value="">Loading barangays...</option>';
 
                 try {
-                    const barangays =
-                        await fetchItems(
-                            `${API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
-                        );
-
-                    barangays.sort(
-                        (a, b) =>
-                            a.name.localeCompare(b.name)
-                    );
-
-                    barangaySelect.innerHTML =
-                        '<option value="">Select barangay</option>';
-
-                    barangays.forEach(function (barangay) {
-                        const option =
-                            document.createElement('option');
-
-                        option.value =
-                            barangay.name;
-
-                        option.textContent =
-                            barangay.name;
-
-                        barangaySelect.appendChild(option);
-                    });
-
-                    barangaySelect.disabled = false;
-
-                    if (oldBarangay) {
-                        barangaySelect.value =
-                            oldBarangay;
-                    }
-
-                } catch (error) {
-                    console.error(
-                        'Unable to load barangays:',
-                        error
-                    );
-
-                    barangaySelect.innerHTML =
-                        '<option value="">Unable to load barangays</option>';
-
-                    barangaySelect.disabled = false;
+                    const barangays = await fetchItems(`${API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`);
+                    setOptions(barangaySelect, 'Select barangay', barangays, restore ? oldBarangay : '');
+                } catch (_) {
+                    barangaySelect.innerHTML = '<option value="">Unable to load barangays</option>';
                 }
             }
+
+            regionSelect?.addEventListener('change', () => {
+                if (! regionSelect.value) {
+                    resetProvince(); resetMunicipalities(); resetBarangays();
+                    return;
+                }
+                loadRegionChildren(regionSelect.value);
+            });
 
 
             provinceSelect?.addEventListener(
@@ -1129,19 +1153,7 @@
                     resetMunicipalities();
                     resetBarangays();
 
-                    const selectedOption =
-                        provinceSelect.options[
-                            provinceSelect.selectedIndex
-                        ];
-
-                    const provinceCode =
-                        selectedOption?.dataset?.code;
-
-                    if (provinceCode) {
-                        loadMunicipalities(
-                            provinceCode
-                        );
-                    }
+                    if (provinceSelect.value) loadMunicipalities(provinceSelect.value);
                 }
             );
 
@@ -1151,35 +1163,23 @@
                 function () {
                     resetBarangays();
 
-                    const selectedOption =
-                        municipalitySelect.options[
-                            municipalitySelect.selectedIndex
-                        ];
-
-                    const municipalityCode =
-                        selectedOption?.dataset?.code;
-
-                    if (municipalityCode) {
-                        loadBarangays(
-                            municipalityCode
-                        );
-                    }
+                    if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
                 }
             );
 
 
             if (
-                provinceSelect &&
+                regionSelect && provinceSelect &&
                 municipalitySelect &&
                 barangaySelect
             ) {
-                loadProvinces();
+                loadRegions();
             }
 
         });
 
 
-        function togglePassword(inputId, iconId) {
+        function togglePassword(inputId, iconId, button) {
             const password =
                 document.getElementById(inputId);
 
@@ -1192,12 +1192,14 @@
 
             if (password.type === 'password') {
                 password.type = 'text';
+                button?.setAttribute('aria-label', 'Hide password');
                 icon.setAttribute(
                     'data-lucide',
                     'eye-off'
                 );
             } else {
                 password.type = 'password';
+                button?.setAttribute('aria-label', 'Show password');
                 icon.setAttribute(
                     'data-lucide',
                     'eye'

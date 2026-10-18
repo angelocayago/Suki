@@ -289,6 +289,10 @@
                 <span>OR</span>
             </div>
 
+            <a href="{{ route('auth.google.redirect', ['intent' => 'buyer']) }}" class="auth-submit block text-center" aria-label="Continue with Google">
+                <span aria-hidden="true">G</span> Continue with Google
+            </a>
+
 
 
             <p class="auth-bottom">

@@ -19,6 +19,10 @@ class LogisticsProvider extends Model
         'rejection_reason',
         'contact_phone',
         'address',
+        'region',
+        'province',
+        'city',
+        'barangay',
         'government_id_path',
         'business_permit_path',
     ];

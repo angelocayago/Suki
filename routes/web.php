@@ -52,6 +52,7 @@ use App\Http\Controllers\Auth\AccountVerificationController;
 use App\Http\Controllers\Auth\BuyerRegistrationController;
 use App\Http\Controllers\Auth\LogisticsRegistrationController;
 use App\Http\Controllers\Auth\RiderActivationController;
+use App\Services\PhilippineAddressService;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
@@ -61,6 +62,16 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+
+// Narrow PSGC lookup endpoints for registration forms. Codes are validated by
+// the service; callers never supply an upstream URL.
+Route::prefix('address')->middleware('throttle:60,1')->group(function () {
+    Route::get('regions', fn (PhilippineAddressService $address) => ($items = $address->locations('regions')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+    Route::get('regions/{region}/provinces', fn (string $region, PhilippineAddressService $address) => preg_match('/^\d+$/', $region) && ($items = $address->locations('regions/'.$region.'/provinces')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+    Route::get('regions/{region}/cities-municipalities', fn (string $region, PhilippineAddressService $address) => preg_match('/^\d+$/', $region) && ($items = $address->locations('regions/'.$region.'/cities-municipalities')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+    Route::get('provinces/{province}/cities-municipalities', fn (string $province, PhilippineAddressService $address) => preg_match('/^\d+$/', $province) && ($items = $address->locations('provinces/'.$province.'/cities-municipalities')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+    Route::get('cities-municipalities/{city}/barangays', fn (string $city, PhilippineAddressService $address) => preg_match('/^\d+$/', $city) && ($items = $address->locations('cities-municipalities/'.$city.'/barangays')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+});
 
 
 // =====================================================
@@ -363,6 +374,7 @@ Route::get('/', function () {
 // =====================================================
 
 Route::get('/home', [ProductController::class, 'home'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])
     ->name('buyer.home');
 
 
@@ -5822,6 +5834,17 @@ Route::get('/login', function () {
 
 })->name('login');
 
+// Landing-page account switch: intentionally end the current authenticated
+// session before showing the normal guest-only login form.
+Route::post('/login/switch', function (Request $request) {
+    auth()->logout();
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->middleware('auth')->name('login.switch');
+
 
 // =====================================================
 // LOGIN SUBMIT
@@ -5894,7 +5917,7 @@ Route::post('/login', function (Request $request) {
         $request->session()->put('verification_user_id', $verificationUserId);
 
         return redirect()->route('verification.contact.show')
-            ->with('error', 'Complete email and mobile verification before signing in.');
+            ->with('error', 'Complete email verification before signing in.');
     }
 
 
@@ -6096,6 +6119,13 @@ Route::post('/register', [BuyerRegistrationController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('register.submit');
 
+Route::get('/auth/google/redirect', [\App\Http\Controllers\Auth\GoogleOAuthController::class, 'redirect'])
+    ->middleware('guest')
+    ->name('auth.google.redirect');
+Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\GoogleOAuthController::class, 'callback'])
+    ->middleware('guest')
+    ->name('auth.google.callback');
+
 Route::get('/verify-contact', [AccountVerificationController::class, 'show'])
     ->name('verification.contact.show');
 Route::post('/verify-contact', [AccountVerificationController::class, 'verify'])
@@ -6115,8 +6145,8 @@ Route::post('/logout', function (Request $request) {
     $user = $request->user();
     $redirectRoute = match (true) {
         $user?->isAdmin() => 'admin.login',
-        $user?->hasAnyRole(['seller', 'rider', 'logistics']) => 'login',
-        default => 'buyer.home',
+        $user?->hasAnyRole(['seller', 'rider', 'logistics']) => 'landing',
+        default => 'landing',
     };
 
     auth()->logout();

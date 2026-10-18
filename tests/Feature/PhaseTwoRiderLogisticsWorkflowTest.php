@@ -330,20 +330,28 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
     public function test_automatic_completion_requires_three_days_and_is_repeat_safe(): void
     {
-        extract($this->workflowContext());
-        $sellerOrder->update(['workflow_status' => OrderStatus::Delivered, 'delivered_at' => now()->subDays(3)->addSecond()]);
-        $shipment->update(['workflow_status' => OrderStatus::Delivered]);
-        $order->update(['status' => 'DELIVERED']);
-        $this->artisan('orders:complete-delivered')->assertSuccessful();
-        $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
-        $this->travel(2)->seconds();
-        $this->artisan('orders:complete-delivered')->assertSuccessful();
-        $this->assertSame('COMPLETED', $order->fresh()->status);
-        $this->assertSame(OrderStatus::Completed, $shipment->fresh()->workflow_status);
-        $this->artisan('orders:complete-delivered')->assertSuccessful();
-        $event = $shipment->events()->where('status', 'COMPLETED')->sole();
-        $this->assertNull($event->user_id);
-        $this->assertStringContainsString('Automatically', $event->note);
+        $now = \Illuminate\Support\Carbon::parse('2026-10-17 12:00:00');
+        $this->travelTo($now);
+
+        try {
+            extract($this->workflowContext());
+            $sellerOrder->update(['workflow_status' => OrderStatus::Delivered, 'delivered_at' => $now->copy()->subDays(3)->addSecond()]);
+            $shipment->update(['workflow_status' => OrderStatus::Delivered]);
+            $order->update(['status' => 'DELIVERED']);
+            $this->artisan('orders:complete-delivered')->assertSuccessful();
+            $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
+
+            $this->travelTo($now->copy()->addSeconds(2));
+            $this->artisan('orders:complete-delivered')->assertSuccessful();
+            $this->assertSame('COMPLETED', $order->fresh()->status);
+            $this->assertSame(OrderStatus::Completed, $shipment->fresh()->workflow_status);
+            $this->artisan('orders:complete-delivered')->assertSuccessful();
+            $event = $shipment->events()->where('status', 'COMPLETED')->sole();
+            $this->assertNull($event->user_id);
+            $this->assertStringContainsString('Automatically', $event->note);
+        } finally {
+            $this->travelBack();
+        }
     }
 
     public function test_cancelled_parcel_cannot_record_delivery_or_failure_and_rolls_back_files(): void

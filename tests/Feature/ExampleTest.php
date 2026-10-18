@@ -14,6 +14,9 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertSee('Everything you love,')
+            ->assertSee('all in one place.')
+            ->assertSee('href="'.route('buyer.shop').'"', false);
     }
 }

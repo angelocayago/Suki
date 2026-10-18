@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Support\IdentityNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class SellerRegistrationRequest extends FormRequest
 {
@@ -40,9 +41,10 @@ class SellerRegistrationRequest extends FormRequest
             'birthday' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
             'phone' => ['required', 'string', 'regex:/^09\d{9}$/', Rule::unique('users', 'phone')],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->where(fn ($query) => $query->whereRaw('LOWER(email) = ?', [$this->input('email')]))],
-            'province' => ['required', 'string', 'max:100'],
-            'municipality' => ['required', 'string', 'max:100'],
-            'barangay' => ['required', 'string', 'max:100'],
+            'region' => ['required', 'regex:/^\d+$/'],
+            'province' => ['nullable', 'regex:/^\d+$/'],
+            'municipality' => ['required', 'regex:/^\d+$/'],
+            'barangay' => ['required', 'regex:/^\d+$/'],
             'address' => ['required', 'string', 'max:255'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'business_name' => ['required', 'string', 'max:150'],
@@ -55,7 +57,7 @@ class SellerRegistrationRequest extends FormRequest
             'tin' => ['required', 'string', 'regex:/^\d{3}-\d{3}-\d{3}-\d{3}$/'],
             'valid_id' => array_merge(['required'], $documentRules),
             'business_permit' => array_merge(['required_if:seller_type,business'], $documentRules),
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'terms' => ['accepted'],
         ];
     }
@@ -70,6 +72,11 @@ class SellerRegistrationRequest extends FormRequest
             'middle_initial.regex' => 'Middle initial must be one letter.',
             'tin.regex' => 'The TIN must use the XXX-XXX-XXX-XXX format.',
             'business_permit.required_if' => 'A business permit is required for business sellers.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'password.mixed' => 'Password must include uppercase and lowercase letters.',
+            'password.numbers' => 'Password must include at least one number.',
+            'password.symbols' => 'Password must include at least one special character.',
+            'password.confirmed' => 'Password confirmation must match the password.',
         ];
     }
 }

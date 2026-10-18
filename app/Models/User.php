@@ -31,6 +31,8 @@ class User extends Authenticatable
         'birthday',
         'name',
         'email',
+        'oauth_provider',
+        'oauth_provider_user_id',
         'phone',
         'status',
         'is_suspended',
@@ -81,8 +83,15 @@ class User extends Authenticatable
 
     public function hasVerifiedContacts(): bool
     {
-        return ! $this->requiresContactVerification()
-            || ($this->email_verified_at !== null && $this->phone_verified_at !== null);
+        if (! $this->requiresContactVerification()) {
+            return true;
+        }
+
+        // Public accounts are currently email-first. Rider activation is a
+        // separate, logistics-created flow and retains its SMS requirement.
+        return $this->hasRole('rider')
+            ? $this->phone_verified_at !== null
+            : $this->email_verified_at !== null;
     }
 
     /**

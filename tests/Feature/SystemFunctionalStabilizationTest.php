@@ -27,7 +27,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
         $this->assertNotNull($buyer->addresses()->where('is_default', true)->first());
 
-        $this->get(route('buyer.home'))->assertOk()->assertSee($product->name);
+        $this->actingAs($buyer)->get(route('buyer.home'))->assertOk()->assertSee($product->name);
         $this->get(route('buyer.shop'))->assertOk()->assertSee($product->name);
         $this->get(route('buyer.product', $product->slug))->assertOk()->assertSee($product->name);
 

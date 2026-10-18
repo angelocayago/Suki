@@ -11,11 +11,11 @@
     <a href="{{ route('buyer.home') }}"><img src="{{ asset('images/suki-logo.png') }}" alt="SUKI SHOP" class="mx-auto h-16 w-auto"></a>
     <div class="mt-7 text-center">
         <p class="text-xs font-semibold uppercase tracking-wider text-[#1F6F5B]">Contact verification</p>
-        <h1 class="mt-2 text-2xl font-bold">{{ $riderOnly ? 'Verify your mobile number' : 'Verify your contact details' }}</h1>
+        <h1 class="mt-2 text-2xl font-bold">{{ $riderOnly ? 'Verify your mobile number' : 'Verify your email address' }}</h1>
         @if($riderOnly)
             <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $phone }}</strong>. Codes expire after 5 minutes.</p>
         @else
-            <p class="mt-2 text-sm text-gray-600">Enter the same 6-digit code sent to <strong>{{ $email }}</strong> and <strong>{{ $phone }}</strong>. Codes expire after 5 minutes.</p>
+            <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $email }}</strong>. Codes expire after 5 minutes.</p>
         @endif
     </div>
 
@@ -32,7 +32,7 @@
     <form method="POST" action="{{ route('verification.contact.resend') }}" class="mt-3 text-center">
         @csrf
         <button data-submit-button class="text-sm font-semibold text-[#1F6F5B] hover:underline">Resend code</button>
-        <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies. {{ $riderOnly ? '' : 'A new code is sent to both contacts.' }}</p>
+        <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies. {{ $riderOnly ? '' : 'A new code is sent to your email address.' }}</p>
     </form>
 </main>
 <script>

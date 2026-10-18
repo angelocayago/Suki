@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Support\IdentityNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class LogisticsRegistrationRequest extends FormRequest
 {
@@ -25,14 +26,18 @@ class LogisticsRegistrationRequest extends FormRequest
             'phone' => ['required','regex:/^09\d{9}$/', Rule::unique('users','phone')],
             'business_name' => ['required','string','max:150', Rule::unique('logistics_providers','name')],
             'address' => ['required','string','max:1000'],
+            'region' => ['required','regex:/^\d+$/'],
+            'province' => ['nullable','regex:/^\d+$/'],
+            'municipality' => ['required','regex:/^\d+$/'],
+            'barangay' => ['required','regex:/^\d+$/'],
             'government_id' => ['required','file','mimes:jpg,jpeg,png,pdf','max:5120'],
             'business_permit' => ['required','file','mimes:jpg,jpeg,png,pdf','max:5120'],
-            'password' => ['required','string','min:8','confirmed'], 'terms' => ['accepted'],
+            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'], 'terms' => ['accepted'],
         ];
     }
 
     public function messages(): array
     {
-        return ['first_name.regex' => 'Please enter a valid name.', 'last_name.regex' => 'Please enter a valid name.', 'middle_initial.regex' => 'Middle initial must be one letter.', 'phone.regex' => 'Mobile number must be 11 digits and start with 09.'];
+        return ['first_name.regex' => 'Please enter a valid name.', 'last_name.regex' => 'Please enter a valid name.', 'middle_initial.regex' => 'Middle initial must be one letter.', 'phone.regex' => 'Mobile number must be 11 digits and start with 09.', 'password.min' => 'Password must be at least 8 characters.', 'password.mixed' => 'Password must include uppercase and lowercase letters.', 'password.numbers' => 'Password must include at least one number.', 'password.symbols' => 'Password must include at least one special character.', 'password.confirmed' => 'Password confirmation must match the password.'];
     }
 }

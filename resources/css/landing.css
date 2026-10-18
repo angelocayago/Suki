@@ -233,6 +233,17 @@ input:focus-visible {
     border-radius: 999px;
 }
 
+.landing-login-switch {
+    display: contents;
+}
+
+.landing-login-switch .login-link {
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
 .register-btn,
 .register-btn:link,
 .register-btn:visited,

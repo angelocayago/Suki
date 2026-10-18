@@ -16,6 +16,7 @@ class Address extends Model
         'recipient',
         'phone',
         'line1',
+        'region',
         'barangay',
         'city',
         'province',

@@ -258,7 +258,8 @@
             <input
                 type="email"
                 name="email"
-                value="{{ old('email') }}"
+                value="{{ old('email', data_get(session('google_registration'), 'email')) }}"
+                @if(session('google_registration')) readonly @endif
                 required
                 placeholder="Enter your e-mail address"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
@@ -285,6 +286,9 @@
         id="password"
         name="password"
         required
+        minlength="8"
+        autocomplete="new-password"
+        aria-describedby="password-requirements"
         placeholder="Create a password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
     >
@@ -306,6 +310,11 @@
 
 </div>
 
+                <p id="password-requirements" class="mt-1 text-xs text-gray-500">Use at least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>
+                @error('password')
+                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                @enderror
+
             </div>
 
 
@@ -324,6 +333,8 @@
         id="password_confirmation"
         name="password_confirmation"
         required
+        minlength="8"
+        autocomplete="new-password"
         placeholder="Confirm your password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
     >
@@ -345,6 +356,10 @@
 
 
 </div>
+
+                @error('password_confirmation')
+                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                @enderror
 
             </div>
 
@@ -383,7 +398,7 @@
             <input
                 type="text"
                 name="first_name"
-                value="{{ old('first_name') }}"
+                value="{{ old('first_name', data_get(session('google_registration'), 'given_name')) }}"
                 autocomplete="given-name"
                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                 required
@@ -405,7 +420,7 @@
             <input
                 type="text"
                 name="last_name"
-                value="{{ old('last_name') }}"
+                value="{{ old('last_name', data_get(session('google_registration'), 'family_name')) }}"
                 autocomplete="family-name"
                 pattern="[A-Za-zÀ-ÿÑñ' -]+"
                 required
@@ -550,26 +565,52 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
+        {{-- REGION --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="region">
+                Region *
+            </label>
+
+            <select
+                id="region"
+                name="region"
+                required
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+            >
+                <option value="">Loading regions...</option>
+            </select>
+
+            @error('region')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+
+        </div>
+
 
         {{-- PROVINCE --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Province *
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="province">
+                Province <span id="province-required">*</span>
             </label>
 
             <select
                 id="province"
                 name="province"
-                required
+                disabled
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
             >
 
                 <option value="">
-                    Loading provinces...
+                    Select region first
                 </option>
 
             </select>
+
+            @error('province')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
 
         </div>
 
@@ -578,7 +619,7 @@
         {{-- MUNICIPALITY --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="municipality">
                 Municipality/City *
             </label>
 
@@ -596,6 +637,10 @@
 
             </select>
 
+            @error('municipality')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+
         </div>
 
 
@@ -603,7 +648,7 @@
         {{-- BARANGAY --}}
         <div>
 
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="barangay">
                 Barangay *
             </label>
 
@@ -620,6 +665,10 @@
                 </option>
 
             </select>
+
+            @error('barangay')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
 
         </div>
 
@@ -1117,166 +1166,130 @@ if (sellerTypeSelect) {
 }
 
 
-const PSGC_API_BASE = '/api/psgc';
-
+// The browser uses narrow Laravel routes only. PSGC provider access and
+// hierarchy validation remain centralized in PhilippineAddressService.
+const ADDRESS_API_BASE = '/address';
+const regionSelect = document.getElementById('region');
 const provinceSelect = document.getElementById('province');
 const municipalitySelect = document.getElementById('municipality');
 const barangaySelect = document.getElementById('barangay');
+const oldRegion = @json(old('region'));
+const oldProvince = @json(old('province'));
+const oldMunicipality = @json(old('municipality'));
+const oldBarangay = @json(old('barangay'));
+const provinceRequired = document.getElementById('province-required');
 
-function setSelectOptions(select, placeholder, items, valueKey = 'name') {
+function resetSelect(select, placeholder) {
+    select.innerHTML = `<option value="">${placeholder}</option>`;
+    select.disabled = true;
+}
 
-    select.innerHTML = '';
-
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = '';
-    placeholderOption.textContent = placeholder;
-    select.appendChild(placeholderOption);
-
-    items.forEach((item) => {
-
+function setOptions(select, placeholder, items, selected = '') {
+    select.innerHTML = `<option value="">${placeholder}</option>`;
+    items.sort((a, b) => a.name.localeCompare(b.name)).forEach((item) => {
         const option = document.createElement('option');
-        option.value = item[valueKey];
+        option.value = item.code;
         option.textContent = item.name;
-        option.dataset.code = item.code;
-
+        option.selected = item.code === selected;
         select.appendChild(option);
-
     });
-
+    select.disabled = items.length === 0;
 }
 
-async function loadProvinces() {
-
-    if (!provinceSelect) {
-        return;
-    }
-
-    try {
-
-        const response = await fetch(`${PSGC_API_BASE}/provinces`);
-
-        if (!response.ok) {
-            throw new Error('Unable to load provinces.');
-        }
-
-        const provinces = await response.json();
-
-        setSelectOptions(provinceSelect, 'Select province', provinces);
-
-    } catch (error) {
-
-        provinceSelect.innerHTML = '<option value="">Unable to load provinces</option>';
-        console.error(error);
-
-    }
-
+async function fetchItems(path) {
+    const response = await fetch(`${ADDRESS_API_BASE}/${path}`, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Address request failed: ${response.status}`);
+    const payload = await response.json();
+    return Array.isArray(payload) ? payload : [];
 }
 
-async function loadMunicipalities(provinceCode) {
-
-    municipalitySelect.innerHTML = '<option value="">Loading municipalities/cities...</option>';
-    municipalitySelect.disabled = true;
-
-    barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
-    barangaySelect.disabled = true;
-
-    try {
-
-        const response = await fetch(
-            `${PSGC_API_BASE}/provinces/${encodeURIComponent(provinceCode)}/cities-municipalities`
-        );
-
-        if (!response.ok) {
-            throw new Error('Unable to load municipalities/cities.');
-        }
-
-        const municipalities = await response.json();
-
-        setSelectOptions(
-            municipalitySelect,
-            'Select municipality/city',
-            municipalities
-        );
-
-        municipalitySelect.disabled = false;
-
-    } catch (error) {
-
-        municipalitySelect.innerHTML = '<option value="">Unable to load municipalities/cities</option>';
-        console.error(error);
-
-    }
-
+function resetProvince() {
+    resetSelect(provinceSelect, 'Select province');
+    provinceSelect.required = false;
+    provinceRequired.classList.add('hidden');
 }
 
-async function loadBarangays(municipalityCode) {
+function resetMunicipalities() {
+    resetSelect(municipalitySelect, 'Select municipality/city');
+}
 
+function resetBarangays() {
+    resetSelect(barangaySelect, 'Select barangay');
+}
+
+async function loadBarangays(cityCode, restore = false) {
+    resetBarangays();
     barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
-    barangaySelect.disabled = true;
-
     try {
-
-        const response = await fetch(
-            `${PSGC_API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/barangays`
-        );
-
-        if (!response.ok) {
-            throw new Error('Unable to load barangays.');
-        }
-
-        const barangays = await response.json();
-
-        setSelectOptions(
-            barangaySelect,
-            'Select barangay',
-            barangays
-        );
-
-        barangaySelect.disabled = false;
-
-    } catch (error) {
-
-        barangaySelect.innerHTML = '<option value="">Unable to load barangays</option>';
-        console.error(error);
-
+        setOptions(barangaySelect, 'Select barangay', await fetchItems(`cities-municipalities/${encodeURIComponent(cityCode)}/barangays`), restore ? oldBarangay : '');
+    } catch (_) {
+        resetSelect(barangaySelect, 'Unable to load barangays. Please retry.');
     }
-
 }
 
-if (provinceSelect && municipalitySelect && barangaySelect) {
+async function loadMunicipalities(parentCode, isRegion = false, restore = false) {
+    resetMunicipalities();
+    resetBarangays();
+    municipalitySelect.innerHTML = '<option value="">Loading municipalities/cities...</option>';
+    try {
+        const parent = isRegion ? 'regions' : 'provinces';
+        setOptions(municipalitySelect, 'Select municipality/city', await fetchItems(`${parent}/${encodeURIComponent(parentCode)}/cities-municipalities`), restore ? oldMunicipality : '');
+        if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+    } catch (_) {
+        resetSelect(municipalitySelect, 'Unable to load municipalities/cities. Please retry.');
+    }
+}
 
-    provinceSelect.addEventListener('change', function () {
-
-        const provinceCode = this.options[this.selectedIndex]?.dataset.code;
-
-        if (!provinceCode) {
-            municipalitySelect.innerHTML = '<option value="">Select province first</option>';
-            municipalitySelect.disabled = true;
-            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
-            barangaySelect.disabled = true;
+async function loadRegionChildren(regionCode, restore = false) {
+    resetProvince();
+    resetMunicipalities();
+    resetBarangays();
+    provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+    try {
+        const provinces = await fetchItems(`regions/${encodeURIComponent(regionCode)}/provinces`);
+        if (provinces.length > 0) {
+            setOptions(provinceSelect, 'Select province', provinces, restore ? oldProvince : '');
+            provinceSelect.required = true;
+            provinceRequired.classList.remove('hidden');
+            if (restore && oldProvince) await loadMunicipalities(oldProvince, false, true);
             return;
         }
 
-        loadMunicipalities(provinceCode);
+        resetProvince();
+        await loadMunicipalities(regionCode, true, restore);
+    } catch (_) {
+        resetSelect(provinceSelect, 'Unable to load provinces. Please retry.');
+    }
+}
 
-    });
+async function loadRegions() {
+    regionSelect.disabled = true;
+    try {
+        setOptions(regionSelect, 'Select region', await fetchItems('regions'), oldRegion);
+        if (oldRegion) await loadRegionChildren(oldRegion, true);
+    } catch (_) {
+        resetSelect(regionSelect, 'Unable to load regions. Please retry.');
+        regionSelect.disabled = false;
+    }
+}
 
-    municipalitySelect.addEventListener('change', function () {
-
-        const municipalityCode = this.options[this.selectedIndex]?.dataset.code;
-
-        if (!municipalityCode) {
-            barangaySelect.innerHTML = '<option value="">Select municipality/city first</option>';
-            barangaySelect.disabled = true;
+if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
+    regionSelect.addEventListener('change', () => {
+        if (!regionSelect.value) {
+            resetProvince(); resetMunicipalities(); resetBarangays();
             return;
         }
-
-        loadBarangays(municipalityCode);
-
+        loadRegionChildren(regionSelect.value);
     });
-
-    loadProvinces();
-
+    provinceSelect.addEventListener('change', () => {
+        resetMunicipalities(); resetBarangays();
+        if (provinceSelect.value) loadMunicipalities(provinceSelect.value);
+    });
+    municipalitySelect.addEventListener('change', () => {
+        resetBarangays();
+        if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
+    });
+    loadRegions();
 }
 
 function togglePassword(inputId, iconId) {
@@ -1311,5 +1324,8 @@ function togglePassword(inputId, iconId) {
 @endpush
 
 </form>
+
+<div class="mt-6 text-center text-sm text-gray-500">or</div>
+<a class="mt-3 block rounded border px-4 py-3 text-center font-semibold" href="{{ route('auth.google.redirect', ['intent' => 'seller']) }}"><span aria-hidden="true">G</span> Continue with Google</a>
 
 @endsection

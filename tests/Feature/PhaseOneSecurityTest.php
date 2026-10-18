@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\ApplicationDecisionNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,12 @@ class PhaseOneSecurityTest extends TestCase
     public function test_seller_registration_creates_pending_persistent_application(): void
     {
         Storage::fake('seller_documents');
+        Http::fake([
+            'https://psgc.cloud/api/v2/regions' => Http::response(['data' => [['code' => '01', 'name' => 'Region A']]]),
+            'https://psgc.cloud/api/v2/regions/01/provinces' => Http::response(['data' => [['code' => '0101', 'name' => 'Province A']]]),
+            'https://psgc.cloud/api/v2/provinces/0101/cities-municipalities' => Http::response(['data' => [['code' => '010101', 'name' => 'City A']]]),
+            'https://psgc.cloud/api/v2/cities-municipalities/010101/barangays' => Http::response(['data' => [['code' => '010101001', 'name' => 'Barangay A']]]),
+        ]);
         $category = Category::query()->create([
             'name' => 'Fashion',
             'slug' => 'fashion',
@@ -75,9 +82,10 @@ class PhaseOneSecurityTest extends TestCase
             'birthday' => '1995-05-15',
             'phone' => '09170000001',
             'email' => 'seller-applicant@example.com',
-            'province' => 'Laguna',
-            'municipality' => 'Santa Cruz',
-            'barangay' => 'Poblacion',
+            'region' => '01',
+            'province' => '0101',
+            'municipality' => '010101',
+            'barangay' => '010101001',
             'address' => '10 Market Street',
             'business_name' => 'Sela Store',
             'category_id' => $category->id,
@@ -85,8 +93,8 @@ class PhaseOneSecurityTest extends TestCase
             'tin' => '123-456-789-000',
             'valid_id' => UploadedFile::fake()->create('id.jpg', 100, 'image/jpeg'),
             'business_permit' => UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'SellerPass1!',
+            'password_confirmation' => 'SellerPass1!',
             'terms' => '1',
         ]);
 

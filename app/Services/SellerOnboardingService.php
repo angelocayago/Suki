@@ -19,12 +19,12 @@ class SellerOnboardingService
     /**
      * Create a complete pending seller application and its private documents.
      */
-    public function register(array $data): Application
+    public function register(array $data, ?callable $beforeCommit = null): Application
     {
         $storedFiles = [];
 
         try {
-            return DB::transaction(function () use ($data, &$storedFiles): Application {
+            return DB::transaction(function () use ($data, &$storedFiles, $beforeCommit): Application {
                 $category = Category::query()
                     ->where('is_active', true)
                     ->findOrFail($data['category_id']);
@@ -58,6 +58,7 @@ class SellerOnboardingService
                     'recipient' => $fullName,
                     'phone' => $data['phone'],
                     'line1' => $data['address'],
+                    'region' => $data['region'],
                     'barangay' => $data['barangay'],
                     'city' => $data['municipality'],
                     'province' => $data['province'],
@@ -122,6 +123,9 @@ class SellerOnboardingService
                 ]);
                 $application->update(['documents' => $legacyPaths]);
 
+                if ($beforeCommit) {
+                    $beforeCommit($user);
+                }
                 return $application->fresh(['user.sellers.category', 'sellerDocuments']);
             }, 3);
         } catch (Throwable $exception) {
