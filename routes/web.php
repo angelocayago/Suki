@@ -3347,18 +3347,13 @@ Route::get('/my-account', function () use ($requireBuyer) {
         return $redirect;
     }
 
-    $profile = session('buyer_profile', [
-        'first_name' => 'Juan',
-        'last_name' => 'Dela Cruz',
-        'email' => 'juan@example.com',
-        'phone' => '0912 345 6789',
-    ]);
+    /** @var User $user */
+    $user = Auth::user()->fresh();
 
-    if (!session()->has('buyer_profile')) {
-        session()->put('buyer_profile', $profile);
-    }
-
-    return view('buyer.account', compact('profile'));
+    return view(
+        'buyer.account',
+        compact('user')
+    );
 
 })->name('buyer.account');
 
@@ -3375,19 +3370,298 @@ Route::post('/my-account/profile', function (
         return $redirect;
     }
 
-    $request->validate([
-        'first_name' => 'required|string|max:100',
-        'last_name' => 'required|string|max:100',
-        'email' => 'required|email|max:255',
-        'phone' => 'required|string|max:30',
+    /** @var User $user */
+    $user = Auth::user();
+
+   
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normalize phone
+    |--------------------------------------------------------------------------
+    */
+
+    $submittedPhone = preg_replace(
+        '/[\s-]+/',
+        '',
+        trim((string) $request->input('phone'))
+    );
+
+    $normalizedPhone = null;
+
+    if (
+        preg_match('/\A09[0-9]{9}\z/', $submittedPhone)
+    ) {
+        $normalizedPhone = $submittedPhone;
+    }
+
+    if (
+        preg_match('/\A\+639[0-9]{9}\z/', $submittedPhone)
+    ) {
+        $normalizedPhone =
+            '0' . substr($submittedPhone, 3);
+    }
+
+    if ($normalizedPhone !== null) {
+        $request->merge([
+            'phone' => $normalizedPhone,
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normalize email
+    |--------------------------------------------------------------------------
+    */
+
+    $request->merge([
+        'email' => strtolower(
+            trim((string) $request->input('email'))
+        ),
     ]);
 
-    session()->put('buyer_profile', [
-        'first_name' => $request->first_name,
-        'last_name' => $request->last_name,
-        'email' => $request->email,
-        'phone' => $request->phone,
+    /*
+    |--------------------------------------------------------------------------
+    | Validate
+    |--------------------------------------------------------------------------
+    */
+
+    $validated = $request->validate([
+
+        'first_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+        ],
+
+        'middle_initial' => [
+            'nullable',
+            'string',
+            'max:10',
+        ],
+
+        'last_name' => [
+            'required',
+            'string',
+            'min:2',
+            'max:50',
+        ],
+
+        'sex' => [
+            'required',
+            \Illuminate\Validation\Rule::in([
+                'Male',
+                'Female',
+            ]),
+        ],
+
+        'birthday' => [
+    'required',
+    'date_format:Y-m-d',
+    'before_or_equal:' .
+        \Illuminate\Support\Carbon::today('Asia/Manila')
+            ->subYears(18)
+            ->toDateString(),
+],
+
+        'email' => [
+            'required',
+            'email',
+            'max:255',
+
+            \Illuminate\Validation\Rule::unique(
+                'users',
+                'email'
+            )->ignore($user->id),
+        ],
+
+        'phone' => [
+            'required',
+            'string',
+
+            function (
+                $attribute,
+                $value,
+                $fail
+            ) use (
+                $normalizedPhone,
+                $user
+            ) {
+
+                if ($normalizedPhone === null) {
+                    $fail(
+                        'Enter a valid Philippine mobile number.'
+                    );
+
+                    return;
+                }
+
+                $internationalPhone =
+                    '+63' . substr(
+                        $normalizedPhone,
+                        1
+                    );
+
+                $exists = User::query()
+                    ->where('id', '!=', $user->id)
+                    ->where(function ($query) use (
+                        $normalizedPhone,
+                        $internationalPhone
+                    ) {
+                        $query
+                            ->where(
+                                'phone',
+                                $normalizedPhone
+                            )
+                            ->orWhere(
+                                'phone',
+                                $internationalPhone
+                            );
+                    })
+                    ->exists();
+
+                if ($exists) {
+                    $fail(
+                        'This phone number has already been taken.'
+                    );
+                }
+            },
+        ],
+
+        'profile_photo' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:2048',
+        ],
+
+    ], [
+
+     'birthday.before_or_equal' =>
+        'You must be at least 18 years old.',
+
+        'profile_photo.max' =>
+            'Profile picture must not exceed 2 MB.',
+
+        'profile_photo.mimes' =>
+            'Profile picture must be JPG, PNG, or WEBP.',
+
     ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Upload profile photo
+    |--------------------------------------------------------------------------
+    */
+
+    $oldPhotoPath = $user->profile_photo_path;
+
+$newPhotoPath = null;
+
+if ($request->hasFile('profile_photo')) {
+
+    $newPhotoPath = Storage::disk('s3')->putFile(
+        'buyer-profiles/' . $user->id,
+        $request->file('profile_photo')
+    );
+
+    if (! $newPhotoPath) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'profile_photo' =>
+                'Unable to upload profile picture. Please try again.',
+        ]);
+    }
+}
+
+    /*
+    |--------------------------------------------------------------------------
+    | Build full name
+    |--------------------------------------------------------------------------
+    */
+
+    $fullName = implode(
+        ' ',
+        array_filter([
+            $validated['first_name'],
+            $validated['middle_initial'] ?? null,
+            $validated['last_name'],
+        ])
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Save profile
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+
+        DB::transaction(function () use (
+            $user,
+            $validated,
+            $fullName,
+            $newPhotoPath
+        ) {
+
+            $user->first_name =
+                $validated['first_name'];
+
+            $user->middle_initial =
+                $validated['middle_initial'] ?? null;
+
+            $user->last_name =
+                $validated['last_name'];
+
+            $user->sex =
+                $validated['sex'];
+
+            $user->birthday =
+                $validated['birthday'];
+
+            $user->name =
+                $fullName;
+
+            $user->email =
+                $validated['email'];
+
+            $user->phone =
+                $validated['phone'];
+
+            if ($newPhotoPath !== null) {
+                $user->profile_photo_path =
+                    $newPhotoPath;
+            }
+
+            $user->save();
+        });
+
+    } catch (\Throwable $exception) {
+
+        if ($newPhotoPath !== null) {
+            Storage::disk('s3')->delete(
+                $newPhotoPath
+            );
+        }
+
+        throw $exception;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Delete old photo if replaced
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $newPhotoPath !== null
+        && $oldPhotoPath
+    ) {
+        Storage::disk('s3')->delete(
+            $oldPhotoPath
+        );
+    }
 
     return redirect()
         ->route('buyer.account')
@@ -3397,6 +3671,47 @@ Route::post('/my-account/profile', function (
         );
 
 })->name('buyer.account.update');
+
+
+// =====================================================
+// REMOVE BUYER PROFILE PHOTO
+// =====================================================
+
+Route::post(
+    '/my-account/profile/photo/remove',
+    function () use ($requireBuyer) {
+
+        if ($redirect = $requireBuyer()) {
+            return $redirect;
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        $photoPath =
+            $user->profile_photo_path;
+
+        if ($photoPath) {
+
+            $user->profile_photo_path = null;
+            $user->save();
+
+            Storage::disk('s3')->delete(
+                $photoPath
+            );
+        }
+
+        return redirect()
+            ->route('buyer.account')
+            ->with(
+                'success',
+                'Profile picture removed successfully.'
+            );
+
+    }
+)->name(
+    'buyer.account.photo.remove'
+);
 
 
 // =====================================================

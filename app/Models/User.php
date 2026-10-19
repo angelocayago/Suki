@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -23,41 +24,61 @@ class User extends Authenticatable
      * with the existing SUKI application.
      */
     protected $fillable = [
-        'role',
-        'first_name',
-        'last_name',
-        'middle_initial',
-        'sex',
-        'birthday',
-        'government_id',
-        'name',
-        'email',
-        'phone',
-        'status',
-        'is_suspended',
-        'password',
-    ];
+    'role',
+    'first_name',
+    'last_name',
+    'middle_initial',
+    'sex',
+    'birthday',
+    'government_id',
+    'name',
+    'email',
+    'phone',
+    'status',
+    'is_suspended',
+    'password',
+    'profile_photo_path',
+];
 
-    /**
-     * Fields hidden from serialization.
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+/**
+ * Fields hidden from serialization.
+ */
+protected $hidden = [
+    'password',
+    'remember_token',
+];
 
-    /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_suspended' => 'boolean',
-        ];
+/**
+ * Automatic data conversion.
+ */
+protected function casts(): array
+{
+    return [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_suspended' => 'boolean',
+        'birthday' => 'date',
+    ];
+}
+
+/**
+ * Get the public URL of the buyer's profile photo.
+ */
+public function getProfilePhotoUrlAttribute(): ?string
+{
+    if (! $this->profile_photo_path) {
+        return null;
     }
 
+    $path = ltrim(
+        $this->profile_photo_path,
+        '/'
+    );
+
+    return 'https://yzvcdrjriziejmecewci.supabase.co'
+        . '/storage/v1/object/public/profile-pictures/'
+        . $path;
+}
     /**
      * New role architecture.
      */

@@ -2,6 +2,15 @@
 
 @section('content')
 
+@php
+    $profilePhotoUrl = $user->profile_photo_url;
+  $maxBirthday = \Illuminate\Support\Carbon::today('Asia/Manila')
+        ->subYears(18)
+        ->toDateString();
+@endphp
+
+
+
 <div class="min-h-screen bg-[#F8FAF8]">
 
     <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -72,167 +81,323 @@
 
                     <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-between gap-4">
 
-                            {{-- AVATAR --}}
-                            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#DDF3EC]">
+    <div class="flex items-center gap-4">
 
-                                <i
-                                    data-lucide="user"
-                                    class="h-7 w-7 text-[#1F6F5B]"
-                                ></i>
+        {{-- AVATAR --}}
+        <div
+            class="flex h-20 w-20 shrink-0
+                   items-center justify-center
+                   overflow-hidden rounded-full
+                   border-2 border-white
+                   bg-[#DDF3EC]
+                   shadow-sm ring-1 ring-gray-200"
+        >
 
-                            </div>
+            @if($profilePhotoUrl)
+
+                <img
+                    src="{{ $profilePhotoUrl }}"
+                    alt="Profile picture"
+                    class="h-full w-full object-cover"
+                >
+
+            @else
+
+                <i
+                    data-lucide="user-round"
+                    class="h-8 w-8 text-[#1F6F5B]"
+                ></i>
+
+            @endif
+
+        </div>
 
 
-                            <div>
+        {{-- NAME + EMAIL --}}
+        <div>
 
-                                <h2 class="text-lg font-semibold text-gray-900">
-                                    {{ session('buyer_profile.first_name', 'SUKI SHOP Buyer') }}
-                                    {{ session('buyer_profile.last_name', '') }}
-                                </h2>
+            <h2 class="text-lg font-semibold text-gray-900">
 
-                                <p class="mt-1 text-sm text-gray-500">
-                                    {{ session('buyer_profile.email', 'buyer@suki.com') }}
-                                </p>
+                {{ $user->first_name ?? 'SUKI SHOP' }}
 
-                            </div>
+                @if($user->middle_initial)
+                    {{ $user->middle_initial }}.
+                @endif
 
-                        </div>
+                {{ $user->last_name ?? 'Buyer' }}
+
+            </h2>
 
 
-                        <button
-                            type="button"
-                            onclick="openEditProfile()"
-                            class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1F6F5B] bg-white px-4 py-2.5 text-sm font-semibold text-[#1F6F5B] transition hover:bg-[#EEF8F3]"
-                        >
+            <p class="mt-1 text-sm text-gray-500">
 
-                            <i
-                                data-lucide="pencil"
-                                class="h-4 w-4"
-                            ></i>
+                {{ $user->email }}
 
-                            Edit Profile
+            </p>
 
-                        </button>
+        </div>
 
-                    </div>
+    </div>
+
+
+    {{-- ACTIONS --}}
+    <div class="flex flex-wrap items-center gap-2">
+
+        @if($profilePhotoUrl)
+
+            <form
+                action="{{ route('buyer.account.photo.remove') }}"
+                method="POST"
+            >
+
+                @csrf
+
+                <button
+                    type="submit"
+                    onclick="return confirm('Remove your profile picture?')"
+                    class="inline-flex items-center
+                           justify-center gap-2
+                           rounded-xl
+                           border border-red-200
+                           bg-white px-4 py-2.5
+                           text-sm font-semibold
+                           text-red-500 transition
+                           hover:bg-red-50"
+                >
+
+                    <i
+                        data-lucide="trash-2"
+                        class="h-4 w-4"
+                    ></i>
+
+                    Remove Photo
+
+                </button>
+
+            </form>
+
+        @endif
+
+
+        <button
+            type="button"
+            onclick="openEditProfile()"
+            class="inline-flex items-center
+                   justify-center gap-2
+                   rounded-xl
+                   border border-[#1F6F5B]
+                   bg-white px-4 py-2.5
+                   text-sm font-semibold
+                   text-[#1F6F5B]
+                   transition
+                   hover:bg-[#EEF8F3]"
+        >
+
+            <i
+                data-lucide="pencil"
+                class="h-4 w-4"
+            ></i>
+
+            Edit Profile
+
+        </button>
+
+    </div>
+
+</div>
 
                 </div>
 
 
                 {{-- PROFILE INFORMATION --}}
-                <div class="p-5 sm:p-6">
+<div class="p-5 sm:p-6">
 
-                    <div class="mb-5">
+    <div class="mb-5">
 
-                        <h3 class="text-sm font-semibold text-gray-900">
-                            Personal Information
-                        </h3>
+        <h3 class="text-sm font-semibold text-gray-900">
+            Personal Information
+        </h3>
 
-                        <p class="mt-1 text-xs text-gray-500">
-                            Your basic account information.
-                        </p>
+        <p class="mt-1 text-xs text-gray-500">
+            Your basic account information.
+        </p>
 
-                    </div>
-
-
-                    <div class="grid gap-5 sm:grid-cols-2">
-
-                        {{-- FIRST NAME --}}
-                        <div>
-
-                            <p class="text-xs font-medium text-gray-400">
-                                First Name
-                            </p>
-
-                            <div class="mt-2 flex items-center gap-2">
-
-                                <i
-                                    data-lucide="user"
-                                    class="h-4 w-4 text-gray-400"
-                                ></i>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    {{ session('buyer_profile.first_name', 'Not provided') }}
-                                </span>
-
-                            </div>
-
-                        </div>
+    </div>
 
 
-                        {{-- LAST NAME --}}
-                        <div>
+    <div class="grid gap-5 sm:grid-cols-2">
 
-                            <p class="text-xs font-medium text-gray-400">
-                                Last Name
-                            </p>
+        {{-- FIRST NAME --}}
+        <div>
 
-                            <div class="mt-2 flex items-center gap-2">
+            <p class="text-xs font-medium text-gray-400">
+                First Name
+            </p>
 
-                                <i
-                                    data-lucide="user"
-                                    class="h-4 w-4 text-gray-400"
-                                ></i>
+            <div class="mt-2 flex items-center gap-2">
 
-                                <span class="text-sm font-medium text-gray-700">
-                                    {{ session('buyer_profile.last_name', 'Not provided') }}
-                                </span>
+                <i
+                    data-lucide="user"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
 
-                            </div>
+                <span class="text-sm font-medium text-gray-700">
+                    {{ $user->first_name ?: 'Not provided' }}
+                </span>
 
-                        </div>
+            </div>
 
-
-                        {{-- PHONE --}}
-                        <div>
-
-                            <p class="text-xs font-medium text-gray-400">
-                                Phone Number
-                            </p>
-
-                            <div class="mt-2 flex items-center gap-2">
-
-                                <i
-                                    data-lucide="phone"
-                                    class="h-4 w-4 text-gray-400"
-                                ></i>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    {{ session('buyer_profile.phone', 'Not provided') }}
-                                </span>
-
-                            </div>
-
-                        </div>
+        </div>
 
 
-                        {{-- EMAIL --}}
-                        <div>
+        {{-- MIDDLE INITIAL --}}
+        <div>
 
-                            <p class="text-xs font-medium text-gray-400">
-                                Email Address
-                            </p>
+            <p class="text-xs font-medium text-gray-400">
+                Middle Initial
+            </p>
 
-                            <div class="mt-2 flex items-center gap-2">
+            <div class="mt-2 flex items-center gap-2">
 
-                                <i
-                                    data-lucide="mail"
-                                    class="h-4 w-4 text-gray-400"
-                                ></i>
+                <i
+                    data-lucide="user"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
 
-                                <span class="break-all text-sm font-medium text-gray-700">
-                                    {{ session('buyer_profile.email', 'Not provided') }}
-                                </span>
+                <span class="text-sm font-medium text-gray-700">
+                    {{ $user->middle_initial ?: 'Not provided' }}
+                </span>
 
-                            </div>
+            </div>
 
-                        </div>
+        </div>
 
-                    </div>
 
-                </div>
+        {{-- LAST NAME --}}
+        <div>
+
+            <p class="text-xs font-medium text-gray-400">
+                Last Name
+            </p>
+
+            <div class="mt-2 flex items-center gap-2">
+
+                <i
+                    data-lucide="user"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
+
+                <span class="text-sm font-medium text-gray-700">
+                    {{ $user->last_name ?: 'Not provided' }}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        {{-- SEX --}}
+        <div>
+
+            <p class="text-xs font-medium text-gray-400">
+                Sex
+            </p>
+
+            <div class="mt-2 flex items-center gap-2">
+
+                <i
+                    data-lucide="users"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
+
+                <span class="text-sm font-medium text-gray-700">
+                    {{ $user->sex ?: 'Not provided' }}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        {{-- BIRTHDAY --}}
+        <div>
+
+            <p class="text-xs font-medium text-gray-400">
+                Birthday
+            </p>
+
+            <div class="mt-2 flex items-center gap-2">
+
+                <i
+                    data-lucide="calendar"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
+
+                <span class="text-sm font-medium text-gray-700">
+                    {{
+                        $user->birthday
+                            ? $user->birthday->format('F d, Y')
+                            : 'Not provided'
+                    }}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        {{-- PHONE --}}
+        <div>
+
+            <p class="text-xs font-medium text-gray-400">
+                Phone Number
+            </p>
+
+            <div class="mt-2 flex items-center gap-2">
+
+                <i
+                    data-lucide="phone"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
+
+                <span class="text-sm font-medium text-gray-700">
+                    {{ $user->phone ?: 'Not provided' }}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        {{-- EMAIL --}}
+        <div class="sm:col-span-2">
+
+            <p class="text-xs font-medium text-gray-400">
+                Email Address
+            </p>
+
+            <div class="mt-2 flex items-center gap-2">
+
+                <i
+                    data-lucide="mail"
+                    class="h-4 w-4 text-gray-400"
+                ></i>
+
+                <span class="break-all text-sm font-medium text-gray-700">
+                    {{ $user->email }}
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 
             </section>
 
@@ -504,86 +669,343 @@
 
         {{-- FORM --}}
         <form
-            action="{{ route('buyer.account.update') }}"
-            method="POST"
-        >
+    action="{{ route('buyer.account.update') }}"
+    method="POST"
+    enctype="multipart/form-data"
+>
 
             @csrf
 
-            <div class="space-y-4 px-5 py-5">
+            <div class="space-y-5 px-5 py-5">
 
-                <div class="grid gap-4 sm:grid-cols-2">
+    {{-- PROFILE PICTURE --}}
+    <div
+        class="flex flex-col items-center
+               rounded-2xl border
+               border-gray-100
+               bg-[#F8FAF8]
+               p-5"
+    >
 
-                    <div>
+        <div
+            class="h-24 w-24
+                   overflow-hidden
+                   rounded-full
+                   bg-[#DDF3EC]
+                   ring-1 ring-gray-200"
+        >
 
-                        <label class="text-xs font-medium text-gray-600">
-                            First Name
-                        </label>
+            <img
+                id="profilePhotoPreview"
+                src="{{ $profilePhotoUrl ?: '' }}"
+                alt="Profile preview"
+                class="{{ $profilePhotoUrl ? '' : 'hidden' }}
+                       h-full w-full object-cover"
+            >
 
-                        <input
-                            type="text"
-                            name="first_name"
-                            value="{{ session('buyer_profile.first_name', '') }}"
-                            required
-                            class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                        >
+            <div
+                id="profilePhotoPlaceholder"
+                class="{{ $profilePhotoUrl ? 'hidden' : 'flex' }}
+                       h-full w-full
+                       items-center
+                       justify-center"
+            >
 
-                    </div>
-
-
-                    <div>
-
-                        <label class="text-xs font-medium text-gray-600">
-                            Last Name
-                        </label>
-
-                        <input
-                            type="text"
-                            name="last_name"
-                            value="{{ session('buyer_profile.last_name', '') }}"
-                            required
-                            class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <div>
-
-                    <label class="text-xs font-medium text-gray-600">
-                        Phone Number
-                    </label>
-
-                    <input
-                        type="text"
-                        name="phone"
-                        value="{{ session('buyer_profile.phone', '') }}"
-                        required
-                        class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                    >
-
-                </div>
-
-
-                <div>
-
-                    <label class="text-xs font-medium text-gray-600">
-                        Email Address
-                    </label>
-
-                    <input
-                        type="email"
-                        name="email"
-                        value="{{ session('buyer_profile.email', '') }}"
-                        required
-                        class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                    >
-
-                </div>
+                <i
+                    data-lucide="user-round"
+                    class="h-10 w-10 text-[#1F6F5B]"
+                ></i>
 
             </div>
+
+        </div>
+
+        <label
+            for="profile_photo"
+            class="mt-4 cursor-pointer
+                   rounded-xl
+                   border border-[#1F6F5B]
+                   bg-white
+                   px-4 py-2
+                   text-xs font-semibold
+                   text-[#1F6F5B]
+                   transition
+                   hover:bg-[#EEF8F3]"
+        >
+            Choose Profile Picture
+        </label>
+
+        <input
+            id="profile_photo"
+            name="profile_photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="hidden"
+            onchange="previewProfilePhoto(this)"
+        >
+
+        <p
+            id="selectedProfilePhotoName"
+            class="mt-2 max-w-full truncate
+                   text-xs text-gray-500"
+        ></p>
+
+        <p class="mt-2 text-center text-[11px] text-gray-400">
+            JPG, PNG or WEBP · Maximum 2 MB
+        </p>
+
+        @error('profile_photo')
+            <p class="mt-2 text-xs text-red-600">
+                {{ $message }}
+            </p>
+        @enderror
+
+    </div>
+
+
+    {{-- NAME FIELDS --}}
+    <div class="grid gap-4 sm:grid-cols-2">
+
+        <div>
+
+            <label class="text-xs font-medium text-gray-600">
+                First Name
+            </label>
+
+            <input
+                type="text"
+                name="first_name"
+                value="{{ old('first_name', $user->first_name) }}"
+                required
+                class="mt-2 w-full
+                       rounded-xl border
+                       border-gray-200
+                       px-4 py-3 text-sm
+                       outline-none transition
+                       focus:border-[#1F6F5B]
+                       focus:ring-2
+                       focus:ring-[#DDF3EC]"
+            >
+
+            @error('first_name')
+                <p class="mt-1 text-xs text-red-600">
+                    {{ $message }}
+                </p>
+            @enderror
+
+        </div>
+
+
+        <div>
+
+            <label class="text-xs font-medium text-gray-600">
+                Middle Initial
+            </label>
+
+            <input
+                type="text"
+                name="middle_initial"
+                value="{{ old('middle_initial', $user->middle_initial) }}"
+                maxlength="10"
+                class="mt-2 w-full
+                       rounded-xl border
+                       border-gray-200
+                       px-4 py-3 text-sm
+                       outline-none transition
+                       focus:border-[#1F6F5B]
+                       focus:ring-2
+                       focus:ring-[#DDF3EC]"
+            >
+
+            @error('middle_initial')
+                <p class="mt-1 text-xs text-red-600">
+                    {{ $message }}
+                </p>
+            @enderror
+
+        </div>
+
+
+        <div class="sm:col-span-2">
+
+            <label class="text-xs font-medium text-gray-600">
+                Last Name
+            </label>
+
+            <input
+                type="text"
+                name="last_name"
+                value="{{ old('last_name', $user->last_name) }}"
+                required
+                class="mt-2 w-full
+                       rounded-xl border
+                       border-gray-200
+                       px-4 py-3 text-sm
+                       outline-none transition
+                       focus:border-[#1F6F5B]
+                       focus:ring-2
+                       focus:ring-[#DDF3EC]"
+            >
+
+            @error('last_name')
+                <p class="mt-1 text-xs text-red-600">
+                    {{ $message }}
+                </p>
+            @enderror
+
+        </div>
+
+    </div>
+
+
+    {{-- SEX + BIRTHDAY --}}
+    <div class="grid gap-4 sm:grid-cols-2">
+
+        <div>
+
+            <label class="text-xs font-medium text-gray-600">
+                Sex
+            </label>
+
+            <select
+                name="sex"
+                required
+                class="mt-2 w-full
+                       rounded-xl border
+                       border-gray-200
+                       bg-white
+                       px-4 py-3 text-sm
+                       outline-none
+                       focus:border-[#1F6F5B]
+                       focus:ring-2
+                       focus:ring-[#DDF3EC]"
+            >
+
+                <option value="">
+                    Select
+                </option>
+
+                <option
+                    value="Male"
+                    @selected(old('sex', $user->sex) === 'Male')
+                >
+                    Male
+                </option>
+
+                <option
+                    value="Female"
+                    @selected(old('sex', $user->sex) === 'Female')
+                >
+                    Female
+                </option>
+
+            </select>
+
+            @error('sex')
+                <p class="mt-1 text-xs text-red-600">
+                    {{ $message }}
+                </p>
+            @enderror
+
+        </div>
+
+
+        <div>
+
+            <label class="text-xs font-medium text-gray-600">
+                Birthday
+            </label>
+
+            <input
+    type="date"
+    name="birthday"
+    value="{{ old('birthday', $user->birthday?->format('Y-m-d')) }}"
+    max="{{ $maxBirthday }}"
+    required
+    class="mt-2 w-full
+           rounded-xl border
+           border-gray-200
+           px-4 py-3 text-sm
+           outline-none
+           focus:border-[#1F6F5B]
+           focus:ring-2
+           focus:ring-[#DDF3EC]"
+>
+
+            @error('birthday')
+                <p class="mt-1 text-xs text-red-600">
+                    {{ $message }}
+                </p>
+            @enderror
+
+        </div>
+
+    </div>
+
+
+    {{-- PHONE --}}
+    <div>
+
+        <label class="text-xs font-medium text-gray-600">
+            Phone Number
+        </label>
+
+        <input
+            type="tel"
+            name="phone"
+            value="{{ old('phone', $user->phone) }}"
+            placeholder="09XXXXXXXXX"
+            required
+            class="mt-2 w-full
+                   rounded-xl border
+                   border-gray-200
+                   px-4 py-3 text-sm
+                   outline-none
+                   focus:border-[#1F6F5B]
+                   focus:ring-2
+                   focus:ring-[#DDF3EC]"
+        >
+
+        @error('phone')
+            <p class="mt-1 text-xs text-red-600">
+                {{ $message }}
+            </p>
+        @enderror
+
+    </div>
+
+
+    {{-- EMAIL --}}
+    <div>
+
+        <label class="text-xs font-medium text-gray-600">
+            Email Address
+        </label>
+
+        <input
+            type="email"
+            name="email"
+            value="{{ old('email', $user->email) }}"
+            required
+            class="mt-2 w-full
+                   rounded-xl border
+                   border-gray-200
+                   px-4 py-3 text-sm
+                   outline-none
+                   focus:border-[#1F6F5B]
+                   focus:ring-2
+                   focus:ring-[#DDF3EC]"
+        >
+
+        @error('email')
+            <p class="mt-1 text-xs text-red-600">
+                {{ $message }}
+            </p>
+        @enderror
+
+    </div>
+
+</div>
 
 
             {{-- BUTTONS --}}
@@ -751,62 +1173,216 @@
 
 <script>
 
+    function previewProfilePhoto(input) {
+
+        const file = input.files?.[0];
+
+        const preview =
+            document.getElementById('profilePhotoPreview');
+
+        const placeholder =
+            document.getElementById('profilePhotoPlaceholder');
+
+        const fileName =
+            document.getElementById('selectedProfilePhotoName');
+
+
+        if (!file) {
+            return;
+        }
+
+
+        const allowedTypes = [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+        ];
+
+
+        if (!allowedTypes.includes(file.type)) {
+
+            alert(
+                'Please choose a JPG, PNG, or WEBP image.'
+            );
+
+            input.value = '';
+
+            return;
+        }
+
+
+        if (file.size > 2 * 1024 * 1024) {
+
+            alert(
+                'Profile picture must be 2 MB or smaller.'
+            );
+
+            input.value = '';
+
+            return;
+        }
+
+
+        preview.src =
+            URL.createObjectURL(file);
+
+        preview.classList.remove(
+            'hidden'
+        );
+
+        placeholder.classList.add(
+            'hidden'
+        );
+
+        fileName.textContent =
+            file.name;
+    }
+
+
     function openEditProfile() {
-        const modal = document.getElementById('editProfileModal');
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        const modal =
+            document.getElementById(
+                'editProfileModal'
+            );
 
-        document.body.classList.add('overflow-hidden');
+        modal.classList.remove(
+            'hidden'
+        );
+
+        modal.classList.add(
+            'flex'
+        );
+
+        document.body.classList.add(
+            'overflow-hidden'
+        );
     }
 
 
     function closeEditProfile() {
-        const modal = document.getElementById('editProfileModal');
 
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        const modal =
+            document.getElementById(
+                'editProfileModal'
+            );
 
-        document.body.classList.remove('overflow-hidden');
+        modal.classList.add(
+            'hidden'
+        );
+
+        modal.classList.remove(
+            'flex'
+        );
+
+        document.body.classList.remove(
+            'overflow-hidden'
+        );
     }
 
 
     function openPasswordModal() {
-        const modal = document.getElementById('passwordModal');
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        const modal =
+            document.getElementById(
+                'passwordModal'
+            );
 
-        document.body.classList.add('overflow-hidden');
+        modal.classList.remove(
+            'hidden'
+        );
+
+        modal.classList.add(
+            'flex'
+        );
+
+        document.body.classList.add(
+            'overflow-hidden'
+        );
     }
 
 
     function closePasswordModal() {
-        const modal = document.getElementById('passwordModal');
 
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        const modal =
+            document.getElementById(
+                'passwordModal'
+            );
 
-        document.body.classList.remove('overflow-hidden');
+        modal.classList.add(
+            'hidden'
+        );
+
+        modal.classList.remove(
+            'flex'
+        );
+
+        document.body.classList.remove(
+            'overflow-hidden'
+        );
     }
 
 
-    document.getElementById('editProfileModal')?.addEventListener('click', function(event) {
+    document
+        .getElementById(
+            'editProfileModal'
+        )
+        ?.addEventListener(
+            'click',
+            function (event) {
 
-        if (event.target === this) {
-            closeEditProfile();
-        }
+                if (event.target === this) {
+                    closeEditProfile();
+                }
 
-    });
+            }
+        );
 
 
-    document.getElementById('passwordModal')?.addEventListener('click', function(event) {
+    document
+        .getElementById(
+            'passwordModal'
+        )
+        ?.addEventListener(
+            'click',
+            function (event) {
 
-        if (event.target === this) {
-            closePasswordModal();
-        }
+                if (event.target === this) {
+                    closePasswordModal();
+                }
 
-    });
+            }
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Re-open Edit Profile modal
+    | kapag may validation error
+    |--------------------------------------------------------------------------
+    */
+
+    @if(
+        $errors->hasAny([
+            'first_name',
+            'middle_initial',
+            'last_name',
+            'sex',
+            'birthday',
+            'phone',
+            'email',
+            'profile_photo'
+        ])
+    )
+
+        document.addEventListener(
+            'DOMContentLoaded',
+            function () {
+                openEditProfile();
+            }
+        );
+
+    @endif
 
 </script>
 
