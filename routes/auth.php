@@ -4,6 +4,8 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\BuyerEmailVerificationController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SellerEmailVerificationController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -46,10 +48,35 @@ Route::middleware('guest')->group(function () {
     ])->middleware('throttle:3,5')->name('seller.email.otp.resend');
 
 
+    // Login
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+
+    // Forgot Password
+    Route::get('forgot-password', [
+        PasswordResetLinkController::class,
+        'create'
+    ])->name('password.request');
+
+    Route::post('forgot-password', [
+        PasswordResetLinkController::class,
+        'store'
+    ])->name('password.email');
+
+
+    // Reset Password
+    Route::get('reset-password/{token}', [
+        NewPasswordController::class,
+        'create'
+    ])->name('password.reset');
+
+    Route::post('reset-password', [
+        NewPasswordController::class,
+        'store'
+    ])->name('password.store');
 });
 
 Route::middleware('auth')->group(function () {
