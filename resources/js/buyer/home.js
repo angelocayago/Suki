@@ -73,8 +73,8 @@ const initHome = () => {
 
     if (totalSlides > 0) {
         dots.forEach((dot) => dot.addEventListener('click', handleDotClick));
-        if (prevBtn) prevBtn.addEventListener('click', next);
-        if (nextBtn) nextBtn.addEventListener('click', prev);
+        if (prevBtn) prevBtn.addEventListener('click', prev);
+        if (nextBtn) nextBtn.addEventListener('click', next);
         startAutoplay();
     }
 

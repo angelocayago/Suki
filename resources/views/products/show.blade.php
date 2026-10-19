@@ -89,6 +89,39 @@
             </a>
           @else
             <span class="text-slate-800">{{ $product->sellerUser->business_name ?? $product->sellerUser->name ?? 'Unknown' }}</span>
+
+        @if($product->sellerUser)
+          <div class="mb-3">
+            @auth
+              @if(Auth::user()->isCustomer() && Auth::id() !== $product->sellerUser->id)
+                <a
+                  href="{{ route('buyer.messages.show', $product->sellerUser) }}"
+                  class="btn btn-outline-primary rounded-xl"
+                >
+                  <i class="bi bi-chat-dots-fill me-1"></i>
+                  Message Seller
+                </a>
+              @elseif(Auth::id() === $product->sellerUser->id)
+                <a
+                  href="{{ route('seller.messages.index') }}"
+                  class="btn btn-outline-secondary rounded-xl"
+                >
+                  <i class="bi bi-chat-dots me-1"></i>
+                  Open Messages
+                </a>
+              @endif
+            @else
+              <a
+                href="{{ route('login') }}"
+                class="btn btn-outline-primary rounded-xl"
+              >
+                <i class="bi bi-chat-dots-fill me-1"></i>
+                Login to Message Seller
+              </a>
+            @endauth
+          </div>
+        @endif
+
           @endif
         </span>
         @if($product->stock > 0)

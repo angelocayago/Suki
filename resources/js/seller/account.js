@@ -13,19 +13,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const data = parseJsonElement('seller-account-data');
 
-  const birthdayInput = document.querySelector('input[name="birthday"]:not([hidden])');
-  const ageInput = document.querySelector('input[name="age"][hidden]');
+  const birthdayInput = document.getElementById('birthday');
+  const ageInput = document.getElementById('age');
+
+  function updateAge() {
+    if (!birthdayInput || !ageInput || !birthdayInput.value) {
+      if (ageInput) ageInput.value = '';
+      return;
+    }
+
+    const parts = birthdayInput.value.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) {
+      ageInput.value = '';
+      return;
+    }
+
+    const [year, month, day] = parts;
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    const monthDiff = (today.getMonth() + 1) - month;
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) {
+      age--;
+    }
+
+    ageInput.value = age >= 0 ? age : '';
+  }
+
   if (birthdayInput && ageInput) {
-    birthdayInput.addEventListener('change', function () {
-      const birthday = new Date(this.value);
-      const today = new Date();
-      let age = today.getFullYear() - birthday.getFullYear();
-      const monthDiff = today.getMonth() - birthday.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
-        age--;
-      }
-      ageInput.value = age >= 0 ? age : '';
-    });
+    birthdayInput.addEventListener('change', updateAge);
+    updateAge();
   }
 
   const regionSelect = document.getElementById('region');

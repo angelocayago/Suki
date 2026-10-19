@@ -23,8 +23,31 @@ class ProductController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
+        /*
+         * Category filtering:
+         * - Main category: include products assigned directly to it
+         *   and products assigned to any of its subcategories.
+         * - Subcategory: show only that subcategory.
+         */
+        $selectedCategory = null;
+
         if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
+            $selectedCategory = Category::with(['parent', 'subcategories'])
+                ->find($request->category);
+
+            if ($selectedCategory) {
+                if ($selectedCategory->parent_id === null) {
+                    $categoryIds = $selectedCategory->subcategories
+                        ->pluck('id')
+                        ->prepend($selectedCategory->id)
+                        ->values()
+                        ->all();
+
+                    $query->whereIn('category_id', $categoryIds);
+                } else {
+                    $query->where('category_id', $selectedCategory->id);
+                }
+            }
         }
 
         // Input is in pesos; database money is stored in centavos.
@@ -45,11 +68,34 @@ class ProductController extends Controller
         }
 
         $products = $query->paginate(12);
-        $categories = Category::all();
+
+        /*
+         * Only the official BiliHub main categories are shown in the sidebar.
+         * This prevents old/legacy category records from appearing as separate
+         * top-level entries.
+         */
+        $officialMainSlugs = array_keys(
+            config('categories.subcategories', [])
+        );
+
+        $categories = Category::query()
+            ->whereNull('parent_id')
+            ->whereIn('slug', $officialMainSlugs)
+            ->with([
+                'subcategories' => function ($subQuery) {
+                    $subQuery->orderBy('name');
+                },
+            ])
+            ->orderBy('name')
+            ->get();
 
         return view(
             'products.index',
-            compact('products', 'categories')
+            compact(
+                'products',
+                'categories',
+                'selectedCategory'
+            )
         );
     }
 

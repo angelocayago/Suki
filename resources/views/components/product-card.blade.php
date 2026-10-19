@@ -20,7 +20,9 @@
 
 <div class="product-card-flash">
     <div class="product-image-container">
-        <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy">
+        <a href="{{ route('products.show', $product) }}" class="d-block text-decoration-none" aria-label="View {{ $product->name }}">
+            <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy">
+        </a>
 
         @if($product->hasActiveDiscount())
             <span class="discount-badge">-{{ rtrim(rtrim(number_format($discount, 2), '0'), '.') }}%</span>
@@ -49,8 +51,20 @@
     </div>
 
     <div class="product-info">
-        <span class="product-category text-muted">{{ $product->category->name ?? 'Uncategorized' }}</span>
-        <h6 class="product-name" title="{{ $product->name }}">{{ $product->name }}</h6>
+        @if($product->category)
+            <a href="{{ route('products.index', ['category' => $product->category->id]) }}"
+               class="product-category text-muted text-decoration-none">
+                {{ $product->category->name }}
+            </a>
+        @else
+            <span class="product-category text-muted">Uncategorized</span>
+        @endif
+        <h6 class="product-name" title="{{ $product->name }}">
+            <a href="{{ route('products.show', $product) }}"
+               class="text-reset text-decoration-none stretched-product-link">
+                {{ $product->name }}
+            </a>
+        </h6>
 
         <div class="rating-display">
             @for($i = 0; $i < $fullStars; $i++)
@@ -78,9 +92,10 @@
             <div class="progress-fill" style="width: {{ $progress }}%"></div>
         </div>
 
-        <button type="button" class="add-to-cart-btn w-100 mt-2">
-            <i class="bi bi-cart me-1"></i> Add to Cart
-        </button>
+        <a href="{{ route('products.show', $product) }}"
+           class="add-to-cart-btn w-100 mt-2 d-inline-flex align-items-center justify-content-center text-decoration-none">
+            <i class="bi bi-cart me-1"></i> View / Add to Cart
+        </a>
     </div>
 </div>
 

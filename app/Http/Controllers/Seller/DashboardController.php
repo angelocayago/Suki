@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 
@@ -154,7 +155,15 @@ class DashboardController extends Controller
         $seller = Auth::user();
         $allowedCategoryIds = $seller->allowedCategoryIds();
         $categories = Category::whereIn('id', $allowedCategoryIds)->whereNull('parent_id')->get();
-        $subcategoryGroups = Category::whereNotNull('parent_id')->get()->groupBy('parent_id');
+        $configuredSubcategorySlugs = collect(config('categories.subcategories', []))
+            ->flatten(1)
+            ->pluck('slug')
+            ->filter()
+            ->values();
+        $subcategoryGroups = Category::whereNotNull('parent_id')
+            ->whereIn('slug', $configuredSubcategorySlugs)
+            ->get()
+            ->groupBy('parent_id');
         $sizes = Size::all();
         return view('seller.products.create', compact(
             'categories',
@@ -370,7 +379,21 @@ class DashboardController extends Controller
         $categories = Category::whereIn('id', $allowedCategoryIds)
             ->orWhere('id', $product->category_id)
             ->get();
-        $subcategoryGroups = Category::whereNotNull('parent_id')->get()->groupBy('parent_id');
+        $configuredSubcategorySlugs = collect(config('categories.subcategories', []))
+            ->flatten(1)
+            ->pluck('slug')
+            ->filter()
+            ->values();
+        $subcategoryGroups = Category::whereNotNull('parent_id')
+            ->where(function ($query) use ($configuredSubcategorySlugs, $product) {
+                $query->whereIn('slug', $configuredSubcategorySlugs);
+
+                if ($product->subcategory_id) {
+                    $query->orWhere('id', $product->subcategory_id);
+                }
+            })
+            ->get()
+            ->groupBy('parent_id');
         $sizes = Size::all();
         $product->load(['images', 'variations', 'sizes', 'subcategory']);
         return view('seller.products.edit', compact('product', 'categories', 'sizes', 'allowedCategoryIds', 'subcategoryGroups'));
@@ -1552,24 +1575,129 @@ class DashboardController extends Controller
         ));
     }
 
-    public function storefront(User $seller)
+    public function storefront(Request $request, User $seller)
     {
         if (!$seller->hasRole('seller')) {
             abort(404);
         }
 
-        $products = $seller->products()
-            ->with(['category', 'sizes', 'reviews'])
+        $allowedCategoryIds = collect($seller->allowedCategoryIds())
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $sellerCategoriesById = Category::query()
+            ->whereNull('parent_id')
+            ->whereIn('id', $allowedCategoryIds)
+            ->with(['subcategories' => fn ($query) => $query->orderBy('name')])
+            ->get()
+            ->keyBy('id');
+
+        // Preserve the seller's registration order when possible.
+        $sellerCategories = $allowedCategoryIds
+            ->map(fn ($id) => $sellerCategoriesById->get($id))
+            ->filter()
+            ->values();
+
+        // Fallback for legacy seller records that do not have selling_categories.
+        if ($sellerCategories->isEmpty()) {
+            $categoryIdsFromProducts = $seller->products()
+                ->whereNotNull('category_id')
+                ->pluck('category_id');
+
+            $categoriesFromProducts = Category::query()
+                ->whereIn('id', $categoryIdsFromProducts)
+                ->with('parent')
+                ->get();
+
+            $topLevelIds = $categoriesFromProducts
+                ->map(fn ($category) => $category->parent_id ?: $category->id)
+                ->unique()
+                ->values();
+
+            $sellerCategories = Category::query()
+                ->whereNull('parent_id')
+                ->whereIn('id', $topLevelIds)
+                ->with(['subcategories' => fn ($query) => $query->orderBy('name')])
+                ->orderBy('name')
+                ->get();
+        }
+
+        $selectedCategory = null;
+        if ($request->filled('category')) {
+            $selectedCategory = $sellerCategories->firstWhere('id', (int) $request->category);
+        }
+
+        $primaryCategory = $selectedCategory ?: $sellerCategories->first();
+
+        $selectedSubcategory = null;
+        if ($primaryCategory && $request->filled('subcategory')) {
+            $selectedSubcategory = $primaryCategory->subcategories
+                ->firstWhere('id', (int) $request->subcategory);
+        }
+
+        $productsQuery = $seller->products()
+            ->with(['category.parent', 'sizes', 'reviews'])
+            ->where('compliance_status', 'approved')
+            ->where('status', 'published');
+
+        if ($selectedSubcategory) {
+            $productsQuery->where('category_id', $selectedSubcategory->id);
+        } elseif ($selectedCategory) {
+            $categoryIds = $selectedCategory->subcategories
+                ->pluck('id')
+                ->push($selectedCategory->id)
+                ->unique()
+                ->values();
+
+            $productsQuery->whereIn('category_id', $categoryIds);
+        }
+
+        $products = $productsQuery
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
+
+        $publishedProductIds = $seller->products()
             ->where('compliance_status', 'approved')
             ->where('status', 'published')
-            ->latest()
-            ->paginate(12);
+            ->pluck('id');
 
-        $totalProducts = $seller->products()->where('compliance_status', 'approved')->where('status', 'published')->count();
-        $averageRating = Review::whereIn('product_id', $seller->products()->pluck('id'))->avg('rating');
-        $totalReviews = Review::whereIn('product_id', $seller->products()->pluck('id'))->count();
+        $totalProducts = $publishedProductIds->count();
+        $averageRating = Review::whereIn('product_id', $publishedProductIds)->avg('rating');
+        $totalReviews = Review::whereIn('product_id', $publishedProductIds)->count();
 
-        return view('seller.storefront', compact('seller', 'products', 'totalProducts', 'averageRating', 'totalReviews'));
+        $themeMap = [
+            'womens-apparel' => 'fashion',
+            'mens-apparel' => 'fashion',
+            'electronics-and-gadgets' => 'tech',
+            'food-and-gourmet' => 'food',
+            'home-and-garden' => 'home',
+            'kids-and-baby' => 'kids',
+            'pet-supplies' => 'pets',
+            'health-and-beauty' => 'beauty',
+            'jewelry-and-watches' => 'luxury',
+            'sports-and-outdoors' => 'sport',
+            'books-and-media' => 'books',
+            'furniture-and-office-equipment' => 'office',
+        ];
+
+        $theme = $primaryCategory
+            ? ($themeMap[$primaryCategory->slug] ?? 'default')
+            : 'default';
+
+        return view('seller.storefront', compact(
+            'seller',
+            'products',
+            'totalProducts',
+            'averageRating',
+            'totalReviews',
+            'sellerCategories',
+            'primaryCategory',
+            'selectedCategory',
+            'selectedSubcategory',
+            'theme'
+        ));
     }
 
     public function messages()
@@ -1587,15 +1715,19 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        $request->validate([
+        $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            'sex' => ['required', 'in:Male,Female'],
-            'email' => ['required', 'email', 'max:255'],
+            'sex' => ['required', Rule::in(['Male', 'Female'])],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
             'mobile_number' => ['required', 'string', 'max:20'],
-            'birthday' => ['required', 'date'],
-            'age' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'birthday' => ['required', 'date', 'before_or_equal:today'],
             'region' => ['required', 'string', 'max:255'],
             'province' => ['required', 'string', 'max:255'],
             'municipality' => ['required', 'string', 'max:255'],
@@ -1607,24 +1739,28 @@ class DashboardController extends Controller
             'preferred_logistic_id' => ['nullable', 'exists:logistics,id'],
         ]);
 
+        $middleName = trim((string) ($validated['middle_name'] ?? ''));
+        $displayName = trim($validated['last_name'] . ', ' . $validated['first_name'] . ($middleName !== '' ? ' ' . $middleName : ''));
+
         $userData = [
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'name' => $request->last_name . ', ' . $request->first_name . ' ' . $request->middle_name,
-            'sex' => $request->sex,
-            'email' => $request->email,
-            'mobile_number' => $request->mobile_number,
-            'birthday' => $request->birthday,
-            'age' => $request->age,
-            'region' => $request->region,
-            'province' => $request->province,
-            'municipality' => $request->municipality,
-            'barangay' => $request->barangay,
-            'house_number' => $request->house_number,
-            'street_address' => $request->street_address,
-            'business_name' => $request->business_name,
-            'preferred_logistic_id' => $request->preferred_logistic_id ?: null,
+            'first_name' => $validated['first_name'],
+            'middle_name' => $middleName !== '' ? $middleName : null,
+            'last_name' => $validated['last_name'],
+            'name' => $displayName,
+            'sex' => $validated['sex'],
+            'email' => $validated['email'],
+            'mobile_number' => $validated['mobile_number'],
+            'birthday' => $validated['birthday'],
+            'age' => Carbon::parse($validated['birthday'])->age,
+            'region' => $validated['region'],
+            'province' => $validated['province'],
+            'municipality' => $validated['municipality'],
+            'barangay' => $validated['barangay'],
+            'house_number' => $validated['house_number'] ?? null,
+            'street_address' => $validated['street_address'] ?? null,
+            'business_name' => $validated['business_name'],
+            'store_name' => $validated['business_name'],
+            'preferred_logistic_id' => $validated['preferred_logistic_id'] ?? null,
         ];
 
         if ($request->hasFile('logo')) {
@@ -1649,6 +1785,20 @@ class DashboardController extends Controller
         $user->update($userData);
 
         return back()->with('success', 'Account updated successfully.');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $validated = $request->validateWithBag('passwordUpdate', [
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = Auth::user();
+        $user->password = $validated['password'];
+        $user->save();
+
+        return back()->with('password_success', 'Password changed successfully.');
     }
 
     public function submitAppeal(Request $request)

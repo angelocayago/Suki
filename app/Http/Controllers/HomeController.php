@@ -17,7 +17,13 @@ class HomeController extends Controller
             ->withSoldCount()
             ->take(8)
             ->get();
-        $categories = Category::all();
+        $officialMainSlugs = array_keys(config('categories.subcategories', []));
+
+        $categories = Category::query()
+            ->whereNull('parent_id')
+            ->whereIn('slug', $officialMainSlugs)
+            ->orderBy('name')
+            ->get();
 
         $flashDeals = Product::with(['category', 'seller'])
             ->where('compliance_status', 'approved')

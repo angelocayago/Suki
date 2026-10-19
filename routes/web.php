@@ -432,6 +432,8 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/messages/{user}', [SharedMessageController::class, 'show'])->name('messages.show');
 
+        Route::get('/messages/{user}/poll', [SharedMessageController::class, 'poll'])->name('messages.poll');
+
         Route::post('/messages/{user}', [SharedMessageController::class, 'reply'])->name('messages.reply');
 
         Route::post('/account/appeal', [SellerDashboardController::class, 'submitAppeal'])->name('account.appeal');
@@ -439,6 +441,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/account', [SellerDashboardController::class, 'account'])->name('account');
 
         Route::put('/account', [SellerDashboardController::class, 'updateAccount'])->name('account.update');
+
+        Route::put('/account/password', [SellerDashboardController::class, 'updatePassword'])->name('account.password.update');
     });
 
 
@@ -575,6 +579,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/messages', [SharedMessageController::class, 'index'])->name('messages.index');
 
         Route::get('/messages/{user}', [SharedMessageController::class, 'show'])->name('messages.show');
+
+        Route::get('/messages/{user}/poll', [SharedMessageController::class, 'poll'])->name('messages.poll');
 
         Route::post('/messages/{user}', [SharedMessageController::class, 'reply'])->name('messages.reply');
 
@@ -728,6 +734,8 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/messages/{user}', [SharedMessageController::class, 'show'])->name('messages.show');
 
+        Route::get('/messages/{user}/poll', [SharedMessageController::class, 'poll'])->name('messages.poll');
+
         Route::post('/messages/{user}', [SharedMessageController::class, 'reply'])->name('messages.reply');
     });
 
@@ -790,6 +798,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/messages', [SharedMessageController::class, 'index'])->name('messages.index');
 
         Route::get('/messages/{user}', [SharedMessageController::class, 'show'])->name('messages.show');
+
+        Route::get('/messages/{user}/poll', [SharedMessageController::class, 'poll'])->name('messages.poll');
 
         Route::post('/messages/{user}', [SharedMessageController::class, 'reply'])->name('messages.reply');
 

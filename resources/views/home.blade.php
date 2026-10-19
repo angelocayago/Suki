@@ -82,41 +82,59 @@
 
 
   <!-- Categories -->
-  <section class="py-5 bg-white" id="categories">
-    <div class="container py-4">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="section-title mb-0">Shop by Category</h2>
-        <a href="{{ route('products.index') }}" class="btn btn-secondary btn-sm rounded-xl">View All</a>
+  <section class="home-category-section bg-white" id="categories">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
+        <div>
+          <h2 class="section-title mb-1">Shop by Category</h2>
+          <p class="text-muted small mb-0">Browse the main categories.</p>
+        </div>
+
+        <a href="{{ route('products.index') }}" class="home-category-view-all">
+          View All
+          <i class="bi bi-arrow-right"></i>
+        </a>
       </div>
-      <div class="row g-4">
-        @php
-          $categoryIcons = [
-            'pet supplies' => 'bi-box',
-            'kids and baby' => 'bi-emoji-smile',
-            'electronics and gadgets' => 'bi-laptop',
-            'home and garden' => 'bi-house',
-            'women\'s apparel' => 'bi-person-heart',
-            'sports and outdoors' => 'bi-trophy',
-            'men\'s apparel' => 'bi-person-fill',
-            'health and beauty' => 'bi-heart-pulse',
-          ];
-        @endphp
-        @foreach($categories->take(8) as $category)
+
+      @php
+        $categoryIcons = [
+          'pet supplies' => 'bi-heart',
+          'kids and baby' => 'bi-emoji-smile',
+          'electronics and gadgets' => 'bi-laptop',
+          'home and garden' => 'bi-house',
+          'women\'s apparel' => 'bi-person-heart',
+          'sports and outdoors' => 'bi-trophy',
+          'men\'s apparel' => 'bi-person',
+          'health and beauty' => 'bi-heart-pulse',
+          'books and media' => 'bi-book',
+          'food and gourmet' => 'bi-basket',
+          'furniture and office equipment' => 'bi-lamp',
+          'jewelry and watches' => 'bi-gem',
+        ];
+      @endphp
+
+      <div class="home-category-scroll">
+        <a href="{{ route('products.index') }}" class="home-category-item">
+          <span class="home-category-icon">
+            <i class="bi bi-grid"></i>
+          </span>
+          <span>All</span>
+        </a>
+
+        @foreach($categories as $category)
           @php
             $icon = $categoryIcons[strtolower($category->name)] ?? 'bi-tag';
           @endphp
-          <div class="col-6 col-md-3">
-            <a href="{{ route('products.index', ['category' => $category->id]) }}" class="text-decoration-none">
-              <div class="card h-100 border-0 shadow-sm text-center py-4 hover-shadow">
-                <div class="card-body">
-                  <div class="rounded-circle bg-violet-100 text-violet-500 d-inline-flex align-items-center justify-content-center mb-3" style="width: 56px; height: 56px;">
-                    <i class="bi {{ $icon }} fs-3"></i>
-                  </div>
-                  <h6 class="fw-semibold text-slate-800 mb-0">{{ $category->name }}</h6>
-                </div>
-              </div>
-            </a>
-          </div>
+
+          <a
+            href="{{ route('products.index', ['category' => $category->id]) }}"
+            class="home-category-item"
+          >
+            <span class="home-category-icon">
+              <i class="bi {{ $icon }}"></i>
+            </span>
+            <span>{{ $category->name }}</span>
+          </a>
         @endforeach
       </div>
     </div>
@@ -180,19 +198,6 @@
         <a href="{{ route('products.index') }}" class="trending-view-all">
           View All Products <i class="bi bi-arrow-right"></i>
         </a>
-      </div>
-
-      <div class="trending-category-tabs mb-4" style="color: #111827;">
-        <div class="d-flex gap-2 flex-wrap">
-          <button type="button" class="trending-tab active" data-category="">
-            All
-          </button>
-          @foreach($categories as $category)
-            <button type="button" class="trending-tab" data-category="{{ $category->name }}">
-              {{ $category->name }}
-            </button>
-          @endforeach
-        </div>
       </div>
 
       <div class="trending-cards-wrapper">
