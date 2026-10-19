@@ -476,6 +476,7 @@
 
 
         {{-- SHIPMENTS --}}
+        <x-notification-link class="block rounded-xl px-3 py-2.5 text-[12px] text-white/65 hover:text-white" />
         <a
             href="{{ route('logistics.shipments') }}"
             class="

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductModerationEvent;
 use App\Models\User;
 use App\Services\SellerCategoryService;
+use App\Services\DomainNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +41,7 @@ class ProductModerationService
                     'Product submitted for moderation.',
                     'seller_submission'
                 );
+                app(DomainNotificationService::class)->adminsAfterCommit('Product pending approval', 'A product is awaiting moderation.', ['product_id' => $locked->id]);
             }
 
             return $locked;
@@ -89,6 +91,8 @@ class ProductModerationService
                 'seller_material_edit'
             );
 
+            app(DomainNotificationService::class)->adminsAfterCommit('Product pending approval', 'A modified product is awaiting moderation.', ['product_id' => $locked->id]);
+
             return $locked->fresh();
         }, 3);
     }
@@ -130,6 +134,10 @@ class ProductModerationService
             ]);
 
             $this->record($locked, $actor, $current, $next, $reason, 'admin_portal');
+
+            if (in_array($next, [ProductModerationStatus::Approved, ProductModerationStatus::Rejected], true) && $locked->seller?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($locked->seller->user_id, 'Product moderation update', 'Your product was '.strtolower($next->value).'.', ['product_id' => $locked->id, 'status' => $next->value]);
+            }
 
             return $locked->fresh();
         }, 3);

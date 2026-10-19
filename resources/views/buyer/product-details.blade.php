@@ -442,7 +442,7 @@
                     <div class="flex items-center gap-2 mt-2">
 
                         <span class="text-xs text-[#1F6F5B]">
-                            {{ $product['seller_rating'] }} Positive Rating
+                            {{ $product['seller_rating'] }} Store Rating
                         </span>
 
                         <span class="text-xs text-gray-400">
@@ -562,6 +562,18 @@
                 @endforeach
 
             </ul>
+
+            <h2 class="font-semibold text-lg mt-8">Customer reviews</h2>
+            @forelse ($reviews as $review)
+                <article class="border-t py-4">
+                    <p>{{ $review->rating }}/5</p>
+                    <p>{{ $review->body }}</p>
+                    @if ($review->seller_response)<p>Seller response: {{ $review->seller_response }}</p>@endif
+                </article>
+            @empty
+                <p>No reviews yet.</p>
+            @endforelse
+            {{ $reviews->links() }}
 
         </div>
 

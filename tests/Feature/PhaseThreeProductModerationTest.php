@@ -18,6 +18,7 @@ class PhaseThreeProductModerationTest extends TestCase
 
     public function test_new_seller_product_is_pending_and_not_visible_to_buyers(): void
     {
+        $admin = $this->userWithRole('admin');
         [$sellerUser, $seller] = $this->seller('pending-product-seller');
         $category = $this->category();
         $seller->update(['category_id' => $category->id]);
@@ -30,6 +31,7 @@ class PhaseThreeProductModerationTest extends TestCase
         $product = $seller->products()->sole();
         $this->assertSame(ProductModerationStatus::Pending, $product->moderation_status);
         $this->assertTrue($product->is_active);
+        $this->assertSame(1, $admin->unreadNotifications()->count());
         $this->assertDatabaseHas('product_moderation_events', [
             'product_id' => $product->id,
             'previous_status' => null,
@@ -77,6 +79,7 @@ class PhaseThreeProductModerationTest extends TestCase
         $this->assertSame(ProductModerationStatus::Approved, $product->moderation_status);
         $this->assertSame($admin->id, $product->moderated_by);
         $this->assertNotNull($product->moderated_at);
+        $this->assertSame(1, $seller->owner->unreadNotifications()->count());
         $this->assertDatabaseHas('product_moderation_events', [
             'product_id' => $product->id,
             'actor_id' => $admin->id,

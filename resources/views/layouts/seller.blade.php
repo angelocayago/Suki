@@ -310,6 +310,8 @@
 
 
                 {{-- PRODUCTS --}}
+                <x-notification-link class="block rounded-xl px-3 py-2.5 text-[13px] text-white/65 hover:text-white" />
+                <a href="{{ route('reviews.seller-page') }}" class="block rounded-xl px-3 py-2.5 text-[13px] text-white/65 hover:text-white">Reviews</a>
                 <a
                     href="{{ route('seller.products') }}"
                     class="

@@ -17,6 +17,34 @@ class PhaseThreeDOperationalGapTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_pickup_notifications_use_only_authoritative_provider_and_never_broadcast(): void
+    {
+        extract($this->context(OrderStatus::Preparing));
+        $other = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
+        LogisticsProvider::create(['user_id' => $other->id, 'name' => 'Other', 'slug' => 'other-'.uniqid(), 'status' => 'approved']);
+
+        app(\App\Services\OrderWorkflowService::class)->transition($sellerOrder, $sellerUser, OrderStatus::ReadyForPickup);
+        $this->assertSame(1, $logisticsUser->unreadNotifications()->count());
+        $this->assertSame(0, $other->unreadNotifications()->count());
+        $this->assertNull($shipment->fresh()->pickup_rider_id);
+    }
+
+    public function test_providerless_pickup_notifies_only_after_a_provider_is_assigned(): void
+    {
+        extract($this->context(OrderStatus::Preparing));
+        $other = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
+        LogisticsProvider::create(['user_id' => $other->id, 'name' => 'Other', 'slug' => 'other-'.uniqid(), 'status' => 'approved']);
+        $sellerOrder->update(['logistics_provider_id' => null]);
+        $shipment->update(['logistics_provider_id' => null]);
+
+        app(\App\Services\OrderWorkflowService::class)->transition($sellerOrder, $sellerUser, OrderStatus::ReadyForPickup);
+        $this->assertSame(0, $logisticsUser->unreadNotifications()->count());
+        $this->assertSame(0, $other->unreadNotifications()->count());
+        $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $pickupRider->id])->assertSessionHas('success');
+        $this->assertSame(1, $logisticsUser->unreadNotifications()->count());
+        $this->assertSame(0, $other->unreadNotifications()->count());
+    }
+
     public function test_logistics_can_assign_and_reassign_an_eligible_pickup_rider_with_history(): void
     {
         extract($this->pickupContext());
@@ -27,11 +55,14 @@ class PhaseThreeDOperationalGapTest extends TestCase
             ->assertSessionHas('success');
         $this->assertSame($pickupRider->id, $shipment->fresh()->pickup_rider_id);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'PICKUP_RIDER_ASSIGNED']);
+        $this->assertSame(1, $pickupRiderUser->unreadNotifications()->count());
 
         $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $replacement->id])
             ->assertSessionHas('success');
         $this->assertSame($replacement->id, $shipment->fresh()->pickup_rider_id);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'PICKUP_RIDER_REASSIGNED']);
+        $this->assertSame(2, $pickupRiderUser->unreadNotifications()->count());
+        $this->assertSame(1, $replacementUser->unreadNotifications()->count());
 
         $eventCount = $shipment->events()->whereIn('status', ['PICKUP_RIDER_ASSIGNED', 'PICKUP_RIDER_REASSIGNED'])->count();
         $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $replacement->id])->assertSessionHas('success');
@@ -75,6 +106,7 @@ class PhaseThreeDOperationalGapTest extends TestCase
         $this->actingAs($pickupRiderUser)->post(route('rider.database.pickup.decline', $sellerOrder))->assertSessionHas('success');
         $this->assertNull($shipment->fresh()->pickup_rider_id);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'PICKUP_DECLINED']);
+        $this->assertSame(1, $logisticsUser->unreadNotifications()->count());
     }
 
     public function test_assigned_rider_accepts_but_unassigned_rider_cannot_self_assign_and_pickup_blocks_reassignment(): void

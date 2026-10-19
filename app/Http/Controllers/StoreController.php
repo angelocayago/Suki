@@ -37,7 +37,9 @@ class StoreController extends Controller
             ->where('is_active', true)->where('moderation_status', ProductModerationStatus::Approved->value)
             ->whereHas('variants', fn ($query) => $query->where('is_active', true)->where('stock', '>', 0))->paginate(18);
         $following = auth()->check() && BuyerStoreFollow::query()->where('buyer_id', auth()->id())->where('seller_id', $seller->id)->exists();
-        return view('buyer.store', compact('seller', 'products', 'following'));
+        $seller->loadCount('visibleReviews')->loadAvg('visibleReviews', 'rating');
+        $reviews = $seller->visibleReviews()->latest()->paginate(10, ['*'], 'reviews_page');
+        return view('buyer.store', compact('seller', 'products', 'following', 'reviews'));
     }
 
     public function follow(Request $request, Seller $seller): RedirectResponse

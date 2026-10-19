@@ -54,6 +54,11 @@ class Product extends Model
         return $this->belongsTo(Seller::class);
     }
 
+    public function visibleReviews(): HasMany
+    {
+        return $this->hasMany(TransactionReview::class)->where('kind', 'product')->whereNull('hidden_at');
+    }
+
     /**
      * Category of this product.
      */

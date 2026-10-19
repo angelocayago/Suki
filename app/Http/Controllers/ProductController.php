@@ -326,7 +326,12 @@ class ProductController extends Controller
 
     public function home(ProductCatalogService $catalog)
     {
-        $products = $catalog->marketplaceProducts() ?: $this->products();
+        $products = $catalog->marketplaceProducts() ?: array_map(function (array $product) {
+            $product['rating'] = 0;
+            $product['ratings'] = 0;
+            $product['seller_rating'] = 'New';
+            return $product;
+        }, $this->products());
 
         return view('buyer.home', compact('products'));
     }
@@ -360,6 +365,8 @@ class ProductController extends Controller
             abort(404);
         }
 
-        return view('buyer.product-details', compact('product', 'slug'));
+        $reviews = \App\Models\TransactionReview::where('kind', 'product')->where('product_id', $product['id'])
+            ->whereNull('hidden_at')->latest()->paginate(10);
+        return view('buyer.product-details', compact('product', 'slug', 'reviews'));
     }
 }

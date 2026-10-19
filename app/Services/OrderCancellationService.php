@@ -70,7 +70,15 @@ class OrderCancellationService
                     'status_changed_at' => $now,
                 ]);
 
-            return $locked->fresh(['sellerOrders.shipment', 'items']);
+            $cancelled = $locked->fresh(['sellerOrders.seller', 'sellerOrders.shipment.pickupRider', 'sellerOrders.shipment.rider', 'items']);
+            foreach ($cancelled->sellerOrders as $sellerOrder) {
+                $recipients = collect([$sellerOrder->seller?->user_id, $sellerOrder->shipment?->pickupRider?->user_id, $sellerOrder->shipment?->rider?->user_id])->filter()->unique();
+                foreach ($recipients as $userId) {
+                    app(DomainNotificationService::class)->afterCommit($userId, 'Order cancelled', 'An order or assignment was cancelled.', ['seller_order_id' => $sellerOrder->id]);
+                }
+            }
+
+            return $cancelled;
         }, 3);
     }
 }

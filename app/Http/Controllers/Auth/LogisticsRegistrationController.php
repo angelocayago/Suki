@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AccountVerificationService;
 use App\Services\GoogleRegistrationService;
 use App\Services\PhilippineAddressService;
+use App\Services\DomainNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -49,11 +50,12 @@ class LogisticsRegistrationController extends Controller
                     'region'=>$data['region'],'province'=>$data['province'],'city'=>$data['municipality'],'barangay'=>$data['barangay'],
                     'government_id_path'=>$paths['government_id'],'business_permit_path'=>$paths['business_permit'],
                 ]);
-                Application::query()->create([
+                $application = Application::query()->create([
                     'user_id'=>$user->id,'application_type'=>'logistics','status'=>'pending',
                     'application_data'=>['business_name'=>$data['business_name'],'address'=>$data['address'],'region'=>$data['region'],'province'=>$data['province'],'city'=>$data['municipality'],'barangay'=>$data['barangay']], 'documents'=>$paths,
                 ]);
                 $google->linkIfPending($request, $user, 'logistics');
+                app(DomainNotificationService::class)->adminsAfterCommit('Logistics application pending', 'A logistics application is awaiting review.', ['application_id' => $application->id]);
                 return $user;
             }, 3);
         } catch (Throwable $e) {

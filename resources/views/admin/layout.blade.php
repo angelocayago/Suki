@@ -331,6 +331,8 @@
 
 
     <!-- APPLICATIONS -->
+    <x-notification-link class="block rounded-xl px-4 py-3 text-sm text-green-100 hover:text-white" />
+    <a href="{{ route('reviews.admin-page') }}" class="block rounded-xl px-4 py-3 text-sm text-green-100 hover:text-white">Review moderation</a>
 
     <a
         href="{{ route('admin.applications') }}"

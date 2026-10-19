@@ -52,6 +52,11 @@ class Seller extends Model
         );
     }
 
+    public function visibleReviews(): HasMany
+    {
+        return $this->hasMany(TransactionReview::class)->where('kind', 'seller')->whereNull('hidden_at');
+    }
+
     /**
      * The single category assigned to this seller account.
      */

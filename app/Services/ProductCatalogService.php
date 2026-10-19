@@ -210,7 +210,9 @@ class ProductCatalogService
     private function marketplaceQuery()
     {
         return Product::query()
-            ->with(['category', 'images', 'seller', 'variants' => fn ($query) => $query->where('is_active', true)])
+            ->with(['category', 'images', 'seller' => fn ($query) => $query->withCount('visibleReviews')->withAvg('visibleReviews', 'rating'), 'variants' => fn ($query) => $query->where('is_active', true)])
+            ->withCount('visibleReviews')
+            ->withAvg('visibleReviews', 'rating')
             ->where('products.is_active', true)
             ->where('products.moderation_status', ProductModerationStatus::Approved->value)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))
@@ -250,8 +252,8 @@ class ProductCatalogService
             'price' => ($variant?->price_minor ?? 0) / 100,
             'old_price' => ($variant?->price_minor ?? 0) / 100,
             'discount' => '0%',
-            'rating' => 0,
-            'ratings' => 0,
+            'rating' => round((float) ($product->visible_reviews_avg_rating ?? 0), 1),
+            'ratings' => $product->visible_reviews_count,
             'sold' => 0,
             'category' => $product->category?->name ?? 'Uncategorized',
             'stock' => $variant?->stock ?? 0,
@@ -261,7 +263,7 @@ class ProductCatalogService
             'seller' => $product->seller?->name ?? 'SUKI Seller',
             'seller_slug' => $product->seller?->slug,
             'seller_logo' => $this->imageUrl($product->seller?->logo_path),
-            'seller_rating' => 'New',
+            'seller_rating' => $product->seller?->visible_reviews_count ? number_format((float) $product->seller->visible_reviews_avg_rating, 1).'/5' : 'New',
             'seller_products' => $product->seller?->products()
                 ->where('is_active', true)
                 ->where('moderation_status', ProductModerationStatus::Approved->value)

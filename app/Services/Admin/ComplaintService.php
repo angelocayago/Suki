@@ -17,6 +17,7 @@ use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\User;
 use App\Services\SellerWalletService;
+use App\Services\DomainNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -98,6 +99,8 @@ class ComplaintService
                 ],
             ]);
 
+            app(DomainNotificationService::class)->adminsAfterCommit('Complaint requires attention', 'A complaint was submitted.', ['complaint_id' => $complaint->id]);
+
             return $complaint->fresh(['complainant', 'order', 'sellerOrder', 'shipment', 'events']);
         }, 3);
     }
@@ -176,6 +179,8 @@ class ComplaintService
                     'notes' => filled($notes) ? trim($notes) : null,
                 ]
             );
+
+            app(DomainNotificationService::class)->afterCommit($locked->complainant_id, 'Complaint update', 'Your complaint status was updated.', ['complaint_id' => $locked->id, 'status' => $next->value]);
 
             return $locked->fresh();
         }, 3);
@@ -311,6 +316,8 @@ class ComplaintService
                     SellerOrder::query()->findOrFail($locked->seller_order_id)
                 );
             }
+
+            app(DomainNotificationService::class)->afterCommit($locked->complainant_id, 'Complaint update', 'Your complaint has been closed.', ['complaint_id' => $locked->id, 'status' => $next->value]);
 
             return $locked->fresh(['resolver']);
         }, 3);

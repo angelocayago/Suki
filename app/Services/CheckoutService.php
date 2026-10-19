@@ -233,6 +233,13 @@ class CheckoutService
                 ->whereIn('id', $cartItems->pluck('id'))
                 ->delete();
 
+            $notifications = app(DomainNotificationService::class);
+            $notifications->afterCommit($buyer->id, 'Order placed', 'Your order was placed successfully.', ['order_id' => $order->id]);
+            foreach ($order->sellerOrders()->with('seller')->get() as $placedSellerOrder) {
+                if ($placedSellerOrder->seller?->user_id) {
+                    $notifications->afterCommit($placedSellerOrder->seller->user_id, 'New order', 'Your store received a new order.', ['seller_order_id' => $placedSellerOrder->id]);
+                }
+            }
             return $order->fresh(['sellerOrders.items', 'sellerOrders.shipment', 'items']);
         }, 3);
     }

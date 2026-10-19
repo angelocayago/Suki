@@ -24,6 +24,13 @@ Artisan::command('orders:complete-delivered', function () {
 
 Schedule::command('orders:complete-delivered')->hourly()->withoutOverlapping();
 
+Artisan::command('notifications:retry', function () {
+    $count = app(\App\Services\DomainNotificationService::class)->retry();
+    $this->info("Delivered {$count} pending notifications.");
+})->purpose('Retry due notification outbox entries');
+
+Schedule::command('notifications:retry')->everyMinute()->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

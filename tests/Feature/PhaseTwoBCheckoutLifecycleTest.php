@@ -44,6 +44,10 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->assertSame(3, $first['variant']->fresh()->stock);
         $this->assertSame(3, $second['variant']->fresh()->stock);
         $this->assertSame(0, $buyer->cartItems()->count());
+        $this->assertSame(1, $buyer->unreadNotifications()->count());
+        foreach ($order->sellerOrders as $sellerOrder) {
+            $this->assertSame(1, $sellerOrder->seller->owner->unreadNotifications()->count());
+        }
     }
 
     public function test_pending_rejected_and_archived_products_cannot_be_checked_out_and_leave_stock_unchanged(): void

@@ -31,6 +31,7 @@ class PhaseThreeComplaintFoundationTest extends TestCase
     public function test_buyer_can_create_a_complaint_for_an_owned_order_without_changing_erp_state(): void
     {
         $fixture = $this->marketplaceFixture();
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'is_suspended' => false]);
         $before = $this->erpState($fixture);
 
         $complaint = $this->service()->createComplaint(
@@ -62,6 +63,9 @@ class PhaseThreeComplaintFoundationTest extends TestCase
             'new_status' => 'OPEN',
         ]);
         $this->assertSame($before, $this->erpState($fixture));
+        $this->assertSame(1, $admin->unreadNotifications()->count());
+        $this->service()->changeStatus($complaint, $admin, ComplaintStatus::UnderReview);
+        $this->assertSame(1, $fixture['buyer']->unreadNotifications()->count());
     }
 
     public function test_complainants_are_limited_to_records_they_own_or_handle(): void

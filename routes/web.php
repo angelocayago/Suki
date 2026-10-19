@@ -33,6 +33,9 @@ use App\Http\Controllers\Messaging\ConversationController as MessagingConversati
 use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
 use App\Http\Controllers\Messaging\MessageController as MessagingMessageController;
+use App\Http\Controllers\NotificationInboxController;
+use App\Http\Controllers\TransactionReviewController;
+use App\Http\Controllers\ReviewPageController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\ApplicationDocumentController;
 use App\Http\Controllers\Admin\BuyerManagementController;
@@ -62,6 +65,31 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationInboxController::class, 'index'])->name('index');
+    Route::get('/inbox', [NotificationInboxController::class, 'page'])->name('page');
+    Route::get('/unread-count', [NotificationInboxController::class, 'unreadCount'])->name('unread-count');
+    Route::post('/read-all', [NotificationInboxController::class, 'markAllRead'])->name('read-all');
+    Route::post('/{notification}/read', [NotificationInboxController::class, 'markRead'])->name('read');
+});
+
+Route::middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])->group(function () {
+    Route::get('/buyer/reviews', [ReviewPageController::class, 'buyer'])->name('reviews.buyer-page');
+    Route::post('/reviews/items/{item}', [TransactionReviewController::class, 'product'])->name('reviews.product');
+    Route::post('/reviews/seller-orders/{sellerOrder}/seller', [TransactionReviewController::class, 'seller'])->name('reviews.seller');
+    Route::post('/reviews/seller-orders/{sellerOrder}/rider', [TransactionReviewController::class, 'rider'])->name('reviews.rider');
+    Route::patch('/reviews/{review}', [TransactionReviewController::class, 'edit'])->name('reviews.edit');
+});
+Route::get('/seller/reviews', [ReviewPageController::class, 'seller'])->middleware(['auth', 'approved', 'not_suspended', 'role:seller'])->name('reviews.seller-page');
+Route::get('/admin/review-moderation', [ReviewPageController::class, 'admin'])->middleware(['auth', 'approved', 'not_suspended', 'role:admin'])->name('reviews.admin-page');
+Route::get('/reviews/products/{product}', [TransactionReviewController::class, 'productSummary'])->name('reviews.product-summary');
+Route::post('/seller/reviews/{review}/response', [TransactionReviewController::class, 'respond'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:seller'])->name('reviews.respond');
+Route::post('/admin/reviews/{review}/moderate', [TransactionReviewController::class, 'moderate'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:admin'])->name('reviews.moderate');
+Route::get('/admin/reviews', [TransactionReviewController::class, 'moderationIndex'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:admin'])->name('reviews.moderation-index');
 
 // Narrow PSGC lookup endpoints for registration forms. Codes are validated by
 // the service; callers never supply an upstream URL.

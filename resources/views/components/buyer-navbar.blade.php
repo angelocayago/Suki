@@ -390,6 +390,9 @@
                                     Messages
                                 </a>
 
+                                <x-notification-link class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]" />
+                                <a href="{{ route('reviews.buyer-page') }}" class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]">My reviews</a>
+
 
                                 <a
                                     href="{{ route('buyer.wishlist') }}"
@@ -545,6 +548,10 @@
 
             @endif
 
+            @if (auth()->check() && auth()->user()->isBuyer())
+                <a href="{{ route('reviews.buyer-page') }}" class="whitespace-nowrap text-[#6E7D76]">My reviews</a>
+                <x-notification-link class="whitespace-nowrap text-[#6E7D76]" />
+            @endif
 
             <span
                 class="ml-auto hidden

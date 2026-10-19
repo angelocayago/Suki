@@ -64,6 +64,7 @@ class OrderWorkflowService
             }
 
             $previousRider = $shipment->pickupRider;
+            $providerWasUnassigned = ! $shipment->logistics_provider_id && ! $lockedOrder->logistics_provider_id;
             if ($previousRider?->id === $rider->id) {
                 return $shipment->fresh(['pickupRider.user']);
             }
@@ -83,6 +84,14 @@ class OrderWorkflowService
                     : 'Pickup rider assigned to '.$rider->user->full_name.'.',
                 'occurred_at' => now(),
             ]);
+
+            app(DomainNotificationService::class)->afterCommit($rider->user_id, 'Pickup assignment', 'A pickup has been assigned to you.', ['shipment_id' => $shipment->id]);
+            if ($providerWasUnassigned && $provider->user_id) {
+                app(DomainNotificationService::class)->afterCommit($provider->user_id, 'Pickup ready', 'A shipment requires pickup attention.', ['seller_order_id' => $lockedOrder->id, 'shipment_id' => $shipment->id]);
+            }
+            if ($previousRider?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($previousRider->user_id, 'Pickup assignment changed', 'Your pickup assignment has changed.', ['shipment_id' => $shipment->id]);
+            }
 
             return $shipment->fresh(['pickupRider.user', 'events']);
         });
@@ -125,6 +134,10 @@ class OrderWorkflowService
                 'note' => 'Pickup declined by '.$rider->user->full_name.'.',
                 'occurred_at' => now(),
             ]);
+
+            if ($rider->logisticsProvider?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Pickup declined', 'A pickup requires reassignment.', ['shipment_id' => $shipment->id]);
+            }
 
             return $shipment->fresh();
         });
@@ -260,6 +273,26 @@ class OrderWorkflowService
                 app(SellerWalletService::class)->creditCompleted($lockedOrder);
             }
 
+            $notifications = app(DomainNotificationService::class);
+            $message = 'Order status: '.str_replace('_', ' ', strtolower($nextStatus->value)).'.';
+            $notificationContext = ['seller_order_id' => $lockedOrder->id, 'status' => $nextStatus->value];
+            if ($lockedOrder->order->buyer_id) {
+                $notifications->afterCommit($lockedOrder->order->buyer_id, 'Order update', $message, $notificationContext);
+            }
+            if ($lockedOrder->seller?->user_id) {
+                $notifications->afterCommit($lockedOrder->seller->user_id, 'Order update', $message, $notificationContext);
+            }
+            if ($nextStatus === OrderStatus::AssignedToRider && $lockedOrder->shipment?->rider?->user_id) {
+                $notifications->afterCommit($lockedOrder->shipment->rider->user_id, 'Delivery assignment', 'A delivery has been assigned to you.', $notificationContext);
+            }
+            if ($nextStatus === OrderStatus::ReadyForPickup) {
+                $providerId = $lockedOrder->shipment?->logistics_provider_id ?? $lockedOrder->logistics_provider_id;
+                $providerUserId = $providerId ? LogisticsProvider::whereKey($providerId)->value('user_id') : null;
+                if ($providerUserId) {
+                    $notifications->afterCommit($providerUserId, 'Pickup ready', 'A shipment requires pickup attention.', $notificationContext);
+                }
+            }
+
             return $lockedOrder->fresh(['order', 'seller', 'shipment']);
         });
     }
@@ -280,6 +313,9 @@ class OrderWorkflowService
             if (! $shipment->delivery_accepted_at) {
                 $shipment->update(['delivery_accepted_at' => now()]);
                 $this->recordEvent($shipment, 'DELIVERY_ACCEPTED', $rider->user);
+                if ($rider->logisticsProvider?->user_id) {
+                    app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Delivery accepted', 'A rider accepted an assigned delivery.', ['shipment_id' => $shipment->id]);
+                }
             }
             return $shipment->fresh();
         });
@@ -302,6 +338,7 @@ class OrderWorkflowService
             }
             $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null]);
             $this->recordEvent($shipment, 'DELIVERY_RIDER_REASSIGNED', $actor, 'Delivery rider assigned to '.$rider->user->full_name.'.');
+            app(DomainNotificationService::class)->afterCommit($rider->user_id, 'Delivery assignment', 'A delivery has been assigned to you.', ['shipment_id' => $shipment->id]);
             return $shipment->fresh();
         });
     }
@@ -322,6 +359,9 @@ class OrderWorkflowService
             }
             $shipment->update(['rider_id' => null]);
             $this->recordEvent($shipment, 'DELIVERY_DECLINED', $rider->user, 'Delivery declined; parcel requeued for logistics reassignment.');
+            if ($rider->logisticsProvider?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Delivery declined', 'A delivery requires reassignment.', ['shipment_id' => $shipment->id]);
+            }
             return $shipment->fresh();
         });
     }
@@ -386,9 +426,13 @@ class OrderWorkflowService
 
             $shipment = $lockedOrder->shipment;
 
+            $firstAcceptance = ! $shipment->pickup_accepted_at;
             $shipment->update(['pickup_accepted_at' => $shipment->pickup_accepted_at ?: now()]);
 
             $this->recordEvent($shipment, 'PICKUP_ACCEPTED', $rider->user);
+            if ($firstAcceptance && $shipment->provider?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($shipment->provider->user_id, 'Pickup accepted', 'A rider accepted an assigned pickup.', ['shipment_id' => $shipment->id]);
+            }
 
             return $shipment->fresh();
         });

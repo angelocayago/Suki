@@ -123,6 +123,8 @@ class SellerOnboardingService
                 ]);
                 $application->update(['documents' => $legacyPaths]);
 
+                app(DomainNotificationService::class)->adminsAfterCommit('Seller application pending', 'A seller application is awaiting review.', ['application_id' => $application->id]);
+
                 if ($beforeCommit) {
                     $beforeCommit($user);
                 }
