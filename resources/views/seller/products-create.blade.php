@@ -10,10 +10,6 @@
     $oldVariationNames = old('variation_name', ['']);
     $oldVariationValues = old('variation_value', ['']);
 
-    $selectedShipping = old('shipping_options', [
-        'suki_rider',
-        'logistics_partner'
-    ]);
 
 
 @endphp
@@ -828,10 +824,8 @@
                         <input
                             type="text"
                             id="sku"
-                            name="sku"
-                            value="{{ old('sku') }}"
-                            maxlength="50"
-                            placeholder="e.g. SKU-0001"
+                            value="Generated automatically when saved"
+                            readonly
                             class="h-11 w-full
                                    rounded-xl
                                    border border-[#DDE6E1]
@@ -884,52 +878,7 @@
                 SALE PRICE
             ================================================== --}}
 
-            <section class="overflow-hidden rounded-2xl border border-[#E1E8E4] bg-white">
-
-                <div class="flex items-center justify-between gap-4 border-b border-[#EDF1EF] px-5 py-4">
-                    <div>
-                        <h3 class="text-sm font-semibold text-[#24312C]">Sale pricing</h3>
-                        <p class="mt-0.5 text-[11px] text-[#7C8983]">
-                            Show a reduced price while keeping the regular price on record.
-                        </p>
-                    </div>
-
-                    <label for="on_sale" class="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-[#52635B]">
-                        <input
-                            type="checkbox"
-                            id="on_sale"
-                            name="on_sale"
-                            value="1"
-                            {{ old('on_sale') ? 'checked' : '' }}
-                            class="h-4 w-4 rounded border-[#C8D6CF] text-[#1F6F5B] focus:ring-[#DDF3EC]"
-                        >
-                        Offer a sale price
-                    </label>
-                </div>
-
-                <div id="salePriceFields" class="hidden p-5">
-                    <label for="sale_price" class="mb-2 block text-xs font-semibold text-[#34483F]">
-                        Sale price <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative sm:max-w-sm">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-[#728078]">₱</span>
-                        <input
-                            type="number"
-                            id="sale_price"
-                            name="sale_price"
-                            value="{{ old('sale_price') }}"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            class="h-11 w-full rounded-xl border border-[#DDE6E1] bg-white pl-9 pr-4 text-sm text-[#34483F] placeholder:text-[#9AA69F] focus:border-[#1F6F5B] focus:ring-4 focus:ring-[#DDF3EC]/70"
-                        >
-                    </div>
-                    <p class="mt-1.5 text-[10px] leading-4 text-[#8C9992]">
-                        The sale price must be lower than the regular price above.
-                    </p>
-                </div>
-
-            </section>
+            @include('seller.partials.product-sale-pricing')
 
 
             {{-- =================================================
@@ -1157,7 +1106,7 @@
                                    text-[11px]
                                    text-[#7C8983]"
                         >
-                            Optional package measurements and delivery options.
+                            Optional package weight and dimensions.
                         </p>
 
                     </div>
@@ -1403,128 +1352,7 @@
                     </div>
 
 
-                    {{-- SHIPPING OPTIONS --}}
-                    <div>
-
-                        <p
-                            class="mb-3
-                                   text-xs
-                                   font-semibold
-                                   text-[#34483F]"
-                        >
-                            Shipping Options
-                        </p>
-
-
-                        <div
-                            class="grid grid-cols-1
-                                   gap-3
-                                   md:grid-cols-2"
-                        >
-
-
-                            {{-- SUKI RIDER --}}
-                            <label
-                                class="flex cursor-pointer
-                                       items-start gap-3
-                                       rounded-xl
-                                       border border-[#DDE6E1]
-                                       bg-[#FAFCFB]
-                                       p-4
-                                       transition
-                                       hover:border-[#BFD2C9]"
-                            >
-
-                                <input
-                                    type="checkbox"
-                                    name="shipping_options[]"
-                                    value="suki_rider"
-                                    {{ in_array('suki_rider', $selectedShipping) ? 'checked' : '' }}
-                                    class="mt-0.5
-                                           h-4 w-4
-                                           rounded
-                                           border-[#C5D1CB]
-                                           text-[#1F6F5B]
-                                           focus:ring-[#1F6F5B]"
-                                >
-
-
-                                <div>
-
-                                    <p
-                                        class="text-xs
-                                               font-semibold
-                                               text-[#34483F]"
-                                    >
-                                        SUKI Rider
-                                    </p>
-
-                                    <p
-                                        class="mt-1
-                                               text-[10px]
-                                               leading-5
-                                               text-[#849089]"
-                                    >
-                                        Delivery fulfilled through the SUKI rider network.
-                                    </p>
-
-                                </div>
-
-                            </label>
-
-
-                            {{-- LOGISTICS --}}
-                            <label
-                                class="flex cursor-pointer
-                                       items-start gap-3
-                                       rounded-xl
-                                       border border-[#DDE6E1]
-                                       bg-[#FAFCFB]
-                                       p-4
-                                       transition
-                                       hover:border-[#BFD2C9]"
-                            >
-
-                                <input
-                                    type="checkbox"
-                                    name="shipping_options[]"
-                                    value="logistics_partner"
-                                    {{ in_array('logistics_partner', $selectedShipping) ? 'checked' : '' }}
-                                    class="mt-0.5
-                                           h-4 w-4
-                                           rounded
-                                           border-[#C5D1CB]
-                                           text-[#1F6F5B]
-                                           focus:ring-[#1F6F5B]"
-                                >
-
-
-                                <div>
-
-                                    <p
-                                        class="text-xs
-                                               font-semibold
-                                               text-[#34483F]"
-                                    >
-                                        Logistics Partner
-                                    </p>
-
-                                    <p
-                                        class="mt-1
-                                               text-[10px]
-                                               leading-5
-                                               text-[#849089]"
-                                    >
-                                        Fulfillment through supported logistics partners.
-                                    </p>
-
-                                </div>
-
-                            </label>
-
-                        </div>
-
-                    </div>
+                    @include('seller.partials.product-payment-methods')
 
                 </div>
 
@@ -1848,28 +1676,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateDescriptionCount();
 
 
-    const saleToggle =
-        document.getElementById('on_sale');
-
-    const salePriceFields =
-        document.getElementById('salePriceFields');
-
-    const salePriceInput =
-        document.getElementById('sale_price');
-
-    function updateSaleFields() {
-        const enabled = Boolean(saleToggle?.checked);
-
-        salePriceFields?.classList.toggle('hidden', !enabled);
-
-        if (salePriceInput) {
-            salePriceInput.required = enabled;
-        }
-    }
-
-    saleToggle?.addEventListener('change', updateSaleFields);
-    updateSaleFields();
-
     /* =========================================================
        IMAGE PREVIEW
     ========================================================= */
@@ -1925,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.createElement('img');
 
             image.src = URL.createObjectURL(file);
-            image.alt = file.name;
+            image.alt = `Selected product image ${index + 1}`;
             image.className = 'h-full w-full object-cover';
             wrapper.appendChild(image);
 
@@ -1945,14 +1751,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.createElement('button');
 
             removeButton.type = 'button';
-            removeButton.textContent = '×';
+            removeButton.textContent = 'Remove';
             removeButton.title = 'Remove photo';
             removeButton.setAttribute(
                 'aria-label',
-                `Remove ${file.name}`
+                `Remove selected image ${index + 1}`
             );
             removeButton.className =
-                'absolute right-1 top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs font-bold text-white hover:bg-red-600';
+                'absolute bottom-1 right-1 z-20 rounded-lg bg-white px-2 py-1 text-[10px] font-semibold text-red-600 shadow-sm hover:bg-red-50';
             removeButton.addEventListener('click', function () {
                 selectedImages.splice(index, 1);
                 imageUploadStatus.textContent = '';
@@ -1969,9 +1775,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectedImages.length < maxImages) {
 
             const addImage =
-                document.createElement('label');
+                document.createElement('button');
 
-            addImage.htmlFor = 'imagePicker';
+            addImage.type = 'button';
+            addImage.addEventListener('click', () => imagePicker.click());
             addImage.className =
                 'flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#C8D6CF] bg-[#FAFCFB] text-center transition hover:border-[#1F6F5B] hover:bg-[#F4F8F5]';
 
@@ -1986,7 +1793,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             label.className =
                 'mt-1 text-[10px] font-semibold text-[#52635B]';
-            label.textContent = 'Add Image';
+            label.textContent = 'Add Images';
 
             addImage.appendChild(icon);
             addImage.appendChild(label);
@@ -2002,6 +1809,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const newFiles =
             Array.from(imagePicker.files || []);
+
+        if (newFiles.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024)) {
+            imageUploadStatus.textContent = 'Choose JPG, PNG or WebP images up to 5 MB each.';
+            imageUploadStatus.classList.remove('hidden');
+            imagePicker.value = '';
+            return;
+        }
 
         const remainingSlots =
             maxImages - selectedImages.length;

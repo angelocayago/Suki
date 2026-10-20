@@ -14,6 +14,38 @@ use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
+    private function validatePaymentInput(Request $request): void
+    {
+        // Availability is informational here; payment choice belongs to checkout.
+        // A submitted COD value does not become a product-level setting.
+        $request->validate([
+            'payment_method' => 'sometimes|nullable|string|in:cod',
+            'payment_methods' => 'sometimes|array|max:1',
+            'payment_methods.*' => 'required|string|in:cod',
+        ]);
+    }
+
+    private function saleRules(Request $request): array
+    {
+        // Unchecked HTML checkboxes are omitted, including submissions without JS.
+        $request->mergeIfMissing(['on_sale' => false]);
+
+        return [
+            'on_sale' => 'required|boolean',
+            'sale_price' => [Rule::excludeIf(! $request->boolean('on_sale')), 'bail',
+                'required', 'numeric', 'decimal:0,2', 'gt:0', 'lt:price', 'max:42949672.95'],
+        ];
+    }
+
+    private function pricing(Request $request): array
+    {
+        $regular = $request->filled('price') ? (float) $request->price : null;
+        $sale = $request->boolean('on_sale') ? (float) $request->sale_price : null;
+
+        return ['regular_price' => $regular, 'sale_price' => $sale,
+            'on_sale' => $request->boolean('on_sale'), 'price' => $sale ?? $regular];
+    }
+
     public function create()
     {
         return view('seller.products-create', $this->options(SellerAccount::current()));
@@ -49,28 +81,21 @@ class ProductController extends Controller
         $required = $isDraft ? 'nullable' : 'required';
         $hasVariations = $request->boolean('has_variations');
         [$main, $child] = $this->category($request, $seller, $isDraft);
+        $this->validatePaymentInput($request);
 
+        $saleRules = $this->saleRules($request);
         $request->validate([
             'name' => "{$required}|string|max:150",
             'description' => "{$required}|string|max:3000",
-            'price' => "{$required}|numeric|min:0|max:42949672.95",
-            'sale_price' => [
-                $isDraft ? 'nullable' : 'required_if:on_sale,1',
-                'numeric',
-                'min:0',
-                'lt:price',
-            ],
-            'on_sale' => 'nullable|boolean',
+            'price' => [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
+            ...$saleRules,
             'stock' => "{$required}|integer|min:0|max:4294967295",
             'low_stock_threshold' => 'nullable|integer|min:0',
-            'sku' => 'nullable|string|max:50',
             'brand' => 'nullable|string|max:150',
             'weight' => 'nullable|numeric|min:0',
             'length' => 'nullable|numeric|min:0',
             'width' => 'nullable|numeric|min:0',
             'height' => 'nullable|numeric|min:0',
-            'shipping_options' => 'nullable|array',
-            'shipping_options.*' => 'string|in:suki_rider,logistics_partner',
             'status' => $isDraft ? 'nullable|in:active,inactive' : 'required|in:active,inactive',
             'images' => $isDraft ? 'nullable|array|max:5' : 'required|array|min:1|max:5',
             'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -91,7 +116,11 @@ class ProductController extends Controller
 
                     $newPaths[] = $path;
 
-                    return Storage::disk('public')->url($path);
+                    if (! $path) {
+                        throw new \RuntimeException('The product image could not be saved.');
+                    }
+
+                    return $path;
                 })
                 ->all();
 
@@ -118,16 +147,10 @@ class ProductController extends Controller
                 'additional_image' => $additionalImageUrl,
                 'product_video' => $productVideoUrl,
 
-                'regular_price' => $request->filled('price') ? (float) $request->price : null,
-                'price' => $request->boolean('on_sale')
-                    ? (float) $request->sale_price
-                    : ($request->filled('price') ? (float) $request->price : null),
-                'on_sale' => $request->boolean('on_sale'),
-                'sale_price' => $request->filled('sale_price') ? (float) $request->sale_price : null,
+                ...$this->pricing($request),
                 'stock' => (int) $request->stock,
                 'low_stock_threshold' => (int) $request->input('low_stock_threshold', 5),
 
-                'sku' => $request->sku,
                 'status' => $isDraft ? 'draft' : $request->status,
 
                 'weight' => $request->weight,
@@ -142,8 +165,6 @@ class ProductController extends Controller
                 'variation_values' => $request->boolean('has_variations')
                     ? array_values(array_filter($request->variation_value ?? []))
                     : [],
-
-                'shipping_options' => $request->shipping_options ?? [],
 
                 'sold' => 0,
 
@@ -184,31 +205,85 @@ class ProductController extends Controller
         $product = SellerProducts::owned($seller, $id);
         $draft = $request->input('status') === 'draft';
         [$main, $child] = $this->category($request, $seller, $draft);
+        $this->validatePaymentInput($request);
         // A legacy product must receive an explicit supported selection even as
         // a draft; never silently remap an existing category to the main parent.
         if (! $child && $product->category_id !== $main->id) {
             throw ValidationException::withMessages(['subcategory' => 'Select a supported subcategory to explicitly update this product classification.']);
         }
         $required = $draft ? 'nullable' : 'required';
+        $saleRules = $this->saleRules($request);
         $validated = $request->validate([
             'name' => "$required|string|max:150", 'description' => "$required|string|max:3000",
-            'price' => "$required|numeric|min:0|max:42949672.95", 'stock' => "$required|integer|min:0|max:4294967295",
-            'sku' => 'nullable|string|max:50', 'status' => 'required|in:active,inactive,draft',
+            'price' => [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
+            ...$saleRules,
+            'stock' => "$required|integer|min:0|max:4294967295",
+            'status' => 'required|in:active,inactive,draft',
             'brand' => 'nullable|string|max:150', 'weight' => 'nullable|numeric|min:0',
             'length' => 'nullable|numeric|min:0', 'width' => 'nullable|numeric|min:0', 'height' => 'nullable|numeric|min:0',
             'variation_name' => 'nullable|array', 'variation_name.*' => 'nullable|string|max:100',
             'variation_value' => 'nullable|array', 'variation_value.*' => 'nullable|string|max:255',
-            'shipping_options' => 'nullable|array', 'shipping_options.*' => 'string|in:suki_rider,logistics_partner',
+            'replace_images' => 'sometimes|boolean',
+            'images' => [Rule::requiredIf($request->boolean('replace_images')), 'nullable', 'array', 'min:1', 'max:5'],
+            'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'remove_image_ids' => 'sometimes|array',
+            'remove_image_ids.*' => 'required|integer|distinct',
+            'replacement_images' => 'sometimes|array|max:5',
+            'replacement_images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'add_images' => 'sometimes|array|max:5',
+            'add_images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
         $data = array_replace(SellerProducts::listing($product), $validated,
-            ['category' => $seller->business_category, 'subcategory' => $child?->name]);
+            ['category' => $seller->business_category, 'subcategory' => $child?->name], $this->pricing($request));
         foreach (['variation_name' => 'variation_names', 'variation_value' => 'variation_values'] as $input => $field) {
             if ($request->exists($input)) {
                 $data[$field] = $validated[$input] ?? [];
             }
             unset($data[$input]);
         }
-        SellerProducts::save($seller, $data, $child?->id ?? $main->id, $product);
+        $newPaths = [];
+        try {
+            $replacements = [];
+            foreach ($request->file('replacement_images', []) as $imageId => $image) {
+                if (! ctype_digit((string) $imageId)) {
+                    throw ValidationException::withMessages(['replacement_images' => 'Select an image belonging to this product.']);
+                }
+                $path = $image->store('products', 'public');
+                if (! $path) {
+                    throw new \RuntimeException('The product image could not be saved.');
+                }
+                $replacements[$imageId] = $path;
+                $newPaths[] = $path;
+            }
+            $addedPaths = [];
+            foreach ($request->file('add_images', []) as $image) {
+                $path = $image->store('products', 'public');
+                if (! $path) {
+                    throw new \RuntimeException('The product image could not be saved.');
+                }
+                $addedPaths[] = $path;
+                $newPaths[] = $path;
+            }
+            $allPaths = [];
+            if ($request->boolean('replace_images')) {
+                foreach ($request->file('images', []) as $image) {
+                    $path = $image->store('products', 'public');
+                    if (! $path) {
+                        throw new \RuntimeException('The product image could not be saved.');
+                    }
+                    $newPaths[] = $path;
+                    $allPaths[] = $path;
+                }
+            }
+            SellerProducts::save($seller, $data, $child?->id ?? $main->id, $product, [
+                'replace' => $request->boolean('replace_images'), 'paths' => array_merge($allPaths, $addedPaths),
+                'replacements' => $replacements,
+                'remove' => $validated['remove_image_ids'] ?? [],
+            ]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($newPaths);
+            throw $exception;
+        }
         SellerProducts::sync($seller);
 
         return redirect()->route('seller.products')->with('success', 'Product updated successfully.');

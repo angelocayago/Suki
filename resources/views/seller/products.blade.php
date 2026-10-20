@@ -811,22 +811,7 @@
                                            bg-[#F1F5F3]"
                                 >
 
-                                    @if(!empty($product['image']))
-
-                                        <img
-                                            src="{{ $product['image'] }}"
-                                            alt="{{ $product['name'] ?? 'Product' }}"
-                                            class="h-full w-full object-cover"
-                                        >
-
-                                    @else
-
-                                        <i
-                                            data-lucide="package"
-                                            class="h-5 w-5 text-[#85958D]"
-                                        ></i>
-
-                                    @endif
+                                    @include('seller.partials.product-thumbnail', ['product' => $product])
 
                                 </div>
 
@@ -1188,22 +1173,7 @@
                                bg-[#F1F5F3]"
                     >
 
-                        @if(!empty($product['image']))
-
-                            <img
-                                src="{{ $product['image'] }}"
-                                alt="{{ $product['name'] ?? 'Product' }}"
-                                class="h-full w-full object-cover"
-                            >
-
-                        @else
-
-                            <i
-                                data-lucide="package"
-                                class="h-5 w-5 text-[#85958D]"
-                            ></i>
-
-                        @endif
+                        @include('seller.partials.product-thumbnail', ['product' => $product])
 
                     </div>
 

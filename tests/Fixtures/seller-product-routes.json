@@ -1,0 +1,1261 @@
+[
+    {
+        "method":  "GET|HEAD",
+        "uri":  "/",
+        "name":  "landing",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "admin",
+        "name":  "admin.dashboard",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "admin/buyers",
+        "name":  "admin.buyers",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "admin/buyers/{buyer}/approve",
+        "name":  "admin.buyers.approve",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "admin/buyers/{buyer}/reject",
+        "name":  "admin.buyers.reject",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "admin/login",
+        "name":  "admin.login",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "admin/login",
+        "name":  "admin.login.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "admin/logout",
+        "name":  "admin.logout",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/cities-municipalities/{municipality}/barangays",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/provinces",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/provinces/{province}/cities-municipalities",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/regions",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/regions/{region}/cities-municipalities",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "api/psgc/regions/{region}/provinces",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "buyer/email/verify",
+        "name":  "buyer.verification.show",
+        "action":  "App\\Http\\Controllers\\Auth\\BuyerEmailVerificationController@show",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "buyer/email/verify",
+        "name":  "buyer.verification.verify",
+        "action":  "App\\Http\\Controllers\\Auth\\BuyerEmailVerificationController@verify",
+        "middleware":  [
+                           "web",
+                           "throttle:6,1"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "buyer/email/verify/resend",
+        "name":  "buyer.verification.resend",
+        "action":  "App\\Http\\Controllers\\Auth\\BuyerEmailVerificationController@resend",
+        "middleware":  [
+                           "web",
+                           "throttle:6,1"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "cart",
+        "name":  "buyer.cart",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/add/{slug}",
+        "name":  "buyer.cart.add",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/clear",
+        "name":  "buyer.cart.clear",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/decrease/{slug}",
+        "name":  "buyer.cart.decrease",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/increase/{slug}",
+        "name":  "buyer.cart.increase",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/remove/{slug}",
+        "name":  "buyer.cart.remove",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "cart/update/{slug}",
+        "name":  "buyer.cart.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "checkout",
+        "name":  "buyer.checkout",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "checkout/place-order",
+        "name":  "buyer.checkout.place-order",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "home",
+        "name":  "buyer.home",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "login",
+        "name":  "login",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "login",
+        "name":  "login.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics",
+        "name":  "logistics.dashboard",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/assignments",
+        "name":  "logistics.assignments",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/monitoring",
+        "name":  "logistics.monitoring",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "logistics/orders/{order}/status",
+        "name":  "logistics.order.status",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/parcels",
+        "name":  "logistics.parcels",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/register",
+        "name":  "logistics.register",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "logistics/register",
+        "name":  "logistics.register.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/reports",
+        "name":  "logistics.reports",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/riders",
+        "name":  "logistics.riders",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "logistics/riders/{rider}/approve",
+        "name":  "logistics.riders.approve",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "logistics/riders/{rider}/disapprove",
+        "name":  "logistics.riders.disapprove",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/riders/{rider}/review",
+        "name":  "logistics.riders.review",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/shipments",
+        "name":  "logistics.shipments",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "logistics/sorting",
+        "name":  "logistics.sorting",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "logout",
+        "name":  "logout",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "my-account",
+        "name":  "buyer.account",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "my-account/addresses",
+        "name":  "buyer.addresses",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-account/addresses",
+        "name":  "buyer.addresses.store",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-account/addresses/{address}/default",
+        "name":  "buyer.addresses.default",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-account/addresses/{address}/delete",
+        "name":  "buyer.addresses.delete",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-account/password",
+        "name":  "buyer.account.password",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-account/profile",
+        "name":  "buyer.account.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "my-orders",
+        "name":  "buyer.my-orders",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "my-orders/{order}",
+        "name":  "buyer.order-details",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-orders/{order}/buy-again",
+        "name":  "buyer.order.buy-again",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "my-orders/{order}/cancel",
+        "name":  "buyer.order.cancel",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "order-success/{order}",
+        "name":  "buyer.order-success",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "orders/{order}/status",
+        "name":  "order.status.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "product/{slug}",
+        "name":  "buyer.product",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "register",
+        "name":  "register",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "register",
+        "name":  "register.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "register/buyer",
+        "name":  "register.buyer",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/application-pending",
+        "name":  "rider.application.pending",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/apply",
+        "name":  "rider.apply",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "rider/apply",
+        "name":  "rider.apply.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/dashboard",
+        "name":  "rider.dashboard",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/deliveries",
+        "name":  "rider.deliveries",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/earnings",
+        "name":  "rider.earnings",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/history",
+        "name":  "rider.history",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "rider/login",
+        "name":  "rider.login",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "rider/login",
+        "name":  "rider.login.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "rider/orders/{order}/accept-pickup",
+        "name":  "rider.pickup.accept",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "rider/orders/{order}/status",
+        "name":  "rider.order.status",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller",
+        "name":  "seller.dashboard",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/inventory",
+        "name":  "seller.inventory",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/inventory/{product}/decrease",
+        "name":  "seller.inventory.decrease",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/inventory/{product}/increase",
+        "name":  "seller.inventory.increase",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/my-profile",
+        "name":  "seller.profile",
+        "action":  "Closure",
+        "middleware":  [
+                           "web",
+                           "auth"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/my-profile",
+        "name":  "seller.profile.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web",
+                           "auth"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/my-profile/address",
+        "name":  "seller.profile.address.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web",
+                           "auth"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/my-profile/photo",
+        "name":  "seller.profile.photo.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web",
+                           "auth"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/my-profile/photo/remove",
+        "name":  "seller.profile.photo.remove",
+        "action":  "Closure",
+        "middleware":  [
+                           "web",
+                           "auth"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/orders",
+        "name":  "seller.orders",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/products",
+        "name":  "seller.products",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/products",
+        "name":  "seller.products.store",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/products/create",
+        "name":  "seller.products.create",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "PUT",
+        "uri":  "seller/products/{product}",
+        "name":  "seller.products.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/products/{product}/edit",
+        "name":  "seller.products.edit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/promotions",
+        "name":  "seller.promotions",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/promotions",
+        "name":  "seller.promotions.store",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "DELETE",
+        "uri":  "seller/promotions/{promotion}",
+        "name":  "seller.promotions.destroy",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/register",
+        "name":  "seller.register",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/register",
+        "name":  "seller.register.submit",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/reports",
+        "name":  "seller.reports",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/sales",
+        "name":  "seller.sales",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "seller/store-profile",
+        "name":  "seller.store.profile",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/store-profile/address",
+        "name":  "seller.store.address.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/store-profile/password",
+        "name":  "seller.store.password.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/store-profile/photo/remove",
+        "name":  "seller.store.profile.photo.remove",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "seller/store-profile/profile",
+        "name":  "seller.store.profile.update",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "shop",
+        "name":  "buyer.shop",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "storage/{path}",
+        "name":  "storage.local",
+        "action":  "Closure",
+        "middleware":  [
+
+                       ]
+    },
+    {
+        "method":  "PUT",
+        "uri":  "storage/{path}",
+        "name":  "storage.local.upload",
+        "action":  "Closure",
+        "middleware":  [
+
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin",
+        "name":  "superadmin.dashboard",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\DashboardController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/applications",
+        "name":  "superadmin.applications",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\ApplicationController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/applications/{application}",
+        "name":  "superadmin.applications.show",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\ApplicationController@show",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/applications/{application}/approve",
+        "name":  "superadmin.applications.approve",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\ApplicationController@approve",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/applications/{application}/reject",
+        "name":  "superadmin.applications.reject",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\ApplicationController@reject",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/buyers",
+        "name":  "superadmin.buyers",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\BuyerManagementController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/buyers/search",
+        "name":  "superadmin.buyers.search",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\BuyerManagementController@search",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/buyers/{buyer}/status",
+        "name":  "superadmin.buyers.status",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\BuyerManagementController@updateStatus",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/commission",
+        "name":  "superadmin.commission",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\CommissionController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/commission/{seller}/rate",
+        "name":  "superadmin.commission.rate",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\CommissionController@updateRate",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/orders",
+        "name":  "superadmin.orders",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\OrderManagementController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/orders/{order}",
+        "name":  "superadmin.orders.show",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\OrderManagementController@show",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/reports",
+        "name":  "superadmin.reports",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\ReportController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/sellers",
+        "name":  "superadmin.sellers",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SellerManagementController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/sellers/search",
+        "name":  "superadmin.sellers.search",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SellerManagementController@search",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/sellers/{seller}",
+        "name":  "superadmin.sellers.show",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SellerManagementController@show",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/sellers/{seller}/status",
+        "name":  "superadmin.sellers.status",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SellerManagementController@updateStatus",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/settings",
+        "name":  "superadmin.settings",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/announcements",
+        "name":  "superadmin.settings.announcement.store",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@storeAnnouncement",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/announcements/{announcement}",
+        "name":  "superadmin.settings.announcement.update",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@updateAnnouncement",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/announcements/{announcement}/delete",
+        "name":  "superadmin.settings.announcement.delete",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@deleteAnnouncement",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/marketplace",
+        "name":  "superadmin.settings.marketplace",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@updateMarketplace",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/platform",
+        "name":  "superadmin.settings.platform",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@updatePlatform",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/settings/policies",
+        "name":  "superadmin.settings.policies",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\SettingController@updatePolicies",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/users",
+        "name":  "superadmin.users",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\UserManagementController@index",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/users/search",
+        "name":  "superadmin.users.search",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\UserManagementController@search",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "superadmin/users/{user}",
+        "name":  "superadmin.users.show",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\UserManagementController@show",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "superadmin/users/{user}/status",
+        "name":  "superadmin.users.status",
+        "action":  "App\\Http\\Controllers\\SuperAdmin\\UserManagementController@updateStatus",
+        "middleware":  [
+                           "web",
+                           "App\\Http\\Middleware\\SuperAdminMiddleware"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "up",
+        "name":  null,
+        "action":  "Closure",
+        "middleware":  [
+
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
+        "uri":  "wishlist",
+        "name":  "buyer.wishlist",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "wishlist/add/{slug}",
+        "name":  "buyer.wishlist.add",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "wishlist/move-to-cart/{slug}",
+        "name":  "buyer.wishlist.move-to-cart",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "wishlist/remove/{slug}",
+        "name":  "buyer.wishlist.remove",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "POST",
+        "uri":  "wishlist/toggle/{slug}",
+        "name":  "buyer.wishlist.toggle",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    }
+]

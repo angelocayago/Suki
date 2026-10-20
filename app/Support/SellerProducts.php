@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\Seller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +24,23 @@ class SellerProducts
     {
         $variant = $product->variants->first();
         $category = $product->category;
-        $images = $product->images->map(fn ($image) => Storage::disk('public')->url($image->path))->all();
+        $imageRecords = $product->images->map(fn ($image) => [
+            'id' => $image->id, 'url' => ProductImageUrl::url($image->path),
+        ])->all();
+        $images = array_values(array_filter(array_column($imageRecords, 'url')));
         $details = $product->seller_listing_data ?? [];
         foreach (['regular_price', 'sale_price'] as $field) {
             if (isset($details[$field])) {
                 $details[$field] = (float) $details[$field];
             }
         }
+        // A flag alone must never produce a fabricated discount in either layout.
+        $details['on_sale'] = ! empty($details['on_sale'])
+            && is_numeric($details['sale_price'] ?? null)
+            && is_numeric($details['regular_price'] ?? null)
+            && $details['sale_price'] > 0
+            && $details['sale_price'] < $details['regular_price']
+            && $variant && (int) round($details['sale_price'] * 100) === $variant->price_minor;
 
         return array_replace($details, [
             'id' => 'P'.str_pad($product->id, 4, '0', STR_PAD_LEFT),
@@ -41,6 +50,7 @@ class SellerProducts
             'subcategory' => $category?->parent_id ? $category->name : null,
             'subcategory_id' => $category?->parent_id ? $category->id : null,
             'image' => $images[0] ?? null, 'images' => $images,
+            'image_records' => $imageRecords,
             'price' => $variant ? (float) ($variant->price_minor / 100) : null,
             'stock' => $product->variants->sum('stock'), 'sku' => $variant?->sku,
             'status' => ($product->seller_listing_data['status'] ?? null) === 'draft' ? 'draft' : ($product->is_active ? 'active' : 'inactive'),
@@ -52,7 +62,11 @@ class SellerProducts
     public static function sync(Seller $seller): array
     {
         $products = $seller->products()->with(['category.parent', 'variants', 'images'])->get()
-            ->mapWithKeys(fn ($product) => [self::listing($product)['id'] => self::listing($product)])->all();
+            ->mapWithKeys(function ($product) {
+                $listing = self::listing($product);
+
+                return [$listing['id'] => $listing];
+            })->all();
         // Unverified session-only rows cannot establish ownership. Preserve a
         // separate review copy, never import them into the persistent catalogue.
         if (session()->has('seller_products') && ! session()->has('seller_products_owner')) {
@@ -64,20 +78,29 @@ class SellerProducts
         return $products;
     }
 
-    public static function save(Seller $seller, array $data, int $categoryId, ?Product $product = null): Product
+    public static function save(Seller $seller, array $data, int $categoryId, ?Product $product = null, array $imageChanges = []): Product
     {
-        return DB::transaction(function () use ($seller, $data, $categoryId, $product) {
+        return DB::transaction(function () use ($seller, $data, $categoryId, $product, $imageChanges) {
+            $creating = $product === null;
             if ($product) {
                 $product = $seller->products()->lockForUpdate()->findOrFail($product->id);
             } else {
                 $product = new Product(['seller_id' => $seller->id, 'slug' => Str::slug($data['name'] ?? 'product').'-'.Str::uuid()]);
+            }
+            // Only new listings receive the intended delivery default. Existing
+            // metadata is historical and must survive ordinary edits verbatim.
+            unset($data['shipping_options']);
+            if ($creating) {
+                $data['shipping_options'] = ['logistics_partner'];
+            } elseif (array_key_exists('shipping_options', $product->seller_listing_data ?? [])) {
+                $data['shipping_options'] = $product->seller_listing_data['shipping_options'];
             }
             $product->fill([
                 'name' => $data['name'] ?? '', 'description' => $data['description'] ?? null,
                 'category_id' => $categoryId, 'is_active' => $data['status'] === 'active',
                 'seller_listing_data' => Arr::except($data, [
                     'id', 'name', 'description', 'category', 'subcategory', 'subcategory_id',
-                    'image', 'images', 'price', 'stock', 'sku', 'created_at', 'updated_at',
+                    'image', 'images', 'image_records', 'replace_images', 'remove_image_ids', 'replacement_images', 'add_images', 'price', 'stock', 'sku', 'created_at', 'updated_at',
                 ]),
             ])->save();
 
@@ -85,30 +108,58 @@ class SellerProducts
             // The existing seller form has one price/stock field. Never flatten
             // independently persisted variants when changing a category.
             if ($variants->count() > 1) {
-                if ((int) $data['stock'] !== $variants->sum('stock') || (int) round($data['price'] * 100) !== $variants->first()->price_minor || $data['sku'] !== $variants->first()->sku) {
+                if ((int) $data['stock'] !== $variants->sum('stock') || (int) round($data['price'] * 100) !== $variants->first()->price_minor) {
                     throw ValidationException::withMessages(['stock' => 'This product has separate variants. Preserve its existing price, SKU and stock when updating its category.']);
                 }
             } else {
-                $variant = $variants->first() ?? $product->variants()->make();
-                $sku = $data['sku'] ?: ($variant->sku ?? 'S'.$seller->id.'-P'.$product->id);
-                if (ProductVariant::withTrashed()->where('sku', $sku)->when($variant->exists, fn ($query) => $query->where('id', '!=', $variant->id))->exists()) {
-                    throw ValidationException::withMessages(['sku' => 'This SKU is already in use.']);
+                $variant = $variants->first();
+                if (! $creating && ! $variant) {
+                    throw ValidationException::withMessages(['sku' => 'This product has no active variant. Contact support to restore its SKU before editing.']);
                 }
-                $variant->fill(['sku' => $sku, 'name' => $variant->exists ? $variant->name : ($data['name'] ?? ''),
+                $attributes = ['name' => $variant ? $variant->name : ($data['name'] ?? ''),
                     'price_minor' => (int) round(($data['price'] ?? 0) * 100), 'stock' => (int) $data['stock'],
-                    'is_active' => $data['status'] === 'active'])->save();
-            }
-            // Edit currently has no image controls: leave its existing rows intact.
-            if (! $product->images()->exists()) {
-                foreach ($data['images'] ?? [] as $position => $url) {
-                    $prefix = rtrim(Storage::disk('public')->url(''), '/').'/';
-                    abort_unless(str_starts_with($url, $prefix), 422);
-                    $product->images()->create(['path' => substr($url, strlen($prefix)), 'position' => $position]);
+                    'is_active' => $data['status'] === 'active'];
+                if ($creating) {
+                    SellerProductSku::createVariant($product, $attributes);
+                } else {
+                    // Ordinary seller edits never accept a replacement SKU.
+                    $variant->fill($attributes)->save();
                 }
+            }
+            $existing = $product->images()->lockForUpdate()->get();
+            $remove = $imageChanges['remove'] ?? [];
+            $replacements = $imageChanges['replacements'] ?? [];
+            if (array_diff($remove, $existing->pluck('id')->all())) {
+                throw ValidationException::withMessages(['remove_image_ids' => 'Select images belonging to this product.']);
+            }
+            if (array_diff(array_keys($replacements), $existing->pluck('id')->all())
+                || array_intersect(array_keys($replacements), $remove)
+                || (($imageChanges['replace'] ?? false) && $replacements)) {
+                throw ValidationException::withMessages(['replacement_images' => 'Select existing product images and do not replace an image marked for removal.']);
+            }
+            $paths = $creating ? ($data['images'] ?? []) : ($imageChanges['paths'] ?? []);
+            $remaining = ($imageChanges['replace'] ?? false) ? 0 : $existing->count() - count($remove);
+            if ($remaining + count($paths) > 5) {
+                throw ValidationException::withMessages(['add_images' => 'You can upload up to 5 product images.']);
+            }
+            foreach ($replacements as $imageId => $path) {
+                abort_unless(ProductImageUrl::path($path) === $path && Storage::disk('public')->exists($path), 422);
+                $existing->firstWhere('id', $imageId)->update(['path' => $path]);
+            }
+            if ($imageChanges['replace'] ?? false) {
+                $product->images()->delete();
+            } elseif ($remove) {
+                $product->images()->whereIn('id', $remove)->delete();
+            }
+            // Detach only explicitly selected records; retain files for other references.
+            $position = ($product->images()->max('position') ?? -1) + 1;
+            foreach ($paths as $path) {
+                abort_unless(ProductImageUrl::path($path) === $path && Storage::disk('public')->exists($path), 422);
+                $product->images()->create(['path' => $path, 'position' => $position++]);
             }
 
             return $product;
-        });
+        }, 3);
     }
 
     public static function adjustStock(Seller $seller, string $id, int $amount): void

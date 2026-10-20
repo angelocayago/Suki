@@ -608,13 +608,13 @@
                 type="button"
                 autofocus
                 class="rounded-xl border border-[#DDE6E1] bg-white px-4 py-2.5 text-sm font-medium text-[#173F35] transition hover:bg-[#EEF4F0] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
-            >No, Cancel</button>
+            >No</button>
             <button
                 id="sellerLogoutConfirm"
                 type="submit"
                 form="sellerLogoutForm"
                 class="rounded-xl bg-[#173F35] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#245546] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40 disabled:cursor-wait disabled:opacity-60"
-            >Yes, Log Out</button>
+            >Log Out</button>
         </div>
     </dialog>
 

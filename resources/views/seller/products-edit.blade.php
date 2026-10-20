@@ -27,14 +27,6 @@
         $variationValues = [''];
     }
 
-    $selectedShipping = old(
-        'shipping_options',
-        $product['shipping_options'] ?? []
-    );
-
-    if (!is_array($selectedShipping)) {
-        $selectedShipping = [];
-    }
 
 @endphp
 
@@ -227,6 +219,7 @@
     action="{{ route('seller.products.update', $productId) }}"
     method="POST"
     id="editProductForm"
+    enctype="multipart/form-data"
 >
 
     @csrf
@@ -245,6 +238,8 @@
         ====================================================== --}}
 
         <div class="space-y-6">
+
+            @include('seller.partials.product-image-controls')
 
 
             {{-- =================================================
@@ -277,22 +272,7 @@
                                bg-white/10"
                     >
 
-                        @if(!empty($product['image']))
-
-                            <img
-                                src="{{ $product['image'] }}"
-                                alt="{{ $product['name'] ?? 'Product' }}"
-                                class="h-full w-full object-cover"
-                            >
-
-                        @else
-
-                            <i
-                                data-lucide="package"
-                                class="h-7 w-7 text-white/60"
-                            ></i>
-
-                        @endif
+                        @include('seller.partials.product-thumbnail', ['product' => $product])
 
                     </div>
 
@@ -675,7 +655,7 @@
                                    text-[11px]
                                    text-[#7C8983]"
                         >
-                            Update price, stock, and SKU.
+                            Update price and stock. Your SKU stays the same.
                         </p>
 
                     </div>
@@ -730,7 +710,7 @@
                                 name="price"
                                 value="{{ old(
                                     'price',
-                                    $product['price'] ?? 0
+                                    $product['regular_price'] ?? $product['price'] ?? 0
                                 ) }}"
                                 min="0"
                                 step="0.01"
@@ -814,13 +794,8 @@
                         <input
                             type="text"
                             id="sku"
-                            name="sku"
-                            value="{{ old(
-                                'sku',
-                                $product['sku'] ?? ''
-                            ) }}"
-                            maxlength="50"
-                            placeholder="e.g. SKU-0001"
+                            value="{{ $product['sku'] ?? 'SKU unavailable — contact support' }}"
+                            readonly
                             class="h-11 w-full
                                    rounded-xl
                                    border border-[#DDE6E1]
@@ -839,6 +814,9 @@
                 </div>
 
             </section>
+
+
+            @include('seller.partials.product-sale-pricing')
 
 
             {{-- =================================================
@@ -1067,7 +1045,7 @@
                                    text-[11px]
                                    text-[#7C8983]"
                         >
-                            Update package dimensions and fulfillment options.
+                            Update package weight and dimensions.
                         </p>
 
                     </div>
@@ -1324,134 +1302,7 @@
                     </div>
 
 
-                    {{-- DELIVERY OPTIONS --}}
-                    <div>
-
-                        <p
-                            class="mb-3
-                                   text-xs
-                                   font-semibold
-                                   text-[#34483F]"
-                        >
-                            Shipping Options
-                        </p>
-
-
-                        <div
-                            class="grid grid-cols-1
-                                   gap-3
-                                   md:grid-cols-2"
-                        >
-
-
-                            {{-- RIDER --}}
-                            <label
-                                class="flex cursor-pointer
-                                       items-start gap-3
-                                       rounded-xl
-                                       border border-[#DDE6E1]
-                                       bg-[#FAFCFB]
-                                       p-4
-                                       transition
-                                       hover:border-[#BFD2C9]"
-                            >
-
-                                <input
-                                    type="checkbox"
-                                    name="shipping_options[]"
-                                    value="suki_rider"
-                                    {{ in_array(
-                                        'suki_rider',
-                                        $selectedShipping
-                                    ) ? 'checked' : '' }}
-                                    class="mt-0.5
-                                           h-4 w-4
-                                           rounded
-                                           border-[#C5D1CB]
-                                           text-[#1F6F5B]
-                                           focus:ring-[#1F6F5B]"
-                                >
-
-
-                                <div>
-
-                                    <p
-                                        class="text-xs
-                                               font-semibold
-                                               text-[#34483F]"
-                                    >
-                                        SUKI Rider
-                                    </p>
-
-                                    <p
-                                        class="mt-1
-                                               text-[10px]
-                                               leading-5
-                                               text-[#849089]"
-                                    >
-                                        Fulfilled through the SUKI rider network.
-                                    </p>
-
-                                </div>
-
-                            </label>
-
-
-                            {{-- LOGISTICS --}}
-                            <label
-                                class="flex cursor-pointer
-                                       items-start gap-3
-                                       rounded-xl
-                                       border border-[#DDE6E1]
-                                       bg-[#FAFCFB]
-                                       p-4
-                                       transition
-                                       hover:border-[#BFD2C9]"
-                            >
-
-                                <input
-                                    type="checkbox"
-                                    name="shipping_options[]"
-                                    value="logistics_partner"
-                                    {{ in_array(
-                                        'logistics_partner',
-                                        $selectedShipping
-                                    ) ? 'checked' : '' }}
-                                    class="mt-0.5
-                                           h-4 w-4
-                                           rounded
-                                           border-[#C5D1CB]
-                                           text-[#1F6F5B]
-                                           focus:ring-[#1F6F5B]"
-                                >
-
-
-                                <div>
-
-                                    <p
-                                        class="text-xs
-                                               font-semibold
-                                               text-[#34483F]"
-                                    >
-                                        Logistics Partner
-                                    </p>
-
-                                    <p
-                                        class="mt-1
-                                               text-[10px]
-                                               leading-5
-                                               text-[#849089]"
-                                    >
-                                        Fulfilled through supported logistics partners.
-                                    </p>
-
-                                </div>
-
-                            </label>
-
-                        </div>
-
-                    </div>
+                    @include('seller.partials.product-payment-methods')
 
                 </div>
 
