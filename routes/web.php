@@ -35,6 +35,7 @@ use App\Http\Controllers\Messaging\ConversationReadController;
 use App\Http\Controllers\Messaging\MessageController as MessagingMessageController;
 use App\Http\Controllers\NotificationInboxController;
 use App\Http\Controllers\AccountProfileController;
+use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\ReviewPageController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
@@ -74,6 +75,14 @@ Route::middleware('auth')->prefix('notifications')->name('notifications.')->grou
     Route::post('/read-all', [NotificationInboxController::class, 'markAllRead'])->name('read-all');
     Route::post('/{notification}/read', [NotificationInboxController::class, 'markRead'])->name('read');
 });
+
+Route::get('/policies/{policy}', [PublicContentController::class, 'policy'])
+    ->whereIn('policy', ['terms-of-service', 'privacy-policy', 'shipping-policy', 'returns-refund-policy'])
+    ->name('policies.show');
+
+Route::get('/buyer/help', [PublicContentController::class, 'buyerHelp'])
+    ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])
+    ->name('buyer.help');
 
 foreach (['admin', 'logistics', 'rider'] as $profileArea) {
     Route::get('/'.$profileArea.'/profile', [AccountProfileController::class, 'show'])
@@ -5586,11 +5595,10 @@ $registerAdminPortalRoutes = function (): void {
 
         Route::get('/settings', [SettingController::class, 'index'])->name('settings');
         Route::patch('/settings/platform', [SettingController::class, 'updatePlatform'])->name('settings.platform');
-        Route::patch('/settings/marketplace', [SettingController::class, 'updateMarketplace'])->name('settings.marketplace');
         Route::patch('/settings/policies', [SettingController::class, 'updatePolicies'])->name('settings.policies');
         Route::post('/settings/announcements', [SettingController::class, 'storeAnnouncement'])->name('settings.announcement.store');
         Route::patch('/settings/announcements/{announcement}', [SettingController::class, 'updateAnnouncement'])->name('settings.announcement.update');
-        Route::delete('/settings/announcements/{announcement}', [SettingController::class, 'deleteAnnouncement'])->name('settings.announcement.delete');
+        Route::patch('/settings/announcements/{announcement}/deactivate', [SettingController::class, 'deactivateAnnouncement'])->name('settings.announcement.deactivate');
 };
 
 Route::prefix('admin')

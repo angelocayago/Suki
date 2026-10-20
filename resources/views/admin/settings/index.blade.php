@@ -96,6 +96,7 @@ Settings
         >
 
             @csrf
+            @method('PATCH')
 
 
 
@@ -274,7 +275,8 @@ Settings
 
 
 
-    <!-- MARKETPLACE SETTINGS -->
+    {{-- Operational marketplace rules are deliberately not editable through content settings. --}}
+    {{-- <!-- MARKETPLACE SETTINGS -->
 
 
     <div class="
@@ -310,6 +312,7 @@ Settings
         >
 
             @csrf
+            @method('PATCH')
 
 
 
@@ -498,7 +501,7 @@ Settings
         </form>
 
 
-    </div>
+    </div> --}}
         <!-- ANNOUNCEMENTS -->
 
 
@@ -704,6 +707,18 @@ Settings
 
                                 {{ $announcement->title }}
 
+                                <details class="mt-2 text-xs font-normal">
+                                    <summary class="cursor-pointer text-[#1F6F5B]">Edit announcement</summary>
+                                    <form method="POST" action="{{ route('admin.settings.announcement.update', $announcement) }}" class="mt-2 space-y-2">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input required name="title" value="{{ $announcement->title }}" class="w-full rounded border border-[#D6DFDA] px-2 py-1">
+                                        <textarea required name="message" rows="2" class="w-full rounded border border-[#D6DFDA] px-2 py-1">{{ $announcement->message }}</textarea>
+                                        <select name="status" class="rounded border border-[#D6DFDA] px-2 py-1"><option value="active" @selected($announcement->status === 'active')>Active</option><option value="inactive" @selected($announcement->status === 'inactive')>Inactive</option></select>
+                                        <button class="rounded border border-[#1F6F5B] px-2 py-1 text-[#1F6F5B]">Save</button>
+                                    </form>
+                                </details>
+
                             </td>
 
 
@@ -758,13 +773,13 @@ Settings
 
                                     method="POST"
 
-                                    action="{{ route('admin.settings.announcement.delete',$announcement) }}"
+                                    action="{{ route('admin.settings.announcement.deactivate',$announcement) }}"
 
                                 >
 
                                     @csrf
 
-                                    @method('DELETE')
+                                    @method('PATCH')
 
 
 
@@ -784,7 +799,7 @@ Settings
 
                                     >
 
-                                        Delete
+                                        Deactivate
 
                                     </button>
 
@@ -884,6 +899,7 @@ Settings
         >
 
             @csrf
+            @method('PATCH')
 
 
 
@@ -910,7 +926,7 @@ Settings
                         mb-2
                     ">
 
-                        Buyer Policy
+                        Terms of Service
 
                     </label>
 
@@ -918,7 +934,7 @@ Settings
 
                     <textarea
 
-                        name="buyer_policy"
+                        name="terms_of_service"
 
                         rows="5"
 
@@ -932,7 +948,7 @@ Settings
                             text-sm
                         "
 
-                    >{{ $settings['buyer_policy'] ?? '' }}</textarea>
+                    >{{ $settings['terms_of_service'] ?? '' }}</textarea>
 
 
                 </div>
@@ -955,7 +971,7 @@ Settings
                         mb-2
                     ">
 
-                        Seller Guidelines
+                        Privacy Policy
 
                     </label>
 
@@ -963,7 +979,7 @@ Settings
 
                     <textarea
 
-                        name="seller_guidelines"
+                        name="privacy_policy"
 
                         rows="5"
 
@@ -977,9 +993,19 @@ Settings
                             text-sm
                         "
 
-                    >{{ $settings['seller_guidelines'] ?? '' }}</textarea>
+                    >{{ $settings['privacy_policy'] ?? '' }}</textarea>
 
 
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-2">Shipping Policy</label>
+                    <textarea name="shipping_policy" rows="5" class="w-full border border-[#D6DFDA] rounded-xl px-4 py-3 text-sm">{{ $settings['shipping_policy'] ?? '' }}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-2">Returns / Refund Policy</label>
+                    <textarea name="returns_refund_policy" rows="5" class="w-full border border-[#D6DFDA] rounded-xl px-4 py-3 text-sm">{{ $settings['returns_refund_policy'] ?? '' }}</textarea>
                 </div>
 
 

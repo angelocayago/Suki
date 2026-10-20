@@ -9,6 +9,13 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
+    private const POLICY_KEYS = [
+        'terms_of_service',
+        'privacy_policy',
+        'shipping_policy',
+        'returns_refund_policy',
+    ];
+
     public function index()
     {
         $settings = Setting::query()
@@ -83,76 +90,13 @@ class SettingController extends Controller
                 'Platform information updated.'
             );
     }
-
-
-
-
-
-    public function updateMarketplace(Request $request)
-    {
-        $validated = $request->validate([
-
-            'default_commission_rate' => [
-                'required',
-                'numeric',
-                'min:0',
-                'max:100',
-            ],
-
-            'allow_seller_applications' => [
-                'required',
-                'in:enabled,disabled',
-            ],
-
-        ]);
-
-
-
-        foreach ($validated as $key => $value) {
-
-            Setting::updateOrCreate(
-
-                [
-                    'key' => $key,
-                ],
-
-                [
-                    'value' => $value,
-                    'type' => 'text',
-                ]
-
-            );
-
-        }
-
-
-
-        return back()
-            ->with(
-                'success',
-                'Marketplace settings updated.'
-            );
-    }
-
-
-
-
-
     public function updatePolicies(Request $request)
     {
-        $validated = $request->validate([
-
-            'buyer_policy' => [
-                'nullable',
-                'string',
-            ],
-
-            'seller_guidelines' => [
-                'nullable',
-                'string',
-            ],
-
-        ]);
+        $validated = $request->validate(array_fill_keys(self::POLICY_KEYS, [
+            'nullable',
+            'string',
+            'max:50000',
+        ]));
 
 
 
@@ -272,17 +216,17 @@ class SettingController extends Controller
 
 
 
-    public function deleteAnnouncement(
+    public function deactivateAnnouncement(
         Announcement $announcement
     )
     {
-        $announcement->delete();
+        $announcement->update(['status' => 'inactive']);
 
 
         return back()
             ->with(
                 'success',
-                'Announcement deleted.'
+                'Announcement deactivated.'
             );
     }
 }

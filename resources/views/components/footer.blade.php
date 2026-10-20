@@ -97,6 +97,14 @@
                            text-white/65"
                 >
 
+                    <a href="{{ route('policies.show', 'terms-of-service') }}" class="block hover:text-white">Terms of Service</a>
+                    <a href="{{ route('policies.show', 'privacy-policy') }}" class="block hover:text-white">Privacy Policy</a>
+                    @auth
+                        @if(auth()->user()->isBuyer())
+                            <a href="{{ route('buyer.help') }}" class="block hover:text-white">Help Center</a>
+                        @endif
+                    @endauth
+
                     <a
                         href="{{ route('buyer.shop') }}"
                         class="block hover:text-white"

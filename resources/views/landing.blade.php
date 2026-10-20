@@ -1165,14 +1165,10 @@
                 </span>
 
 
-                <span>
-                    Privacy Policy
-                </span>
+                <a href="{{ route('policies.show', 'privacy-policy') }}">Privacy Policy</a>
 
 
-                <span>
-                    Terms of Service
-                </span>
+                <a href="{{ route('policies.show', 'terms-of-service') }}">Terms of Service</a>
 
 
             </div>
