@@ -19,7 +19,7 @@ return [
     ],
 
     'resend' => [
-        'key' => env('RESEND_API_KEY'),
+        'key' => env('RESEND_KEY'),
     ],
 
     'ses' => [
@@ -42,13 +42,19 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT_URI', 'https://demo.bilihubs.shop/auth/google/callback'),
+        'redirect' => env(
+            'GOOGLE_REDIRECT_URI',
+            'https://demo.bilihubs.shop/auth/google/callback'
+        ),
     ],
 
     'facebook' => [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
-        'redirect' => env('FACEBOOK_REDIRECT_URI', 'https://demo.bilihubs.shop/auth/facebook/callback'),
+        'redirect' => env(
+            'FACEBOOK_REDIRECT_URI',
+            'https://demo.bilihubs.shop/auth/facebook/callback'
+        ),
     ],
 
 ];
