@@ -3562,10 +3562,10 @@ $newPhotoPath = null;
 
 if ($request->hasFile('profile_photo')) {
 
-    $newPhotoPath = Storage::disk('s3')->putFile(
-        'buyer-profiles/' . $user->id,
-        $request->file('profile_photo')
-    );
+    $newPhotoPath = Storage::disk('profile_pictures')->putFile(
+    'buyer-profiles/' . $user->id,
+    $request->file('profile_photo')
+);
 
     if (! $newPhotoPath) {
         throw \Illuminate\Validation\ValidationException::withMessages([
