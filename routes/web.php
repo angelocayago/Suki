@@ -941,5 +941,31 @@ Route::middleware('auth')->group(function () {
 });
 
 
+// existing routes above...
+
+Route::get('/debug-mail-test', function () {
+    try {
+        \Illuminate\Support\Facades\Mail::raw(
+            'BiliHub production mail test',
+            function ($message) {
+                $message->to('jf.aringo04@gmail.com')
+                    ->subject('BiliHub Production Mail Test');
+            }
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mail command completed successfully.',
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'class' => get_class($e),
+        ], 500);
+    }
+});
+
+
 
 require __DIR__ . '/auth.php';
