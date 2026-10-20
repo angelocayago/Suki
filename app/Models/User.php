@@ -75,7 +75,7 @@ public function getProfilePhotoUrlAttribute(): ?string
         '/'
     );
 
-    return 'https://yzvcdrjriziejmecewci.storage.supabase.co'
+    return 'https://yzvcdrjriziejmecewci.supabase.co'
         . '/storage/v1/object/public/profile-pictures/'
         . $path;
 }
