@@ -118,10 +118,11 @@ class FulfillmentController extends Controller
         OrderWorkflowService $workflow
     ): RedirectResponse {
         $validated = $request->validate([
-            'failure_reason' => ['required', 'string', 'max:1000'],
+            'failure_reason' => ['required', Rule::in(['buyer_unavailable', 'buyer_unreachable', 'incorrect_address', 'access_issue', 'buyer_requested_reschedule', 'buyer_refused', 'other'])],
+            'failure_notes' => ['nullable', 'required_if:failure_reason,other', 'string', 'max:1000'],
         ]);
 
-        $workflow->recordFailedDelivery($sellerOrder, $request->user(), $validated['failure_reason']);
+        $workflow->recordFailedDelivery($sellerOrder, $request->user(), $validated['failure_reason'], $validated['failure_notes'] ?? null);
 
         return back()->with('success', 'Failed delivery attempt recorded.');
     }

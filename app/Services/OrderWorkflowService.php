@@ -493,11 +493,22 @@ class OrderWorkflowService
     public function recordFailedDelivery(
         SellerOrder $sellerOrder,
         User $actor,
-        string $reason
+        string $reason,
+        ?string $notes = null
     ): DeliveryEvent {
-        return DB::transaction(function () use ($sellerOrder, $actor, $reason) {
+        $reasons = [
+            'buyer_unavailable' => 'Buyer unavailable', 'buyer_unreachable' => 'Buyer unreachable',
+            'incorrect_address' => 'Incorrect or incomplete address', 'access_issue' => 'Delivery access issue',
+            'buyer_requested_reschedule' => 'Buyer requested reschedule', 'buyer_refused' => 'Buyer refused delivery',
+            'other' => 'Other',
+        ];
+        if (! isset($reasons[$reason]) || ($reason === 'other' && ! trim((string) $notes))) {
+            throw ValidationException::withMessages(['failure_reason' => 'Select a valid reason; other requires details.']);
+        }
+        return DB::transaction(function () use ($sellerOrder, $actor, $reason, $notes, $reasons) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $lockedOrder = SellerOrder::query()
-                ->with(['order', 'shipment.rider.user'])
+                ->with(['order', 'seller', 'shipment.rider.user', 'shipment.provider'])
                 ->lockForUpdate()
                 ->findOrFail($sellerOrder->id);
 
@@ -517,25 +528,91 @@ class OrderWorkflowService
                 throw new AuthorizationException('Only the assigned delivery rider can record a failed attempt.');
             }
 
-            $reason = trim($reason);
-            if ($reason === '') {
-                throw ValidationException::withMessages([
-                    'failure_reason' => 'A failed delivery reason is required.',
-                ]);
+            $shipment = Shipment::whereKey($lockedOrder->shipment->id)->lockForUpdate()->firstOrFail();
+            if ($shipment->attempts >= 3 || $shipment->workflow_status !== OrderStatus::OutForDelivery) {
+                throw ValidationException::withMessages(['order' => 'This delivery cannot record another failed attempt.']);
             }
-
-            $shipment = $lockedOrder->shipment;
             $attempt = $shipment->attempts + 1;
-            $shipment->update(['attempts' => $attempt]);
+            $next = $reason === 'buyer_refused' || $attempt >= 3 ? OrderStatus::RtsInitiated : OrderStatus::DeliveryFailed;
+            $shipment->update(['attempts' => $attempt, 'workflow_status' => $next, 'status' => $next->legacyShipmentStatus(), 'status_changed_at' => now()]);
+            $lockedOrder->update(['workflow_status' => $next, 'status' => $next->legacySellerStatus(), 'status_changed_at' => now()]);
+            $this->synchronizeParentOrder($lockedOrder->order);
 
-            return DeliveryEvent::create([
+            $event = DeliveryEvent::create([
                 'shipment_id' => $shipment->id,
                 'status' => 'DELIVERY_ATTEMPT_FAILED',
                 'attempt' => $attempt,
                 'user_id' => $actor->id,
-                'note' => $reason,
+                'note' => $reasons[$reason].(trim((string) $notes) !== '' ? ': '.trim($notes) : ''),
                 'occurred_at' => now(),
             ]);
+            $notifications = app(DomainNotificationService::class);
+            $context = ['seller_order_id' => $lockedOrder->id, 'shipment_id' => $shipment->id, 'attempt' => $attempt];
+            $notifications->afterCommit($lockedOrder->order->buyer_id, 'Delivery attempt failed', 'Your delivery attempt was unsuccessful.', $context);
+            if ($lockedOrder->shipment->provider?->user_id) {
+                $notifications->afterCommit($lockedOrder->shipment->provider->user_id, 'Delivery requires attention', $next === OrderStatus::RtsInitiated ? 'The parcel requires return to sender.' : 'A failed delivery requires rescheduling.', $context);
+            }
+            if ($next === OrderStatus::RtsInitiated && $lockedOrder->seller?->user_id) {
+                $notifications->afterCommit($lockedOrder->seller->user_id, 'Return initiated', 'A shipment is being returned to your store.', $context);
+            }
+            return $event;
+        });
+    }
+
+    public function rescheduleDelivery(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, Rider $rider, string $scheduledAt): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $provider, $actor, $rider, $scheduledAt) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $order = SellerOrder::with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::with('rider')->where('seller_order_id', $order->id)->lockForUpdate()->firstOrFail();
+            if (! $actor->hasRole('logistics') || $actor->status !== 'active' || $actor->is_suspended || $provider->status !== 'approved' || $provider->user_id !== $actor->id || $shipment->logistics_provider_id !== $provider->id) {
+                throw new AuthorizationException('Only the owning logistics provider may reschedule this shipment.');
+            }
+            if ($order->order->status === 'CANCELLED' || $order->workflow_status !== OrderStatus::DeliveryFailed || $shipment->workflow_status !== OrderStatus::DeliveryFailed || $shipment->attempts >= 3) {
+                throw ValidationException::withMessages(['order' => 'This delivery cannot be rescheduled.']);
+            }
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if ($rider->logistics_provider_id !== $provider->id || ! $rider->isOperationallyAvailable()) {
+                throw ValidationException::withMessages(['rider_id' => 'Select an available rider from your provider.']);
+            }
+            $oldRider = $shipment->rider;
+            $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null, 'rescheduled_at' => $scheduledAt, 'workflow_status' => OrderStatus::AssignedToRider, 'status' => 'assigned', 'status_changed_at' => now()]);
+            $order->update(['workflow_status' => OrderStatus::AssignedToRider, 'status' => 'shipped', 'status_changed_at' => now()]);
+            DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => 'DELIVERY_RESCHEDULED', 'attempt' => $shipment->attempts, 'user_id' => $actor->id, 'note' => 'Scheduled for '.$scheduledAt, 'occurred_at' => now()]);
+            $this->synchronizeParentOrder($order->order);
+            $notifications = app(DomainNotificationService::class);
+            $context = ['shipment_id' => $shipment->id, 'seller_order_id' => $order->id];
+            $notifications->afterCommit($order->order->buyer_id, 'Delivery rescheduled', 'Your delivery has been rescheduled.', $context);
+            $notifications->afterCommit($rider->user_id, 'Delivery assignment', 'A rescheduled delivery has been assigned to you.', $context);
+            if ($oldRider && $oldRider->id !== $rider->id) {
+                $notifications->afterCommit($oldRider->user_id, 'Assignment changed', 'Your delivery assignment has changed.', $context);
+            }
+            return $shipment->fresh();
+        });
+    }
+
+    public function advanceReturn(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, OrderStatus $next): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $provider, $actor, $next) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $order = SellerOrder::with(['order', 'seller'])->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::where('seller_order_id', $order->id)->lockForUpdate()->firstOrFail();
+            if (! $actor->hasRole('logistics') || $actor->status !== 'active' || $actor->is_suspended || $provider->status !== 'approved' || $provider->user_id !== $actor->id || $shipment->logistics_provider_id !== $provider->id) {
+                throw new AuthorizationException('Only the owning logistics provider may manage this return.');
+            }
+            $valid = ($order->workflow_status === OrderStatus::RtsInitiated && $next === OrderStatus::RtsReturning)
+                || ($order->workflow_status === OrderStatus::RtsReturning && $next === OrderStatus::RtsCompleted);
+            if (! $valid || $shipment->workflow_status !== $order->workflow_status || $order->order->status === 'CANCELLED') {
+                throw ValidationException::withMessages(['order' => 'Invalid return transition.']);
+            }
+            $shipment->update(['workflow_status' => $next, 'status' => $next->legacyShipmentStatus(), 'status_changed_at' => now()]);
+            $order->update(['workflow_status' => $next, 'status' => 'shipped', 'status_changed_at' => now()]);
+            DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => $next->value, 'attempt' => $shipment->attempts, 'user_id' => $actor->id, 'occurred_at' => now()]);
+            $this->synchronizeParentOrder($order->order);
+            if ($order->seller?->user_id) {
+                app(DomainNotificationService::class)->afterCommit($order->seller->user_id, 'Return update', $next === OrderStatus::RtsCompleted ? 'The parcel has been returned to your store.' : 'The parcel is returning to your store.', ['shipment_id' => $shipment->id, 'seller_order_id' => $order->id]);
+            }
+            return $shipment->fresh();
         });
     }
 

@@ -59,7 +59,7 @@ class FulfillmentController extends Controller
 
         return view('logistics.assignments', [
             'orders' => $this->databaseOrders($provider)
-                ->filter(fn (array $order) => in_array($order['status'], ['ready_for_pickup', 'sorted', 'assigned_to_rider'], true)),
+                ->filter(fn (array $order) => in_array($order['status'], ['ready_for_pickup', 'sorted', 'assigned_to_rider', 'delivery_failed', 'rts_initiated', 'rts_returning', 'rts_completed'], true)),
             'riders' => $this->activeRiders($provider),
         ]);
     }
@@ -139,6 +139,22 @@ class FulfillmentController extends Controller
         $workflow->reassignDeliveryRider($sellerOrder, $provider, $request->user(), $rider);
 
         return back()->with('success', 'Delivery rider reassigned.');
+    }
+
+    public function reschedule(Request $request, SellerOrder $sellerOrder, OrderWorkflowService $workflow): RedirectResponse
+    {
+        $data = $request->validate(['rider_id' => ['required', 'integer'], 'scheduled_at' => ['required', 'date', 'after:now']]);
+        $provider = $this->providerFor($request);
+        $rider = $provider->riders()->with(['user', 'logisticsProvider'])->findOrFail($data['rider_id']);
+        $workflow->rescheduleDelivery($sellerOrder, $provider, $request->user(), $rider, $data['scheduled_at']);
+        return back()->with('success', 'Delivery rescheduled.');
+    }
+
+    public function advanceReturn(Request $request, SellerOrder $sellerOrder, OrderWorkflowService $workflow): RedirectResponse
+    {
+        $data = $request->validate(['status' => ['required', Rule::in(['RTS_RETURNING', 'RTS_COMPLETED'])]]);
+        $workflow->advanceReturn($sellerOrder, $this->providerFor($request), $request->user(), OrderStatus::from($data['status']));
+        return back()->with('success', 'Return status updated.');
     }
 
     private function providerFor(Request $request): LogisticsProvider
@@ -222,6 +238,7 @@ class FulfillmentController extends Controller
             'delivery_area' => $shipment->sorting_area,
             'area' => $shipment->sorting_area,
             'failure_reason' => $shipment->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->last()?->note,
+            'failure_history' => $shipment->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->values(),
             'updated_at' => $sellerOrder->status_changed_at?->toDateTimeString(),
         ];
     }

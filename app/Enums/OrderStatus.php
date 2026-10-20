@@ -15,6 +15,10 @@ enum OrderStatus: string
     case OutForDelivery = 'OUT_FOR_DELIVERY';
     case Delivered = 'DELIVERED';
     case Completed = 'COMPLETED';
+    case DeliveryFailed = 'DELIVERY_FAILED';
+    case RtsInitiated = 'RTS_INITIATED';
+    case RtsReturning = 'RTS_RETURNING';
+    case RtsCompleted = 'RTS_COMPLETED';
 
     public function next(): ?self
     {
@@ -29,7 +33,7 @@ enum OrderStatus: string
             self::AssignedToRider => self::OutForDelivery,
             self::OutForDelivery => self::Delivered,
             self::Delivered => self::Completed,
-            self::Completed => null,
+            self::Completed, self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => null,
         };
     }
 
@@ -47,6 +51,7 @@ enum OrderStatus: string
             self::OutForDelivery => 'out_for_delivery_at',
             self::Delivered => 'delivered_at',
             self::Completed => 'completed_at',
+            self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => null,
         };
     }
 
@@ -62,6 +67,7 @@ enum OrderStatus: string
             self::Sorted,
             self::AssignedToRider,
             self::OutForDelivery => 'shipped',
+            self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => 'shipped',
             self::Delivered => 'delivered',
             self::Completed => 'completed',
         };
@@ -79,6 +85,8 @@ enum OrderStatus: string
             self::Sorted => 'in_transit',
             self::AssignedToRider => 'assigned',
             self::OutForDelivery => 'out_for_delivery',
+            self::DeliveryFailed, self::RtsInitiated, self::RtsReturning => 'failed',
+            self::RtsCompleted => 'returned',
             self::Delivered,
             self::Completed => 'delivered',
         };
@@ -86,6 +94,9 @@ enum OrderStatus: string
 
     public function rank(): int
     {
-        return array_search($this, self::cases(), true);
+        return match ($this) {
+            self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => 8,
+            default => array_search($this, self::cases(), true),
+        };
     }
 }

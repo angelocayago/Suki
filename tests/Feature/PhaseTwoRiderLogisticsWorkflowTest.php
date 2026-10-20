@@ -76,18 +76,27 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.delivery.failed', $sellerOrder), [
-                'failure_reason' => 'Customer was unavailable.',
+                'failure_reason' => 'buyer_unavailable',
             ])->assertSessionHasNoErrors();
 
         $sellerOrder->refresh();
-        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->workflow_status);
+        $this->assertSame(OrderStatus::DeliveryFailed, $sellerOrder->workflow_status);
         $this->assertSame(1, $shipment->fresh()->attempts);
         $this->assertDatabaseHas('delivery_events', [
             'shipment_id' => $shipment->id,
             'status' => 'DELIVERY_ATTEMPT_FAILED',
             'attempt' => 1,
-            'note' => 'Customer was unavailable.',
+            'note' => 'Buyer unavailable',
         ]);
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'delivered'])
+            ->assertSessionHasErrors('order');
+
+        $this->actingAs($logisticsUser)->post(route('logistics.database.delivery.reschedule', $sellerOrder), [
+            'rider_id' => $deliveryRider->id, 'scheduled_at' => now()->addDay()->toDateTimeString(),
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])->assertSessionHasNoErrors();
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), [
@@ -110,6 +119,70 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         app(OrderWorkflowService::class)
             ->transition($sellerOrder, $buyer, OrderStatus::Completed);
         $this->assertSame(OrderStatus::Completed, $sellerOrder->fresh()->workflow_status);
+    }
+
+    public function test_three_failed_attempts_require_reschedule_then_enter_rts_without_a_fourth_attempt(): void
+    {
+        extract($this->workflowContext());
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
+        $workflow = app(OrderWorkflowService::class);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unavailable');
+        $this->assertSame(OrderStatus::DeliveryFailed, $sellerOrder->fresh()->workflow_status);
+        $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $deliveryRider, now()->addDay()->toDateTimeString());
+        $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
+        $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $deliveryRider, now()->addDays(2)->toDateTimeString());
+        $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'access_issue');
+        $this->assertSame(OrderStatus::RtsInitiated, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(3, $shipment->fresh()->attempts);
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unavailable');
+    }
+
+    public function test_refusal_immediately_enters_rts_and_only_owning_logistics_can_advance_it(): void
+    {
+        extract($this->workflowContext());
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
+        $workflow = app(OrderWorkflowService::class);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_refused');
+        $this->assertSame(OrderStatus::RtsInitiated, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(1, $shipment->fresh()->attempts);
+        $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'attempt' => 1, 'user_id' => $deliveryUser->id]);
+        $this->assertThrows(fn () => $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $deliveryRider, now()->addDay()->toDateTimeString()), \Illuminate\Validation\ValidationException::class);
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'delivered'])
+            ->assertSessionHasErrors('order');
+        $this->assertSame(OrderStatus::RtsInitiated, $sellerOrder->fresh()->workflow_status);
+
+        $otherUser = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
+        $otherProvider = LogisticsProvider::create(['user_id' => $otherUser->id, 'name' => 'Other Logistics', 'slug' => 'other-logistics', 'status' => 'approved']);
+        $this->assertThrows(fn () => $workflow->advanceReturn($sellerOrder, $otherProvider, $otherUser, OrderStatus::RtsReturning), \Illuminate\Auth\Access\AuthorizationException::class);
+
+        $workflow->advanceReturn($sellerOrder, $provider, $logisticsUser, OrderStatus::RtsReturning);
+        $this->assertSame(OrderStatus::RtsReturning, $sellerOrder->fresh()->workflow_status);
+        $this->assertThrows(fn () => $workflow->advanceReturn($sellerOrder, $provider, $logisticsUser, OrderStatus::RtsInitiated), \Illuminate\Validation\ValidationException::class);
+        $workflow->advanceReturn($sellerOrder, $provider, $logisticsUser, OrderStatus::RtsCompleted);
+        $this->assertSame(OrderStatus::RtsCompleted, $sellerOrder->fresh()->workflow_status);
+    }
+
+    public function test_rts_transitions_and_retry_reassignment_are_provider_scoped(): void
+    {
+        extract($this->workflowContext());
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
+        $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+        $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RETRY-1', 'is_active' => true, 'approved_at' => now()]);
+        $workflow = app(OrderWorkflowService::class);
+        $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
+        $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $replacement, now()->addDay()->toDateTimeString());
+        $this->assertSame($replacement->id, $shipment->fresh()->rider_id);
+        $this->assertNotNull($shipment->fresh()->rescheduled_at);
+        $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'attempt' => 1, 'user_id' => $deliveryUser->id]);
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
+            ->assertForbidden();
+        $workflow->transition($sellerOrder, $replacementUser, OrderStatus::OutForDelivery);
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
     }
 
     public function test_actor_permissions_provider_ownership_and_required_steps_are_enforced(): void
@@ -365,7 +438,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
             'received_by' => 'Buyer', 'cod_collected' => '1',
         ])->assertSessionHasErrors('order');
-        $this->actingAs($deliveryUser)->post(route('rider.database.delivery.failed', $sellerOrder), ['failure_reason' => 'Absent'])->assertForbidden();
+        $this->actingAs($deliveryUser)->post(route('rider.database.delivery.failed', $sellerOrder), ['failure_reason' => 'buyer_unavailable'])->assertForbidden();
         $this->assertSame(0, $shipment->fresh()->attempts);
         $this->assertFalse($shipment->fresh()->cod_collected);
         $this->assertEmpty(\Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
@@ -540,5 +613,18 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'buyer', 'sellerUser', 'logisticsUser', 'pickupUser', 'deliveryUser',
             'seller', 'provider', 'pickupRider', 'deliveryRider', 'order', 'sellerOrder', 'shipment'
         );
+    }
+
+    private function moveToOutForDelivery(SellerOrder $sellerOrder, LogisticsProvider $provider, Rider $pickupRider, Rider $deliveryRider, User $pickupUser, User $logisticsUser, User $deliveryUser): void
+    {
+        $workflow = app(OrderWorkflowService::class);
+        $workflow->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
+        $workflow->acceptPickup($sellerOrder, $pickupRider);
+        $workflow->transition($sellerOrder, $pickupUser, OrderStatus::PickedUp);
+        $workflow->transition($sellerOrder, $pickupUser, OrderStatus::AtSortingCenter);
+        $workflow->receiveAtSortingCenter($sellerOrder, $provider, $logisticsUser);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, ['sorting_area' => 'Area A']);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AssignedToRider, ['rider' => $deliveryRider]);
+        $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
     }
 }

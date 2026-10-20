@@ -5165,6 +5165,8 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
         ->name('logistics.database.pickup-rider.assign');
     Route::post('/logistics/erp-orders/{sellerOrder}/delivery-rider', [LogisticsFulfillmentController::class, 'reassignDelivery'])
         ->name('logistics.database.delivery-rider.reassign');
+    Route::post('/logistics/erp-orders/{sellerOrder}/reschedule', [LogisticsFulfillmentController::class, 'reschedule'])->name('logistics.database.delivery.reschedule');
+    Route::post('/logistics/erp-orders/{sellerOrder}/return', [LogisticsFulfillmentController::class, 'advanceReturn'])->name('logistics.database.delivery.return');
     Route::post('/logistics/erp-orders/{sellerOrder}/status', [LogisticsFulfillmentController::class, 'update'])
         ->name('logistics.database.order.status');
     Route::post('/logistics/messages/context/seller-orders/{sellerOrder}/shipment', [ContextConversationController::class, 'logisticsShipment'])

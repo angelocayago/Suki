@@ -544,7 +544,8 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                 @if (($order['source'] ?? 'session') === 'database')
                                     <form method="POST" action="{{ route('rider.database.delivery.failed', $orderId) }}" class="mt-2 flex gap-2">
                                         @csrf
-                                        <input name="failure_reason" required maxlength="1000" placeholder="Failed delivery reason" class="rounded-lg border border-gray-200 px-3 py-2 text-xs">
+                                        <select name="failure_reason" required class="rounded-lg border border-gray-200 px-3 py-2 text-xs"><option value="">Select failure reason</option><option value="buyer_unavailable">Buyer unavailable</option><option value="buyer_unreachable">Buyer unreachable</option><option value="incorrect_address">Incorrect/incomplete address</option><option value="access_issue">Delivery access issue</option><option value="buyer_requested_reschedule">Buyer requested reschedule</option><option value="buyer_refused">Buyer refused delivery</option><option value="other">Other</option></select>
+                                        <input name="failure_notes" maxlength="1000" placeholder="Notes (required for Other)" class="rounded-lg border border-gray-200 px-3 py-2 text-xs">
                                         <button type="submit" class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white">Record Failure</button>
                                     </form>
                                     <form method="POST" action="{{ route('rider.database.delivery.issue', $orderId) }}" class="mt-2 grid gap-2">

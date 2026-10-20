@@ -29,7 +29,22 @@
                     @endif
                 </div>
 
-                @if(($order['status'] ?? '') === 'ready_for_pickup')
+                @if(($order['status'] ?? '') === 'delivery_failed')
+                    <form method="POST" action="{{ route('logistics.database.delivery.reschedule', $order['id']) }}" class="flex flex-wrap gap-2">
+                        @csrf
+                        <input type="datetime-local" name="scheduled_at" required class="rounded-xl border px-3 py-2 text-xs">
+                        <select name="rider_id" required class="rounded-xl border px-3 py-2 text-xs"><option value="">Select rider</option>@foreach($riders as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@endforeach</select>
+                        <button class="rounded-xl bg-[#173F35] px-4 py-2 text-xs font-semibold text-white">Reschedule</button>
+                    </form>
+                @elseif(in_array(($order['status'] ?? ''), ['rts_initiated', 'rts_returning'], true))
+                    <form method="POST" action="{{ route('logistics.database.delivery.return', $order['id']) }}">
+                        @csrf
+                        <input type="hidden" name="status" value="{{ $order['status'] === 'rts_initiated' ? 'RTS_RETURNING' : 'RTS_COMPLETED' }}">
+                        <button class="rounded-xl bg-[#173F35] px-4 py-2 text-xs font-semibold text-white">{{ $order['status'] === 'rts_initiated' ? 'Mark returning' : 'Mark returned to Seller' }}</button>
+                    </form>
+                @elseif(($order['status'] ?? '') === 'rts_completed')
+                    <span>Returned to Seller</span>
+                @elseif(($order['status'] ?? '') === 'ready_for_pickup')
                     <form method="POST" action="{{ route('logistics.database.pickup-rider.assign', $order['id']) }}" class="flex flex-wrap gap-2" onsubmit="return confirm('{{ !empty($order['pickup_rider_id']) ? 'Change the assigned pickup rider?' : 'Assign this pickup rider?' }}');">
                         @csrf
                         <select name="pickup_rider_id" required class="rounded-xl border border-[#DDE6E1] px-3 py-2 text-xs">
@@ -69,6 +84,9 @@
             @endif
             @if(!empty($order['assignment_history']) && count($order['assignment_history']))
                 <details class="mt-3 text-xs text-[#52615a]"><summary class="cursor-pointer font-semibold">Assignment history</summary><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($order['assignment_history'] as $event)<li>{{ $event->occurred_at?->format('M j, Y g:i A') }} — {{ $event->note ?? str($event->status)->replace('_', ' ')->headline() }}</li>@endforeach</ul></details>
+            @endif
+            @if(!empty($order['failure_history']) && count($order['failure_history']))
+                <details class="mt-3 text-xs"><summary>Failed delivery history</summary><ul>@foreach($order['failure_history'] as $event)<li>Attempt {{ $event->attempt }}: {{ $event->note }} — {{ $event->user?->full_name }} ({{ $event->occurred_at?->format('M j, Y g:i A') }})</li>@endforeach</ul></details>
             @endif
         </div>
     @empty
