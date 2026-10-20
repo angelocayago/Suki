@@ -6,6 +6,8 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Rider;
 use App\Models\SellerOrder;
+use App\Models\Shipment;
+use App\Models\DeliveryEvent;
 use App\Services\OrderWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +17,24 @@ use Illuminate\View\View;
 
 class FulfillmentController extends Controller
 {
+    public function performance(Request $request): View
+    {
+        $rider = $this->riderFor($request);
+        $orders = $this->databaseOrders($rider);
+        $delivered = Shipment::query()->where('delivered_by', $rider->id)->whereIn('workflow_status', [OrderStatus::Delivered->value, OrderStatus::Completed->value]);
+        $completedDeliveries = (clone $delivered)->count();
+        $failedAttempts = DeliveryEvent::query()->where('user_id', $rider->user_id)->where('status', 'DELIVERY_ATTEMPT_FAILED')->count();
+        $assigned = Shipment::query()->where('rider_id', $rider->id)->count();
+        $pending = Shipment::query()->where('rider_id', $rider->id)->whereIn('workflow_status', [OrderStatus::AssignedToRider->value, OrderStatus::OutForDelivery->value])->count();
+        $codCollectedMinor = (clone $delivered)->where('cod_collected', true)->sum('cod_collected_minor');
+
+        return view('rider.earnings', [
+            'orders' => $orders->all(), 'totalDeliveries' => $completedDeliveries,
+            'totalEarnings' => null, 'deliveryFee' => null,
+            'performance' => compact('assigned', 'pending', 'completedDeliveries', 'failedAttempts', 'codCollectedMinor'),
+        ]);
+    }
+
     public function dashboard(Request $request): View
     {
         $rider = $this->riderFor($request);

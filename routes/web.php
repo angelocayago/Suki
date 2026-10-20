@@ -34,6 +34,7 @@ use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
 use App\Http\Controllers\Messaging\MessageController as MessagingMessageController;
 use App\Http\Controllers\NotificationInboxController;
+use App\Http\Controllers\AccountProfileController;
 use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\ReviewPageController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
@@ -73,6 +74,13 @@ Route::middleware('auth')->prefix('notifications')->name('notifications.')->grou
     Route::post('/read-all', [NotificationInboxController::class, 'markAllRead'])->name('read-all');
     Route::post('/{notification}/read', [NotificationInboxController::class, 'markRead'])->name('read');
 });
+
+foreach (['admin', 'logistics', 'rider'] as $profileArea) {
+    Route::get('/'.$profileArea.'/profile', [AccountProfileController::class, 'show'])
+        ->defaults('area', $profileArea)->middleware(['auth', 'not_suspended', 'approved', 'role:'.$profileArea])->name($profileArea.'.profile');
+    Route::patch('/'.$profileArea.'/profile', [AccountProfileController::class, 'update'])
+        ->defaults('area', $profileArea)->middleware(['auth', 'not_suspended', 'approved', 'role:'.$profileArea])->name($profileArea.'.profile.update');
+}
 
 Route::middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])->group(function () {
     Route::get('/buyer/reviews', [ReviewPageController::class, 'buyer'])->name('reviews.buyer-page');
@@ -4096,7 +4104,8 @@ Route::post(
 // RIDER EARNINGS
 // =====================================================
 
-Route::get('/rider/earnings', function () {
+Route::get('/legacy/rider/earnings', function (Request $request) {
+    return app(RiderFulfillmentController::class)->performance($request);
 
     if (!session('rider_logged_in')) {
 
@@ -4197,17 +4206,15 @@ Route::get('/rider/earnings', function () {
     |
     */
 
-    $deliveryFee =
-        50;
+    // No authoritative Rider compensation formula is configured yet.
+    $deliveryFee = 0;
 
 
     $totalDeliveries =
         $completedOrders->count();
 
 
-    $totalEarnings =
-        $totalDeliveries *
-        $deliveryFee;
+    $totalEarnings = null;
 
 
     return view(
@@ -4229,6 +4236,10 @@ Route::get('/rider/earnings', function () {
     );
 
 })->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
+    ->name('rider.earnings.legacy');
+
+Route::get('/rider/earnings', [RiderFulfillmentController::class, 'performance'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:rider'])
     ->name('rider.earnings');
 
 // =====================================================

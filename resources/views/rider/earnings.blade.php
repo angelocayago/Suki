@@ -29,14 +29,11 @@
         );
 
 
-    $totalEarnings =
-        (float) (
-            $totalEarnings
-            ?? (
-                $totalDeliveries
-                * $deliveryFee
-            )
-        );
+    $totalEarnings = $totalEarnings ?? null;
+    $performance = $performance ?? ['assigned' => 0, 'pending' => 0, 'completedDeliveries' => $totalDeliveries, 'failedAttempts' => 0, 'codCollectedMinor' => 0];
+    $successRate = ($performance['completedDeliveries'] + $performance['failedAttempts']) > 0
+        ? round(($performance['completedDeliveries'] / ($performance['completedDeliveries'] + $performance['failedAttempts'])) * 100)
+        : 0;
 
 
     /*
@@ -115,9 +112,7 @@
             ->count();
 
 
-    $todayEarnings =
-        $todayDeliveries
-        * $deliveryFee;
+    $todayEarnings = null;
 
 
     /*
@@ -156,9 +151,7 @@
             ->count();
 
 
-    $monthlyEarnings =
-        $monthlyDeliveries
-        * $deliveryFee;
+    $monthlyEarnings = null;
 
 
     /*
@@ -410,10 +403,7 @@
                        tracking-[-0.05em]
                        sm:text-[38px]"
             >
-                ₱{{ number_format(
-                    $totalEarnings,
-                    2
-                ) }}
+            Compensation not configured
             </p>
 
 
@@ -457,10 +447,7 @@
                            text-lg
                            font-semibold"
                 >
-                    ₱{{ number_format(
-                        $todayEarnings,
-                        2
-                    ) }}
+                    Not configured
                 </p>
 
                 <p
@@ -498,10 +485,7 @@
                            text-lg
                            font-semibold"
                 >
-                    ₱{{ number_format(
-                        $monthlyEarnings,
-                        2
-                    ) }}
+                    Not configured
                 </p>
 
                 <p
@@ -521,6 +505,13 @@
 
     </div>
 
+</section>
+
+<section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Assignments</p><p class="text-2xl font-semibold">{{ $performance['assigned'] }}</p></div>
+    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Current jobs</p><p class="text-2xl font-semibold">{{ $performance['pending'] }}</p></div>
+    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Failed attempts</p><p class="text-2xl font-semibold">{{ $performance['failedAttempts'] }}</p></div>
+    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Delivery success rate</p><p class="text-2xl font-semibold">{{ $successRate }}%</p><p class="text-xs text-gray-500">COD collected: ₱{{ number_format($performance['codCollectedMinor'] / 100, 2) }}</p></div>
 </section>
 
 
@@ -641,10 +632,7 @@
                            text-[#24312C]
                            sm:text-2xl"
                 >
-                    ₱{{ number_format(
-                        $deliveryFee,
-                        2
-                    ) }}
+                    Not configured
                 </p>
 
             </div>
@@ -676,7 +664,7 @@
                    text-[10px]
                    text-[#7B8982]"
         >
-            Current prototype delivery rate
+            Compensation is not configured
         </p>
 
     </div>
@@ -1194,10 +1182,7 @@
                                            font-semibold
                                            text-[#1F6F5B]"
                                 >
-                                    +₱{{ number_format(
-                                        $deliveryFee,
-                                        2
-                                    ) }}
+                                    Compensation not configured
                                 </p>
 
 
@@ -1448,10 +1433,7 @@
                                        font-semibold
                                        text-[#1F6F5B]"
                             >
-                                +₱{{ number_format(
-                                    $deliveryFee,
-                                    2
-                                ) }}
+                                Compensation not configured
                             </p>
 
                         </div>
@@ -1634,7 +1616,7 @@
                        font-semibold
                        text-[#294C42]"
             >
-                Current Earnings Calculation
+                Compensation status
             </p>
 
 
@@ -1645,18 +1627,8 @@
                        leading-5
                        text-[#6B8178]"
             >
-                The current project uses a prototype
-                delivery rate of
-                <strong class="text-[#294C42]">
-                    ₱{{ number_format(
-                        $deliveryFee,
-                        2
-                    ) }}
-                </strong>
-                per successful delivery.
-                This can later be connected to the
-                final SUKI Logistics delivery-area
-                and rider compensation system.
+                Compensation is not configured. Delivery counts are operational metrics only;
+                monetary earnings will appear only after an authoritative Rider compensation rule is defined.
             </p>
 
         </div>

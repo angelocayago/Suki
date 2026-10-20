@@ -129,24 +129,7 @@
             class="flex min-w-0 items-center gap-3"
         >
 
-            <div
-                class="
-                    flex h-10 w-10
-                    shrink-0
-                    items-center justify-center
-                    overflow-hidden
-                    rounded-xl
-                    bg-white
-                "
-            >
-
-                <img
-                    src="{{ asset('images/logistics-logo.png') }}"
-                    alt="SUKI SHOP Logistics"
-                    class="h-8 w-8 object-contain"
-                >
-
-            </div>
+            <x-profile-avatar :user="auth()->user()" size="h-10 w-10 shrink-0" />
 
 
             <div class="min-w-0">

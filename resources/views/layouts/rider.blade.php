@@ -191,21 +191,7 @@
 
                 <div class="flex items-center gap-3">
 
-                    <div
-                        class="flex h-10 w-10
-                               shrink-0
-                               items-center justify-center
-                               rounded-xl
-                               bg-[#DDF3EC]
-                               text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="bike"
-                            class="h-[18px] w-[18px]"
-                        ></i>
-
-                    </div>
+                    <x-profile-avatar :user="auth()->user()" :name="$sidebarRiderName" size="h-10 w-10 shrink-0" />
 
 
                     <div class="min-w-0">

@@ -549,6 +549,7 @@
             @endif
 
             @if (auth()->check() && auth()->user()->isBuyer())
+                <x-profile-avatar :user="auth()->user()" size="h-8 w-8 shrink-0" />
                 <a href="{{ route('reviews.buyer-page') }}" class="whitespace-nowrap text-[#6E7D76]">My reviews</a>
                 <x-notification-link class="whitespace-nowrap text-[#6E7D76]" />
             @endif

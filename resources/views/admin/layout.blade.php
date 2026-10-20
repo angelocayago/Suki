@@ -96,7 +96,7 @@
             "
         >
 
-            <h1
+            <div class="flex items-center gap-3"><x-profile-avatar :user="auth()->user()" size="h-9 w-9" /><div><h1
                 class="
                     font-bold
                     text-lg
@@ -113,7 +113,7 @@
                 "
             >
                 Platform Control Center
-            </p>
+            </p></div></div>
 
         </div>
 
