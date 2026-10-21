@@ -94,6 +94,27 @@
               <i class="bi bi-wallet2 me-2"></i>
               Seller Settlements
             </a>
+            @php
+                $sellerWithdrawalPendingCount = 0;
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('seller_withdrawals')) {
+                    $sellerWithdrawalPendingCount = \App\Models\SellerWithdrawal::query()
+                        ->where('status', 'pending')
+                        ->count();
+                }
+            @endphp
+            <a href="{{ route('admin.seller-withdrawals.index') }}"
+              class="nav-link {{ request()->routeIs('admin.seller-withdrawals.*') ? 'active' : '' }}">
+              <i class="bi bi-cash-stack me-2"></i>
+              Seller Withdrawals
+              @if($sellerWithdrawalPendingCount > 0)
+                <span
+                  id="seller-withdrawal-pending-count"
+                  class="badge bg-danger ms-auto">
+                  {{ $sellerWithdrawalPendingCount }}
+                </span>
+              @endif
+            </a>
             <a class="nav-link {{ request()->routeIs('admin.registrations.*') ? 'active' : '' }}" href="{{ route('admin.registrations.index') }}">
               <i class="bi bi-clipboard-check"></i> Registrations
             </a>

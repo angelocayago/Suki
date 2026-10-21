@@ -152,6 +152,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/seller-settlements', [SellerSettlementController::class, 'index'])
             ->name('seller-settlements.index');
 
+        Route::get(
+            '/seller-withdrawals',
+            [\App\Http\Controllers\Admin\SellerWithdrawalController::class, 'index']
+        )->name('seller-withdrawals.index');
+
+        Route::post(
+            '/seller-withdrawals/{withdrawal}/pay',
+            [\App\Http\Controllers\Admin\SellerWithdrawalController::class, 'markPaid']
+        )->name('seller-withdrawals.pay');
+
+        Route::post(
+            '/seller-withdrawals/{withdrawal}/reject',
+            [\App\Http\Controllers\Admin\SellerWithdrawalController::class, 'reject']
+        )->name('seller-withdrawals.reject');
+
         Route::post(
             '/seller-settlements/{settlement}/approve',
             [SellerSettlementController::class, 'approve']
@@ -427,6 +442,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/notifications/{notification}/read', [SellerDashboardController::class, 'markNotificationRead'])->name('notifications.read');
 
         Route::get('/reports', [SellerDashboardController::class, 'reports'])->name('reports');
+
+        Route::get('/wallet', [\App\Http\Controllers\Seller\WalletController::class, 'index'])
+            ->name('wallet.index');
+
+        Route::post('/wallet/withdraw', [\App\Http\Controllers\Seller\WalletController::class, 'withdraw'])
+            ->name('wallet.withdraw');
 
         Route::get('/messages', [SharedMessageController::class, 'index'])->name('messages.index');
 

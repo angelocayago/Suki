@@ -109,6 +109,11 @@
               <i class="bi bi-bar-chart"></i> Reports
             </a>
           </li>
+          <li class="sidebar-item {{ request()->routeIs('seller.wallet.*') ? 'active' : '' }}">
+            <a href="{{ route('seller.wallet.index') }}" class="sidebar-link">
+              <i class="bi bi-wallet2"></i> Wallet
+            </a>
+          </li>
 
           <li class="sidebar-divider">Management</li>
 
