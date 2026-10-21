@@ -850,6 +850,11 @@ class DashboardController extends Controller
 
     {
 
+        // Fallback processing for environments where the Laravel scheduler
+        // is not continuously running. Expired offers are re-offered before
+        // this rider's pickup page is rendered.
+        \App\Services\PickupOfferService::processExpiredOffers();
+
         $rider = Auth::user();
 
         $query = \App\Models\Shipment::query()
@@ -1923,6 +1928,9 @@ class DashboardController extends Controller
 
                     ]);
 
+                    app(\App\Services\OrderFlowSyncService::class)
+                        ->syncShipment($shipment);
+
                     $this->createNotification(
 
                         $order->user_id,
@@ -2022,6 +2030,9 @@ class DashboardController extends Controller
 
                     ]);
 
+                    app(\App\Services\OrderFlowSyncService::class)
+                        ->syncShipment($shipment);
+
                     $sellerOrder->update([
 
                         'status' => 'delivered',
@@ -2036,6 +2047,9 @@ class DashboardController extends Controller
                         'notes' => $data['failure_reason'],
 
                     ]);
+
+                    app(\App\Services\OrderFlowSyncService::class)
+                        ->syncShipment($shipment);
 
                     $sellerOrder->update([
 

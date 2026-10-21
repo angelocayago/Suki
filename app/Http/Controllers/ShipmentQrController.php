@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -174,6 +174,9 @@ class ShipmentQrController extends Controller
                 'seller_scan_confirmed_at' => now(),
                 'picked_up_at' => now(),
             ]);
+
+            app(\App\Services\OrderFlowSyncService::class)
+                ->syncShipment($shipment);
             return [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
@@ -207,8 +210,11 @@ class ShipmentQrController extends Controller
             ]);
         }
         return redirect()
-            ->route('rider.orders.show', $result['order_id'])
-            ->with('success', 'QR verified. Parcel picked up successfully.');
+            ->route('rider.pickups')
+            ->with(
+                'success',
+                'QR verified. Parcel picked up successfully. Deliver it to the sorting center.'
+            );
     }
     /**
      * Verify physical handover of a staged parcel to its final-mile rider.
@@ -296,6 +302,9 @@ class ShipmentQrController extends Controller
             $locked->hub_picked_up_at = now();
             $locked->hub_pickup_rider_id = $rider->id;
             $locked->save();
+
+            app(\App\Services\OrderFlowSyncService::class)
+                ->syncShipment($locked);
 
             return [
                 'buyer_id' => $order->user_id,
@@ -419,3 +428,6 @@ class ShipmentQrController extends Controller
         return $this->scan($request, $shipments->first());
     }
 }
+
+
+

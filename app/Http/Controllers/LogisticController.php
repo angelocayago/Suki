@@ -789,6 +789,9 @@ class LogisticController extends Controller
     {
         $logistic = Auth::user()->ownedLogistic;
 
+        $isFailedReturn =
+            $shipment->status === 'failed_return_at_sorting_center';
+
         if (!$isFailedReturn) {
             if (
                 $shipment->status !== 'at_sorting_center' ||
@@ -925,6 +928,9 @@ class LogisticController extends Controller
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        app(\App\Services\OrderFlowSyncService::class)
+            ->syncShipment($shipment);
 
         $order = $result['order'];
         $sellerOrder = $result['seller_order'];
@@ -1916,7 +1922,11 @@ class LogisticController extends Controller
 
         $messages = $shipment->messages()->with('user')->latest()->paginate(50);
 
-        return view('logistic.shipments-chat', compact('shipment', 'messages'));
+        return view('logistic.shipments-chat', compact(
+            'shipment',
+            'messages',
+            'logistic'
+        ));
     }
 
     public function shipmentChatStore(Request $request, Shipment $shipment)
@@ -2358,3 +2368,6 @@ class LogisticController extends Controller
         return null;
     }
 }
+
+
+
