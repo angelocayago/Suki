@@ -71,6 +71,11 @@ class Rider extends Model
         return $this->hasMany(Complaint::class);
     }
 
+    public function serviceAreas(): HasMany
+    {
+        return $this->hasMany(RiderServiceArea::class);
+    }
+
     public function conversationParticipations(): HasMany
     {
         return $this->hasMany(ConversationParticipant::class);

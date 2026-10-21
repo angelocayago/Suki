@@ -17,9 +17,11 @@
 
     $description = $profile['description'] ?? '';
 
-    $province = $profile['province'] ?? '';
-    $municipality = $profile['municipality'] ?? '';
-    $barangay = $profile['barangay'] ?? '';
+    $pickupAddress = $seller->pickupAddress;
+    $region = old('region', $pickupAddress?->region_code ?? '');
+    $province = old('province', $pickupAddress?->province_code ?? '');
+    $municipality = old('municipality', $pickupAddress?->city_municipality_code ?? '');
+    $barangay = old('barangay', $pickupAddress?->barangay_code ?? '');
     $streetAddress = $profile['address'] ?? '';
 
     $profilePhoto = $profile['profile_photo'] ?? null;
@@ -517,6 +519,8 @@
                 class="grid grid-cols-1
                        gap-5 md:grid-cols-3"
             >
+
+                <div><label for="profileRegion" class="text-sm font-medium text-gray-700">Region <span class="text-red-500">*</span></label><select id="profileRegion" name="region" required class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm"><option value="{{ $region }}">{{ $region ?: 'Select region' }}</option></select></div>
 
 
                 {{-- PROVINCE --}}
@@ -1261,6 +1265,7 @@ document.addEventListener('DOMContentLoaded', function () {
     |
     */
 
+    const regionSelect = document.getElementById('profileRegion');
     const provinceSelect =
         document.getElementById('profileProvince');
 
@@ -1275,8 +1280,8 @@ document.addEventListener('DOMContentLoaded', function () {
         );
 
 
-    const currentProvince =
-        @json(old('province', $province));
+    const currentRegion = @json($region);
+    const currentProvince = @json($province);
 
     const currentMunicipality =
         @json(old('municipality', $municipality));
@@ -1285,8 +1290,7 @@ document.addEventListener('DOMContentLoaded', function () {
         @json(old('barangay', $barangay));
 
 
-    const PSGC_API_BASE =
-        '/api/psgc';
+    const PSGC_API_BASE = '/address';
 
 
 
@@ -1323,8 +1327,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const option =
                 document.createElement('option');
 
-            option.value =
-                item.name;
+            option.value = item.code;
 
             option.textContent =
                 item.name;
@@ -1335,7 +1338,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (
                 selectedValue
-                && item.name === selectedValue
+                && item.code === selectedValue
             ) {
 
                 option.selected =
@@ -1587,11 +1590,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
 
+    async function loadMunicipalitiesFromRegion(regionCode, selectedMunicipality = '', selectedBarangay = '') {
+        if (!municipalitySelect || !regionCode) return;
+        municipalitySelect.disabled = true;
+        setSingleOption(municipalitySelect, '', 'Loading municipalities/cities...');
+        setSingleOption(barangaySelect, '', 'Select municipality/city first');
+        barangaySelect.disabled = true;
+        try {
+            const municipalities = await fetchJson(`${PSGC_API_BASE}/regions/${encodeURIComponent(regionCode)}/cities-municipalities`);
+            populateSelect(municipalitySelect, 'Select municipality/city', municipalities, selectedMunicipality);
+            municipalitySelect.disabled = false;
+            if (selectedMunicipality) await loadBarangays(selectedMunicipality, selectedBarangay);
+        } catch (error) { setSingleOption(municipalitySelect, '', 'Unable to load municipalities/cities'); }
+    }
+
+    async function getRegions() {
+        if (!regionSelect) return;
+        try {
+            const regions = await fetchJson(`${PSGC_API_BASE}/regions`);
+            populateSelect(regionSelect, 'Select region', regions, currentRegion);
+            if (currentRegion) await loadProvinces(currentRegion);
+        } catch (error) { setSingleOption(regionSelect, '', 'Unable to load regions'); }
+    }
 
 
-    async function loadProvinces() {
 
-        if (!provinceSelect) {
+    async function loadProvinces(regionCode = currentRegion) {
+
+        if (!provinceSelect || !regionCode) {
             return;
         }
 
@@ -1600,7 +1626,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const provinces =
                 await fetchJson(
-                    `${PSGC_API_BASE}/provinces`
+                    `${PSGC_API_BASE}/regions/${encodeURIComponent(regionCode)}/provinces`
                 );
 
 
@@ -1622,6 +1648,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 });
 
+
+            if (provinces.length === 0) {
+                provinceSelect.disabled = true;
+                setSingleOption(provinceSelect, '', 'No province required');
+                await loadMunicipalitiesFromRegion(regionCode, currentMunicipality, currentBarangay);
+                return;
+            }
 
             if (
                 selectedOption
@@ -1664,10 +1697,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     if (
+        regionSelect &&
         provinceSelect
         && municipalitySelect
         && barangaySelect
     ) {
+
+        regionSelect.addEventListener('change', async function () {
+            setSingleOption(provinceSelect, '', 'Loading provinces...'); provinceSelect.disabled = true;
+            setSingleOption(municipalitySelect, '', 'Select province or region first'); municipalitySelect.disabled = true;
+            setSingleOption(barangaySelect, '', 'Select municipality/city first'); barangaySelect.disabled = true;
+            await loadProvinces(this.value);
+        });
 
 
         provinceSelect.addEventListener(
@@ -1680,10 +1721,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ];
 
 
-                const provinceCode =
-                    selectedOption
-                        ? selectedOption.dataset.code
-                        : null;
+                const provinceCode = this.value || null;
 
 
                 if (!provinceCode) {
@@ -1730,10 +1768,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ];
 
 
-                const municipalityCode =
-                    selectedOption
-                        ? selectedOption.dataset.code
-                        : null;
+                const municipalityCode = this.value || null;
 
 
                 if (!municipalityCode) {
@@ -1759,7 +1794,7 @@ document.addEventListener('DOMContentLoaded', function () {
         );
 
 
-        loadProvinces();
+        getRegions();
 
     }
 

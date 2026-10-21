@@ -1,0 +1,3 @@
+<?php
+namespace App\Services; use App\Enums\OrderStatus; use App\Models\{Rider,RiderShippingFeeEarning,Shipment};
+class RiderShippingFeeService { public function creditDelivered(Shipment $shipment): void { if(!$shipment->delivered_by || !in_array($shipment->workflow_status,[OrderStatus::Delivered,OrderStatus::Completed],true)) return; $rider=Rider::where('user_id',$shipment->delivered_by)->where('logistics_provider_id',$shipment->logistics_provider_id)->first(); if(!$rider)return; RiderShippingFeeEarning::firstOrCreate(['seller_order_id'=>$shipment->seller_order_id],['shipment_id'=>$shipment->id,'rider_id'=>$rider->id,'amount_minor'=>5000,'earned_at'=>$shipment->proof_delivered_at??now()]); } }

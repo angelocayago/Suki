@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up():void { Schema::create('rider_shipping_fee_earnings',function(Blueprint $t){$t->id();$t->foreignId('seller_order_id')->constrained()->unique();$t->foreignId('shipment_id')->constrained()->unique();$t->foreignId('rider_id')->constrained();$t->unsignedBigInteger('amount_minor');$t->timestamp('earned_at');$t->timestamps();$t->index('rider_id');}); } public function down():void { Schema::dropIfExists('rider_shipping_fee_earnings'); } };

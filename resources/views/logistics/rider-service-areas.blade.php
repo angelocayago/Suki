@@ -1,0 +1,9 @@
+@extends('layouts.logistics')
+@section('content')
+<div class="mx-auto max-w-4xl space-y-5 p-4"><h1 class="text-2xl font-bold">Rider service areas</h1><p class="text-sm text-slate-600">{{ $rider->user->full_name }} — verified PSGC areas only.</p>
+@if(session('success'))<p class="rounded bg-green-50 p-3 text-green-800">{{ session('success') }}</p>@endif
+@if($errors->any())<p class="rounded bg-red-50 p-3 text-red-800">{{ $errors->first() }}</p>@endif
+<form method="post" action="{{ route('logistics.riders.service-areas.store', $rider) }}" class="grid gap-3 rounded border bg-white p-4 md:grid-cols-2">@csrf
+<input required name="region" placeholder="Region PSGC code" class="rounded border p-2"><input name="province" placeholder="Province PSGC code (blank for NCR)" class="rounded border p-2"><input required name="municipality" placeholder="City/Municipality PSGC code" class="rounded border p-2"><input name="barangay" placeholder="Barangay PSGC code (optional restriction)" class="rounded border p-2"><button class="rounded bg-[#1F6F5B] px-3 py-2 text-white">Add verified area</button></form>
+<div class="rounded border bg-white p-4"><h2 class="font-bold">Assigned areas</h2>@forelse($rider->serviceAreas()->orderByDesc('is_active')->get() as $area)<div class="flex items-center justify-between border-t py-2 text-sm"><span>{{ $area->city_municipality_code }}{{ $area->barangay_code ? ' / '.$area->barangay_code : ' (city-wide)' }} — {{ $area->is_active ? 'Active' : 'Inactive' }}</span>@if($area->is_active)<form method="post" action="{{ route('logistics.riders.service-areas.destroy', [$rider, $area]) }}">@csrf @method('DELETE')<button class="text-red-700">Deactivate</button></form>@endif</div>@empty<p class="py-3 text-sm text-slate-500">No verified service area assigned.</p>@endforelse</div></div>
+@endsection

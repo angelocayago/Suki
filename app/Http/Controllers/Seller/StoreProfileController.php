@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Seller;
+use App\Services\PhilippineAddressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,10 +30,10 @@ class StoreProfileController extends Controller
         return redirect(route('seller.store.profile').'#shop-profile')->with('success', 'Shop profile updated successfully.');
     }
 
-    public function address(Request $request): RedirectResponse
+    public function address(Request $request, PhilippineAddressService $addresses): RedirectResponse
     {
-        $seller=$this->seller($request); $data=$request->validate(['province'=>['required','string','max:100'],'municipality'=>['required','string','max:100'],'barangay'=>['required','string','max:100'],'address'=>['required','string','max:255']]);
-        DB::transaction(function () use ($seller, $data): void { $address=$seller->pickupAddress ?: new Address(['user_id'=>$seller->user_id,'label'=>'Store pickup']); $address->fill(['recipient'=>$seller->name,'phone'=>$seller->owner->phone ?? '','line1'=>$data['address'],'barangay'=>$data['barangay'],'city'=>$data['municipality'],'province'=>$data['province'],'postal_code'=>'']); $address->save(); $seller->update(['pickup_address_id'=>$address->id]); }, 3);
+        $seller=$this->seller($request); $data=$request->validate(['region'=>['required','string','max:20'],'province'=>['nullable','string','max:20'],'municipality'=>['required','string','max:20'],'barangay'=>['required','string','max:20'],'address'=>['required','string','max:255']]); $resolved=$addresses->resolve($data);
+        DB::transaction(function () use ($seller, $data, $resolved): void { $address=$seller->pickupAddress ?: new Address(['user_id'=>$seller->user_id,'label'=>'Store pickup']); $address->fill(['recipient'=>$seller->name,'phone'=>$seller->owner->phone ?? '','line1'=>$data['address'],'region'=>$resolved['region'],'region_code'=>$resolved['region_code'],'barangay'=>$resolved['barangay'],'barangay_code'=>$resolved['barangay_code'],'city'=>$resolved['municipality'],'city_municipality_code'=>$resolved['city_municipality_code'],'province'=>$resolved['province'],'province_code'=>$resolved['province_code'],'postal_code'=>'']); $address->save(); $seller->update(['pickup_address_id'=>$address->id]); }, 3);
         return redirect(route('seller.store.profile').'#pickup-address')->with('success', 'Pickup address updated successfully.');
     }
 

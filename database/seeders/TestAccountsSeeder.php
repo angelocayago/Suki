@@ -8,6 +8,7 @@ use App\Models\LogisticsProvider;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Rider;
+use App\Models\RiderServiceArea;
 use App\Models\Role;
 use App\Models\Seller;
 use App\Models\User;
@@ -53,9 +54,13 @@ class TestAccountsSeeder extends Seeder
                     'recipient' => $buyer->name,
                     'phone' => '09170000001',
                     'line1' => '1 Acceptance Street',
+                    'region' => 'Region A', 'region_code' => '01',
                     'barangay' => 'Acceptance Barangay',
+                    'barangay_code' => '010101001',
                     'city' => 'Acceptance City',
+                    'city_municipality_code' => '010101',
                     'province' => 'Acceptance Province',
+                    'province_code' => '0101',
                     'postal_code' => '1000',
                     'is_default' => true,
                 ]
@@ -86,6 +91,8 @@ class TestAccountsSeeder extends Seeder
                     'commission_bps' => 1000,
                 ]
             );
+            $pickupAddress = Address::updateOrCreate(['user_id'=>$sellerUser->id,'label'=>'Acceptance Pickup'],['recipient'=>$sellerUser->name,'phone'=>'09170000002','line1'=>'2 Acceptance Pickup Street','region'=>'Region A','region_code'=>'01','province'=>'Acceptance Province','province_code'=>'0101','city'=>'Acceptance City','city_municipality_code'=>'010101','barangay'=>'Acceptance Barangay','barangay_code'=>'010101001','postal_code'=>'1000','is_default'=>true]);
+            $seller->update(['pickup_address_id'=>$pickupAddress->id]);
 
             // Logistics account
             $logisticsUser = User::updateOrCreate(
@@ -127,7 +134,7 @@ class TestAccountsSeeder extends Seeder
             );
             $pickupRiderUser->roles()->syncWithoutDetaching([$riderRole->id]);
 
-            Rider::updateOrCreate(
+            $pickupRider = Rider::updateOrCreate(
                 ['user_id' => $pickupRiderUser->id],
                 [
                     'logistics_provider_id' => $provider->id,
@@ -154,7 +161,7 @@ class TestAccountsSeeder extends Seeder
             );
             $deliveryRiderUser->roles()->syncWithoutDetaching([$riderRole->id]);
 
-            Rider::updateOrCreate(
+            $deliveryRider = Rider::updateOrCreate(
                 ['user_id' => $deliveryRiderUser->id],
                 [
                     'logistics_provider_id' => $provider->id,
@@ -165,6 +172,7 @@ class TestAccountsSeeder extends Seeder
                     'is_active' => true,
                 ]
             );
+            foreach ([$pickupRider, $deliveryRider] as $rider) RiderServiceArea::updateOrCreate(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'area_key'=>RiderServiceArea::key('01','0101','010101',null)],['region_code'=>'01','province_code'=>'0101','city_municipality_code'=>'010101','barangay_code'=>null,'is_active'=>true,'deactivated_at'=>null]);
 
             // Reusable catalog fixture for manual browser acceptance testing.
             $category = Category::updateOrCreate(

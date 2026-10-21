@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LogisticsProvider;
 use App\Models\Rider;
+use App\Models\RiderServiceArea;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Services\OrderWorkflowService;
@@ -181,13 +182,13 @@ class FulfillmentController extends Controller
                     });
             })
             ->whereHas('order', fn ($query) => $query->where('status', '!=', 'CANCELLED'))
-            ->with(['order.buyer', 'items', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events.user'])
+            ->with(['order.buyer', 'items', 'seller.pickupAddress', 'shipment.pickupRider.user', 'shipment.rider.user', 'shipment.events.user'])
             ->latest()
             ->get()
-            ->map(fn (SellerOrder $order) => $this->presentOrder($order));
+            ->map(fn (SellerOrder $order) => $this->presentOrder($order, $provider));
     }
 
-    private function presentOrder(SellerOrder $sellerOrder): array
+    private function presentOrder(SellerOrder $sellerOrder, LogisticsProvider $provider): array
     {
         $order = $sellerOrder->order;
         $shipment = $sellerOrder->shipment;
@@ -240,7 +241,17 @@ class FulfillmentController extends Controller
             'failure_reason' => $shipment->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->last()?->note,
             'failure_history' => $shipment->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->values(),
             'updated_at' => $sellerOrder->status_changed_at?->toDateTimeString(),
+            'pickup_eligible_riders' => $this->eligibleRiders($provider, $sellerOrder->seller?->pickupAddress?->region_code, $sellerOrder->seller?->pickupAddress?->city_municipality_code, $sellerOrder->seller?->pickupAddress?->barangay_code),
+            'delivery_eligible_riders' => $this->eligibleRiders($provider, $order->region_code, $order->city_municipality_code, $order->barangay_code),
         ];
+    }
+
+    private function eligibleRiders(LogisticsProvider $provider, ?string $region, ?string $city, ?string $barangay): array
+    {
+        if (! $region || ! $city || ! $barangay) return [];
+        return $provider->riders()->where('is_active', true)->where(fn ($q) => $q->where('availability', 'ONLINE')->orWhereNull('availability'))->whereNotNull('approved_at')->whereHas('user', fn ($q) => $q->where('status', 'active')->where('is_suspended', false))->whereHas('serviceAreas', function ($query) use ($provider, $region, $city, $barangay) {
+            $query->where('logistics_provider_id', $provider->id)->where('is_active', true)->where('region_code', $region)->where('city_municipality_code', $city)->where(fn ($q) => $q->whereNull('barangay_code')->orWhere('barangay_code', $barangay));
+        })->with(['user', 'serviceAreas'])->get()->map(fn (Rider $rider) => ['id' => $rider->id, 'name' => $rider->user->full_name, 'area' => $rider->serviceAreas->where('is_active', true)->pluck('city_municipality_code')->implode(', ')])->all();
     }
 
     private function activeRiders(LogisticsProvider $provider): array

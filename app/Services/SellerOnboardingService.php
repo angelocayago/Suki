@@ -59,9 +59,13 @@ class SellerOnboardingService
                     'phone' => $data['phone'],
                     'line1' => $data['address'],
                     'region' => $data['region'],
+                    'region_code' => $data['region_code'],
                     'barangay' => $data['barangay'],
+                    'barangay_code' => $data['barangay_code'],
                     'city' => $data['municipality'],
+                    'city_municipality_code' => $data['city_municipality_code'],
                     'province' => $data['province'],
+                    'province_code' => $data['province_code'],
                     'postal_code' => $data['postal_code'] ?? null,
                     'is_default' => true,
                 ]);

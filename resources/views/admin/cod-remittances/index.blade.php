@@ -1,0 +1,5 @@
+@extends('admin.layout')
+@section('title','COD Reconciliation')
+@section('content')
+<div class="space-y-5"><h1 class="text-2xl font-bold text-[#173F35]">COD Reconciliation</h1>@foreach($rows as $row)<section class="rounded-xl bg-white p-5 shadow"><p class="font-bold">{{ $row->provider->name }} — ₱{{ number_format($row->expected_minor/100,2) }} — {{ $row->status }}</p><ul class="mt-2 text-sm">@foreach($row->items as $item)<li>{{ $item->riderRemittance->shipment->tracking_code }}: ₱{{ number_format($item->amount_minor/100,2) }}</li>@endforeach</ul>@if($row->status==='SUBMITTED')<form method="POST" action="{{ route('admin.cod-remittances.review',$row) }}" class="mt-3 inline">@csrf @method('PATCH')<input type="hidden" name="status" value="ACCEPTED"><button>Accept</button></form><form method="POST" action="{{ route('admin.cod-remittances.review',$row) }}" class="inline">@csrf @method('PATCH')<input type="hidden" name="status" value="REJECTED"><input required name="reason" placeholder="Reason"><button>Reject</button></form>@endif</section>@endforeach {{ $rows->links() }}</div>
+@endsection

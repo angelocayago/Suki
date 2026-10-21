@@ -44,6 +44,11 @@ class PhilippineAddressService
         }
         $city = $pick($get($citiesPath, 'municipality'), $address['municipality'] ?? null, 'municipality');
         $barangay = $pick($get('cities-municipalities/'.rawurlencode($city['code']).'/barangays', 'barangay'), $address['barangay'] ?? null, 'barangay');
-        return ['region' => $region['name'], 'province' => $province['name'] ?? null, 'municipality' => $city['name'], 'barangay' => $barangay['name']];
+        return [
+            'region' => $region['name'], 'province' => $province['name'] ?? null,
+            'municipality' => $city['name'], 'barangay' => $barangay['name'],
+            'region_code' => $region['code'], 'province_code' => $province['code'] ?? null,
+            'city_municipality_code' => $city['code'], 'barangay_code' => $barangay['code'],
+        ];
     }
 }

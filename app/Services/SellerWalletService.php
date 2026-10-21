@@ -24,18 +24,25 @@ class SellerWalletService
             if ($this->status($order) !== OrderStatus::Completed->value || $order->status === 'cancelled') return;
             $sellerDiscount = (int) VoucherRedemption::query()->where('seller_order_id', $order->id)->where('scope_snapshot', 'SELLER')->sum('discount_minor');
             $earning = (int) $order->items->sum(fn ($item): int => ((int) $item->unit_price_minor * (int) $item->quantity) - (int) $item->commission_minor) - $sellerDiscount;
-            SellerWalletEntry::firstOrCreate(['seller_id'=>$order->seller_id,'seller_order_id'=>$order->id,'type'=>'SALE_EARNING'], ['status'=>$this->hasActiveComplaint($order->id) ? 'HELD' : 'AVAILABLE','amount_minor'=>max(0, $earning),'reference'=>'SO-'.$order->id,'description'=>'Completed seller order earning']);
+            // Legacy completed SellerOrders without an authoritative collected-COD
+            // shipment retain their historical wallet behavior. A real COD custody
+            // hold applies only once a shipment has recorded COD collection.
+            $requiresCodReconciliation = (bool) ($order->shipment?->cod_collected);
+            $reconciled = ! $requiresCodReconciliation || \App\Models\LogisticsCodRemittanceItem::query()->whereHas('riderRemittance', fn($q)=>$q->where('seller_order_id',$order->id))->whereHas('logisticsRemittance', fn($q)=>$q->where('status','ACCEPTED'))->exists();
+            $heldForComplaint=$this->hasActiveComplaint($order->id);
+            SellerWalletEntry::firstOrCreate(['seller_id'=>$order->seller_id,'seller_order_id'=>$order->id,'type'=>'SALE_EARNING'], ['status'=>($heldForComplaint || ! $reconciled) ? 'HELD' : 'AVAILABLE','amount_minor'=>max(0, $earning),'reference'=>'SO-'.$order->id,'description'=>$heldForComplaint?'Held due to an active complaint':(!$reconciled?'Held pending COD reconciliation':'Completed seller order earning')]);
         }, 3);
     }
 
     /** Explicit, idempotent reconciliation after a complaint lifecycle action; never invoked by wallet reads. */
-    public function reconcileSellerOrder(SellerOrder $sellerOrder): void
+    public function reconcileSellerOrder(SellerOrder $sellerOrder): bool
     {
-        DB::transaction(function () use ($sellerOrder): void {
+        return DB::transaction(function () use ($sellerOrder): bool {
             $order = SellerOrder::query()->lockForUpdate()->findOrFail($sellerOrder->id);
             $entry = SellerWalletEntry::query()->where('seller_id', $order->seller_id)->where('seller_order_id', $order->id)->where('type', 'SALE_EARNING')->lockForUpdate()->first();
-            if (! $entry || $entry->status !== 'HELD' || $this->hasActiveComplaint($order->id)) return;
-            $entry->update(['status' => 'AVAILABLE']);
+            if (! $entry || $entry->status !== 'HELD' || $this->hasActiveComplaint($order->id)) return false;
+            $entry->update(['status' => 'AVAILABLE','description'=>'Completed seller order earning']);
+            return true;
         }, 3);
     }
 

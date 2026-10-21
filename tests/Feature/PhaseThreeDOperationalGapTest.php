@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
+use App\Models\RiderServiceArea;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
@@ -50,6 +52,7 @@ class PhaseThreeDOperationalGapTest extends TestCase
         extract($this->pickupContext());
         $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-2', 'is_active' => true, 'approved_at' => now()]);
+        RiderServiceArea::create(['rider_id'=>$replacement->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $pickupRider->id])
             ->assertSessionHas('success');
@@ -166,12 +169,14 @@ class PhaseThreeDOperationalGapTest extends TestCase
         $pickupRiderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $deliveryRiderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $seller = Seller::create(['user_id' => $sellerUser->id, 'name' => '3D Seller', 'slug' => 'phase-3d-seller-'.uniqid(), 'status' => 'approved']);
+        $pickupAddress=Address::create(['user_id'=>$sellerUser->id,'label'=>'Pickup','recipient'=>'Seller','phone'=>'0912','line1'=>'Pickup','region'=>'Test Region','region_code'=>'010000000','province'=>'Test Province','province_code'=>'010000000','city'=>'Test City','city_municipality_code'=>'010000000','barangay'=>'Test Barangay','barangay_code'=>'010000000','is_default'=>true]); $seller->update(['pickup_address_id'=>$pickupAddress->id]);
         $provider = LogisticsProvider::create(['user_id' => $logisticsUser->id, 'name' => '3D Logistics', 'slug' => 'phase-3d-provider-'.uniqid(), 'status' => 'approved']);
         $pickupRider = Rider::create(['user_id' => $pickupRiderUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-1', 'is_active' => true, 'approved_at' => now()]);
         $deliveryRider = Rider::create(['user_id' => $deliveryRiderUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'DELIVERY-1', 'is_active' => true, 'approved_at' => now()]);
-        $order = Order::create(['order_number' => '3D-'.uniqid(), 'reference' => '3D-'.uniqid(), 'buyer_id' => $buyer->id, 'status' => $status->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 0, 'discount_amount' => 0, 'total_amount' => 100, 'total_minor' => 10000, 'recipient_name' => 'Buyer', 'recipient_phone' => '0912', 'province' => 'Province', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Street', 'shipping_address' => []]);
+        $order = Order::create(['order_number' => '3D-'.uniqid(), 'reference' => '3D-'.uniqid(), 'buyer_id' => $buyer->id, 'status' => $status->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 0, 'discount_amount' => 0, 'total_amount' => 100, 'total_minor' => 10000, 'recipient_name' => 'Buyer', 'recipient_phone' => '0912', 'province' => 'Province','region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>'010000000', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Street', 'shipping_address' => []]);
         $sellerOrder = SellerOrder::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'logistics_provider_id' => $provider->id, 'subtotal_minor' => 10000, 'shipping_fee_minor' => 0, 'commission_minor' => 0, 'status' => $status->legacySellerStatus(), 'workflow_status' => $status]);
         $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'rider_id' => $status === OrderStatus::OutForDelivery ? $deliveryRider->id : null, 'tracking_code' => '3D-TRACK-'.uniqid(), 'status' => $status->legacyShipmentStatus(), 'workflow_status' => $status, 'fee_minor' => 0, 'cod_amount_minor' => 10000, 'cod_collected' => false, 'attempts' => 0]);
+        foreach ([$pickupRider,$deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact('buyer', 'sellerUser', 'logisticsUser', 'pickupRiderUser', 'deliveryRiderUser', 'seller', 'provider', 'pickupRider', 'deliveryRider', 'order', 'sellerOrder', 'shipment');
     }

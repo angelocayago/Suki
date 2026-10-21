@@ -31,8 +31,12 @@ class Order extends Model
         'recipient_name',
         'recipient_phone',
         'province',
+        'region_code',
+        'province_code',
         'municipality',
+        'city_municipality_code',
         'barangay',
+        'barangay_code',
         'street_address',
         'delivery_notes',
 

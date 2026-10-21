@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class RiderCodRemittance extends Model { protected $fillable=['shipment_id','seller_order_id','rider_id','logistics_provider_id','expected_minor','submitted_minor','accepted_minor','status','submitted_at','reviewed_at','reviewed_by','reason','reference','evidence_metadata']; protected function casts(): array{return ['expected_minor'=>'integer','submitted_minor'=>'integer','accepted_minor'=>'integer','submitted_at'=>'datetime','reviewed_at'=>'datetime','evidence_metadata'=>'array'];} public function shipment(){return $this->belongsTo(Shipment::class);} public function sellerOrder(){return $this->belongsTo(SellerOrder::class);} public function rider(){return $this->belongsTo(Rider::class);} public function provider(){return $this->belongsTo(LogisticsProvider::class,'logistics_provider_id');} }

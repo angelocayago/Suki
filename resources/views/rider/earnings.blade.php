@@ -31,6 +31,7 @@
 
     $totalEarnings = $totalEarnings ?? null;
     $performance = $performance ?? ['assigned' => 0, 'pending' => 0, 'completedDeliveries' => $totalDeliveries, 'failedAttempts' => 0, 'codCollectedMinor' => 0];
+    $shippingFeeEarningsMinor = $performance['shippingFeeEarningsMinor'] ?? 0;
     $successRate = ($performance['completedDeliveries'] + $performance['failedAttempts']) > 0
         ? round(($performance['completedDeliveries'] / ($performance['completedDeliveries'] + $performance['failedAttempts'])) * 100)
         : 0;
@@ -511,7 +512,7 @@
     <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Assignments</p><p class="text-2xl font-semibold">{{ $performance['assigned'] }}</p></div>
     <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Current jobs</p><p class="text-2xl font-semibold">{{ $performance['pending'] }}</p></div>
     <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Failed attempts</p><p class="text-2xl font-semibold">{{ $performance['failedAttempts'] }}</p></div>
-    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Delivery success rate</p><p class="text-2xl font-semibold">{{ $successRate }}%</p><p class="text-xs text-gray-500">COD collected: ₱{{ number_format($performance['codCollectedMinor'] / 100, 2) }}</p></div>
+    <div class="rounded-xl border bg-white p-4"><p class="text-xs text-gray-500">Delivery success rate</p><p class="text-2xl font-semibold">{{ $successRate }}%</p><p class="text-xs text-gray-500">COD collected: ₱{{ number_format($performance['codCollectedMinor'] / 100, 2) }}</p><p class="mt-2 text-xs font-semibold text-[#1F6F5B]">Shipping-fee earnings: ₱{{ number_format($shippingFeeEarningsMinor / 100, 2) }}</p></div>
 </section>
 
 

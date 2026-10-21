@@ -544,90 +544,14 @@
                     </div>
 
 
-                    {{-- PROVINCE + MUNICIPALITY --}}
+                    {{-- VERIFIED PSGC CASCADE --}}
                     <div class="grid gap-5 sm:grid-cols-2">
+                        <div><label class="mb-2 block text-sm font-medium text-gray-700">Region</label><select id="buyerRegion" name="region" required class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">Select region</option></select></div>
+                        <div><label class="mb-2 block text-sm font-medium text-gray-700">Province</label><select id="buyerProvince" name="province" class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" disabled><option value="">Select region first</option></select></div>
+                        <div><label class="mb-2 block text-sm font-medium text-gray-700">Municipality / City</label><select id="buyerCity" name="municipality" required class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" disabled><option value="">Select province or region first</option></select></div>
+                        <div><label class="mb-2 block text-sm font-medium text-gray-700">Barangay</label><select id="buyerBarangay" name="barangay" required class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm" disabled><option value="">Select city first</option></select></div>
 
                         <div>
-
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
-                                Province
-                            </label>
-
-                            <input
-                                type="text"
-                                name="province"
-                                value="{{ old('province') }}"
-                                placeholder="Laguna"
-                                required
-                                class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                            >
-
-                            @error('province')
-
-                                <p class="mt-1 text-xs text-red-500">
-                                    {{ $message }}
-                                </p>
-
-                            @enderror
-
-                        </div>
-
-
-                        <div>
-
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
-                                Municipality / City
-                            </label>
-
-                            <input
-                                type="text"
-                                name="municipality"
-                                value="{{ old('municipality') }}"
-                                placeholder="Santa Rosa"
-                                required
-                                class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                            >
-
-                            @error('municipality')
-
-                                <p class="mt-1 text-xs text-red-500">
-                                    {{ $message }}
-                                </p>
-
-                            @enderror
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- BARANGAY + POSTAL --}}
-                    <div class="grid gap-5 sm:grid-cols-2">
-
-                        <div>
-
-                            <label class="mb-2 block text-sm font-medium text-gray-700">
-                                Barangay
-                            </label>
-
-                            <input
-                                type="text"
-                                name="barangay"
-                                value="{{ old('barangay') }}"
-                                placeholder="San Antonio"
-                                required
-                                class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                            >
-
-                            @error('barangay')
-
-                                <p class="mt-1 text-xs text-red-500">
-                                    {{ $message }}
-                                </p>
-
-                            @enderror
-
-                        </div>
 
 
                         <div>
@@ -918,6 +842,20 @@
         }
 
     });
+
+    // The browser only calls narrow application-owned endpoints. Submitted values
+    // are PSGC codes; the server resolves labels and validates the hierarchy.
+    (() => {
+        const region = document.getElementById('buyerRegion'), province = document.getElementById('buyerProvince'), city = document.getElementById('buyerCity'), barangay = document.getElementById('buyerBarangay');
+        if (!region) return;
+        const fill = (select, items, text) => { select.innerHTML = `<option value="">${text}</option>`; items.forEach(item => select.add(new Option(item.name, item.code))); select.disabled = false; };
+        const get = path => fetch(`/address/${path}`).then(r => r.ok ? r.json() : Promise.reject());
+        const reset = (select, text) => { select.innerHTML = `<option value="">${text}</option>`; select.disabled = true; };
+        get('regions').then(items => fill(region, items, 'Select region'));
+        region.addEventListener('change', async () => { reset(province, 'Loading provinces...'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first'); const items = await get(`regions/${encodeURIComponent(region.value)}/provinces`); if (items.length) fill(province, items, 'Select province'); else { reset(province, 'No province required'); province.disabled = true; fill(city, await get(`regions/${encodeURIComponent(region.value)}/cities-municipalities`), 'Select municipality / city'); } });
+        province.addEventListener('change', async () => { reset(city, 'Loading cities...'); reset(barangay, 'Select city first'); fill(city, await get(`provinces/${encodeURIComponent(province.value)}/cities-municipalities`), 'Select municipality / city'); });
+        city.addEventListener('change', async () => { reset(barangay, 'Loading barangays...'); fill(barangay, await get(`cities-municipalities/${encodeURIComponent(city.value)}/barangays`), 'Select barangay'); });
+    })();
 
 </script>
 

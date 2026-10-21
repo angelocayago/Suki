@@ -1,0 +1,2 @@
+<?php
+namespace App\Models; use Illuminate\Database\Eloquent\Model; class LogisticsCodRemittanceItem extends Model { protected $fillable=['logistics_cod_remittance_id','rider_cod_remittance_id','amount_minor']; protected function casts():array{return['amount_minor'=>'integer'];} public function riderRemittance(){return $this->belongsTo(RiderCodRemittance::class,'rider_cod_remittance_id');} public function logisticsRemittance(){return $this->belongsTo(LogisticsCodRemittance::class,'logistics_cod_remittance_id');} }

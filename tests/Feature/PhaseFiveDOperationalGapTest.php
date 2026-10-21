@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\DeliveryEvent;
+use App\Models\RiderServiceArea;
 use App\Models\LogisticsProvider;
 use App\Models\Order;
 use App\Models\Rider;
@@ -117,9 +118,10 @@ class PhaseFiveDOperationalGapTest extends TestCase
         $seller = Seller::create(['user_id' => $sellerUser->id, 'name' => 'Operational Seller', 'slug' => 'operational-'.uniqid(), 'status' => 'approved']);
         $provider = LogisticsProvider::create(['user_id' => $logisticsUser->id, 'name' => 'Operational Provider', 'slug' => 'operational-provider-'.uniqid(), 'status' => 'approved']);
         $deliveryRider = Rider::create(['user_id' => $deliveryUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'DELIVERY-'.uniqid(), 'is_active' => true, 'approved_at' => now(), 'availability' => 'ONLINE']);
-        $order = Order::create(['order_number' => 'OP-'.uniqid(), 'reference' => 'OP-'.uniqid(), 'buyer_id' => $buyer->id, 'status' => OrderStatus::AssignedToRider->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 50, 'discount_amount' => 0, 'total_amount' => 150, 'total_minor' => 15000, 'recipient_name' => 'Buyer', 'recipient_phone' => '09123456789', 'province' => 'Province', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Buyer Street', 'shipping_address' => []]);
+        $order = Order::create(['order_number' => 'OP-'.uniqid(), 'reference' => 'OP-'.uniqid(), 'buyer_id' => $buyer->id, 'status' => OrderStatus::AssignedToRider->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 50, 'discount_amount' => 0, 'total_amount' => 150, 'total_minor' => 15000, 'recipient_name' => 'Buyer', 'recipient_phone' => '09123456789', 'province' => 'Province','region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>'010000000', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Buyer Street', 'shipping_address' => []]);
         $sellerOrder = SellerOrder::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'logistics_provider_id' => $provider->id, 'subtotal_minor' => 10000, 'shipping_fee_minor' => 5000, 'commission_minor' => 0, 'status' => 'shipped', 'workflow_status' => OrderStatus::AssignedToRider]);
         $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'rider_id' => $deliveryRider->id, 'tracking_code' => 'OP-TRACK-'.uniqid(), 'status' => 'assigned', 'workflow_status' => OrderStatus::AssignedToRider, 'fee_minor' => 5000, 'cod_amount_minor' => 15000, 'cod_collected' => false, 'attempts' => 0]);
+        RiderServiceArea::create(['rider_id'=>$deliveryRider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact('buyer', 'sellerUser', 'logisticsUser', 'deliveryUser', 'seller', 'provider', 'deliveryRider', 'order', 'sellerOrder', 'shipment');
     }
@@ -128,6 +130,8 @@ class PhaseFiveDOperationalGapTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'rider', 'name' => $name, 'status' => 'active']);
 
-        return Rider::create(['user_id' => $user->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RIDER-'.uniqid(), 'is_active' => true, 'approved_at' => now(), 'availability' => 'ONLINE']);
+        $rider = Rider::create(['user_id' => $user->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RIDER-'.uniqid(), 'is_active' => true, 'approved_at' => now(), 'availability' => 'ONLINE']);
+        RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
+        return $rider;
     }
 }

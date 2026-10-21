@@ -23,6 +23,7 @@ const updated = document.getElementById('tracking-updated');
 const mapStyleUrl = @json(config('services.maptiler.style_url'));
 let liveMap = null;
 let riderMarker = null;
+let polling = null;
 
 function updateMap(latitude, longitude) {
   if (!mapStyleUrl || !window.maplibregl) {
@@ -47,8 +48,9 @@ async function refreshTracking() {
   if (data.latitude === null || data.longitude === null) return;
   updateMap(data.latitude, data.longitude);
   updated.textContent = `Last updated: ${new Date(data.updated_at).toLocaleString()}`;
+  if (!data.trackable && polling) { clearInterval(polling); polling = null; }
 }
-refreshTracking(); setInterval(refreshTracking, 15000);
+refreshTracking(); polling = setInterval(refreshTracking, 15000);
 </script>
 @endpush
 @endsection

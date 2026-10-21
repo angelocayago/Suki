@@ -13,6 +13,7 @@ use App\Models\Seller;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -81,7 +82,8 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
     public function test_buyer_address_deletion_reassigns_default_without_cross_buyer_access(): void
     {
         $buyer = $this->user('buyer');
-        $payload = ['name' => 'Buyer', 'phone' => '09171234567', 'province' => 'Laguna', 'municipality' => 'Santa Rosa', 'barangay' => 'Balibago', 'street' => 'One', 'postal_code' => '4026', 'label' => 'Home'];
+        $this->fakePsgc();
+        $payload = ['name' => 'Buyer', 'phone' => '09171234567', 'region' => '01', 'province' => '0101', 'municipality' => '010101', 'barangay' => '010101001', 'street' => 'One', 'postal_code' => '4026', 'label' => 'Home'];
         $this->actingAs($buyer)->post(route('buyer.addresses.store'), $payload)->assertRedirect();
         $first = Address::where('user_id', $buyer->id)->sole();
         $this->actingAs($buyer)->post(route('buyer.addresses.store'), $payload + ['label' => 'Office'])->assertRedirect();
@@ -131,5 +133,15 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
         $user->roles()->syncWithoutDetaching([Role::firstOrCreate(['name' => $role])->id]);
 
         return $user;
+    }
+
+    private function fakePsgc(): void
+    {
+        Http::fake([
+            'https://psgc.cloud/api/v2/regions' => Http::response(['data' => [['code' => '01', 'name' => 'Region A']]]),
+            'https://psgc.cloud/api/v2/regions/01/provinces' => Http::response(['data' => [['code' => '0101', 'name' => 'Province A']]]),
+            'https://psgc.cloud/api/v2/provinces/0101/cities-municipalities' => Http::response(['data' => [['code' => '010101', 'name' => 'City A']]]),
+            'https://psgc.cloud/api/v2/cities-municipalities/010101/barangays' => Http::response(['data' => [['code' => '010101001', 'name' => 'Barangay A']]]),
+        ]);
     }
 }

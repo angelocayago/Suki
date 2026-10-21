@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
+use App\Models\RiderServiceArea;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
@@ -172,6 +174,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RETRY-1', 'is_active' => true, 'approved_at' => now()]);
+        RiderServiceArea::create(['rider_id'=>$replacement->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
         $workflow = app(OrderWorkflowService::class);
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
         $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $replacement, now()->addDay()->toDateTimeString());
@@ -542,6 +545,8 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'slug' => 'step-five-seller',
             'status' => 'approved',
         ]);
+        $pickupAddress = Address::create(['user_id'=>$sellerUser->id,'label'=>'Pickup','recipient'=>'Seller','phone'=>'0912','line1'=>'Pickup','region'=>'Test Region','region_code'=>'010000000','province'=>'Test Province','province_code'=>'010000000','city'=>'Test City','city_municipality_code'=>'010000000','barangay'=>'Test Barangay','barangay_code'=>'010000000','is_default'=>true]);
+        $seller->update(['pickup_address_id' => $pickupAddress->id]);
         $provider = LogisticsProvider::create([
             'user_id' => $logisticsUser->id,
             'name' => 'Step Five Logistics',
@@ -579,6 +584,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'recipient_name' => 'Step Five Buyer',
             'recipient_phone' => '09123456789',
             'province' => 'Province',
+            'region_code' => '010000000', 'province_code' => '010000000', 'city_municipality_code' => '010000000', 'barangay_code' => '010000000',
             'municipality' => 'Municipality',
             'barangay' => 'Barangay',
             'street_address' => 'Buyer Street',
@@ -608,6 +614,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'attempts' => 0,
             'status_changed_at' => now(),
         ]);
+        foreach ([$pickupRider, $deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>\App\Models\RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact(
             'buyer', 'sellerUser', 'logisticsUser', 'pickupUser', 'deliveryUser',

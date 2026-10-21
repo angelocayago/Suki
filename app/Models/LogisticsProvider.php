@@ -46,6 +46,11 @@ class LogisticsProvider extends Model
         return $this->hasMany(Rider::class);
     }
 
+    public function riderServiceAreas(): HasMany
+    {
+        return $this->hasMany(RiderServiceArea::class);
+    }
+
     /**
      * Seller orders assigned to this logistics provider.
      */

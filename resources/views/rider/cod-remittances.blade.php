@@ -1,0 +1,5 @@
+@extends('layouts.rider')
+@section('title','COD Remittances')
+@section('content')
+<div class="mx-auto max-w-6xl space-y-6"><h1 class="text-2xl font-bold text-[#173F35]">COD Remittances</h1><div class="grid gap-4 sm:grid-cols-3">@foreach($summary as $label=>$amount)<div class="rounded-xl bg-white p-4 shadow"><p class="text-xs uppercase text-gray-500">{{ $label }}</p><p class="mt-1 text-xl font-bold">₱{{ number_format($amount/100,2) }}</p></div>@endforeach</div><div class="rounded-xl bg-white p-5 shadow"><table class="w-full text-sm"><thead><tr><th>Shipment</th><th>Expected</th><th>Status</th><th></th></tr></thead><tbody>@forelse($rows as $row)<tr class="border-t"><td class="py-3">{{ $row->shipment->tracking_code }}</td><td>₱{{ number_format($row->expected_minor/100,2) }}</td><td>{{ $row->status }}</td><td>@if($row->status==='OUTSTANDING')<form method="POST" action="{{ route('rider.cod-remittances.submit',$row) }}">@csrf<button class="rounded bg-[#1F6F5B] px-3 py-1 text-white">Submit</button></form>@endif</td></tr>@empty<tr><td colspan="4" class="py-5 text-gray-500">No COD liabilities.</td></tr>@endforelse</tbody></table></div></div>
+@endsection

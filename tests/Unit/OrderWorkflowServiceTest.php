@@ -4,8 +4,10 @@ namespace Tests\Unit;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
+use App\Models\RiderServiceArea;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\User;
@@ -32,6 +34,8 @@ class OrderWorkflowServiceTest extends TestCase
             'slug' => 'workflow-seller',
             'status' => 'approved',
         ]);
+        $pickupAddress = Address::create(['user_id'=>$sellerUser->id,'label'=>'Pickup','recipient'=>'Seller','phone'=>'1','line1'=>'Street','region'=>'Region','region_code'=>'01','province'=>'Province','province_code'=>'0101','city'=>'City','city_municipality_code'=>'010101','barangay'=>'Barangay','barangay_code'=>'010101001','is_default'=>true]);
+        $seller->update(['pickup_address_id'=>$pickupAddress->id]);
 
         $provider = LogisticsProvider::create([
             'user_id' => $logisticsUser->id,
@@ -56,6 +60,7 @@ class OrderWorkflowServiceTest extends TestCase
             'plate_no' => 'DELIVERY-1',
             'is_active' => true,
         ]);
+        foreach ([$pickupRider, $deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'01','province_code'=>'0101','city_municipality_code'=>'010101','barangay_code'=>null,'area_key'=>RiderServiceArea::key('01','0101','010101',null),'is_active'=>true]);
 
         $order = $this->makeOrder($buyer);
         $sellerOrder = SellerOrder::create([
@@ -280,8 +285,12 @@ class OrderWorkflowServiceTest extends TestCase
             'recipient_name' => $buyer->name,
             'recipient_phone' => '09123456789',
             'province' => 'Province',
+            'region_code' => '01',
+            'province_code' => '0101',
             'municipality' => 'Municipality',
+            'city_municipality_code' => '010101',
             'barangay' => 'Barangay',
+            'barangay_code' => '010101001',
             'street_address' => 'Street',
             'shipping_address' => ['street_address' => 'Street'],
             'placed_at' => now(),

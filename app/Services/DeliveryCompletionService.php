@@ -51,8 +51,10 @@ class DeliveryCompletionService
                 ]);
                 if ($shipment->cod_collected) {
                     $shipment->events()->create(['status' => 'COD_COLLECTED', 'attempt' => 0, 'user_id' => $actor->id, 'note' => 'Collected '.$shipment->cod_collected_minor.' minor units.', 'occurred_at' => now()]);
+                    app(CodRemittanceService::class)->createLiability($shipment->fresh(['rider']));
                 }
                 $result = app(OrderWorkflowService::class)->transition($locked, $actor, OrderStatus::Delivered);
+                app(RiderShippingFeeService::class)->creditDelivered($shipment->fresh());
                 $shipment->events()->where('status', 'DELIVERED')->where('attempt', 0)->update([
                     'photo_path' => $path,
                     'note' => 'Received by '.$shipment->received_by.($shipment->delivery_note ? '. '.$shipment->delivery_note : ''),

@@ -8,6 +8,7 @@ use App\Models\Rider;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\DeliveryEvent;
+use App\Models\RiderShippingFeeEarning;
 use App\Services\OrderWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,11 +28,12 @@ class FulfillmentController extends Controller
         $assigned = Shipment::query()->where('rider_id', $rider->id)->count();
         $pending = Shipment::query()->where('rider_id', $rider->id)->whereIn('workflow_status', [OrderStatus::AssignedToRider->value, OrderStatus::OutForDelivery->value])->count();
         $codCollectedMinor = (clone $delivered)->where('cod_collected', true)->sum('cod_collected_minor');
+        $shippingFeeEarningsMinor = RiderShippingFeeEarning::query()->where('rider_id', $rider->id)->sum('amount_minor');
 
         return view('rider.earnings', [
             'orders' => $orders->all(), 'totalDeliveries' => $completedDeliveries,
             'totalEarnings' => null, 'deliveryFee' => null,
-            'performance' => compact('assigned', 'pending', 'completedDeliveries', 'failedAttempts', 'codCollectedMinor'),
+            'performance' => compact('assigned', 'pending', 'completedDeliveries', 'failedAttempts', 'codCollectedMinor', 'shippingFeeEarningsMinor'),
         ]);
     }
 

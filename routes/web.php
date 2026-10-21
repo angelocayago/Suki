@@ -28,6 +28,7 @@ use App\Http\Controllers\Seller\RegistrationController as SellerRegistrationCont
 use App\Http\Controllers\Rider\FulfillmentController as RiderFulfillmentController;
 use App\Http\Controllers\Rider\ShipmentTrackingController as RiderShipmentTrackingController;
 use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
+use App\Http\Controllers\Logistics\RiderServiceAreaController;
 use App\Http\Controllers\ShipmentWaybillController;
 use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
 use App\Http\Controllers\Messaging\ContextConversationController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Messaging\MessageController as MessagingMessageControll
 use App\Http\Controllers\NotificationInboxController;
 use App\Http\Controllers\AccountProfileController;
 use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\CodRemittanceController;
 use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\ReviewPageController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
@@ -2817,7 +2819,7 @@ Route::post('/my-account/addresses', function (
     Request $request
 ) use ($requireBuyer) {
 
-    return app(\App\Http\Controllers\Buyer\AccountController::class)->storeAddress($request);
+    return app()->call([app(\App\Http\Controllers\Buyer\AccountController::class), 'storeAddress'], ['request' => $request]);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2876,6 +2878,10 @@ Route::post('/my-account/addresses', function (
         );
 
 })->name('buyer.addresses.store');
+
+Route::patch('/my-account/addresses/{addressId}', function (Request $request, $addressId) {
+    return app(\App\Http\Controllers\Buyer\AccountController::class)->updateAddress($request, (int) $addressId, app(PhilippineAddressService::class));
+})->name('buyer.addresses.update');
 
 
 // =====================================================
@@ -3057,6 +3063,11 @@ Route::get('/seller', [SellerFulfillmentController::class, 'dashboard'])
     ->name('seller.dashboard');
 Route::get('/seller/vouchers', [VoucherController::class, 'sellerIndex'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.index');
 Route::get('/seller/wallet', [PayoutController::class, 'seller'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.wallet');
+Route::get('/rider/cod-remittances', [CodRemittanceController::class, 'rider'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances');
+Route::post('/rider/cod-remittances/{remittance}', [CodRemittanceController::class, 'riderSubmit'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances.submit');
+Route::get('/logistics/cod-remittances', [CodRemittanceController::class, 'logistics'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances');
+Route::patch('/logistics/cod-remittances/{remittance}', [CodRemittanceController::class, 'logisticsReview'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.review');
+Route::post('/logistics/cod-remittances', [CodRemittanceController::class, 'logisticsSubmit'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.submit');
 Route::post('/seller/wallet/payouts', [PayoutController::class, 'request'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.payouts.store');
 Route::post('/seller/vouchers', [VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.store');
 Route::patch('/seller/vouchers/{voucher}', [VoucherController::class, 'update'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.update');
@@ -5177,6 +5188,9 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::get('/logistics/parcels', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.parcels');
     Route::get('/logistics/sorting', [LogisticsFulfillmentController::class, 'sorting'])->name('logistics.sorting');
     Route::get('/logistics/assignments', [LogisticsFulfillmentController::class, 'assignments'])->name('logistics.assignments');
+    Route::get('/logistics/riders/{rider}/service-areas', [RiderServiceAreaController::class, 'index'])->name('logistics.riders.service-areas');
+    Route::post('/logistics/riders/{rider}/service-areas', [RiderServiceAreaController::class, 'store'])->name('logistics.riders.service-areas.store');
+    Route::delete('/logistics/riders/{rider}/service-areas/{area}', [RiderServiceAreaController::class, 'destroy'])->name('logistics.riders.service-areas.destroy');
     Route::get('/logistics/parcel-lookup', [LogisticsFulfillmentController::class, 'lookup'])->name('logistics.parcels.lookup');
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
     Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
@@ -5542,6 +5556,8 @@ $registerAdminPortalRoutes = function (): void {
         Route::get('/products', [ProductModerationController::class, 'index'])->name('products.index');
         Route::get('/vouchers', [VoucherController::class, 'adminIndex'])->name('vouchers.index');
         Route::get('/payouts', [PayoutController::class, 'admin'])->name('payouts.index');
+        Route::get('/cod-remittances', [CodRemittanceController::class, 'admin'])->name('cod-remittances.index');
+        Route::patch('/cod-remittances/{remittance}', [CodRemittanceController::class, 'adminReview'])->name('cod-remittances.review');
         Route::patch('/payouts/{payout}', [PayoutController::class, 'review'])->name('payouts.review');
         Route::post('/payouts/{payout}/paid', [PayoutController::class, 'paid'])->name('payouts.paid');
         Route::post('/vouchers', [VoucherController::class, 'store'])->name('vouchers.store');

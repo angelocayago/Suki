@@ -17,9 +17,13 @@ class Address extends Model
         'phone',
         'line1',
         'region',
+        'region_code',
         'barangay',
+        'barangay_code',
         'city',
+        'city_municipality_code',
         'province',
+        'province_code',
         'postal_code',
         'is_default',
     ];
