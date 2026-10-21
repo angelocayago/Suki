@@ -9,6 +9,40 @@ use Illuminate\Support\Facades\DB;
 
 class PickupOfferService
 {
+    /**
+     * Expire unanswered pickup offers and immediately offer each shipment
+     * to the next eligible rider.
+     *
+     * This is safe to call from the scheduler and from normal web requests.
+     */
+    public static function processExpiredOffers(?int $shipmentId = null): int
+    {
+        $query = PickupRequest::query()
+            ->where('status', 'offered')
+            ->where('expires_at', '<=', now());
+
+        if ($shipmentId !== null) {
+            $query->where('shipment_id', $shipmentId);
+        }
+
+        $shipmentIds = $query
+            ->orderBy('id')
+            ->pluck('shipment_id')
+            ->unique()
+            ->values();
+
+        foreach ($shipmentIds as $expiredShipmentId) {
+            $shipment = Shipment::find($expiredShipmentId);
+
+            if ($shipment) {
+                self::offerNext($shipment);
+            }
+        }
+
+        return $shipmentIds->count();
+    }
+
+
     public static function offerNext(Shipment $shipment): ?PickupRequest
     {
         return DB::transaction(function () use ($shipment) {

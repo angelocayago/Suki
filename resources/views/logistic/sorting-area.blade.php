@@ -325,7 +325,7 @@ $availableDeliveryRiders = $eligibleDeliveryRiders
 
                     </button>
 
-                    <div class="modal fade" id="scanModal{{ $shipment->id }}" tabindex="-1">
+                    <div class="modal fade js-scan-tag-modal" id="scanModal{{ $shipment->id }}" tabindex="-1" data-tracking="{{ $shipment->tracking_number }}" data-destination="{{ $formatDeliveryAddress($shipment->delivery_address) }}">
 
                       <div class="modal-dialog">
 
@@ -348,6 +348,20 @@ $availableDeliveryRiders = $eligibleDeliveryRiders
                               <p><strong>Tracking:</strong> {{ $shipment->tracking_number }}</p>
 
                               <p><strong>Destination:</strong> {{ $formatDeliveryAddress($shipment->delivery_address) }}</p>
+                              <div class="mb-3">
+                                <button type="button"
+                                  class="btn btn-outline-primary js-logistics-qr-scan">
+                                  <i class="bi bi-qr-code-scan"></i>
+                                  Scan Package QR
+                                </button>
+
+                                <div id="logisticsQrReader{{ $shipment->id }}"
+                                  class="js-logistics-qr-reader d-none mt-3"></div>
+
+                                <div class="small text-muted mt-2 js-logistics-qr-result">
+                                  Scan the parcel QR to verify the package and auto-detect its zone.
+                                </div>
+                              </div>
 
                               <div class="mb-3">
 
@@ -359,7 +373,7 @@ $availableDeliveryRiders = $eligibleDeliveryRiders
 
 
 
-                                <select name="delivery_zone" class="form-select" required>
+                                <select name="delivery_zone" class="form-select js-delivery-zone" required>
                                   <option value="">Select Delivery Zone</option>
                                   @foreach($deliveryZones as $zone)
                                   <option value="{{ $zone }}" @selected(old('delivery_zone', $shipment->delivery_zone) === $zone)>
@@ -377,7 +391,7 @@ $availableDeliveryRiders = $eligibleDeliveryRiders
 
                                 <label class="form-label">Delivery Type <span class="text-danger">*</span></label>
 
-                                <select name="delivery_type" class="form-select" required>
+                                <select name="delivery_type" class="form-select js-delivery-type" required>
 
                                   <option value="standard">Standard Delivery</option>
 
@@ -1326,3 +1340,5 @@ $availableDeliveryRiders = $eligibleDeliveryRiders
   </div>
 
   @endsection
+
+@vite('resources/js/logistics/sorting-area.js')

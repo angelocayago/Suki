@@ -44,12 +44,12 @@ class SellerSettlementService
         if (!$parentOrder) {
             $reasons[] = 'Parent order is missing.';
         } else {
-            if (!in_array(
-                strtolower((string) $parentOrder->status),
-                ['delivered', 'completed'],
-                true
-            )) {
-                $reasons[] = 'Parent order is not delivered/completed.';
+            if (
+                strtolower((string) $parentOrder->status) !== 'completed'
+                || $parentOrder->confirmed_received_at === null
+            ) {
+                $reasons[] =
+                    'Buyer has not confirmed receipt of the completed order.';
             }
 
             if ($parentOrder->cancelled_at !== null) {

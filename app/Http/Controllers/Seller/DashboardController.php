@@ -1077,6 +1077,10 @@ class DashboardController extends Controller
             );
         }
 
+        // Keep the buyer-facing parent order status in sync with
+        // the slowest seller portion of the order.
+        $this->syncParentOrderStatus($order);
+
         $this->createNotification(
             $order->user_id,
             'Seller Order Status Updated',
@@ -1401,6 +1405,10 @@ class DashboardController extends Controller
             }
         );
 
+        // The buyer tracking page reads the parent Order status.
+        // Sync it after this seller portion becomes ready for pickup.
+        $this->syncParentOrderStatus($order);
+
         $message = $result['message'];
 
         if (!empty($result['shipment_id'])) {
@@ -1430,6 +1438,97 @@ class DashboardController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+
+    /**
+     * Synchronize the buyer-facing parent order status from its seller orders.
+     *
+     * A buyer order may contain items from multiple sellers. The parent order
+     * should only advance as far as the least-progressed seller portion so the
+     * tracking UI never claims the whole order is ready before every seller is.
+     *
+     * Logistics/rider statuses are not downgraded here.
+     */
+    private function syncParentOrderStatus(Order $order): void
+    {
+        $order->refresh();
+
+        // Once logistics/rider flow has advanced the parent order, seller-side
+        // updates must never move it backwards.
+        $protectedStatuses = [
+            'picked_up',
+            'at_sorting_center',
+            'sorted',
+            'assigned_to_rider',
+            'out_for_delivery',
+            'in_transit',
+            'partially_delivered',
+            'delivered',
+            'completed',
+            'delivery_failed',
+            'returned',
+            'cancelled',
+            'reschedule_requested',
+            'rescheduled',
+        ];
+
+        if (in_array($order->status, $protectedStatuses, true)) {
+            return;
+        }
+
+        $sellerStatuses = $order->sellerOrders()
+            ->pluck('status')
+            ->filter()
+            ->values();
+
+        if ($sellerStatuses->isEmpty()) {
+            return;
+        }
+
+        $rank = [
+            'pending' => 0,
+            'placed' => 0,
+            'confirmed' => 1,
+            'preparing' => 2,
+            'ready_for_pickup' => 3,
+            'picked_up' => 4,
+            'at_sorting_center' => 5,
+            'sorted' => 5,
+            'assigned_to_rider' => 5,
+            'out_for_delivery' => 6,
+            'in_transit' => 6,
+            'partially_delivered' => 6,
+            'delivered' => 7,
+            'completed' => 7,
+        ];
+
+        $minimumRank = $sellerStatuses
+            ->map(fn ($status) => $rank[$status] ?? 0)
+            ->min();
+
+        $parentStatus = match (true) {
+            $minimumRank >= 3 => 'ready_for_pickup',
+            $minimumRank >= 2 => 'preparing',
+            $minimumRank >= 1 => 'confirmed',
+            default => 'placed',
+        };
+
+        $allReadyForPickup = $minimumRank >= 3;
+
+        $updates = [];
+
+        if ($order->status !== $parentStatus) {
+            $updates['status'] = $parentStatus;
+        }
+
+        if ((bool) $order->ready_for_pickup !== $allReadyForPickup) {
+            $updates['ready_for_pickup'] = $allReadyForPickup;
+        }
+
+        if ($updates !== []) {
+            $order->update($updates);
+        }
     }
 
 

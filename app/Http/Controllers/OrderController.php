@@ -305,6 +305,24 @@ class OrderController extends Controller
                 ->generateForOrder($order);
         });
 
+        $order->refresh();
+        $order->load('sellerOrders');
+
+        foreach ($order->sellerOrders as $sellerOrder) {
+            try {
+                app(\App\Services\SellerSettlementService::class)
+                    ->createIfEligible((int) $sellerOrder->id);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning(
+                    'Seller settlement retry after buyer confirmation failed.',
+                    [
+                        'order_id' => $order->id,
+                        'seller_order_id' => $sellerOrder->id,
+                        'error' => $e->getMessage(),
+                    ]
+                );
+            }
+        }
         $this->createNotification(
             $order->user_id,
             'Order Confirmed',

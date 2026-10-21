@@ -1117,6 +1117,38 @@ class CheckoutController extends Controller
 
         );
 
+        /*
+         * Notify every seller included in this checkout.
+         *
+         * One buyer order can contain products from multiple sellers, so
+         * each SellerOrder is resolved to the seller shop owner and that
+         * seller receives one notification for this order.
+         */
+        $order->loadMissing('sellerOrders.seller.owner');
+
+        foreach ($order->sellerOrders as $sellerOrder) {
+
+            $sellerUser = $sellerOrder->seller?->owner;
+
+            if (!$sellerUser) {
+                continue;
+            }
+
+            $this->createNotification(
+
+                $sellerUser->id,
+
+                'New Order Received',
+
+                'You received a new order ' . $order->order_number . '.',
+
+                'order',
+
+                route('seller.orders.show', $order)
+
+            );
+        }
+
         return redirect()
 
             ->route('orders.show', $order)

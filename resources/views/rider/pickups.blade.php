@@ -200,7 +200,7 @@
 
 
 
-    <div class="border rounded-3 p-3 mb-3">
+    <div class="border rounded-3 p-3 mb-3 pickup-offer-card" data-expires-at="{{ $offer->expires_at?->toIso8601String() }}">
 
 
 
@@ -276,6 +276,10 @@
 
             {{ $offer->expires_at?->format('M d, Y h:i A') ?? 'N/A' }}
 
+          </div>
+
+          <div class="small fw-semibold text-danger mt-1 pickup-offer-countdown">
+            Calculating time remaining...
           </div>
 
 
@@ -917,7 +921,57 @@
 
 
 @push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const cards = [...document.querySelectorAll('.pickup-offer-card')];
+
+    if (!cards.length) {
+        return;
+    }
+
+    let reloadScheduled = false;
+
+    function updateOfferTimers() {
+        const now = Date.now();
+
+        cards.forEach((card) => {
+            const expiresAt = card.dataset.expiresAt;
+            const output = card.querySelector('.pickup-offer-countdown');
+
+            if (!expiresAt || !output) {
+                return;
+            }
+
+            const remaining = new Date(expiresAt).getTime() - now;
+
+            if (remaining <= 0) {
+                output.textContent = 'Offer expired — finding another rider...';
+
+                card.querySelectorAll('button').forEach((button) => {
+                    button.disabled = true;
+                });
+
+                if (!reloadScheduled) {
+                    reloadScheduled = true;
+                    setTimeout(() => window.location.reload(), 1200);
+                }
+
+                return;
+            }
+
+            const totalSeconds = Math.ceil(remaining / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            output.textContent =
+                `Time remaining: ${minutes}:${String(seconds).padStart(2, '0')}`;
+        });
+    }
+
+    updateOfferTimers();
+    setInterval(updateOfferTimers, 1000);
+});
+</script>
 
 @vite('resources/js/rider/pickups.js')
-
 @endpush

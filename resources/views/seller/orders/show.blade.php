@@ -160,6 +160,20 @@ $statusColor = $colors[$status] ?? 'secondary';
       <div class="alert alert-success mb-0">
         Your parcel is ready for logistics pickup.
       </div>
+      @elseif($status === 'picked_up')
+      <div class="alert alert-info mb-0">
+        Your parcel has been picked up from your shop and is on the way to the sorting center.
+      </div>
+
+      @elseif($status === 'in_transit')
+      <div class="alert alert-info mb-0">
+        Your parcel is in transit through the logistics network.
+      </div>
+
+      @elseif($status === 'out_for_delivery')
+      <div class="alert alert-warning mb-0">
+        Your parcel is out for delivery to the customer.
+      </div>
 
       @else
       <span class="badge bg-{{ $statusColor }}">
