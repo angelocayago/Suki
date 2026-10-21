@@ -21,6 +21,10 @@ class ProductImage extends Model
         'sort_order' => 'integer',
     ];
 
+    protected $appends = [
+        'url',
+    ];
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
