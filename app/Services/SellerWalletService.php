@@ -8,6 +8,7 @@ use App\Models\Payout;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\SellerWalletEntry;
+use App\Models\ReturnRefundRequest;
 use App\Models\User;
 use App\Models\VoucherRedemption;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +30,9 @@ class SellerWalletService
             // hold applies only once a shipment has recorded COD collection.
             $requiresCodReconciliation = (bool) ($order->shipment?->cod_collected);
             $reconciled = ! $requiresCodReconciliation || \App\Models\LogisticsCodRemittanceItem::query()->whereHas('riderRemittance', fn($q)=>$q->where('seller_order_id',$order->id))->whereHas('logisticsRemittance', fn($q)=>$q->where('status','ACCEPTED'))->exists();
-            $heldForComplaint=$this->hasActiveComplaint($order->id);
-            SellerWalletEntry::firstOrCreate(['seller_id'=>$order->seller_id,'seller_order_id'=>$order->id,'type'=>'SALE_EARNING'], ['status'=>($heldForComplaint || ! $reconciled) ? 'HELD' : 'AVAILABLE','amount_minor'=>max(0, $earning),'reference'=>'SO-'.$order->id,'description'=>$heldForComplaint?'Held due to an active complaint':(!$reconciled?'Held pending COD reconciliation':'Completed seller order earning')]);
+            $heldForComplaint=$this->hasActiveComplaint($order->id); $heldForReturn=$this->hasActiveReturn($order->id);
+            $holdDescription=$heldForComplaint&&$heldForReturn?'Held due to an active complaint and return/refund request':($heldForComplaint?'Held due to an active complaint':($heldForReturn?'Held due to an active return/refund request':(!$reconciled?'Held pending COD reconciliation':'Completed seller order earning')));
+            SellerWalletEntry::firstOrCreate(['seller_id'=>$order->seller_id,'seller_order_id'=>$order->id,'type'=>'SALE_EARNING'], ['status'=>($heldForComplaint || $heldForReturn || ! $reconciled) ? 'HELD' : 'AVAILABLE','amount_minor'=>max(0, $earning),'reference'=>'SO-'.$order->id,'description'=>$holdDescription]);
         }, 3);
     }
 
@@ -40,7 +42,7 @@ class SellerWalletService
         return DB::transaction(function () use ($sellerOrder): bool {
             $order = SellerOrder::query()->lockForUpdate()->findOrFail($sellerOrder->id);
             $entry = SellerWalletEntry::query()->where('seller_id', $order->seller_id)->where('seller_order_id', $order->id)->where('type', 'SALE_EARNING')->lockForUpdate()->first();
-            if (! $entry || $entry->status !== 'HELD' || $this->hasActiveComplaint($order->id)) return false;
+            if (! $entry || $entry->status !== 'HELD' || $this->hasActiveComplaint($order->id) || $this->hasActiveReturn($order->id)) return false;
             $entry->update(['status' => 'AVAILABLE','description'=>'Completed seller order earning']);
             return true;
         }, 3);
@@ -51,7 +53,7 @@ class SellerWalletService
     {
         $entries = SellerWalletEntry::query()->where('seller_id', $seller->id);
         $reserved = (int) (clone $entries)->where('type', 'PAYOUT_RESERVATION')->where('status', 'RESERVED')->sum('amount_minor');
-        $available = (int) (clone $entries)->where('type', 'SALE_EARNING')->where('status', 'AVAILABLE')->sum('amount_minor');
+        $available = (int) (clone $entries)->whereIn('type', ['SALE_EARNING','REFUND_ADJUSTMENT'])->where('status', 'AVAILABLE')->sum('amount_minor');
         return ['available_minor'=>$available-$reserved,'held_minor'=>(int)(clone $entries)->where('type','SALE_EARNING')->where('status','HELD')->sum('amount_minor'),'reserved_minor'=>$reserved,'paid_out_minor'=>(int)(clone $entries)->where('type','PAYOUT_COMPLETED')->sum('amount_minor'),'total_earnings_minor'=>(int)(clone $entries)->where('type','SALE_EARNING')->sum('amount_minor')];
     }
 
@@ -100,6 +102,11 @@ class SellerWalletService
     private function hasActiveComplaint(int $sellerOrderId): bool
     {
         return Complaint::query()->where('seller_order_id', $sellerOrderId)->whereIn('status', self::ACTIVE_COMPLAINT_STATUSES)->exists();
+    }
+
+    private function hasActiveReturn(int $sellerOrderId): bool
+    {
+        return ReturnRefundRequest::query()->where('seller_order_id', $sellerOrderId)->whereIn('status', ['SUBMITTED', 'SELLER_RESPONDED'])->exists();
     }
 
     private function status(SellerOrder $order): string

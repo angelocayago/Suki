@@ -167,6 +167,8 @@ class CheckoutService
                 $sellerShippingMinor = self::SHIPPING_FEE_PER_SELLER_MINOR;
                 $sellerDiscountMinor = (int) $sellerDiscounts->get($seller->id, 0);
                 $sellerCommissionMinor = $sellerLines->sum('commission_minor');
+                $sellerFundedDiscount = (int) collect($redemptions)->filter(fn ($r) => $r['voucher']->scope === 'SELLER')->sum(fn ($r) => (int) ($r['allocation'][$seller->id] ?? 0));
+                $platformFundedDiscount = $sellerDiscountMinor - $sellerFundedDiscount;
 
                 $sellerOrder = SellerOrder::create([
                     'order_id' => $order->id,
@@ -197,12 +199,13 @@ class CheckoutService
                     'status_changed_at' => $now,
                 ]);
 
+                $createdItems = [];
                 foreach ($sellerLines as $line) {
                     $variant = $line['variant'];
                     $product = $line['product'];
                     $cartItem = $line['cart_item'];
 
-                    $order->items()->create([
+                    $createdItems[] = $order->items()->create([
                         'seller_id' => $seller->user_id,
                         'seller_order_id' => $sellerOrder->id,
                         'product_id' => $product->id,
@@ -218,12 +221,15 @@ class CheckoutService
                         'unit_price_minor' => $variant->price_minor,
                         'commission_bps_snapshot' => $line['commission_bps'],
                         'commission_minor' => $line['commission_minor'],
+                        'seller_funded_discount_minor' => 0,
+                        'platform_funded_discount_minor' => 0,
                         'quantity' => $line['quantity'],
                         'line_total' => $this->decimal($line['line_total_minor']),
                     ]);
 
                     $variant->decrement('stock', $line['quantity']);
                 }
+                foreach ([['seller_funded_discount_minor',$sellerFundedDiscount],['platform_funded_discount_minor',$platformFundedDiscount]] as [$field,$discount]) { $remaining=$discount; foreach ($createdItems as $index=>$item) { $share=$index===count($createdItems)-1?$remaining:min((int)$item->unit_price_minor*(int)$item->quantity,$remaining); $item->update([$field=>$share]); $remaining-=$share; } }
                 foreach ($redemptions as $redemption) {
                     $amount = (int) ($redemption['allocation'][$seller->id] ?? 0);
                     if (!$amount) continue;

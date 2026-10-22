@@ -378,6 +378,14 @@
                                 </a>
 
                                 <a
+                                    href="{{ route('buyer.return-refunds.index') }}"
+                                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5] hover:text-[#173F35]"
+                                >
+                                    <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                                    Returns / Refunds
+                                </a>
+
+                                <a
                                     href="{{ route('buyer.messages.index') }}"
                                     class="flex items-center gap-3
                                            rounded-xl

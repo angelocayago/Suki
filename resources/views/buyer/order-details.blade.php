@@ -649,6 +649,12 @@
                                         Quantity: {{ $item['quantity'] }}
                                     </p>
 
+                                    @if(!empty($item['return_eligible']))
+                                        <a href="{{ route('buyer.return-refunds.index') }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-3 py-1.5 text-xs font-semibold text-[#1F6F5B]">
+                                            Return / Refund
+                                        </a>
+                                    @endif
+
                                     <p class="mt-2 font-semibold text-gray-900">
                                         ₱{{ number_format($item['price'], 2) }}
                                     </p>

@@ -34,6 +34,8 @@ class OrderItem extends Model
         'unit_price_minor',
         'commission_bps_snapshot',
         'commission_minor',
+        'seller_funded_discount_minor',
+        'platform_funded_discount_minor',
     ];
 
     protected function casts(): array
@@ -50,6 +52,8 @@ class OrderItem extends Model
             'unit_price_minor' => 'integer',
             'commission_bps_snapshot' => 'integer',
             'commission_minor' => 'integer',
+            'seller_funded_discount_minor' => 'integer',
+            'platform_funded_discount_minor' => 'integer',
             'category_id_snapshot' => 'integer',
         ];
     }

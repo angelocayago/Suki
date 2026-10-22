@@ -1057,6 +1057,16 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($resolveProdu
 $orderToViewArray = function (Order $order): array {
 
     $items = [];
+    $activeReturnItemIds = \App\Models\ReturnRefundRequest::query()
+        ->whereIn('order_item_id', $order->items->pluck('id'))
+        ->whereIn('status', ['SUBMITTED', 'SELLER_RESPONDED', 'UNDER_REVIEW'])
+        ->pluck('order_item_id')
+        ->all();
+    $sellerOrderStatuses = $order->sellerOrders->mapWithKeys(function ($sellerOrder) {
+        $status = $sellerOrder->workflow_status;
+
+        return [$sellerOrder->id => $status instanceof \App\Enums\OrderStatus ? $status->value : (string) $status];
+    });
 
     foreach ($order->items as $item) {
 
@@ -1068,6 +1078,8 @@ $orderToViewArray = function (Order $order): array {
             'image' => $item->image,
             'variation' => $item->variation,
             'line_total' => (float) $item->line_total,
+            'return_eligible' => in_array($sellerOrderStatuses->get($item->seller_order_id), ['DELIVERED', 'COMPLETED'], true)
+                && !in_array($item->id, $activeReturnItemIds, true),
         ];
     }
 
@@ -6235,3 +6247,21 @@ Route::post('/logout', function (Request $request) {
 })->name('logout');
 
 
+// Item-scoped COD return/refund workflow. Financial finalization remains in ReturnRefundService.
+Route::middleware(['auth','not_suspended','approved','role:buyer'])->group(function () {
+    Route::get('/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'buyerIndex'])->name('buyer.return-refunds.index');
+    Route::get('/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'buyerShow'])->name('buyer.return-refunds.show');
+    Route::post('/order-items/{item}/return-refunds',[\App\Http\Controllers\ReturnRefundController::class,'store'])->name('buyer.return-refunds.store');
+    Route::post('/return-refunds/{returnRefundRequest}/evidence',[\App\Http\Controllers\ReturnRefundController::class,'evidence'])->name('return-refunds.evidence.store');
+});
+Route::middleware(['auth','not_suspended','approved'])->get('/return-refunds/{returnRefundRequest}/evidence/{evidence}',[\App\Http\Controllers\ReturnRefundController::class,'showEvidence'])->name('return-refunds.evidence.show');
+Route::middleware(['auth','not_suspended','approved','role:seller'])->group(function () {
+    Route::get('/seller/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerIndex'])->name('seller.return-refunds.index');
+    Route::get('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerShow'])->name('seller.return-refunds.show');
+    Route::patch('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'sellerRespond'])->name('seller.return-refunds.respond');
+});
+Route::middleware(['auth','not_suspended','approved','role:admin,superadmin'])->group(function () {
+    Route::get('/admin/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'adminIndex'])->name('admin.return-refunds.index');
+    Route::get('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'adminShow'])->name('admin.return-refunds.show');
+    Route::patch('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'decide'])->name('admin.return-refunds.decide');
+});

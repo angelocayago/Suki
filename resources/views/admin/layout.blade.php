@@ -381,6 +381,14 @@
     </a>
 
 
+    <a
+        href="{{ route('admin.return-refunds.index') }}"
+        class="block px-4 py-3 rounded-xl text-sm font-medium transition {{ request()->routeIs('admin.return-refunds.*') ? 'bg-[#10b981] text-white' : 'text-green-100 hover:bg-[#047857] hover:text-white' }}"
+    >
+        Returns / Refunds
+    </a>
+
+
 
 
 
