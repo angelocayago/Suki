@@ -291,6 +291,7 @@ class DashboardController extends Controller
                 User::STATUS_REJECTED,
                 User::STATUS_DEACTIVATED,
             ])
+            ->with('seller')
             ->withCount('products');
 
         if ($request->filled('search')) {

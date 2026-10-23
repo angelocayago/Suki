@@ -133,7 +133,9 @@
 
                         <td>
                             <a
-                                href="{{ route('admin.products', ['seller' => $seller->id]) }}"
+                                href="{{ $seller->seller
+                                    ? route('admin.products', ['seller' => $seller->seller->id])
+                                    : route('admin.products') }}"
                                 class="btn btn-primary btn-sm rounded-xl"
                             >
                                 <i class="bi bi-eye me-1"></i>
