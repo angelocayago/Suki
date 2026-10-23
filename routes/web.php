@@ -965,3 +965,5 @@ Route::middleware('auth')->group(function () {
 // existing routes above...
 
 require __DIR__ . '/auth.php';
+
+require __DIR__ . '/rider_wallet_routes.php';

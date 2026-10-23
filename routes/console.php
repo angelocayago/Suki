@@ -99,3 +99,7 @@ Schedule::call(function () {
     ->everyMinute()
     ->name('pickup-offer-expiration')
     ->withoutOverlapping();
+
+Schedule::command('orders:auto-confirm-received')
+    ->hourly()
+    ->withoutOverlapping();

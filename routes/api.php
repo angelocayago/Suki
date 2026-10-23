@@ -766,3 +766,5 @@ Route::middleware([
 //             ]
 //         );
 //     });
+
+require __DIR__ . '/free_cron_routes.php';
