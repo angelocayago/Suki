@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use App\Models\Category;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
@@ -768,3 +770,98 @@ Route::middleware([
 //     });
 
 require __DIR__ . '/free_cron_routes.php';
+
+Route::post('/internal/cleanup-old-categories', function (Request $request) {
+    $expectedToken = env('BILIHUB_CATEGORY_CLEANUP_TOKEN');
+
+    if (!$expectedToken || !hash_equals($expectedToken, (string) $request->header('X-BiliHub-Cleanup-Token'))) {
+        abort(403, 'Invalid cleanup token.');
+    }
+
+    $oldSlugs = [
+        'pet-supplies-pet-food',
+        'pet-supplies-pet-accessories',
+        'pet-supplies-pet-grooming',
+        'pet-supplies-pet-beds',
+        'pet-supplies-pet-toys',
+
+        'kids-and-baby-baby-clothing',
+        'kids-and-baby-kids-clothing',
+        'kids-and-baby-baby-care',
+        'kids-and-baby-toys',
+        'kids-and-baby-school-supplies',
+
+        'electronics-and-gadgets-mobile-phones',
+        'electronics-and-gadgets-laptops-and-computers',
+        'electronics-and-gadgets-audio-and-headphones',
+        'electronics-and-gadgets-smart-watches',
+        'electronics-and-gadgets-accessories',
+
+        'home-and-garden-home-decor',
+        'home-and-garden-kitchen-and-dining',
+        'home-and-garden-furniture',
+        'home-and-garden-bedding',
+        'home-and-garden-garden-supplies',
+
+        'womens-apparel-tops',
+        'womens-apparel-dresses',
+        'womens-apparel-pants-and-jeans',
+        'womens-apparel-skirts',
+        'womens-apparel-jackets-and-outerwear',
+
+        
+        'sports-and-outdoors-outdoor-gear',
+        'sports-and-outdoors-sports-accessories',
+        'sports-and-outdoors-footwear',
+        'sports-and-outdoors-sportswear',
+
+        'mens-apparel-t-shirts',
+        'mens-apparel-shirts',
+        'mens-apparel-pants-and-jeans',
+        'mens-apparel-shorts',
+        'mens-apparel-jackets-and-outerwear',
+
+        'health-and-beauty-skin-care',
+        'health-and-beauty-hair-care',
+        'health-and-beauty-makeup',
+        'health-and-beauty-personal-care',
+        'health-and-beauty-beauty-tools',
+    ];
+
+    $deleted = Category::whereIn('slug', $oldSlugs)
+        ->whereDoesntHave('products')
+        ->delete();
+
+    $sports = Category::where('slug', 'sports-and-outdoors')->first();
+
+    if ($sports) {
+        Category::updateOrCreate(
+            ['slug' => 'sports-and-outdoors-fitness-equipment'],
+            [
+                'name' => 'Fitness Equipment',
+                'description' => 'Fitness Equipment',
+                'parent_id' => $sports->id,
+            ]
+        );
+    }
+
+    $summary = Category::whereNull('parent_id')
+        ->orderBy('name')
+        ->get()
+        ->map(function ($parent) {
+            return [
+                'parent' => $parent->name,
+                'count' => Category::where('parent_id', $parent->id)->count(),
+                'subcategories' => Category::where('parent_id', $parent->id)
+                    ->orderBy('name')
+                    ->pluck('name')
+                    ->values(),
+            ];
+        });
+
+    return response()->json([
+        'success' => true,
+        'deleted_old_categories' => $deleted,
+        'categories' => $summary,
+    ]);
+});
