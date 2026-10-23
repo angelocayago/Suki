@@ -11,7 +11,7 @@ function fixture() {
     return { root, trigger, panel, close };
 }
 
-for (const page of ['Products', 'Inventory', 'Reports', 'Sales', 'Orders']) {
+for (const page of ['Products', 'Inventory', 'Reports', 'Sales', 'Orders', 'Vouchers']) {
     test(`${page} shared filter toggles preserve input, close on Escape and bind once`, () => {
         const { root, trigger, panel, close } = fixture();
         initSellerFilters(root);

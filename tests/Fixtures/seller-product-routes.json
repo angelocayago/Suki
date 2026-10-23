@@ -800,33 +800,6 @@
     },
     {
         "method":  "GET|HEAD",
-        "uri":  "seller/promotions",
-        "name":  "seller.promotions",
-        "action":  "Closure",
-        "middleware":  [
-                           "web"
-                       ]
-    },
-    {
-        "method":  "POST",
-        "uri":  "seller/promotions",
-        "name":  "seller.promotions.store",
-        "action":  "Closure",
-        "middleware":  [
-                           "web"
-                       ]
-    },
-    {
-        "method":  "DELETE",
-        "uri":  "seller/promotions/{promotion}",
-        "name":  "seller.promotions.destroy",
-        "action":  "Closure",
-        "middleware":  [
-                           "web"
-                       ]
-    },
-    {
-        "method":  "GET|HEAD",
         "uri":  "seller/register",
         "name":  "seller.register",
         "action":  "Closure",
@@ -905,6 +878,96 @@
         "middleware":  [
                            "web"
                        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/vouchers",
+        "name": "seller.vouchers.index",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@index",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/vouchers",
+        "name": "seller.vouchers.store",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@store",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/vouchers/create",
+        "name": "seller.vouchers.create",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@create",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/vouchers/{voucher}",
+        "name": "seller.vouchers.show",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@show",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "PUT",
+        "uri": "seller/vouchers/{voucher}",
+        "name": "seller.vouchers.update",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@update",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/vouchers/{voucher}/activate",
+        "name": "seller.vouchers.activate",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@activate",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/vouchers/{voucher}/archive",
+        "name": "seller.vouchers.archive",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@archive",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/vouchers/{voucher}/edit",
+        "name": "seller.vouchers.edit",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@edit",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/vouchers/{voucher}/pause",
+        "name": "seller.vouchers.pause",
+        "action": "App\\Http\\Controllers\\Seller\\VoucherController@pause",
+        "middleware": [
+            "web",
+            "auth"
+        ]
     },
     {
         "method":  "GET|HEAD",

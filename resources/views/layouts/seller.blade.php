@@ -379,31 +379,8 @@
 
                 </a>
 
-                {{-- PROMOTIONS --}}
-                <a
-                    href="{{ route('seller.promotions') }}"
-                    aria-label="Promotions"
-                    title="Promotions"
-                    @if(request()->routeIs('seller.promotions*')) aria-current="page" @endif
-                    class="
-                        seller-sidebar-link
-                        flex items-center gap-3
-                        rounded-xl
-                        px-3 py-2.5
-                        text-[13px]
-                        font-medium
-                        transition
-                        {{ request()->routeIs('seller.promotions*')
-                            ? 'bg-white text-[#173F35] shadow-sm'
-                            : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}
-                    "
-                >
-                    <i
-                        data-lucide="badge-percent"
-                        class="h-[18px] w-[18px]"
-                    ></i>
-
-                    <span class="seller-sidebar-link-label">Promotions</span>
+                <a href="{{ route('seller.vouchers.index') }}" aria-label="Voucher Management" title="Voucher Management" @if(request()->routeIs('seller.vouchers.*')) aria-current="page" @endif class="seller-sidebar-link flex items-center gap-3 rounded-xl px-3 py-3 text-sm {{ request()->routeIs('seller.vouchers.*') ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/5 hover:text-white' }}">
+                    <i data-lucide="ticket" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i><span class="seller-sidebar-link-label">Vouchers</span>
                 </a>
 
 

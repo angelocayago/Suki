@@ -1,0 +1,3 @@
+@if(session('success'))<div role="status" class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</div>@endif
+@if($errors->any())<div role="alert" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<p class="mb-5 rounded-xl bg-[#EEF5F1] p-3 text-xs leading-5 text-[#52635B]">Voucher configuration only. Buyer redemption is not connected. Minimum spend uses eligible seller-owned product subtotal; sale-price stacking, payment and order discounts are not applied here.</p>

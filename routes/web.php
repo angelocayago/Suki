@@ -3734,100 +3734,18 @@ Route::get('/seller/sales', function () use ($requireSeller) {
 })->name('seller.sales');
 
 
-// =====================================================
-// SELLER PROMOTIONS
-// =====================================================
-
-Route::get('/seller/promotions', function () use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $promotions = session('seller_promotions', []);
-    $products = session('seller_products', []);
-
-    return view('seller.promotions', [
-        'promotions' => $promotions,
-        'products' => $products,
-    ]);
-
-})->name('seller.promotions');
-
-
-Route::post('/seller/promotions', function (Request $request) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $request->validate([
-        'name' => 'required|string|max:100',
-        'type' => 'required|in:percentage,fixed',
-        'value' => 'required|numeric|min:0.01',
-        'start_date' => 'required|date',
-        'end_date' => 'required|date|after_or_equal:start_date',
-        'product_id' => 'nullable|string|max:50',
-        'status' => 'required|in:active,inactive',
-    ]);
-
-    if ($request->type === 'percentage' && (float) $request->value > 100) {
-        return back()
-            ->withErrors(['value' => 'Percentage discount cannot exceed 100%.'])
-            ->withInput();
-    }
-
-    $promotions = session()->get('seller_promotions', []);
-
-    $promotionId = 'PROMO-' . str_pad(
-        count($promotions) + 1,
-        4,
-        '0',
-        STR_PAD_LEFT
-    );
-
-    $promotions[$promotionId] = [
-        'id' => $promotionId,
-        'name' => $request->name,
-        'type' => $request->type,
-        'value' => (float) $request->value,
-        'start_date' => $request->start_date,
-        'end_date' => $request->end_date,
-        'product_id' => $request->product_id,
-        'status' => $request->status,
-        'created_at' => now()->format('Y-m-d H:i:s'),
-    ];
-
-    session()->put('seller_promotions', $promotions);
-
-    return redirect()
-        ->route('seller.promotions')
-        ->with('success', 'Promotion created successfully.');
-
-})->name('seller.promotions.store');
-
-
-Route::delete('/seller/promotions/{promotion}', function (
-    $promotionId
-) use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $promotions = session()->get('seller_promotions', []);
-
-    if (!isset($promotions[$promotionId])) {
-        abort(404);
-    }
-
-    unset($promotions[$promotionId]);
-
-    session()->put('seller_promotions', $promotions);
-
-    return back()->with('success', 'Promotion deleted successfully.');
-
-})->name('seller.promotions.destroy');
+Route::middleware('auth')->prefix('seller/vouchers')->name('seller.vouchers.')->group(function () {
+    $controller = \App\Http\Controllers\Seller\VoucherController::class;
+    Route::get('/', [$controller, 'index'])->name('index');
+    Route::get('/create', [$controller, 'create'])->name('create');
+    Route::post('/', [$controller, 'store'])->name('store');
+    Route::get('/{voucher}', [$controller, 'show'])->whereNumber('voucher')->name('show');
+    Route::get('/{voucher}/edit', [$controller, 'edit'])->whereNumber('voucher')->name('edit');
+    Route::put('/{voucher}', [$controller, 'update'])->whereNumber('voucher')->name('update');
+    Route::post('/{voucher}/activate', [$controller, 'activate'])->whereNumber('voucher')->name('activate');
+    Route::post('/{voucher}/pause', [$controller, 'pause'])->whereNumber('voucher')->name('pause');
+    Route::post('/{voucher}/archive', [$controller, 'archive'])->whereNumber('voucher')->name('archive');
+});
 
 
 // =====================================================

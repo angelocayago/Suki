@@ -347,7 +347,7 @@ class SellerStoreProfileTest extends TestCase
         $this->post(route('login.submit'), ['login' => $shop->owner->email, 'password' => 'Old-pass-123'])
             ->assertRedirect(route('seller.dashboard'));
         $this->assertAuthenticatedAs($shop->owner);
-        foreach (['seller.dashboard', 'seller.store.profile', 'seller.products', 'seller.products.create', 'seller.inventory', 'seller.orders', 'seller.reports', 'seller.sales', 'seller.promotions'] as $route) {
+        foreach (['seller.dashboard', 'seller.store.profile', 'seller.products', 'seller.products.create', 'seller.inventory', 'seller.orders', 'seller.reports', 'seller.sales', 'seller.vouchers.index'] as $route) {
             $this->get(route($route))->assertOk();
         }
         $this->assertSame($shop->id, session('seller_profile.shop_id'));
