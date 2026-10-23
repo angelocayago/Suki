@@ -218,6 +218,16 @@
                        ]
     },
     {
+        "method": "GET|HEAD",
+        "uri": "chat-images/{attachment}",
+        "name": "messages.images.show",
+        "action": "App\\Http\\Controllers\\ChatImageController@show",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
         "method":  "GET|HEAD",
         "uri":  "checkout",
         "name":  "buyer.checkout",
@@ -396,6 +406,58 @@
         "middleware":  [
                            "web"
                        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "messages",
+        "name": "buyer.messages.index",
+        "action": "App\\Http\\Controllers\\Buyer\\MessageController@index",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "messages/contact/{kind}/{id}",
+        "name": "buyer.messages.contact",
+        "action": "App\\Http\\Controllers\\Buyer\\MessageController@contact",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "messages/contact/{kind}/{id}",
+        "name": "buyer.messages.start",
+        "action": "App\\Http\\Controllers\\Buyer\\MessageController@start",
+        "middleware": [
+            "web",
+            "auth",
+            "throttle:30,1"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "messages/conversation/{conversation}",
+        "name": "buyer.messages.show",
+        "action": "App\\Http\\Controllers\\Buyer\\MessageController@show",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "messages/conversation/{conversation}",
+        "name": "buyer.messages.send",
+        "action": "App\\Http\\Controllers\\Buyer\\MessageController@send",
+        "middleware": [
+            "web",
+            "auth",
+            "throttle:30,1"
+        ]
     },
     {
         "method":  "GET|HEAD",
@@ -686,6 +748,37 @@
                        ]
     },
     {
+        "method": "GET|HEAD",
+        "uri": "seller/messages",
+        "name": "seller.messages.index",
+        "action": "App\\Http\\Controllers\\Seller\\MessageController@index",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/messages/{conversation}",
+        "name": "seller.messages.show",
+        "action": "App\\Http\\Controllers\\Seller\\MessageController@show",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/messages/{conversation}",
+        "name": "seller.messages.reply",
+        "action": "App\\Http\\Controllers\\Seller\\MessageController@reply",
+        "middleware": [
+            "web",
+            "auth",
+            "throttle:30,1"
+        ]
+    },
+    {
         "method":  "GET|HEAD",
         "uri":  "seller/my-profile",
         "name":  "seller.profile",
@@ -734,6 +827,46 @@
                            "web",
                            "auth"
                        ]
+    },
+    {
+        "method": "GET|HEAD",
+        "uri": "seller/notifications",
+        "name": "seller.notifications.index",
+        "action": "App\\Http\\Controllers\\Seller\\NotificationController@index",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/notifications/read-all",
+        "name": "seller.notifications.read-all",
+        "action": "App\\Http\\Controllers\\Seller\\NotificationController@readAll",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/notifications/{notification}/read",
+        "name": "seller.notifications.read",
+        "action": "App\\Http\\Controllers\\Seller\\NotificationController@read",
+        "middleware": [
+            "web",
+            "auth"
+        ]
+    },
+    {
+        "method": "POST",
+        "uri": "seller/notifications/{notification}/unread",
+        "name": "seller.notifications.unread",
+        "action": "App\\Http\\Controllers\\Seller\\NotificationController@unread",
+        "middleware": [
+            "web",
+            "auth"
+        ]
     },
     {
         "method":  "GET|HEAD",

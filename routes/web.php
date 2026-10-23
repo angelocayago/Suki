@@ -449,6 +449,7 @@ $requireBuyer = function () {
     if (
         $user->hasRole('buyer') &&
         $user->email_verified_at === null &&
+        !\App\Support\BuyerAccess::localException($user) &&
         BuyerEmailVerification::query()
             ->where('user_id', $user->id)
             ->exists()
@@ -467,7 +468,8 @@ $requireBuyer = function () {
 
     if (
         !$user->hasRole('buyer') ||
-        $user->status !== 'active'
+        !\App\Support\BuyerAccess::approved($user) ||
+        $user->is_suspended
     ) {
         Auth::logout();
 
@@ -3748,6 +3750,31 @@ Route::middleware('auth')->prefix('seller/vouchers')->name('seller.vouchers.')->
 });
 
 
+Route::middleware('auth')->prefix('seller/notifications')->name('seller.notifications.')->group(function () {
+    $controller = \App\Http\Controllers\Seller\NotificationController::class;
+    Route::get('/', [$controller, 'index'])->name('index');
+    Route::post('/read-all', [$controller, 'readAll'])->name('read-all');
+    Route::post('/{notification}/read', [$controller, 'read'])->whereUuid('notification')->name('read');
+    Route::post('/{notification}/unread', [$controller, 'unread'])->whereUuid('notification')->name('unread');
+});
+
+Route::middleware('auth')->prefix('seller/messages')->name('seller.messages.')->group(function () {
+    $controller = \App\Http\Controllers\Seller\MessageController::class;
+    Route::get('/', [$controller, 'index'])->name('index');
+    Route::get('/{conversation}', [$controller, 'show'])->whereNumber('conversation')->name('show');
+    Route::post('/{conversation}', [$controller, 'reply'])->whereNumber('conversation')->middleware('throttle:30,1')->name('reply');
+});
+
+Route::middleware('auth')->prefix('messages')->name('buyer.messages.')->group(function () {
+    $controller = \App\Http\Controllers\Buyer\MessageController::class;
+    Route::get('/', [$controller, 'index'])->name('index');
+    Route::get('/contact/{kind}/{id}', [$controller, 'contact'])->whereIn('kind', ['products', 'shops'])->whereNumber('id')->name('contact');
+    Route::post('/contact/{kind}/{id}', [$controller, 'start'])->whereIn('kind', ['products', 'shops'])->whereNumber('id')->middleware('throttle:30,1')->name('start');
+    Route::get('/conversation/{conversation}', [$controller, 'show'])->whereNumber('conversation')->name('show');
+    Route::post('/conversation/{conversation}', [$controller, 'send'])->whereNumber('conversation')->middleware('throttle:30,1')->name('send');
+});
+Route::get('/chat-images/{attachment}', [\App\Http\Controllers\ChatImageController::class, 'show'])->whereNumber('attachment')->middleware('auth')->name('messages.images.show');
+
 // =====================================================
 // SELLER REPORTS & ANALYTICS
 // =====================================================
@@ -6702,6 +6729,7 @@ Route::post('/login', function (Request $request) {
     if (
         $user->hasRole('buyer') &&
         $user->email_verified_at === null &&
+        !\App\Support\BuyerAccess::localException($user) &&
         BuyerEmailVerification::query()
             ->where('user_id', $user->id)
             ->exists()
@@ -6726,7 +6754,7 @@ Route::post('/login', function (Request $request) {
     // ACCOUNT STATUS CHECK
     // =====================================================
 
-    if ($user->status !== 'active') {
+    if ($user->status !== 'active' && !\App\Support\BuyerAccess::localException($user)) {
 
         $status = strtolower(
             $user->status ?? ''
@@ -7235,6 +7263,10 @@ Route::post('/register', function (
             return $user;
         }
     );
+
+    if (\App\Support\BuyerAccess::localException($user)) {
+        return redirect()->route('login')->with('success', 'Buyer account created. Local development access is available without OTP or Admin approval; your saved verification and approval status are unchanged.');
+    }
 
     $request->session()->put('buyer_verification_user_id', $user->id);
 

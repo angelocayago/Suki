@@ -635,12 +635,8 @@
                 </button>
 
 
-                <button
-                    type="button"
-                    class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-sm font-medium hover:bg-[#155244] transition"
-                >
-                    Chat
-                </button>
+                <button type="button" disabled aria-disabled="true" title="Chat unavailable: this legacy listing has no verified database shop identity." class="rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-500">Chat unavailable</button>
+                <a href="{{ route('buyer.messages.index') }}" class="text-sm text-[#1F6F5B]">Messages / verified shop contacts</a>
 
             </div>
 

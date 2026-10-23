@@ -394,33 +394,20 @@
 
             <div class="space-y-1">
 
-                <span
-                    role="link"
-                    aria-disabled="true"
-                    aria-label="Messages (Coming soon)"
-                    title="Messages - Coming soon"
-                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
-                >
+                <a href="{{ route('seller.messages.index') }}" aria-label="{{ $sellerMessageSummary['available'] ? 'Messages, '.$sellerMessageSummary['unread'].' unread incoming messages' : 'Messages unavailable' }}" title="Messages" @if(request()->routeIs('seller.messages.*')) aria-current="page" @endif class="seller-sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium {{ request()->routeIs('seller.messages.*') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
                     <i data-lucide="message-circle" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
                     <span class="seller-sidebar-link-label min-w-0">
                         Messages
-                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
+                        @if($sellerMessageSummary['available'] && $sellerMessageSummary['unread'] > 0)<span data-seller-message-unread class="ml-2 rounded-full bg-[#1F6F5B] px-2 text-[10px] text-white">{{ $sellerMessageSummary['unread'] }}</span>@endif
                     </span>
-                </span>
+                </a>
 
-                <span
-                    role="link"
-                    aria-disabled="true"
-                    aria-label="Notifications (Coming soon)"
-                    title="Notifications - Coming soon"
-                    class="seller-sidebar-link flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/45"
-                >
+                <a href="{{ route('seller.notifications.index') }}" aria-label="Notifications" title="Notifications" @if(request()->routeIs('seller.notifications.*')) aria-current="page" @endif class="seller-sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium {{ request()->routeIs('seller.notifications.*') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
                     <i data-lucide="bell" class="h-[18px] w-[18px] shrink-0" aria-hidden="true"></i>
                     <span class="seller-sidebar-link-label min-w-0">
                         Notifications
-                        <span class="block text-[9px] font-normal text-white/35">Coming soon</span>
                     </span>
-                </span>
+                </a>
 
                 <span
                     role="link"
@@ -762,12 +749,13 @@
                         <button
                             id="sellerNotificationsToggle"
                             type="button"
-                            aria-label="Notifications"
+                            aria-label="{{ $sellerNotificationSummary['available'] ? 'Notifications, '.$sellerNotificationSummary['unread'].' unread' : 'Notifications unavailable' }}"
                             aria-expanded="false"
                             aria-controls="sellerNotificationsPanel"
-                            class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#52635B] transition hover:bg-[#F3F7F5] hover:text-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
+                            class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDE6E1] bg-white text-[#52635B] transition hover:bg-[#F3F7F5] hover:text-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/40"
                         >
                             <i data-lucide="bell" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                            @if($sellerNotificationSummary['available'] && $sellerNotificationSummary['unread'] > 0)<span data-seller-unread-count class="absolute -right-2 -top-2 rounded-full bg-[#1F6F5B] px-1.5 text-[10px] font-semibold text-white" aria-hidden="true">{{ $sellerNotificationSummary['unread'] }}</span>@endif
                         </button>
                         <div
                             id="sellerNotificationsPanel"
@@ -777,7 +765,7 @@
                             class="absolute right-0 top-full z-40 mt-3 max-h-[70dvh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-[#DDE6E1] bg-white p-4 text-sm text-[#24312C] shadow-lg"
                         >
                             <h2 id="sellerNotificationsHeading" class="font-semibold text-[#173F35]">Notifications</h2>
-                            <p class="mt-2 text-xs leading-relaxed text-[#52635B]">Seller notifications are not available yet.</p>
+                            @include('seller.partials.notification-bell')
                         </div>
                     </div>
 

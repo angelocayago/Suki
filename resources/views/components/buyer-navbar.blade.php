@@ -505,6 +505,8 @@
                 Home
             </a>
 
+            <a href="{{ route('buyer.messages.index') }}" class="whitespace-nowrap text-[#173F35]">Messages</a>
+
 
             <a
                 href="{{ route('buyer.shop') }}"

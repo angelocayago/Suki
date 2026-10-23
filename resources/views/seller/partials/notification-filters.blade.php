@@ -1,0 +1,8 @@
+<form method="GET" action="{{ route('seller.notifications.index') }}" class="grid gap-3 bg-[#FBFCFB] p-4 sm:grid-cols-2 lg:grid-cols-3">
+    @foreach(['read_status' => ['Read status', ['' => 'All', 'unread' => 'Unread', 'read' => 'Read']], 'type' => ['Type', ['' => 'All'] + $types->all()], 'date_range' => ['Date Created', \App\Support\SellerDateFilter::PRESETS], 'sort' => ['Sort', ['newest' => 'Newest First', 'oldest' => 'Oldest First']]] as $name => [$label, $choices])
+        <label class="text-xs font-semibold">{{ $label }}<select name="{{ $name }}" class="mt-1 w-full rounded-lg border border-[#DDE6E1] p-2">@foreach($choices as $value => $text)<option value="{{ $value }}" @selected(($criteria[$name] ?? array_key_first($choices)) === $value)>{{ $text }}</option>@endforeach</select></label>
+    @endforeach
+    @foreach(['from' => 'From (custom)', 'to' => 'To (inclusive, custom)'] as $name => $label)<label class="text-xs font-semibold">{{ $label }}<input type="date" name="{{ $name }}" value="{{ $criteria[$name] ?? '' }}" class="mt-1 w-full rounded-lg border border-[#DDE6E1] p-2"></label>@endforeach
+    <div class="flex justify-end gap-3 sm:col-span-2 lg:col-span-3"><a href="{{ route('seller.notifications.index') }}" class="rounded-lg border border-[#BFD2C9] px-4 py-2 text-xs font-semibold text-[#1F6F5B]">Reset Filters</a><button class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-xs font-semibold text-white">Apply Filters</button></div>
+    <p class="text-xs text-[#728078] sm:col-span-2 lg:col-span-3">Creation dates use Asia/Manila calendar boundaries. The bell count includes all your unread notifications, regardless of these filters.</p>
+</form>
