@@ -9,28 +9,8 @@
 
     $productId = request()->route('product');
 
-    $variationNames = old(
-        'variation_name',
-        $product['variation_names'] ?? ['']
-    );
-
-    $variationValues = old(
-        'variation_value',
-        $product['variation_values'] ?? ['']
-    );
-
-    if (!is_array($variationNames) || empty($variationNames)) {
-        $variationNames = [''];
-    }
-
-    if (!is_array($variationValues)) {
-        $variationValues = [''];
-    }
-
-
 @endphp
-
-
+@include('seller.partials.stock-alerts')
 {{-- =========================================================
     INTRO
 ========================================================= --}}
@@ -376,7 +356,7 @@
                                    font-semibold
                                    tracking-[-0.03em]"
                         >
-                            ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
+                            @include('seller.partials.product-price', ['showSale' => false])
                         </p>
 
                     </div>
@@ -607,6 +587,8 @@
             </section>
 
 
+            @include('seller.partials.product-variations')
+
             {{-- =================================================
                 PRICE & INVENTORY
             ================================================== --}}
@@ -672,7 +654,7 @@
 
 
                     {{-- PRICE --}}
-                    <div>
+                    <div data-simple-config>
 
                         <label
                             for="price"
@@ -710,7 +692,7 @@
                                 name="price"
                                 value="{{ old(
                                     'price',
-                                    $product['regular_price'] ?? $product['price'] ?? 0
+                                    $product['regular_price'] ?? $product['editable_price'] ?? $product['price'] ?? 0
                                 ) }}"
                                 min="0"
                                 step="0.01"
@@ -733,7 +715,7 @@
 
 
                     {{-- STOCK --}}
-                    <div>
+                    <div data-simple-config>
 
                         <label
                             for="stock"
@@ -757,7 +739,7 @@
                             name="stock"
                             value="{{ old(
                                 'stock',
-                                $product['stock'] ?? 0
+                                $product['editable_stock'] ?? $product['stock'] ?? 0
                             ) }}"
                             min="0"
                             required
@@ -817,184 +799,6 @@
 
 
             @include('seller.partials.product-sale-pricing')
-
-
-            {{-- =================================================
-                VARIATIONS
-            ================================================== --}}
-
-            <section
-                class="overflow-hidden
-                       rounded-2xl
-                       border border-[#E1E8E4]
-                       bg-white"
-            >
-
-                <div
-                    class="flex items-center
-                           justify-between gap-4
-                           border-b border-[#EDF1EF]
-                           px-5 py-4"
-                >
-
-                    <div class="flex items-center gap-3">
-
-                        <div
-                            class="flex h-9 w-9
-                                   items-center justify-center
-                                   rounded-xl
-                                   bg-[#EEF5F1]
-                                   text-[#173F35]"
-                        >
-
-                            <i
-                                data-lucide="list-tree"
-                                class="h-4 w-4"
-                            ></i>
-
-                        </div>
-
-
-                        <div>
-
-                            <h3
-                                class="text-sm
-                                       font-semibold
-                                       text-[#24312C]"
-                            >
-                                Product Variations
-                            </h3>
-
-                            <p
-                                class="mt-0.5
-                                       text-[11px]
-                                       text-[#7C8983]"
-                            >
-                                Manage size, color, or other options.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <button
-                        type="button"
-                        id="addVariation"
-                        class="inline-flex h-9
-                               shrink-0
-                               items-center gap-2
-                               rounded-xl
-                               border border-[#DDE6E1]
-                               bg-white
-                               px-3
-                               text-[10px]
-                               font-semibold
-                               text-[#52635B]
-                               transition
-                               hover:bg-[#F5F8F6]
-                               hover:text-[#173F35]"
-                    >
-
-                        <i
-                            data-lucide="plus"
-                            class="h-3.5 w-3.5"
-                        ></i>
-
-                        Add
-
-                    </button>
-
-                </div>
-
-
-                <div class="p-5">
-
-                    <div
-                        id="variationList"
-                        class="space-y-3"
-                    >
-
-                        @foreach($variationNames as $index => $variationName)
-
-                            <div
-                                class="variation-row
-                                       grid grid-cols-1
-                                       gap-3
-                                       sm:grid-cols-[1fr_1fr_auto]"
-                            >
-
-                                <input
-                                    type="text"
-                                    name="variation_name[]"
-                                    value="{{ $variationName }}"
-                                    placeholder="Variation name (e.g. Color)"
-                                    class="h-10 w-full
-                                           rounded-xl
-                                           border border-[#DDE6E1]
-                                           bg-white
-                                           px-3
-                                           text-xs
-                                           text-[#34483F]
-                                           placeholder:text-[#9AA69F]
-                                           focus:border-[#1F6F5B]
-                                           focus:ring-4
-                                           focus:ring-[#DDF3EC]/70"
-                                >
-
-
-                                <input
-                                    type="text"
-                                    name="variation_value[]"
-                                    value="{{ $variationValues[$index] ?? '' }}"
-                                    placeholder="Value (e.g. Black)"
-                                    class="h-10 w-full
-                                           rounded-xl
-                                           border border-[#DDE6E1]
-                                           bg-white
-                                           px-3
-                                           text-xs
-                                           text-[#34483F]
-                                           placeholder:text-[#9AA69F]
-                                           focus:border-[#1F6F5B]
-                                           focus:ring-4
-                                           focus:ring-[#DDF3EC]/70"
-                                >
-
-
-                                <button
-                                    type="button"
-                                    title="Remove variation"
-                                    class="remove-variation
-                                           flex h-10
-                                           items-center justify-center
-                                           rounded-xl
-                                           border border-[#E1E8E4]
-                                           bg-white
-                                           px-3
-                                           text-[#89968F]
-                                           transition
-                                           hover:border-red-200
-                                           hover:bg-red-50
-                                           hover:text-red-600"
-                                >
-
-                                    <i
-                                        data-lucide="trash-2"
-                                        class="h-4 w-4"
-                                    ></i>
-
-                                </button>
-
-                            </div>
-
-                        @endforeach
-
-                    </div>
-
-                </div>
-
-            </section>
 
 
             {{-- =================================================
@@ -1668,168 +1472,9 @@ document.addEventListener(
         updateDescriptionCount();
 
 
-        /* =====================================================
-           VARIATIONS
-        ====================================================== */
+        function refreshIcons() { if (typeof lucide !== 'undefined') lucide.createIcons(); }
 
-        const variationList =
-            document.getElementById(
-                'variationList'
-            );
-
-        const addVariation =
-            document.getElementById(
-                'addVariation'
-            );
-
-
-        function refreshIcons() {
-
-            if (
-                typeof lucide !== 'undefined' &&
-                typeof lucide.createIcons ===
-                    'function'
-            ) {
-
-                lucide.createIcons();
-
-            }
-
-        }
-
-
-        function createVariationRow() {
-
-            if (!variationList) {
-                return;
-            }
-
-
-            const row =
-                document.createElement('div');
-
-
-            row.className =
-                'variation-row grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]';
-
-
-            row.innerHTML = `
-
-                <input
-                    type="text"
-                    name="variation_name[]"
-                    placeholder="Variation name (e.g. Size)"
-                    class="h-10 w-full rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white px-3
-                           text-xs text-[#34483F]
-                           placeholder:text-[#9AA69F]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                >
-
-                <input
-                    type="text"
-                    name="variation_value[]"
-                    placeholder="Value (e.g. Medium)"
-                    class="h-10 w-full rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white px-3
-                           text-xs text-[#34483F]
-                           placeholder:text-[#9AA69F]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                >
-
-                <button
-                    type="button"
-                    title="Remove variation"
-                    class="remove-variation
-                           flex h-10
-                           items-center
-                           justify-center
-                           rounded-xl
-                           border border-[#E1E8E4]
-                           bg-white px-3
-                           text-[#89968F]
-                           transition
-                           hover:border-red-200
-                           hover:bg-red-50
-                           hover:text-red-600"
-                >
-
-                    <i
-                        data-lucide="trash-2"
-                        class="h-4 w-4"
-                    ></i>
-
-                </button>
-
-            `;
-
-
-            variationList.appendChild(row);
-
-            refreshIcons();
-
-        }
-
-
-        addVariation?.addEventListener(
-            'click',
-            createVariationRow
-        );
-
-
-        variationList?.addEventListener(
-            'click',
-            function (event) {
-
-                const button =
-                    event.target.closest(
-                        '.remove-variation'
-                    );
-
-
-                if (!button) {
-                    return;
-                }
-
-
-                const rows =
-                    variationList.querySelectorAll(
-                        '.variation-row'
-                    );
-
-
-                if (rows.length <= 1) {
-
-                    rows[0]
-                        .querySelectorAll('input')
-                        .forEach(
-                            function (input) {
-
-                                input.value = '';
-
-                            }
-                        );
-
-                    return;
-
-                }
-
-
-                button
-                    .closest('.variation-row')
-                    ?.remove();
-
-            }
-        );
-
-
-        /* =====================================================
+    /* =====================================================
            SUBMIT PROTECTION
         ====================================================== */
 

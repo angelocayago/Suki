@@ -3485,6 +3485,7 @@ Route::get('/seller', function () use ($requireSeller) {
         return $redirect;
     }
 
+    \App\Support\SellerProducts::sync(\App\Support\SellerAccount::current());
     return view('seller.dashboard');
 
 })->name('seller.dashboard');
@@ -3591,11 +3592,7 @@ Route::get('/seller/products', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $products = \App\Support\SellerProducts::sync(\App\Support\SellerAccount::current());
-
-    return view('seller.products', [
-        'products' => $products,
-    ]);
+    return view('seller.products', \App\Support\SellerCatalogueFilter::page(\App\Support\SellerAccount::current(), request()));
 
 })->name('seller.products');
 
@@ -3675,11 +3672,7 @@ Route::get('/seller/inventory', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $products = \App\Support\SellerProducts::sync(\App\Support\SellerAccount::current());
-
-    return view('seller.inventory', [
-        'products' => $products,
-    ]);
+    return view('seller.inventory', \App\Support\SellerCatalogueFilter::page(\App\Support\SellerAccount::current(), request()));
 
 })->name('seller.inventory');
 
@@ -3692,7 +3685,8 @@ Route::post('/seller/inventory/{product}/increase', function (
         return $redirect;
     }
 
-    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, 1);
+    $stockInput = request()->validate(['variant_id' => 'nullable|integer|min:1']);
+    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, 1, isset($stockInput['variant_id']) ? (int) $stockInput['variant_id'] : null);
 
     return back()->with(
         'success',
@@ -3710,7 +3704,8 @@ Route::post('/seller/inventory/{product}/decrease', function (
         return $redirect;
     }
 
-    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, -1);
+    $stockInput = request()->validate(['variant_id' => 'nullable|integer|min:1']);
+    \App\Support\SellerProducts::adjustStock(\App\Support\SellerAccount::current(), $productId, -1, isset($stockInput['variant_id']) ? (int) $stockInput['variant_id'] : null);
 
     return back()->with(
         'success',
@@ -3730,11 +3725,7 @@ Route::get('/seller/sales', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $orders = collect(session('orders', []));
-
-    return view('seller.sales', [
-        'orders' => $orders,
-    ]);
+    return view('seller.sales', \App\Support\SellerSales::data(\App\Support\SellerAccount::current(), request()));
 
 })->name('seller.sales');
 
@@ -3845,9 +3836,7 @@ Route::get('/seller/reports', function () use ($requireSeller) {
         return $redirect;
     }
 
-    return view('seller.reports', [
-        'orders' => session('seller_orders', []),
-    ]);
+    return view('seller.reports', \App\Support\SellerReports::data(\App\Support\SellerAccount::current(), request()));
 
 })->name('seller.reports');
 

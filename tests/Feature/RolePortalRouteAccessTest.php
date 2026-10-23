@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BuyerEmailVerification;
+use App\Models\Seller;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,11 @@ class RolePortalRouteAccessTest extends TestCase
 
         $this->withSession(['seller_logged_in' => true])
             ->get(route('seller.dashboard'))
+            ->assertForbidden();
+
+        $seller = User::factory()->create(['role' => 'seller', 'status' => 'active']);
+        Seller::create(['user_id' => $seller->id, 'name' => 'Route fixture', 'slug' => 'route-fixture', 'status' => 'approved']);
+        $this->actingAs($seller)->get(route('seller.dashboard'))
             ->assertOk();
     }
 

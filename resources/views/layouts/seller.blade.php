@@ -325,8 +325,8 @@
                 {{-- SALES --}}
                 <a
                     href="{{ route('seller.sales') }}"
-                    aria-label="Earnings &amp; Payouts"
-                    title="Earnings &amp; Payouts"
+                    aria-label="Sales"
+                    title="Sales; payouts unavailable"
                     @if(request()->routeIs('seller.sales', 'seller.sales.*')) aria-current="page" @endif
                     class="
                         seller-sidebar-link
@@ -346,7 +346,7 @@
                         class="h-[18px] w-[18px]"
                     ></i>
 
-                    <span class="seller-sidebar-link-label">Earnings &amp; Payouts</span>
+                    <span class="seller-sidebar-link-label">Sales</span>
                 </a>
 
 

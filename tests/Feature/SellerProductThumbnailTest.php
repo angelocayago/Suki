@@ -65,8 +65,8 @@ class SellerProductThumbnailTest extends TestCase
             ->assertSee('data-replace', false)->assertSee('data-remove', false)
             ->assertSee('Undo removal')->assertSee('Will be replaced when you save.');
         $this->get(route('seller.products.create'))->assertOk()
-            ->assertSee("label.textContent = 'Add Images'", false)
-            ->assertSee("removeButton.textContent = 'Remove'", false);
+            ->assertSee('data-photo-upload', false)->assertSeeText('Add Images')
+            ->assertSee('data-photo-preview-grid', false);
     }
 
     public function test_individual_replacement_preserves_ids_positions_other_images_and_cover_after_refresh(): void

@@ -7,6 +7,8 @@ use App\Models\Seller;
 use App\Support\SellerAccount;
 use App\Support\SellerCategories;
 use App\Support\SellerProducts;
+use App\Support\SellerProductVariants;
+use App\Support\SellerStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -37,8 +39,11 @@ class ProductController extends Controller
         ];
     }
 
-    private function pricing(Request $request): array
+    private function pricing(Request $request, bool $variable = false): array
     {
+        if ($variable) {
+            return ['regular_price' => null, 'sale_price' => null, 'on_sale' => false, 'price' => null];
+        }
         $regular = $request->filled('price') ? (float) $request->price : null;
         $sale = $request->boolean('on_sale') ? (float) $request->sale_price : null;
 
@@ -79,17 +84,18 @@ class ProductController extends Controller
         $sellerCategory = $seller->business_category;
         $isDraft = $request->input('submit_action') === 'draft';
         $required = $isDraft ? 'nullable' : 'required';
-        $hasVariations = $request->boolean('has_variations');
         [$main, $child] = $this->category($request, $seller, $isDraft);
         $this->validatePaymentInput($request);
+        $variationData = SellerProductVariants::input($request);
+        $variable = $variationData['product_type'] === 'variable';
 
         $saleRules = $this->saleRules($request);
         $request->validate([
             'name' => "{$required}|string|max:150",
             'description' => "{$required}|string|max:3000",
-            'price' => [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
+            'price' => $variable ? 'exclude' : [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
             ...$saleRules,
-            'stock' => "{$required}|integer|min:0|max:4294967295",
+            'stock' => $variable ? 'exclude' : "{$required}|integer|min:0|max:4294967295",
             'low_stock_threshold' => 'nullable|integer|min:0',
             'brand' => 'nullable|string|max:150',
             'weight' => 'nullable|numeric|min:0',
@@ -102,10 +108,10 @@ class ProductController extends Controller
             'additional_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'product_video' => 'nullable|file|mimes:mp4,mov,avi,webm|max:10240',
             'has_variations' => 'nullable|boolean',
-            'variation_name' => ! $isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
-            'variation_name.*' => ! $isDraft && $hasVariations ? 'required|string|max:100' : 'nullable|string|max:100',
-            'variation_value' => ! $isDraft && $hasVariations ? 'required|array|min:1' : 'nullable|array',
-            'variation_value.*' => ! $isDraft && $hasVariations ? 'required|string|max:255' : 'nullable|string|max:255',
+            'variation_name' => 'nullable|array',
+            'variation_name.*' => 'nullable|string|max:100',
+            'variation_value' => 'nullable|array',
+            'variation_value.*' => 'nullable|string|max:255',
         ]);
 
         $newPaths = [];
@@ -147,9 +153,9 @@ class ProductController extends Controller
                 'additional_image' => $additionalImageUrl,
                 'product_video' => $productVideoUrl,
 
-                ...$this->pricing($request),
+                ...$this->pricing($request, $variable),
                 'stock' => (int) $request->stock,
-                'low_stock_threshold' => (int) $request->input('low_stock_threshold', 5),
+                'low_stock_threshold' => (int) ($request->input('low_stock_threshold') ?? SellerStock::threshold()),
 
                 'status' => $isDraft ? 'draft' : $request->status,
 
@@ -171,6 +177,8 @@ class ProductController extends Controller
                 'created_at' => now()->format('Y-m-d H:i:s'),
                 'updated_at' => now()->format('Y-m-d H:i:s'),
             ];
+
+            $data = array_replace($data, $variationData);
 
             SellerProducts::save($seller, $data, $child?->id ?? $main->id);
         } catch (\Throwable $exception) {
@@ -206,6 +214,8 @@ class ProductController extends Controller
         $draft = $request->input('status') === 'draft';
         [$main, $child] = $this->category($request, $seller, $draft);
         $this->validatePaymentInput($request);
+        $variationData = SellerProductVariants::input($request, $product);
+        $variable = $variationData['product_type'] === 'variable';
         // A legacy product must receive an explicit supported selection even as
         // a draft; never silently remap an existing category to the main parent.
         if (! $child && $product->category_id !== $main->id) {
@@ -215,9 +225,9 @@ class ProductController extends Controller
         $saleRules = $this->saleRules($request);
         $validated = $request->validate([
             'name' => "$required|string|max:150", 'description' => "$required|string|max:3000",
-            'price' => [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
+            'price' => $variable ? 'exclude' : [Rule::requiredIf($request->boolean('on_sale')), $required, 'numeric', 'min:0', 'max:42949672.95'],
             ...$saleRules,
-            'stock' => "$required|integer|min:0|max:4294967295",
+            'stock' => $variable ? 'exclude' : "$required|integer|min:0|max:4294967295",
             'status' => 'required|in:active,inactive,draft',
             'brand' => 'nullable|string|max:150', 'weight' => 'nullable|numeric|min:0',
             'length' => 'nullable|numeric|min:0', 'width' => 'nullable|numeric|min:0', 'height' => 'nullable|numeric|min:0',
@@ -234,7 +244,7 @@ class ProductController extends Controller
             'add_images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
         $data = array_replace(SellerProducts::listing($product), $validated,
-            ['category' => $seller->business_category, 'subcategory' => $child?->name], $this->pricing($request));
+            ['category' => $seller->business_category, 'subcategory' => $child?->name], $this->pricing($request, $variable), $variationData);
         foreach (['variation_name' => 'variation_names', 'variation_value' => 'variation_values'] as $input => $field) {
             if ($request->exists($input)) {
                 $data[$field] = $validated[$input] ?? [];

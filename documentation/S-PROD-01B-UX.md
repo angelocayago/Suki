@@ -1,0 +1,57 @@
+# S-PROD-01B-UX implementation report
+
+Implemented locally on `seller-registration`. Existing uncommitted S-PROD-01B work was present before this task and was retained. No branch switch, staging, commit, push, production/development data changes, or `.env` edits were performed.
+
+1. **Reference functionality.** Read all three supplied references. Reference 1 supplies the optional Add Option → comma-separated values → explicit Cartesian generation → variant price/stock table workflow and photo previews. Reference 2 supplies a separate product-discount concept. Reference 3 supplies search/filter, management, availability, and stock-summary concepts. Their Shopleap layouts and assumptions were not imported.
+
+2. **Existing functionality inspected.** Inspected create/edit/listing views, shared category/sale/payment/image/variation partials, `app.js`, the shared variation module, Seller ProductController, SellerProducts, SellerProductSku, SellerProductVariants, Product/ProductVariant/ProductImage, table migrations, category configuration/support, SellerAccount and seller route guards, promotions endpoints, and product/JavaScript tests. Existing features already include normalized indexed variation requests, deterministic generation, reconciliation, transactional saves, immutable SKUs, identity/ownership protections, per-variant availability, image controls, category restrictions, sale pricing, COD, and server-derived summaries. The missing UX was immediately available optional groups, comma entry, a table, clear action limits, and a predictable generation workflow. Saved-label/type restrictions, indexed selections, and server summaries are intentional protections.
+
+3. **Add Product changes.** Ordered the main sections as Basic Information (name, description, assigned category/subcategory, optional brand), Pricing & Stock, Options & Variants, Product Photos, Sale pricing, and Payment Methods. Kept optional package measurements and the existing publication controls. Changed the top publish action to Add Product. Removed the product-type selector in favor of workflow-managed hidden type. Existing SUKI SHOP layout, green colors, navigation, responsive grid, and draft action remain.
+
+4. **Deliberately preserved differences.** Three groups, ten values per group, fifty combinations, five main images at 5 MB each, backend money/integer validation, server-owned SKUs, locked categories, saved type/label restrictions, existing status vocabulary and routes remain authoritative. Indexed selections support punctuation and special labels without using seller text as request keys. No editable SKU, category reassignment, reference-only routes, sidebar, branding, or browser-authoritative summary was copied.
+
+5. **Files changed in this task.**
+   - `resources/views/seller/products-create.blade.php`
+   - `resources/views/seller/partials/product-variations.blade.php`
+   - `resources/views/seller/partials/product-sale-pricing.blade.php`
+   - `resources/js/seller-product-variations.js`
+   - `tests/Feature/SellerProductVariationsTest.php`
+   - `tests/js/seller-product-variations.test.mjs`
+   - `tests/js/seller-image-controls.test.mjs`
+   - `documentation/S-PROD-01B-UX.md`
+
+   Other dirty/untracked files shown by Git predate this task. The production build was regenerated using the existing Vite setup.
+
+6. **JavaScript reuse.** Extended the existing `seller-product-variations.js`, already imported by `app.js`, for both forms. Reused `combinations`, `combinationKey`, and `reconcileRows`. Added comma parsing and an in-memory combination cache. Initialization is guarded against duplicate listeners. Seller labels are written using DOM text/value properties, not injected HTML. Existing create/edit image handlers remain in place.
+
+7. **Backend changes.** None for this UX task: no controller, support-class, model, migration, route, pricing calculation, or database-record changes. The already-present S-PROD-01B backend remains responsible for validation, ownership, transactions, IDs, SKU allocation, and price/stock summaries.
+
+8. **Validation.** Frontend generation rejects blank/duplicate normalized names or values, excessive labels/values/groups, and more than fifty combinations. Generation is disabled until groups validate. Add Option disables at three groups. Empty comma segments are retained for rejection rather than silently discarded. Display capitalization is retained. Existing server validation independently enforces the same limits. Dirty options cannot be submitted until regenerated; a capture-phase handler prevents the normal submit handler from leaving a blocked form in its saving state. Simple fields and stale rows are disabled appropriately. Sale-field initialization respects disabled mode.
+
+9. **Simple products.** New forms start with no groups or generated rows. Price, stock, optional sale pricing, threshold, and automatic SKU information are available. Adding a group does not generate rows or hide simple pricing. Removing every unsaved group clears submitted variant controls and restores simple mode without losing the entered simple values.
+
+10. **Option groups.** Add Option creates a labeled name field, comma-separated value field, and Remove Option button. Focus moves to the new group. Normalized values are submitted through the existing `option_groups[index][values][]` array contract. Saved Edit Product groups retain individual locked values and Add value controls because persisted labels cannot safely be renamed or removed.
+
+11. **Generation.** The explicit Generate Variant Combinations button produces deterministic Cartesian combinations only on request. The generator checks the count before expanding beyond fifty rows. The responsive table has combination, peso price, nonnegative integer stock, read-only SKU text, and availability columns. Zero stock is supported. Once generated, variant values become authoritative and simple price/stock/sale inputs hide and disable. No hidden aggregate price or stock is fabricated.
+
+12. **Value preservation.** Unchanged combinations retain price, stock, active state, IDs, and saved SKUs when regenerated. Removed combinations are counted in the status message. A session-local cache also restores entries if an unsaved combination is removed and later restored. Normalized identity tolerates whitespace/case and option order differences. Existing Laravel old input restores groups and submitted rows after errors. Tests verify old input while excluding untrusted submitted SKUs.
+
+13. **SKU behavior.** Unsaved table rows show “Generated after saving.” No SKU form control exists. Persisted rows display trusted saved SKUs; hidden IDs remain. The backend ignores client SKU replacements and checks variant identity against product and original combination, preserving historical references.
+
+14. **Images.** Reused the working Add Images picker, DataTransfer submission, object URL previews, removal controls, first-image cover behavior, and limits. Product Photos now follows variants and explicitly states five images at 5 MB each and the need to select files again after validation failure. Edit Replace/Remove/Undo, ordering, persistence, and active-host URLs are unchanged. Optional supporting photo/video controls retain their separate existing limits.
+
+15. **Edit compatibility.** The shared table presentation applies to variable products. Saved product types cannot convert; group names and original values remain locked. New values can still be added to existing groups and regenerated. Price/stock/availability editing, variant IDs/SKUs, category restrictions, order/cart references, and image operations remain protected. Legacy configurations keep their support-review presentation.
+
+16. **Product Management compatibility.** No listing, inventory, modal, filter, or route changes were needed. Existing product listing and inventory use server-derived active-variant stock totals and price ranges. Regression tests cover those totals, all-inactive variants, deactivation, and duplicate-record prevention.
+
+17. **Discount scope deferred.** There is no equivalent `ProductDiscount` model/product discount endpoint in the inspected implementation. Existing seller promotions routes store percentage/fixed offers, dates, product references, and active/inactive state in the session. This is not the reference's persisted product-discount pricing system. No discount model, endpoint, schedule, preview, or variant sale pricing was introduced. A separate task should define persistent discount ownership, scheduling/timezone rules, sale-price precedence, and buyer pricing integration before implementation.
+
+18. **Routes.** Captured `php artisan route:list --json` before and after. All 136 complete route entries are byte-for-byte identical, including methods, URIs, names, actions, middleware, domains, and source paths. SHA-256 of each captured file: `37E7FD4C15839BCCC2C7D7B7B3BC1D5E5E47721BF02E9EA6B6731158688C0C2B`. No routes were added, removed, renamed, overridden, or changed. Existing route snapshot regression also passes.
+
+19. **PHP verification.** `php artisan test`: **287 passed, 3,099 assertions**, 39.93 seconds on the final standalone run. `php artisan test --filter=SellerProduct`: **105 passed, 1,312 assertions**, 20.14 seconds. These cover categories, ownership, identity/history, image persistence/validation, sale prices, payment/logistics, listing/inventory, profiles, authentication/access, logout, and routes. Added tests verify section order/default empty state, old-input restoration/trusted SKUs, and resistance to manipulated simple aggregate values. Tests use SQLite memory/isolated concurrent-test databases and fake storage. An earlier overlapping full/focused run produced seven fake-storage failures; both suites share a fake directory. The full suite was rerun alone and passed completely.
+
+20. **JavaScript and build verification.** `node --test tests/js/*.test.mjs`: **18 passed, 0 failed**. Tests execute production handlers with DOM doubles and cover comma parsing, add/remove groups, limits, deterministic generation, regeneration/cache, mode switching, restored state, saved identities/labels, duplicate initialization, Add Product previews/removal/cover/count/size validation, Edit image controls, and logout. `npm.cmd run build`, `php artisan view:cache`, PHP syntax checks for changed Blade/PHP files, and scoped `php vendor/bin/pint --test tests/Feature/SellerProductVariationsTest.php` pass. `git diff --check` passes; Git emits existing CRLF normalization notices for some working-tree files.
+
+21. **Browser verification limitations.** No interactive browser session was performed. DOM tests are not a browser/layout check. Manual desktop/mobile checks should still cover visual layout, keyboard navigation, native constraint validation, file pickers, and the supplied end-to-end simple/one-group/two-group/regeneration workflows against an isolated test environment. No example products or accounts were inserted into the actual development database.
+
+22. **Remaining work.** No failing automated checks remain. The separate discount workflow and unrelated Product Management redesign remain deferred. Complete the manual browser checklist before release, particularly small-screen table scrolling, sale/simple switching, validation-error restoration, and saved variant/image controls. No checkout, courier assignment, payment records, fulfillment, inventory redesign, or account flows were changed.

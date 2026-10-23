@@ -28,10 +28,10 @@
         ->unique()
         ->count();
     $lowStockList = $products->filter(function ($product) {
-        return (int) ($product['stock'] ?? 0) <= 5;
+        return ($product['status'] ?? '') === 'active' && (($product['stock_status'] ?? '') !== 'in-stock' || ($product['low_stock_variants'] ?? 0) > 0);
     })->take(5);
     $lowStockProducts = $products->filter(function ($product) {
-        return (int) ($product['stock'] ?? 0) <= 5;
+        return ($product['status'] ?? '') === 'active' && (($product['stock_status'] ?? '') !== 'in-stock' || ($product['low_stock_variants'] ?? 0) > 0);
     })->count();
     $recentOrders = $orders->sortByDesc(function ($order) {
         return $order['created_at'] ?? '';
@@ -281,7 +281,7 @@
                             <p class="mt-0.5 text-[10px] text-[#839189]">Restock soon</p>
                         </div>
                         <span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold {{ $stock <= 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700' }}">
-                            {{ $stock <= 0 ? 'Out of stock' : $stock . ' left' }}
+                            {{ $stock <= 0 ? 'Out of stock' : (($product['low_stock_variants'] ?? 0) > 0 && ($product['stock_status'] ?? '') === 'in-stock' ? $product['low_stock_variants'].' low-stock variant(s)' : $stock . ' left') }}
                         </span>
                     </div>
                 @endforeach

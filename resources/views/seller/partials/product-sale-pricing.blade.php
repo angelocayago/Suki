@@ -4,7 +4,7 @@
         : (bool) ($product['on_sale'] ?? false);
 @endphp
 
-            <section class="overflow-hidden rounded-2xl border border-[#E1E8E4] bg-white">
+            <section data-simple-sale class="overflow-hidden rounded-2xl border border-[#E1E8E4] bg-white">
 
                 <div class="flex items-center justify-between gap-4 border-b border-[#EDF1EF] px-5 py-4">
                     <div>
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('sale_price');
 
     function updateSaleFields() {
-        const enabled = Boolean(saleToggle?.checked);
+        const enabled = Boolean(saleToggle?.checked && !saleToggle.disabled);
 
         salePriceFields?.classList.toggle('hidden', !enabled);
 

@@ -4,36 +4,32 @@
 @section('page-title', 'Inventory')
 
 @section('content')
+@php
+    $filterChips = \App\Support\SellerFilterChips::catalogue(request()->query(), $mainCategory, $filterCategories, $filterVariants, route('seller.inventory'));
+    $filtersOpen = count($filterChips) > 0 || $errors->any();
+    $filterId = 'inventory-advanced-filters';
+@endphp
+<div data-seller-filters>
 
 @php
 
     $products = $products ?? session('seller_products', []);
 
-    $totalProducts = count($products);
+    $totalProducts = $paginator->total();
 
-    $inStock = collect($products)
-        ->filter(function ($product) {
-            return (int) ($product['stock'] ?? 0)
-                > (int) ($product['low_stock_threshold'] ?? 10);
-        })
+    $inStock = collect($filteredSummary)
+        ->where('stock_status', 'in-stock')
         ->count();
 
-    $lowStock = collect($products)
-        ->filter(function ($product) {
-            $stock = (int) ($product['stock'] ?? 0);
-            $threshold = (int) ($product['low_stock_threshold'] ?? 10);
-
-            return $stock >= 1 && $stock <= $threshold;
-        })
+    $lowStock = collect($filteredSummary)
+        ->where('stock_status', 'low-stock')
         ->count();
 
-    $outOfStock = collect($products)
-        ->filter(function ($product) {
-            return (int) ($product['stock'] ?? 0) <= 0;
-        })
+    $outOfStock = collect($filteredSummary)
+        ->where('stock_status', 'out-of-stock')
         ->count();
 
-    $totalUnits = collect($products)
+    $totalUnits = collect($filteredSummary)
         ->sum(function ($product) {
             return max(
                 0,
@@ -522,7 +518,8 @@
         </div>
 
 
-        <a
+        <div class="flex flex-wrap items-center gap-2">@include('seller.partials.filter-trigger')
+<a
             href="{{ route('seller.products') }}"
             class="inline-flex h-9
                    items-center justify-center gap-2
@@ -548,196 +545,14 @@
 
             Product Management
 
-        </a>
+        </a></div>
 
     </div>
 
 
-    {{-- =====================================================
-        FILTERS
-    ====================================================== --}}
-
-    <div
-        class="border-b border-[#EDF1EF]
-               bg-[#FBFCFB]
-               p-4"
-    >
-
-        <div
-            class="grid gap-3
-                   lg:grid-cols-[minmax(0,1fr)_220px_200px_auto]"
-        >
-
-
-            {{-- SEARCH --}}
-            <div class="relative">
-
-                <i
-                    data-lucide="search"
-                    class="pointer-events-none
-                           absolute left-3.5 top-1/2
-                           h-4 w-4
-                           -translate-y-1/2
-                           text-[#91A099]"
-                ></i>
-
-                <input
-                    type="text"
-                    id="inventorySearch"
-                    placeholder="Search product name or SKU"
-                    class="h-10 w-full
-                           rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white
-                           pl-10 pr-4
-                           text-xs
-                           text-[#34483F]
-                           placeholder:text-[#9AA69F]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                >
-
-            </div>
-
-
-            {{-- CATEGORY --}}
-            <div class="relative">
-
-                <select
-                    id="categoryFilter"
-                    class="h-10 w-full
-                           appearance-none
-                           rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white
-                           px-3 pr-9
-                           text-xs
-                           font-medium
-                           text-[#52635B]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                >
-
-                    <option value="all">
-                        All categories
-                    </option>
-
-
-                    @foreach(
-                        collect($products)
-                            ->pluck('category')
-                            ->filter()
-                            ->unique()
-                            ->sort()
-                        as $category
-                    )
-
-                        <option
-                            value="{{ strtolower($category) }}"
-                        >
-                            {{ $category }}
-                        </option>
-
-                    @endforeach
-
-                </select>
-
-
-                <i
-                    data-lucide="chevron-down"
-                    class="pointer-events-none
-                           absolute right-3 top-1/2
-                           h-3.5 w-3.5
-                           -translate-y-1/2
-                           text-[#87958E]"
-                ></i>
-
-            </div>
-
-
-            {{-- STOCK FILTER --}}
-            <div class="relative">
-
-                <select
-                    id="stockFilter"
-                    class="h-10 w-full
-                           appearance-none
-                           rounded-xl
-                           border border-[#DDE6E1]
-                           bg-white
-                           px-3 pr-9
-                           text-xs
-                           font-medium
-                           text-[#52635B]
-                           focus:border-[#1F6F5B]
-                           focus:ring-4
-                           focus:ring-[#DDF3EC]/70"
-                >
-
-                    <option value="all">
-                        All stock
-                    </option>
-
-                    <option value="in-stock">
-                        In Stock
-                    </option>
-
-                    <option value="low-stock">
-                        Low Stock
-                    </option>
-
-                    <option value="out-of-stock">
-                        Out of Stock
-                    </option>
-
-                </select>
-
-
-                <i
-                    data-lucide="chevron-down"
-                    class="pointer-events-none
-                           absolute right-3 top-1/2
-                           h-3.5 w-3.5
-                           -translate-y-1/2
-                           text-[#87958E]"
-                ></i>
-
-            </div>
-
-
-            {{-- CLEAR --}}
-            <button
-                type="button"
-                id="clearInventoryFilters"
-                class="inline-flex h-10
-                       items-center justify-center gap-2
-                       rounded-xl
-                       border border-[#DDE6E1]
-                       bg-white
-                       px-3.5
-                       text-[11px]
-                       font-semibold
-                       text-[#68776F]
-                       transition
-                       hover:bg-[#F3F7F5]
-                       hover:text-[#173F35]"
-            >
-
-                <i
-                    data-lucide="rotate-ccw"
-                    class="h-3.5 w-3.5"
-                ></i>
-
-                Clear
-
-            </button>
-
-        </div>
-
-    </div>
-
+    @include('seller.partials.advanced-filter-panel')
+    @include('seller.partials.active-filter-chips')
+    <p class="p-4 text-sm text-[#68776F]">{{ $paginator->total() }} matching products. Summary cards reflect all matching records.</p>
 
     {{-- =====================================================
         DESKTOP TABLE
@@ -799,10 +614,8 @@
 
                         $stock =
                             (int) ($product['stock'] ?? 0);
-                        $lowStockThreshold =
-                            (int) ($product['low_stock_threshold'] ?? 10);
 
-                        if ($stock <= 0) {
+                        if ($product['stock_status'] === 'out-of-stock') {
 
                             $stockStatus =
                                 'out-of-stock';
@@ -813,7 +626,7 @@
                             $stockClass =
                                 'border-red-200 bg-red-50 text-red-700';
 
-                        } elseif ($stock <= $lowStockThreshold) {
+                        } elseif ($product['stock_status'] === 'low-stock') {
 
                             $stockStatus =
                                 'low-stock';
@@ -903,7 +716,9 @@
                                                text-[#34483F]"
                                     >
                                         {{ $product['name'] ?? 'Unnamed Product' }}
+
                                     </p>
+@include('seller.partials.stock-alerts')
 
                                     <p
                                         class="mt-1
@@ -955,14 +770,12 @@
                                    font-semibold
                                    text-[#24312C]"
                         >
-                            ₱{{ number_format(
-                                (float) ($product['price'] ?? 0),
-                                2
-                            ) }}
+                            @include('seller.partials.product-price', ['showSale' => false])
                         </td>
 
 
-                        {{-- STOCK CONTROL --}}
+                        @if(!empty($product['is_variable']))<td class="px-5 py-4 text-xs"><a class="font-semibold text-[#1F6F5B]" href="{{ route('seller.products.edit', $resolvedProductId) }}">Manage variations · {{ $stock }} available</a></td>@else
+{{-- STOCK CONTROL --}}
                         <td class="px-5 py-4">
 
                             <div
@@ -985,7 +798,7 @@
 
                                     <button
                                         type="submit"
-                                        title="Decrease stock"
+                                        title="Decrease stock" @disabled(!empty($product['is_variable']))
                                         {{ $stock <= 0 ? 'disabled' : '' }}
                                         class="flex h-8 w-8
                                                items-center justify-center
@@ -1038,7 +851,7 @@
 
                                     <button
                                         type="submit"
-                                        title="Increase stock"
+                                        title="Increase stock" @disabled(!empty($product['is_variable']))
                                         class="flex h-8 w-8
                                                items-center justify-center
                                                rounded-lg
@@ -1065,6 +878,7 @@
                         </td>
 
 
+                        @endif
                         {{-- STATUS --}}
                         <td class="px-5 py-4">
 
@@ -1178,7 +992,7 @@
                                        font-semibold
                                        text-[#34483F]"
                             >
-                                No inventory yet
+                                No matching inventory
                             </h3>
 
 
@@ -1249,10 +1063,8 @@
 
                 $stock =
                     (int) ($product['stock'] ?? 0);
-                $lowStockThreshold =
-                    (int) ($product['low_stock_threshold'] ?? 10);
 
-                if ($stock <= 0) {
+                if ($product['stock_status'] === 'out-of-stock') {
 
                     $stockStatus =
                         'out-of-stock';
@@ -1263,7 +1075,7 @@
                     $stockClass =
                         'border-red-200 bg-red-50 text-red-700';
 
-                } elseif ($stock <= $lowStockThreshold) {
+                } elseif ($product['stock_status'] === 'low-stock') {
 
                     $stockStatus =
                         'low-stock';
@@ -1354,7 +1166,9 @@
                                            text-[#34483F]"
                                 >
                                     {{ $product['name'] ?? 'Unnamed Product' }}
+
                                 </h3>
+@include('seller.partials.stock-alerts')
 
 
                                 <p
@@ -1397,10 +1211,7 @@
                                    font-semibold
                                    text-[#24312C]"
                         >
-                            ₱{{ number_format(
-                                (float) ($product['price'] ?? 0),
-                                2
-                            ) }}
+                            @include('seller.partials.product-price', ['showSale' => false])
                         </p>
 
                     </div>
@@ -1409,6 +1220,9 @@
 
 
                 {{-- STOCK CONTROLS --}}
+                @if(!empty($product['is_variable']))
+                    <p class="mt-4 text-xs text-[#728078]">{{ $stock }} available across active variations. Use Edit Product Details to manage each combination.</p>
+                @else
                 <div
                     class="mt-4
                            flex items-center
@@ -1459,7 +1273,7 @@
 
                             <button
                                 type="submit"
-                                title="Decrease stock"
+                                title="Decrease stock" @disabled(!empty($product['is_variable']))
                                 {{ $stock <= 0 ? 'disabled' : '' }}
                                 class="flex h-9 w-9
                                        items-center justify-center
@@ -1499,7 +1313,7 @@
 
                             <button
                                 type="submit"
-                                title="Increase stock"
+                                title="Increase stock" @disabled(!empty($product['is_variable']))
                                 class="flex h-9 w-9
                                        items-center justify-center
                                        rounded-xl
@@ -1524,6 +1338,7 @@
 
 
                 {{-- EDIT --}}
+                @endif
                 <a
                     href="{{ route(
                         'seller.products.edit',
@@ -1584,7 +1399,7 @@
                            font-semibold
                            text-[#34483F]"
                 >
-                    No inventory yet
+                    No matching inventory
                 </p>
 
 
@@ -1682,250 +1497,8 @@
 </section>
 
 
-@push('scripts')
 
-<script>
 
-document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-
-        const searchInput =
-            document.getElementById(
-                'inventorySearch'
-            );
-
-        const categoryFilter =
-            document.getElementById(
-                'categoryFilter'
-            );
-
-        const stockFilter =
-            document.getElementById(
-                'stockFilter'
-            );
-
-        const clearButton =
-            document.getElementById(
-                'clearInventoryFilters'
-            );
-
-        const noResultsClear =
-            document.getElementById(
-                'noResultsClear'
-            );
-
-        const desktopRows =
-            Array.from(
-                document.querySelectorAll(
-                    '.inventory-row'
-                )
-            );
-
-        const mobileRows =
-            Array.from(
-                document.querySelectorAll(
-                    '.inventory-mobile-row'
-                )
-            );
-
-        const noResults =
-            document.getElementById(
-                'noInventoryResults'
-            );
-
-
-        function matchesInventory(
-            element,
-            search,
-            category,
-            stock
-        ) {
-
-            const name =
-                (
-                    element.dataset.name || ''
-                ).toLowerCase();
-
-            const rowCategory =
-                (
-                    element.dataset.category || ''
-                ).toLowerCase();
-
-            const rowStock =
-                element.dataset.stockStatus || '';
-
-
-            const matchesSearch =
-                search === '' ||
-                name.includes(search);
-
-            const matchesCategory =
-                category === 'all' ||
-                rowCategory === category;
-
-            const matchesStock =
-                stock === 'all' ||
-                rowStock === stock;
-
-
-            return (
-                matchesSearch &&
-                matchesCategory &&
-                matchesStock
-            );
-
-        }
-
-
-        function filterInventory() {
-
-            const search =
-                (
-                    searchInput?.value || ''
-                )
-                .toLowerCase()
-                .trim();
-
-            const category =
-                (
-                    categoryFilter?.value ||
-                    'all'
-                ).toLowerCase();
-
-            const stock =
-                stockFilter?.value || 'all';
-
-
-            let visibleProducts = 0;
-
-
-            desktopRows.forEach(
-                function (row) {
-
-                    const visible =
-                        matchesInventory(
-                            row,
-                            search,
-                            category,
-                            stock
-                        );
-
-                    row.classList.toggle(
-                        'hidden',
-                        !visible
-                    );
-
-                    if (visible) {
-                        visibleProducts++;
-                    }
-
-                }
-            );
-
-
-            mobileRows.forEach(
-                function (row) {
-
-                    const visible =
-                        matchesInventory(
-                            row,
-                            search,
-                            category,
-                            stock
-                        );
-
-                    row.classList.toggle(
-                        'hidden',
-                        !visible
-                    );
-
-                }
-            );
-
-
-            const hasProducts =
-                desktopRows.length > 0 ||
-                mobileRows.length > 0;
-
-
-            if (noResults) {
-
-                noResults.classList.toggle(
-                    'hidden',
-                    !hasProducts ||
-                    visibleProducts > 0
-                );
-
-            }
-
-        }
-
-
-        function clearFilters() {
-
-            if (searchInput) {
-                searchInput.value = '';
-            }
-
-            if (categoryFilter) {
-                categoryFilter.value = 'all';
-            }
-
-            if (stockFilter) {
-                stockFilter.value = 'all';
-            }
-
-            filterInventory();
-
-        }
-
-
-        searchInput?.addEventListener(
-            'input',
-            filterInventory
-        );
-
-
-        categoryFilter?.addEventListener(
-            'change',
-            filterInventory
-        );
-
-
-        stockFilter?.addEventListener(
-            'change',
-            filterInventory
-        );
-
-
-        clearButton?.addEventListener(
-            'click',
-            clearFilters
-        );
-
-
-        noResultsClear?.addEventListener(
-            'click',
-            clearFilters
-        );
-
-
-        if (
-            typeof lucide !== 'undefined' &&
-            typeof lucide.createIcons ===
-                'function'
-        ) {
-
-            lucide.createIcons();
-
-        }
-
-    }
-);
-
-</script>
-
-@endpush
-
+<div class="my-4">{{ $paginator->links() }}</div>
+</div>
 @endsection

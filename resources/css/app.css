@@ -1,5 +1,25 @@
 @import 'tailwindcss';
 
+/* Product Management keeps filter motion local and respects reduced-motion preferences. */
+[data-seller-filters] [data-filter-toggle][aria-expanded="true"] [data-filter-chevron] {
+    transform: rotate(180deg);
+}
+[data-seller-filters] [data-filter-panel] label,
+[data-seller-filters] [data-filter-panel] input,
+[data-seller-filters] [data-filter-panel] select {
+    min-width: 0;
+    max-width: 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+    [data-seller-filters] [data-filter-panel]:not([hidden]) {
+        animation: suki-product-filters-in 140ms ease-out;
+    }
+    @keyframes suki-product-filters-in {
+        from { opacity: 0; transform: translateY(-3px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';

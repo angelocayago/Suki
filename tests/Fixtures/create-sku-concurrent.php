@@ -10,6 +10,7 @@ require __DIR__.'/../../vendor/autoload.php';
 $database = $argv[1] ?? '';
 $gate = $argv[2] ?? '';
 $ready = $argv[3] ?? '';
+$additional = ($argv[4] ?? '') === 'additional';
 if (basename($database) !== 'sku.sqlite' || ! str_starts_with(realpath(dirname($database)) ?: '', realpath(sys_get_temp_dir()))) {
     throw new RuntimeException('An isolated temporary SKU database is required.');
 }
@@ -27,7 +28,7 @@ while (! is_file($gate)) {
     }
     usleep(10000);
 }
-$sku = DB::transaction(function () {
+$sku = DB::transaction(function () use ($additional) {
     $id = DB::table('products')->insertGetId(['seller_id' => 123]);
     $product = new Product(['seller_id' => 123]);
     $product->id = $id;
@@ -35,6 +36,6 @@ $sku = DB::transaction(function () {
 
     return SellerProductSku::createVariant($product, [
         'name' => 'Concurrent fixture', 'price_minor' => 100, 'stock' => 1, 'is_active' => true,
-    ])->sku;
+    ], $additional)->sku;
 }, 3);
 echo $sku."\n";

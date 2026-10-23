@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -138,7 +139,9 @@ class SellerProductSkuTest extends TestCase
             $this->put(route('seller.products.update', $product->id), $this->payload(['sku' => 'OVERWRITE']))->assertSessionHasNoErrors();
             $this->assertSame($legacy, $variant->fresh()->sku);
             $this->get(route('seller.products'))->assertOk()->assertSeeText($legacy)
-                ->assertSee('data-name="sku product '.strtolower($legacy).'"', false);
+                ->assertViewHas('products', fn ($rows) => collect($rows)->contains('sku', $legacy));
+            $this->get(route('seller.products', ['search' => $legacy]))->assertOk()->assertSeeText($legacy)
+                ->assertViewHas('paginator', fn ($paginator) => $paginator->total() === 1);
             $this->get(route('seller.inventory'))->assertOk()->assertSeeText($legacy);
         }
         $this->assertDatabaseCount('product_variants', 3);
@@ -188,7 +191,7 @@ class SellerProductSkuTest extends TestCase
 
     public function test_sku_ui_shows_only_assigned_values_and_failed_forms_do_not_echo_a_fabricated_sku(): void
     {
-        $this->get(route('seller.products.create'))->assertOk()->assertSee('value="Generated automatically when saved"', false)
+        $this->get(route('seller.products.create'))->assertOk()->assertSeeText('Generated automatically after saving')
             ->assertDontSee('name="sku"', false)->assertDontSee('SKU-0001');
         $product = $this->createProduct();
         $this->from(route('seller.products.edit', $product->id))->put(route('seller.products.update', $product->id),
@@ -221,7 +224,13 @@ class SellerProductSkuTest extends TestCase
         $this->assertCount(0, $product->fresh()->variants);
     }
 
-    public function test_simultaneous_processes_allocate_distinct_skus_on_an_isolated_database(): void
+    public static function allocationModes(): array
+    {
+        return ['default' => [false], 'additional variant' => [true]];
+    }
+
+    #[DataProvider('allocationModes')]
+    public function test_simultaneous_processes_allocate_distinct_skus_on_an_isolated_database(bool $additional): void
     {
         $directory = sys_get_temp_dir().'/suki-sku-race-'.bin2hex(random_bytes(8));
         mkdir($directory);
@@ -233,7 +242,7 @@ class SellerProductSkuTest extends TestCase
         $processes = [];
         try {
             for ($i = 0; $i < 2; $i++) {
-                $process = new Process([PHP_BINARY, base_path('tests/Fixtures/create-sku-concurrent.php'), $database, $gate, $directory.'/ready-'.$i], base_path());
+                $process = new Process([PHP_BINARY, base_path('tests/Fixtures/create-sku-concurrent.php'), $database, $gate, $directory.'/ready-'.$i, $additional ? 'additional' : 'default'], base_path());
                 $process->setTimeout(20)->start();
                 $processes[] = $process;
             }
@@ -251,7 +260,14 @@ class SellerProductSkuTest extends TestCase
                 $this->assertSame(0, $process->wait(), $process->getErrorOutput());
             }
             $skus = $pdo->query('SELECT sku FROM product_variants ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN);
-            $this->assertSame(['S123-P1', 'S123-P2'], $skus);
+            if ($additional) {
+                $this->assertCount(2, array_unique($skus));
+                foreach ($skus as $sku) {
+                    $this->assertMatchesRegularExpression('/^S123-P[12]-V[A-Z0-9]{10}$/', $sku);
+                }
+            } else {
+                $this->assertSame(['S123-P1', 'S123-P2'], $skus);
+            }
         } finally {
             foreach ($processes as $process) {
                 if ($process->isRunning()) {

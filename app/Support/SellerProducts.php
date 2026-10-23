@@ -29,13 +29,16 @@ class SellerProducts
         ])->all();
         $images = array_values(array_filter(array_column($imageRecords, 'url')));
         $details = $product->seller_listing_data ?? [];
+        $type = SellerProductVariants::type($product);
+        $variable = $type !== 'simple';
+        $activeVariants = $product->variants->where('is_active', true);
         foreach (['regular_price', 'sale_price'] as $field) {
             if (isset($details[$field])) {
                 $details[$field] = (float) $details[$field];
             }
         }
         // A flag alone must never produce a fabricated discount in either layout.
-        $details['on_sale'] = ! empty($details['on_sale'])
+        $details['on_sale'] = ! $variable && ! empty($details['on_sale'])
             && is_numeric($details['sale_price'] ?? null)
             && is_numeric($details['regular_price'] ?? null)
             && $details['sale_price'] > 0
@@ -43,6 +46,10 @@ class SellerProducts
             && $variant && (int) round($details['sale_price'] * 100) === $variant->price_minor;
 
         return array_replace($details, [
+            'product_type' => $type, 'is_variable' => $variable,
+            'variant_rows' => $product->variants->map(fn ($v) => ['id' => $v->id, 'sku' => $v->sku,
+                'options' => $v->options ?? [], 'price' => $v->price_minor / 100, 'stock' => $v->stock,
+                'is_active' => $v->is_active, 'available' => $product->is_active && $v->is_active && $v->stock > 0])->all(),
             'id' => 'P'.str_pad($product->id, 4, '0', STR_PAD_LEFT),
             'name' => $product->name === '' ? null : $product->name,
             'description' => $product->description,
@@ -51,8 +58,14 @@ class SellerProducts
             'subcategory_id' => $category?->parent_id ? $category->id : null,
             'image' => $images[0] ?? null, 'images' => $images,
             'image_records' => $imageRecords,
-            'price' => $variant ? (float) ($variant->price_minor / 100) : null,
-            'stock' => $product->variants->sum('stock'), 'sku' => $variant?->sku,
+            'price' => $activeVariants->isEmpty() ? null : (float) ($activeVariants->min('price_minor') / 100),
+            'price_max' => $variable && $activeVariants->isNotEmpty() ? $activeVariants->max('price_minor') / 100 : null,
+            'low_stock_threshold' => SellerStock::threshold($details),
+            'stock_status' => SellerStock::status($activeVariants->sum('stock'), SellerStock::threshold($details)),
+            'low_stock_variants' => $activeVariants->filter(fn ($v) => SellerStock::status($v->stock, SellerStock::threshold($details)) === 'low-stock')->count(),
+            'stock' => $activeVariants->sum('stock'), 'sku' => $variant?->sku,
+            'editable_stock' => $variable ? null : $variant?->stock,
+            'editable_price' => $variable || ! $variant ? null : (float) ($variant->price_minor / 100),
             'status' => ($product->seller_listing_data['status'] ?? null) === 'draft' ? 'draft' : ($product->is_active ? 'active' : 'inactive'),
             'created_at' => $product->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $product->updated_at->format('Y-m-d H:i:s'),
@@ -87,6 +100,7 @@ class SellerProducts
             } else {
                 $product = new Product(['seller_id' => $seller->id, 'slug' => Str::slug($data['name'] ?? 'product').'-'.Str::uuid()]);
             }
+            SellerProductVariants::guard($creating ? null : $product, $data);
             // Only new listings receive the intended delivery default. Existing
             // metadata is historical and must survive ordinary edits verbatim.
             unset($data['shipping_options']);
@@ -100,15 +114,18 @@ class SellerProducts
                 'category_id' => $categoryId, 'is_active' => $data['status'] === 'active',
                 'seller_listing_data' => Arr::except($data, [
                     'id', 'name', 'description', 'category', 'subcategory', 'subcategory_id',
-                    'image', 'images', 'image_records', 'replace_images', 'remove_image_ids', 'replacement_images', 'add_images', 'price', 'stock', 'sku', 'created_at', 'updated_at',
+                    'image', 'images', 'image_records', 'replace_images', 'remove_image_ids', 'replacement_images', 'add_images', 'price', 'price_max', 'stock', 'editable_stock', 'editable_price', 'sku', 'variant_rows', 'is_variable', 'stock_status', 'low_stock_variants', 'created_at', 'updated_at',
                 ]),
             ])->save();
 
             $variants = $product->variants()->lockForUpdate()->get();
             // The existing seller form has one price/stock field. Never flatten
             // independently persisted variants when changing a category.
-            if ($variants->count() > 1) {
-                if ((int) $data['stock'] !== $variants->sum('stock') || (int) round($data['price'] * 100) !== $variants->first()->price_minor) {
+            if (($data['product_type'] ?? null) === 'variable') {
+                SellerProductVariants::sync($product, $data, $variants);
+            } elseif ($variants->count() > 1) {
+                $active = $variants->where('is_active', true);
+                if ((int) $data['stock'] !== $active->sum('stock') || (int) round($data['price'] * 100) !== $active->min('price_minor')) {
                     throw ValidationException::withMessages(['stock' => 'This product has separate variants. Preserve its existing price, SKU and stock when updating its category.']);
                 }
             } else {
@@ -162,16 +179,27 @@ class SellerProducts
         }, 3);
     }
 
-    public static function adjustStock(Seller $seller, string $id, int $amount): void
+    public static function adjustStock(Seller $seller, string $id, int $amount, ?int $variantId = null): void
     {
         $product = self::owned($seller, $id);
-        DB::transaction(function () use ($product, $amount) {
+        DB::transaction(function () use ($product, $amount, $variantId) {
+            $product = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
             $variants = $product->variants()->lockForUpdate()->get();
-            abort_unless($variants->count() === 1, 409, 'Select the individual variant before changing stock.');
-            $variant = $variants->first();
-            $variant->update(['stock' => max(0, $variant->stock + $amount)]);
+            if ($variantId !== null) {
+                $variant = $variants->firstWhere('id', $variantId);
+                abort_unless($variant, 404, 'This variant does not belong to this product.');
+            } else {
+                abort_if(SellerProductVariants::type($product) === 'variable', 409, 'Edit the individual variations in Product Management to change stock.');
+                abort_unless($variants->count() === 1, 409, 'Select the individual variant before changing stock.');
+                $variant = $variants->first();
+            }
+            $quantity = $variant->stock + $amount;
+            if ($quantity < 0 || $quantity > 4294967295) {
+                throw ValidationException::withMessages(['stock' => 'Stock must be an integer between 0 and 4294967295.']);
+            }
+            $variant->update(['stock' => $quantity]);
             $product->touch();
-        });
+        }, 3);
         self::sync($seller);
     }
 }

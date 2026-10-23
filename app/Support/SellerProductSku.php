@@ -11,11 +11,14 @@ use Illuminate\Validation\ValidationException;
 
 class SellerProductSku
 {
-    public static function createVariant(Product $product, array $attributes): ProductVariant
+    public static function createVariant(Product $product, array $attributes, bool $additional = false): ProductVariant
     {
         // The product ID is already allocated by the database inside the save
         // transaction. No counts or guessed next IDs participate in allocation.
         $base = 'S'.$product->seller_id.'-P'.$product->id;
+        if ($additional) {
+            $base .= '-V'.Str::upper(Str::random(10));
+        }
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $sku = $base.($attempt === 0 ? '' : '-'.Str::upper(Str::random(8)));
             try {
