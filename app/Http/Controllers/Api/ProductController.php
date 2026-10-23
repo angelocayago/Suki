@@ -164,27 +164,62 @@ class ProductController extends Controller
         // NORMALIZE PRODUCT IMAGE URLS
         // ============================================================
         //
-        // ProductImage model exposes:
+        // ProductImage model provides:
         //
         // $image->url
         //
-        // We also add "image_url" as an alias for compatibility
-        // with Flutter screens that may still read image_url.
+        // We expose image_url and primary_image_url directly
+        // on every product so Flutter can easily display it.
         //
 
         $productItems = collect(
             $products->items()
         )->map(function (Product $product) {
+
+            $primaryImageUrl = '';
+
             if ($product->relationLoaded('images')) {
-                $product->images->each(
-                    function ($image) {
-                        $image->setAttribute(
-                            'image_url',
-                            $image->url
-                        );
-                    }
-                );
+
+                // Add image_url to every image object.
+                $product->images->each(function ($image) {
+                    $image->setAttribute(
+                        'image_url',
+                        $image->url
+                    );
+                });
+
+                // Try to get the marked primary image first.
+                $primaryImage = $product
+                    ->images
+                    ->firstWhere(
+                        'is_primary',
+                        true
+                    );
+
+                // If no image is marked primary,
+                // use the first available product image.
+                if (!$primaryImage) {
+                    $primaryImage =
+                        $product->images->first();
+                }
+
+                $primaryImageUrl =
+                    $primaryImage?->url ?? '';
             }
+
+            // ========================================================
+            // MAIN IMAGE FIELDS FOR FLUTTER
+            // ========================================================
+
+            $product->setAttribute(
+                'image_url',
+                $primaryImageUrl
+            );
+
+            $product->setAttribute(
+                'primary_image_url',
+                $primaryImageUrl
+            );
 
             return $product;
         })->values();
@@ -314,12 +349,9 @@ class ProductController extends Controller
                     'path' =>
                         $image->path,
 
-                    // Main field used by the mobile API.
                     'url' =>
                         $url,
 
-                    // Compatibility alias for Flutter screens
-                    // that still read "image_url".
                     'image_url' =>
                         $url,
 
@@ -393,10 +425,6 @@ class ProductController extends Controller
                 // ====================================================
                 // MAIN IMAGE
                 // ====================================================
-                //
-                // These aliases make the API easier to consume
-                // from the existing Flutter buyer screens.
-                //
 
                 'image_url' =>
                     $primaryImageUrl,
