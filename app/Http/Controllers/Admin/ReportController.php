@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Commission;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\Seller;
+use App\Models\SellerOrder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -28,49 +31,126 @@ class ReportController extends Controller
     }
 
     /**
+     * Apply the common Sales Report filters to a buyer Order query.
+     */
+    private function applySalesFilters(
+        Builder $query,
+        Request $request,
+        ?string $from,
+        ?string $to
+    ): Builder {
+        $sellerId = $request->integer('seller_id');
+        $productId = $request->integer('product_id');
+
+        return $query
+            ->when(
+                $from,
+                fn (Builder $q) => $q->where('created_at', '>=', $from)
+            )
+            ->when(
+                $to,
+                fn (Builder $q) => $q->where('created_at', '<=', $to)
+            )
+            ->when(
+                $request->filled('status'),
+                fn (Builder $q) => $q->where('status', $request->string('status')->toString())
+            )
+            ->when(
+                $sellerId > 0,
+                fn (Builder $q) => $q->whereHas(
+                    'sellerOrders',
+                    fn (Builder $sellerOrder) => $sellerOrder->where('seller_id', $sellerId)
+                )
+            )
+            ->when(
+                $productId > 0,
+                fn (Builder $q) => $q->whereHas(
+                    'items',
+                    fn (Builder $item) => $item->where('product_id', $productId)
+                )
+            );
+    }
+
+    /**
      * Sales Report
      */
     public function sales(Request $request)
     {
         ['from' => $from, 'to' => $to] = $this->dateRange($request);
 
+        $sellerId = $request->integer('seller_id');
+        $productId = $request->integer('product_id');
+        $sort = $request->input('sort', 'sales_desc');
+
         /*
         |--------------------------------------------------------------------------
         | Orders
         |--------------------------------------------------------------------------
-        | These are buyer checkout orders.
         */
-        $orders = Order::query()
-            ->with(['user', 'items.product'])
-            ->when(
-                $from,
-                fn ($query) => $query->where('created_at', '>=', $from)
-            )
-            ->when(
-                $to,
-                fn ($query) => $query->where('created_at', '<=', $to)
-            )
-            ->latest()
-            ->get();
+        $ordersQuery = $this->applySalesFilters(
+            Order::query()->with(['user', 'items.product', 'sellerOrders']),
+            $request,
+            $from,
+            $to
+        );
+
+        match ($sort) {
+            'sales_asc' => $ordersQuery->orderBy('total_minor')->latest('id'),
+            'orders_desc' => $ordersQuery->latest('created_at'),
+            default => $ordersQuery->orderByDesc('total_minor')->latest('id'),
+        };
+
+        $orders = $ordersQuery->get();
 
         /*
         |--------------------------------------------------------------------------
-        | Sales Summary
+        | Summary
         |--------------------------------------------------------------------------
-        | Delivered and completed orders count toward completed sales.
-        | Monetary values remain integer centavos until display.
         */
         $deliveredOrders = $orders->whereIn('status', [
-    'delivered',
-    'completed',
-]);
+            'delivered',
+            'completed',
+        ]);
 
-        $totalSales = $deliveredOrders->sum(
-            fn ($order) => (int) $order->total_minor
-        ) / 100;
+        /*
+         * When filtering by seller/product, compute the sales amount from the
+         * matching seller portion/item instead of counting the full multi-seller
+         * buyer checkout total.
+         */
+        if ($productId > 0) {
+            $totalSalesMinor = OrderItem::query()
+                ->where('product_id', $productId)
+                ->when(
+                    $sellerId > 0,
+                    fn (Builder $q) => $q->whereHas(
+                        'sellerOrder',
+                        fn (Builder $so) => $so->where('seller_id', $sellerId)
+                    )
+                )
+                ->whereHas('sellerOrder', function (Builder $sellerOrder) use ($request, $from, $to) {
+                    $sellerOrder
+                        ->where('status', 'delivered')
+                        ->whereHas('order', function (Builder $order) use ($request, $from, $to) {
+                            $this->applySalesFilters($order, $request, $from, $to);
+                        });
+                })
+                ->sum('subtotal_minor');
+        } elseif ($sellerId > 0) {
+            $totalSalesMinor = SellerOrder::query()
+                ->where('seller_id', $sellerId)
+                ->where('status', 'delivered')
+                ->whereHas('order', function (Builder $order) use ($request, $from, $to) {
+                    $this->applySalesFilters($order, $request, $from, $to);
+                })
+                ->sum('total_minor');
+        } else {
+            $totalSalesMinor = $deliveredOrders->sum(
+                fn ($order) => (int) $order->total_minor
+            );
+        }
 
+        $totalSales = $totalSalesMinor / 100;
         $orderCount = $orders->count();
-
         $deliveredCount = $deliveredOrders->count();
 
         $byStatus = $orders
@@ -82,32 +162,43 @@ class ReportController extends Controller
         |--------------------------------------------------------------------------
         | Top Products
         |--------------------------------------------------------------------------
-        | Count only items belonging to delivered seller orders.
-        | Date range follows the parent buyer order.
         */
-        $topProducts = OrderItem::query()
+        $topProductsQuery = OrderItem::query()
             ->selectRaw('
                 product_id,
                 SUM(quantity) as total_quantity,
                 SUM(subtotal_minor) as total_revenue_minor
             ')
-            ->whereHas('sellerOrder', function ($query) use ($from, $to) {
-                $query->where('status', 'delivered')
-                    ->whereHas('order', function ($orderQuery) use ($from, $to) {
-                        $orderQuery
-                            ->when(
-                                $from,
-                                fn ($q) => $q->where('created_at', '>=', $from)
-                            )
-                            ->when(
-                                $to,
-                                fn ($q) => $q->where('created_at', '<=', $to)
-                            );
+            ->when(
+                $productId > 0,
+                fn (Builder $q) => $q->where('product_id', $productId)
+            )
+            ->whereHas('sellerOrder', function (Builder $query) use (
+                $request,
+                $from,
+                $to,
+                $sellerId
+            ) {
+                $query
+                    ->where('status', 'delivered')
+                    ->when(
+                        $sellerId > 0,
+                        fn (Builder $q) => $q->where('seller_id', $sellerId)
+                    )
+                    ->whereHas('order', function (Builder $orderQuery) use ($request, $from, $to) {
+                        $this->applySalesFilters($orderQuery, $request, $from, $to);
                     });
             })
             ->with('product.seller')
-            ->groupBy('product_id')
-            ->orderByDesc('total_quantity')
+            ->groupBy('product_id');
+
+        match ($sort) {
+            'sales_asc' => $topProductsQuery->orderBy('total_revenue_minor'),
+            'orders_desc' => $topProductsQuery->orderByDesc('total_quantity'),
+            default => $topProductsQuery->orderByDesc('total_revenue_minor'),
+        };
+
+        $topProducts = $topProductsQuery
             ->take(10)
             ->get();
 
@@ -115,60 +206,64 @@ class ReportController extends Controller
         |--------------------------------------------------------------------------
         | Top Sellers
         |--------------------------------------------------------------------------
-        | seller_orders.seller_id references sellers.id.
-        |
-        | Rank sellers using delivered seller orders, not User::orders().
         */
-        $topSellers = Seller::query()
-            ->whereHas('orders', function ($query) use ($from, $to) {
-                $query->where('status', 'delivered')
-                    ->whereHas('order', function ($orderQuery) use ($from, $to) {
-                        $orderQuery
-                            ->when(
-                                $from,
-                                fn ($q) => $q->where('created_at', '>=', $from)
-                            )
-                            ->when(
-                                $to,
-                                fn ($q) => $q->where('created_at', '<=', $to)
-                            );
-                    });
-            })
+        $sellerScope = function (Builder $query) use ($request, $from, $to, $productId) {
+            $query
+                ->where('status', 'delivered')
+                ->when(
+                    $productId > 0,
+                    fn (Builder $q) => $q->whereHas(
+                        'items',
+                        fn (Builder $item) => $item->where('product_id', $productId)
+                    )
+                )
+                ->whereHas('order', function (Builder $orderQuery) use ($request, $from, $to) {
+                    $this->applySalesFilters($orderQuery, $request, $from, $to);
+                });
+        };
+
+        $topSellersQuery = Seller::query()
+            ->when(
+                $sellerId > 0,
+                fn (Builder $q) => $q->whereKey($sellerId)
+            )
+            ->whereHas('orders', $sellerScope)
             ->withCount([
-                'orders as delivered_orders_count' => function ($query) use ($from, $to) {
-                    $query->where('status', 'delivered')
-                        ->whereHas('order', function ($orderQuery) use ($from, $to) {
-                            $orderQuery
-                                ->when(
-                                    $from,
-                                    fn ($q) => $q->where('created_at', '>=', $from)
-                                )
-                                ->when(
-                                    $to,
-                                    fn ($q) => $q->where('created_at', '<=', $to)
-                                );
-                        });
-                },
+                'orders as delivered_orders_count' => $sellerScope,
             ])
             ->withSum([
-                'orders as delivered_sales_minor' => function ($query) use ($from, $to) {
-                    $query->where('status', 'delivered')
-                        ->whereHas('order', function ($orderQuery) use ($from, $to) {
-                            $orderQuery
-                                ->when(
-                                    $from,
-                                    fn ($q) => $q->where('created_at', '>=', $from)
-                                )
-                                ->when(
-                                    $to,
-                                    fn ($q) => $q->where('created_at', '<=', $to)
-                                );
-                        });
-                },
-            ], 'total_minor')
-            ->orderByDesc('delivered_sales_minor')
+                'orders as delivered_sales_minor' => $sellerScope,
+            ], 'total_minor');
+
+        match ($sort) {
+            'sales_asc' => $topSellersQuery->orderBy('delivered_sales_minor'),
+            'orders_desc' => $topSellersQuery->orderByDesc('delivered_orders_count'),
+            default => $topSellersQuery->orderByDesc('delivered_sales_minor'),
+        };
+
+        $topSellers = $topSellersQuery
             ->take(10)
             ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Filter options
+        |--------------------------------------------------------------------------
+        */
+        $sellers = Seller::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $products = Product::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'seller_id']);
+
+        $statuses = Order::query()
+            ->select('status')
+            ->whereNotNull('status')
+            ->distinct()
+            ->orderBy('status')
+            ->pluck('status');
 
         return view('admin.reports-sales', compact(
             'orders',
@@ -178,6 +273,9 @@ class ReportController extends Controller
             'byStatus',
             'topProducts',
             'topSellers',
+            'sellers',
+            'products',
+            'statuses',
             'from',
             'to'
         ));
@@ -210,11 +308,6 @@ class ReportController extends Controller
             ->latest()
             ->get();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Commission Summary
-        |--------------------------------------------------------------------------
-        */
         $totalCommission = $commissions->sum(
             fn ($commission) => (int) $commission->amount_minor
         ) / 100;
@@ -265,18 +358,20 @@ class ReportController extends Controller
     {
         ['from' => $from, 'to' => $to] = $this->dateRange($request);
 
-        $orders = Order::query()
-            ->with('user')
-            ->when(
-                $from,
-                fn ($query) => $query->where('created_at', '>=', $from)
-            )
-            ->when(
-                $to,
-                fn ($query) => $query->where('created_at', '<=', $to)
-            )
-            ->latest()
-            ->get();
+        $ordersQuery = $this->applySalesFilters(
+            Order::query()->with('user'),
+            $request,
+            $from,
+            $to
+        );
+
+        match ($request->input('sort', 'sales_desc')) {
+            'sales_asc' => $ordersQuery->orderBy('total_minor')->latest('id'),
+            'orders_desc' => $ordersQuery->latest('created_at'),
+            default => $ordersQuery->orderByDesc('total_minor')->latest('id'),
+        };
+
+        $orders = $ordersQuery->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -301,7 +396,7 @@ class ReportController extends Controller
                 fputcsv($file, [
                     $order->order_number,
                     $order->user->name ?? 'N/A',
-                    $order->status,
+                    str_replace('_', ' ', $order->status),
                     number_format(
                         ((int) $order->total_minor) / 100,
                         2,
@@ -375,25 +470,21 @@ class ReportController extends Controller
                     $commission->id,
                     $commission->order->order_number ?? 'N/A',
                     $commission->seller?->seller?->name
-    ?? $commission->seller?->name
-    ?? 'N/A',
-
+                        ?? $commission->seller?->name
+                        ?? 'N/A',
                     number_format(
                         ((int) $commission->order_total_minor) / 100,
                         2,
                         '.',
                         ''
                     ),
-
                     $commission->rate,
-
                     number_format(
                         ((int) $commission->amount_minor) / 100,
                         2,
                         '.',
                         ''
                     ),
-
                     $commission->status,
                     $commission->created_at,
                 ]);
