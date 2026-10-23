@@ -2973,13 +2973,7 @@ Route::get('/seller/orders', function () use ($requireSeller) {
         return $redirect;
     }
 
-    $orders = session('orders', []);
-
-    $orders = array_reverse($orders, true);
-
-    return view('seller.orders', [
-        'orders' => $orders,
-    ]);
+    return view('seller.orders', \App\Support\SellerOrders::data(\App\Support\SellerAccount::current(), request()));
 
 })->name('seller.orders');
 
