@@ -139,7 +139,9 @@ class OrderReceiptFinalizationService
             ->get()
             ->each(function (SellerOrder $sellerOrder) use ($service) {
                 try {
-                    $service->createIfEligible($sellerOrder);
+                    // SellerSettlementService expects the seller order ID (int),
+                    // not a SellerOrder model instance.
+                    $service->createIfEligible((int) $sellerOrder->id);
                 } catch (\Throwable $e) {
                     report($e);
                 }
