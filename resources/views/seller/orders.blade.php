@@ -5,6 +5,8 @@
 @php
     $filterId = 'orders-advanced-filters';
     $filtersOpen = count($filterChips) > 0 || $errors->any();
+    $detailList = \Illuminate\Support\Arr::only($criteria, \App\Support\SellerOrders::LIST_KEYS);
+    $detailList['page'] = $paginator->currentPage();
 @endphp
 <div data-seller-filters>
     <section class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -56,6 +58,7 @@
                             <td class="px-4 py-4"><span class="inline-block rounded-full border border-[#DDE6E1] bg-[#EEF5F1] px-2 py-1 text-[10px] text-[#1F6F5B]">{{ $statusLabel }}</span><span class="mt-1 block text-[10px]">{{ $segment->seller_order_id ? 'Seller fulfillment' : 'Order fulfillment' }}</span></td>
                             <td class="px-4 py-4">{{ $segment->payment_method ?: 'Not recorded' }}</td>
                             <td class="px-4 py-4">
+                                <a href="{{ route('seller.orders.show', ['order' => $segment->order_id, 'list' => $detailList]) }}" class="mb-2 inline-flex rounded-lg bg-[#1F6F5B] px-3 py-2 font-semibold text-white hover:bg-[#173F35] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F6F5B]">View Details<span class="sr-only"> {{ $segment->display_reference }}</span></a>
                                 <details class="min-w-40">
                                     <summary class="cursor-pointer rounded-lg border border-[#DDE6E1] px-3 py-2 font-semibold text-[#1F6F5B] focus-visible:outline-2 focus-visible:outline-[#1F6F5B]">Preview <span class="sr-only">{{ $segment->display_reference }}</span></summary>
                                     @include('seller.partials.order-preview')

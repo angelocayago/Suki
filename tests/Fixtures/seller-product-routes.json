@@ -746,6 +746,15 @@
     },
     {
         "method":  "GET|HEAD",
+        "uri":  "seller/orders/{order}",
+        "name":  "seller.orders.show",
+        "action":  "Closure",
+        "middleware":  [
+                           "web"
+                       ]
+    },
+    {
+        "method":  "GET|HEAD",
         "uri":  "seller/products",
         "name":  "seller.products",
         "action":  "Closure",

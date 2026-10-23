@@ -2977,6 +2977,16 @@ Route::get('/seller/orders', function () use ($requireSeller) {
 
 })->name('seller.orders');
 
+Route::get('/seller/orders/{order}', function (Request $request, string $order) use ($requireSeller) {
+    if ($redirect = $requireSeller()) {
+        return $redirect;
+    }
+
+    return view('seller.order-details', \App\Support\SellerOrders::details(\App\Support\SellerAccount::current(), $order) + [
+        'backUrl' => \App\Support\SellerOrders::backUrl($request),
+    ]);
+})->whereNumber('order')->name('seller.orders.show');
+
 
 // =====================================================
 // SELLER REGISTRATION
