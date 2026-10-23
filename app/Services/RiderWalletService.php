@@ -33,23 +33,46 @@ class RiderWalletService
         return User::find((int) $shipment->rider_id);
     }
 
-    public function orderIsConfirmedReceived(Shipment $shipment): bool
+    public function sellerOrderForShipment(Shipment $shipment): ?SellerOrder
     {
         if (empty($shipment->seller_order_id)) {
-            return false;
+            return null;
         }
 
-        $sellerOrder = SellerOrder::query()
+        return SellerOrder::query()
             ->with('order')
-            ->find($shipment->seller_order_id);
+            ->find((int) $shipment->seller_order_id);
+    }
+
+    public function orderIsConfirmedReceived(Shipment $shipment): bool
+    {
+        $sellerOrder = $this->sellerOrderForShipment($shipment);
+
+        return (bool) ($sellerOrder?->order?->confirmed_received_at);
+    }
+
+    /**
+     * Rider pay is funded ONLY by the shipping fee allocated to this
+     * seller/shipment. It does not touch seller merchandise subtotal,
+     * seller settlement net, or platform/admin commission.
+     */
+    public function calculateDeliveryEarningMinor(Shipment $shipment): int
+    {
+        $sellerOrder = $this->sellerOrderForShipment($shipment);
 
         if (!$sellerOrder) {
-            return false;
+            return 0;
         }
 
-        $order = $sellerOrder->order;
+        $shippingMinor = max(0, (int) ($sellerOrder->shipping_minor ?? 0));
+        $configuredRiderPay = max(
+            0,
+            (int) config('rider_wallet.delivery_earning_minor', 5000)
+        );
 
-        return (bool) ($order?->confirmed_received_at);
+        // Rider cannot receive more than the shipping fee collected/allocated
+        // for this parcel.
+        return min($configuredRiderPay, $shippingMinor);
     }
 
     public function creditDeliveredShipment(Shipment $shipment): ?RiderWalletTransaction
@@ -60,7 +83,7 @@ class RiderWalletService
 
         // Final money rule:
         // Delivered alone is not enough. Buyer must Confirm Received,
-        // either manually or through the 3-day auto-confirm command.
+        // either manually or through the 3-day auto-confirm process.
         if (!$this->orderIsConfirmedReceived($shipment)) {
             return null;
         }
@@ -71,13 +94,26 @@ class RiderWalletService
             return null;
         }
 
-        $earningMinor = (int) config('rider_wallet.delivery_earning_minor', 4000);
+        $sellerOrder = $this->sellerOrderForShipment($shipment);
+
+        if (!$sellerOrder) {
+            return null;
+        }
+
+        $shippingMinor = max(0, (int) ($sellerOrder->shipping_minor ?? 0));
+        $earningMinor = $this->calculateDeliveryEarningMinor($shipment);
 
         if ($earningMinor <= 0) {
             return null;
         }
 
-        return DB::transaction(function () use ($shipment, $rider, $earningMinor) {
+        return DB::transaction(function () use (
+            $shipment,
+            $rider,
+            $sellerOrder,
+            $shippingMinor,
+            $earningMinor
+        ) {
             $existing = RiderWalletTransaction::query()
                 ->where('shipment_id', $shipment->id)
                 ->where('type', 'delivery_credit')
@@ -115,12 +151,19 @@ class RiderWalletService
                 'amount_minor' => $earningMinor,
                 'balance_after_minor' => (int) $wallet->available_balance_minor,
                 'reference' => 'DELIVERY-' . $shipment->id,
-                'description' => 'Delivery earning credited after buyer receipt confirmation for shipment '
+                'description' => 'Rider delivery earning funded from shipping fee for shipment '
                     . ($shipment->tracking_number ?: ('#' . $shipment->id)) . '.',
                 'meta' => [
                     'tracking_number' => $shipment->tracking_number,
+                    'seller_order_id' => $sellerOrder->id,
                     'rider_user_id' => $rider->id,
-                    'earning_minor' => $earningMinor,
+                    'shipping_fee_minor' => $shippingMinor,
+                    'rider_earning_minor' => $earningMinor,
+                    'logistics_platform_remainder_minor' => max(
+                        0,
+                        $shippingMinor - $earningMinor
+                    ),
+                    'funding_source' => 'shipping_fee',
                 ],
             ]);
         });
