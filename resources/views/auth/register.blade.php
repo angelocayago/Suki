@@ -722,25 +722,45 @@
             </div>
 
             <div id="buyerTermsSection" class="mb-3" style="{{ old('role') === 'buyer' ? '' : 'display: none;' }}">
-              <div class="form-check">
+              <div class="d-flex align-items-start gap-2">
                 <input
                   type="checkbox"
                   name="terms"
                   id="terms"
                   value="1"
-                  class="form-check-input @error('terms') is-invalid @enderror"
+                  class="form-check-input mt-1 @error('terms') is-invalid @enderror"
                   {{ old('terms') ? 'checked' : '' }}
                   required
                   oninvalid="this.setCustomValidity('You must accept the Terms and Privacy Policy to register.')"
                   onchange="this.setCustomValidity('')">
 
-                <label class="form-check-label" for="terms">
-                  I agree to the
-                  <strong>Terms and Conditions</strong>
-                  and
-                  <strong>Privacy Policy</strong>.
+                <div class="small">
+                  <label for="terms" class="mb-0">
+                    I agree to the
+                  </label>
+
+                  <button
+                    type="button"
+                    class="btn btn-link p-0 align-baseline fw-semibold text-decoration-underline"
+                    style="font-size: inherit;"
+                    data-bs-toggle="modal"
+                    data-bs-target="#termsPolicyModal">
+                    Terms and Conditions
+                  </button>
+
+                  <span>and</span>
+
+                  <button
+                    type="button"
+                    class="btn btn-link p-0 align-baseline fw-semibold text-decoration-underline"
+                    style="font-size: inherit;"
+                    data-bs-toggle="modal"
+                    data-bs-target="#privacyPolicyModal">
+                    Privacy Policy
+                  </button>
+
                   <span class="text-danger">*</span>
-                </label>
+                </div>
               </div>
 
               @error('terms')
@@ -757,6 +777,91 @@
             <button type="submit" class="btn btn-primary w-100 mt-3 rounded-xl py-2.5">Register</button>
           </form>
 
+
+          {{-- Registration Terms and Privacy modals --}}
+          <div
+            class="modal fade"
+            id="termsPolicyModal"
+            tabindex="-1"
+            aria-labelledby="termsPolicyModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold" id="termsPolicyModalLabel">
+                      Terms and Conditions
+                    </h5>
+                    <small class="text-muted">
+                      BiliHub Platform Terms of Service
+                    </small>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close">
+                  </button>
+                </div>
+
+                <div class="modal-body">
+                  <div style="white-space: pre-wrap; line-height: 1.7;">{{ $termsOfService }}</div>
+                </div>
+
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-primary px-4"
+                    data-bs-dismiss="modal">
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="modal fade"
+            id="privacyPolicyModal"
+            tabindex="-1"
+            aria-labelledby="privacyPolicyModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold" id="privacyPolicyModalLabel">
+                      Privacy Policy
+                    </h5>
+                    <small class="text-muted">
+                      BiliHub Platform Privacy Policy
+                    </small>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close">
+                  </button>
+                </div>
+
+                <div class="modal-body">
+                  <div style="white-space: pre-wrap; line-height: 1.7;">{{ $privacyPolicy }}</div>
+                </div>
+
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-primary px-4"
+                    data-bs-dismiss="modal">
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <p class="text-center mt-3 mb-0">
             Already have an account? <a href="{{ route('login') }}" class="text-sky-500 fw-medium">Login</a>
           </p>

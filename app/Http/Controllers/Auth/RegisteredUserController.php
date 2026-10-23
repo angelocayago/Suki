@@ -15,6 +15,7 @@ use App\Mail\RegistrationNotification;
 use App\Models\Category;
 
 use App\Models\Logistic;
+use App\Models\PlatformSetting;
 
 use App\Models\Role;
 
@@ -184,7 +185,28 @@ class RegisteredUserController extends Controller
 
             ->get();
 
-        return view('auth.register', compact('categories'));
+        /*
+         * Registration policy text comes directly from the same
+         * Platform Settings records managed by the admin.
+         *
+         * This is display-only. The existing registration validation,
+         * OTP flow, approval flow and form submission are unchanged.
+         */
+        $termsOfService = PlatformSetting::getValue(
+            'terms_of_service',
+            'Terms of Service are currently unavailable.'
+        );
+
+        $privacyPolicy = PlatformSetting::getValue(
+            'privacy_policy',
+            'Privacy Policy is currently unavailable.'
+        );
+
+        return view('auth.register', compact(
+            'categories',
+            'termsOfService',
+            'privacyPolicy'
+        ));
     }
 
     public function createRiderApplication()
