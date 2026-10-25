@@ -87,6 +87,14 @@
               <li><a class="dropdown-item" href="{{ route('rider.history') }}"><i class="bi bi-clock-history"></i> Delivery History</a></li>
               <li><a class="dropdown-item" href="{{ route('rider.profit') }}"><i class="bi bi-graph-up"></i> Profit</a></li>
               <li>
+                <a
+                  class="dropdown-item {{ request()->routeIs('rider.wallet.*') ? 'active' : '' }}"
+                  href="{{ route('rider.wallet.index') }}">
+                  <i class="bi bi-wallet2"></i>
+                  Wallet
+                </a>
+              </li>
+              <li>
                 <a class="dropdown-item {{ request()->routeIs('rider.cod-remittances.*') ? 'active' : '' }}"
                   href="{{ route('rider.cod-remittances.index') }}">
                   <i class="bi bi-cash-coin"></i>
