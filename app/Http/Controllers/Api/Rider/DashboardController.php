@@ -38,20 +38,21 @@ class DashboardController extends Controller
             | ACTIVE RIDER SHIPMENTS
             |--------------------------------------------------------------------------
             |
-            | These are final-mile shipments currently assigned to this rider.
-            | Finalized shipments are excluded.
+            | These are shipments currently assigned to the authenticated rider.
+            | Finalized / closed shipments are excluded.
             |
             */
 
             $activeShipmentsQuery = Shipment::query()
                 ->where('rider_id', $rider->id)
+                ->whereHas('sellerOrder.order')
                 ->whereNotIn('status', [
                     'delivered',
+                    'failed',
                     'delivery_failed',
                     'cancelled',
                     'failed_return_at_sorting_center',
-                ])
-                ->whereHas('sellerOrder.order');
+                ]);
 
             /*
             |--------------------------------------------------------------------------
@@ -63,6 +64,7 @@ class DashboardController extends Controller
 
             $completedToday = Shipment::query()
                 ->where('rider_id', $rider->id)
+                ->whereHas('sellerOrder.order')
                 ->where('status', 'delivered')
                 ->whereDate('delivered_at', today())
                 ->count();
@@ -74,11 +76,13 @@ class DashboardController extends Controller
                     'assigned',
                     'staged',
                     'at_sorting_center',
+                    'ready_for_pickup',
                 ])
                 ->count();
 
             $totalDelivered = Shipment::query()
                 ->where('rider_id', $rider->id)
+                ->whereHas('sellerOrder.order')
                 ->where('status', 'delivered')
                 ->count();
 
@@ -87,8 +91,10 @@ class DashboardController extends Controller
             | ASSIGNED TASKS
             |--------------------------------------------------------------------------
             |
-            | Only a small number is returned for the dashboard.
-            | The full delivery list will use its own API endpoint later.
+            | Only a limited number is returned for the Rider dashboard.
+            | The complete list is available through:
+            |
+            | GET /api/rider/orders
             |
             */
 
@@ -101,57 +107,121 @@ class DashboardController extends Controller
                 ->take(10)
                 ->get();
 
-            $tasks = $shipments->map(function (Shipment $shipment) {
-                $sellerOrder = $shipment->sellerOrder;
-                $order = $sellerOrder?->order;
-                $customer = $order?->user;
+            $tasks = $shipments
+                ->map(function (Shipment $shipment) use ($rider) {
+                    $sellerOrder = $shipment->sellerOrder;
+                    $order = $sellerOrder?->order;
+                    $customer = $order?->user;
 
-                return [
-                    /*
-                    |--------------------------------------------------------------------------
-                    | IMPORTANT
-                    |--------------------------------------------------------------------------
-                    |
-                    | The rider workflow is shipment-based.
-                    | Therefore "id" here is the Shipment ID.
-                    |
-                    */
+                    return [
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SHIPMENT IDENTIFICATION
+                        |--------------------------------------------------------------------------
+                        |
+                        | Rider mobile workflow is shipment-based.
+                        | Therefore "id" is the Shipment ID.
+                        |
+                        */
 
-                    'id' => $shipment->id,
+                        'id' => $shipment->id,
 
-                    'shipment_id' => $shipment->id,
+                        'shipment_id' => $shipment->id,
 
-                    'seller_order_id' => $shipment->seller_order_id,
+                        'seller_order_id' => $shipment->seller_order_id,
 
-                    'tracking_number' => $shipment->tracking_number,
+                        'tracking_number' =>
+                            $shipment->tracking_number ?? '',
 
-                    'customer_name' => $customer?->name ?? 'Customer',
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CUSTOMER
+                        |--------------------------------------------------------------------------
+                        */
 
-                    'customer_phone' => $customer?->mobile_number
-                        ?? $customer?->phone
-                        ?? '',
+                        'customer_name' =>
+                            $customer?->name ?? 'Customer',
 
-                    'delivery_address' => $shipment->delivery_address ?? '',
+                        'customer_phone' =>
+                            $customer?->mobile_number
+                            ?? $customer?->phone
+                            ?? '',
 
-                    'status' => $shipment->status,
+                        /*
+                        |--------------------------------------------------------------------------
+                        | DELIVERY
+                        |--------------------------------------------------------------------------
+                        */
 
-                    'latitude' => $shipment->latitude !== null
-                        ? (float) $shipment->latitude
-                        : null,
+                        'delivery_address' =>
+                            $shipment->delivery_address ?? '',
 
-                    'longitude' => $shipment->longitude !== null
-                        ? (float) $shipment->longitude
-                        : null,
+                        'status' =>
+                            $shipment->status ?? '',
 
-                    'picked_up_at' => $shipment->picked_up_at?->toISOString(),
+                        /*
+                        |--------------------------------------------------------------------------
+                        | RIDER
+                        |--------------------------------------------------------------------------
+                        */
 
-                    'delivered_at' => $shipment->delivered_at?->toISOString(),
+                        'rider_id' =>
+                            (string) $rider->id,
 
-                    'created_at' => $shipment->created_at?->toISOString(),
+                        'rider_name' =>
+                            $rider->name ?? 'Rider',
 
-                    'updated_at' => $shipment->updated_at?->toISOString(),
-                ];
-            })->values();
+                        /*
+                        |--------------------------------------------------------------------------
+                        | LOCATION
+                        |--------------------------------------------------------------------------
+                        */
+
+                        'latitude' =>
+                            $shipment->latitude !== null
+                                ? (float) $shipment->latitude
+                                : null,
+
+                        'longitude' =>
+                            $shipment->longitude !== null
+                                ? (float) $shipment->longitude
+                                : null,
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | DATES
+                        |--------------------------------------------------------------------------
+                        */
+
+                        'order_date' =>
+                            $order?->created_at?->toISOString(),
+
+                        'picked_up_at' =>
+                            $shipment->picked_up_at?->toISOString(),
+
+                        'delivered_at' =>
+                            $shipment->delivered_at?->toISOString(),
+
+                        'created_at' =>
+                            $shipment->created_at?->toISOString(),
+
+                        'updated_at' =>
+                            $shipment->updated_at?->toISOString(),
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | EARNINGS
+                        |--------------------------------------------------------------------------
+                        |
+                        | Real earnings are intentionally not calculated here.
+                        | They will come from the Rider earnings API.
+                        |
+                        */
+
+                        'delivery_earnings' => null,
+                    ];
+                })
+                ->values();
 
             /*
             |--------------------------------------------------------------------------
@@ -165,7 +235,12 @@ class DashboardController extends Controller
                 'rider' => [
                     'id' => $rider->id,
 
-                    // Rider is currently stored as a User record.
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Rider is currently stored as a User record
+                    |--------------------------------------------------------------------------
+                    */
+
                     'user_id' => $rider->id,
 
                     'name' => $rider->name,
@@ -178,32 +253,42 @@ class DashboardController extends Controller
 
                     'email' => $rider->email,
 
-                    'mobile_number' => $rider->mobile_number
-                        ?? $rider->phone,
+                    'mobile_number' =>
+                        $rider->mobile_number
+                        ?? $rider->phone
+                        ?? '',
 
-                    'vehicle_type' => $rider->vehicle_type,
+                    'vehicle_type' =>
+                        $rider->vehicle_type,
 
-                    'availability_status' => $rider->availability_status,
+                    'availability_status' =>
+                        $rider->availability_status,
 
-                    'logistic_status' => $rider->logistic_status,
+                    'logistic_status' =>
+                        $rider->logistic_status,
 
-                    'current_load' => $rider->current_load !== null
-                        ? (int) $rider->current_load
-                        : 0,
+                    'current_load' =>
+                        $rider->current_load !== null
+                            ? (int) $rider->current_load
+                            : 0,
 
-                    'max_capacity' => $rider->max_capacity !== null
-                        ? (int) $rider->max_capacity
-                        : null,
+                    'max_capacity' =>
+                        $rider->max_capacity !== null
+                            ? (int) $rider->max_capacity
+                            : null,
 
-                    'latitude' => $rider->latitude !== null
-                        ? (float) $rider->latitude
-                        : null,
+                    'latitude' =>
+                        $rider->latitude !== null
+                            ? (float) $rider->latitude
+                            : null,
 
-                    'longitude' => $rider->longitude !== null
-                        ? (float) $rider->longitude
-                        : null,
+                    'longitude' =>
+                        $rider->longitude !== null
+                            ? (float) $rider->longitude
+                            : null,
 
-                    'location_updated_at' => $rider->location_updated_at,
+                    'location_updated_at' =>
+                        $rider->location_updated_at,
                 ],
 
                 'overview' => [
@@ -211,6 +296,10 @@ class DashboardController extends Controller
                     |--------------------------------------------------------------------------
                     | Flutter Rider Home keys
                     |--------------------------------------------------------------------------
+                    |
+                    | Keep these keys unchanged because rider_home.dart
+                    | already consumes them.
+                    |
                     */
 
                     'today_delivery' => $assignedCount,
@@ -221,9 +310,11 @@ class DashboardController extends Controller
 
                     /*
                     |--------------------------------------------------------------------------
-                    | Extra real dashboard value
+                    | Additional real server-side values
                     |--------------------------------------------------------------------------
                     */
+
+                    'active_assigned' => $assignedCount,
 
                     'total_delivered' => $totalDelivered,
                 ],
