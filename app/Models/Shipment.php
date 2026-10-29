@@ -8,67 +8,211 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Shipment extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
-        'seller_order_id',
-        'logistics_provider_id',
+        'logistic_id',
+        'hub_id',
         'rider_id',
+        'pickup_rider_id',
+        'rider_profile_id',
+        'seller_order_id',
+        'tracking_number',
         'tracking_code',
+        'qr_token',
         'status',
-        'fee_minor',
-        'cod_amount_minor',
-        'cod_collected',
-        'attempts',
+        'courier',
+        'pickup_address',
+        'delivery_address',
+        'picked_up_at',
+        'delivered_at',
+        'proof_of_delivery',
+        'delivery_signature',
+        'delivered_to',
+        'at_sorting_center_at',
+        'notes',
+        'latitude',
+        'longitude',
+        'rider_latitude',
+        'rider_longitude',
+        'sorting_area',
+        'delivery_zone',
+        'delivery_type',
+        'sorting_status',
+        'rack_number',
+        'received_at',
+        'scanned_at',
+        'scanned_at_seller',
+        'scanned_by_rider_id',
+        'seller_scan_confirmed_at',
+        'sorted_at',
+        'staged_at',
+        'received_by_sorting_center',
+        'failed_returned_to_sorting_center_at',
+        'failed_return_received_at',
+        'hub_picked_up_at',
+        'hub_pickup_rider_id',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
+    protected $casts = [
+        'picked_up_at' => 'datetime',
+        'hub_picked_up_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'at_sorting_center_at' => 'datetime',
+        'scanned_at_seller' => 'datetime',
+        'seller_scan_confirmed_at' => 'datetime',
+
+        // Sorting center timestamps
+        'received_at' => 'datetime',
+        'scanned_at' => 'datetime',
+        'sorted_at' => 'datetime',
+        'staged_at' => 'datetime',
+
+        // Failed delivery and return to sorting center
+        'failed_returned_to_sorting_center_at' => 'datetime',
+        'failed_return_received_at' => 'datetime',
+        'received_by_sorting_center' => 'boolean',
+
+        // Location coordinates
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
+        'rider_latitude' => 'decimal:7',
+        'rider_longitude' => 'decimal:7',
+    ];
+
+    protected static function booted()
     {
-        return [
-            'fee_minor' => 'integer',
-            'cod_amount_minor' => 'integer',
-            'cod_collected' => 'boolean',
-            'attempts' => 'integer',
-        ];
+        static::creating(function (Shipment $shipment) {
+            if (empty($shipment->qr_token)) {
+                $shipment->qr_token = self::generateQrToken();
+            }
+        });
     }
 
-    /**
-     * Seller order this shipment belongs to.
-     */
-    public function sellerOrder(): BelongsTo
+    public static function generateQrToken(): string
     {
-        return $this->belongsTo(SellerOrder::class);
+        return strtoupper(bin2hex(random_bytes(8))) . '-' . strtoupper(bin2hex(random_bytes(4)));
     }
 
-    /**
-     * Logistics provider handling this shipment.
-     */
-    public function provider(): BelongsTo
+    public function getQrPayloadAttribute(): string
     {
-        return $this->belongsTo(
-            LogisticsProvider::class,
-            'logistics_provider_id'
-        );
+        return json_encode([
+            't' => $this->tracking_number,
+            'q' => $this->qr_token,
+            'so' => $this->seller_order_id,
+        ]);
     }
 
-    /**
-     * Rider assigned to this shipment.
-     */
+    public function logistic(): BelongsTo
+    {
+        return $this->belongsTo(Logistic::class);
+    }
+
+    public function hub(): BelongsTo
+    {
+        return $this->belongsTo(Hub::class);
+    }
+
     public function rider(): BelongsTo
     {
-        return $this->belongsTo(Rider::class);
+        return $this->belongsTo(User::class, 'rider_id');
     }
 
-    /**
-     * Delivery timeline events for this shipment.
-     */
+    public function riderProfile(): BelongsTo
+    {
+        return $this->belongsTo(Rider::class, 'rider_profile_id');
+    }
+
+    public function sellerOrder(): BelongsTo
+    {
+        return $this->belongsTo(SellerOrder::class, 'seller_order_id');
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(ShipmentMessage::class);
+    }
+
     public function events(): HasMany
     {
-        return $this->hasMany(DeliveryEvent::class)
-            ->orderBy('occurred_at');
+        return $this->hasMany(DeliveryEvent::class);
+    }
+
+    public function timelineSteps(): array
+    {
+        $steps = [
+            ['label' => 'Created', 'timestamp' => $this->created_at, 'class' => 'primary'],
+        ];
+
+        if ($this->sorting_status === 'received' || $this->sorting_status === 'scanned' || $this->sorting_status === 'sorted' || $this->sorting_status === 'staged') {
+            $steps[] = ['label' => 'Received at Hub', 'timestamp' => $this->received_at, 'class' => 'info'];
+        }
+
+        if ($this->sorting_status === 'scanned' || $this->sorting_status === 'sorted' || $this->sorting_status === 'staged') {
+            $steps[] = ['label' => 'Scanned & Tagged', 'timestamp' => $this->scanned_at, 'class' => 'primary'];
+        }
+
+        if ($this->sorting_status === 'sorted' || $this->sorting_status === 'staged') {
+            $steps[] = ['label' => 'Sorted', 'timestamp' => $this->sorted_at, 'class' => 'secondary'];
+        }
+
+        if ($this->sorting_status === 'staged') {
+            $steps[] = ['label' => 'Staged for Pickup', 'timestamp' => $this->staged_at, 'class' => 'info'];
+        }
+
+        if ($this->status === 'assigned' || $this->status === 'picked_up' || $this->status === 'in_transit' || $this->status === 'at_sorting_center' || $this->status === 'delivered') {
+            $steps[] = ['label' => 'Rider Assigned', 'timestamp' => $this->created_at, 'class' => 'info'];
+        }
+
+        if ($this->status === 'picked_up' || $this->status === 'in_transit' || $this->status === 'at_sorting_center' || $this->status === 'delivered') {
+            $steps[] = ['label' => 'Picked Up', 'timestamp' => $this->picked_up_at, 'class' => 'warning'];
+        }
+
+        if ($this->status === 'at_sorting_center' || $this->status === 'in_transit' || $this->status === 'delivered') {
+            $steps[] = ['label' => 'At Sorting Center', 'timestamp' => $this->at_sorting_center_at, 'class' => 'info'];
+        }
+
+        if ($this->status === 'in_transit' || $this->status === 'delivered') {
+    $steps[] = [
+        'label' => 'In Transit',
+        'timestamp' => null,
+        'class' => 'primary',
+        'completed' => true,
+    ];
+}
+
+        if ($this->status === 'delivered') {
+            $steps[] = ['label' => 'Delivered', 'timestamp' => $this->delivered_at, 'class' => 'success'];
+        }
+
+        if ($this->status === 'cancelled') {
+            $steps[] = ['label' => 'Cancelled', 'timestamp' => null, 'class' => 'danger'];
+        }
+
+        if ($this->status === 'delayed') {
+            $steps[] = ['label' => 'Delayed/Failed', 'timestamp' => null, 'class' => 'danger'];
+        }
+
+        return $steps;
+    }
+
+    public function isDelayed(): bool
+    {
+        return $this->status === 'delayed';
+    }
+
+    public function statusBadgeClass(): string
+    {
+        return match ($this->status) {
+            'pending' => 'warning',
+            'assigned' => 'info',
+            'picked_up' => 'primary',
+            'in_transit' => 'primary',
+            'at_sorting_center' => 'info',
+            'sorted' => 'success',
+            'staged' => 'info',
+            'delivered' => 'success',
+            'cancelled' => 'danger',
+            'delayed', 'delivery_failed' => 'danger',
+            default => 'secondary',
+        };
     }
 }

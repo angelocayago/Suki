@@ -1,81 +1,89 @@
-# -----------------------------
-# Build frontend assets
-# -----------------------------
-FROM node:22-alpine AS frontend
+﻿FROM node:22-alpine AS frontend
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm ci
 
-COPY . .
+COPY vite.config.js ./
+COPY resources ./resources
+COPY public ./public
 
 RUN npm run build
 
 
-# -----------------------------
-# Laravel / Apache
-# -----------------------------
-FROM php:8.3-apache
+FROM php:8.4-apache
+
+# Install system dependencies + PHP extensions
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    zip \
+    git \
+    unzip \
+    libzip-dev \
+    libonig-dev \
+    pkg-config \
+    build-essential \
+    autoconf \
+    libicu-dev \
+    libpq-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql bcmath mbstring zip intl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable Apache rewrite
+RUN a2enmod rewrite
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    unzip \
-    zip \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    libpq-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
-        pdo \
-        pdo_pgsql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        zip \
-    && a2enmod rewrite \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
+# Copy project files
 COPY . .
 
+# Install production PHP dependencies
 RUN composer install \
     --no-dev \
-    --optimize-autoloader \
     --no-interaction \
-    --prefer-dist
+    --prefer-dist \
+    --optimize-autoloader
 
+# Copy compiled Vite assets from frontend build
 COPY --from=frontend /app/public/build ./public/build
 
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Laravel setup
+RUN php artisan config:clear && \
+    php artisan route:clear && \
+    php artisan view:clear && \
+    php artisan storage:link
 
-    # Recreate Laravel public storage link inside the container
-RUN rm -rf public/storage \
-    && php artisan storage:link
-
-# Point Apache to Laravel's public directory
-RUN sed -ri \
-    -e 's!/var/www/html!/var/www/html/public!g' \
-    /etc/apache2/sites-available/*.conf \
-    /etc/apache2/apache2.conf \
-    /etc/apache2/conf-available/*.conf
-
-# Render expects the service to listen on port 10000
-RUN sed -ri 's!Listen 80!Listen 10000!g' /etc/apache2/ports.conf \
-    && sed -ri 's!<VirtualHost \*:80>!<VirtualHost *:10000>!g' \
+# Configure Apache document root and Render HTTP port
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
+    /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' \
     /etc/apache2/sites-available/000-default.conf
+
+# Laravel writable directories
+RUN mkdir -p storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/app/public \
+    storage/app/public/products \
+    storage/logs \
+    bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
+
+# Startup script for Render
+COPY start.sh /usr/local/bin/start.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
+    && chmod +x /usr/local/bin/start.sh
 
 EXPOSE 10000
 
-CMD ["apache2-foreground"]
+CMD ["/usr/local/bin/start.sh"]

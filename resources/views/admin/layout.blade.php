@@ -2,396 +2,222 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>
-        @yield('title', 'Admin') | SUKI SHOP
-    </title>
-
-    @vite([
-        'resources/css/app.css',
-        'resources/js/app.js'
-    ])
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Bili Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  @vite([
+  'resources/css/app.css',
+  'resources/css/shared-layout.css',
+  'resources/css/components/footer.css',
+  'resources/css/admin/admin-layout.css',
+  'resources/js/app.js',
+  ])
+  @stack('styles')
 </head>
 
-<body class="min-h-screen bg-[#F6F8F6] text-[#202421] antialiased">
-
-    <div class="min-h-screen lg:flex">
-
-        {{-- =====================================================
-            MOBILE OVERLAY
-        ====================================================== --}}
-        <div
-            id="admin-sidebar-overlay"
-            class="fixed inset-0 z-40 hidden bg-black/30 lg:hidden"
-        ></div>
-
-
-        {{-- =====================================================
-            SIDEBAR
-        ====================================================== --}}
-        <aside
-            id="admin-sidebar"
-            class="fixed inset-y-0 left-0 z-50 flex w-[260px] -translate-x-full flex-col border-r border-[#E4E9E6] bg-white transition-transform duration-200 lg:static lg:translate-x-0"
-        >
-
-            {{-- BRAND --}}
-            <div class="flex h-[72px] items-center justify-between border-b border-[#EDF0EE] px-6">
-
-                <a
-                    href="{{ route('admin.dashboard') }}"
-                    class="flex items-center gap-3"
-                >
-
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-[#173F35] text-sm font-bold text-white">
-                        S
-                    </div>
-
-                    <div>
-                        <p class="text-sm font-bold tracking-[-0.02em] text-[#202421]">
-                            SUKI SHOP
-                        </p>
-
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8A918C]">
-                            Admin Portal
-                        </p>
-                    </div>
-
-                </a>
-
-
-                <button
-                    id="admin-sidebar-close"
-                    type="button"
-                    class="flex h-9 w-9 items-center justify-center rounded-lg text-[#747C76] hover:bg-[#F3F5F4] lg:hidden"
-                    aria-label="Close navigation"
-                >
-                    <svg
-                        class="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                    >
-                        <path d="M6 6l12 12M18 6 6 18"/>
-                    </svg>
-                </button>
-
-            </div>
-
-
-            {{-- NAVIGATION --}}
-            <nav class="flex-1 overflow-y-auto px-4 py-6">
-
-                <p class="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A0A6A2]">
-                    Management
-                </p>
-
-
-                {{-- DASHBOARD --}}
-                <a
-                    href="{{ route('admin.dashboard') }}"
-                    class="
-                        mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
-                        {{ request()->routeIs('admin.dashboard')
-                            ? 'bg-[#EDF5F1] text-[#173F35]'
-                            : 'text-[#69716C] hover:bg-[#F5F7F6] hover:text-[#29302C]'
-                        }}
-                    "
-                >
-
-                    <svg
-                        class="h-[18px] w-[18px] shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                    >
-                        <rect x="3" y="3" width="7" height="7" rx="1"/>
-                        <rect x="14" y="3" width="7" height="7" rx="1"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        <rect x="14" y="14" width="7" height="7" rx="1"/>
-                    </svg>
-
-                    <span>
-                        Dashboard
-                    </span>
-
-                </a>
-
-
-                {{-- BUYERS --}}
-                <a
-                    href="{{ route('admin.buyers') }}"
-                    class="
-                        mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
-                        {{ request()->routeIs('admin.buyers*')
-                            ? 'bg-[#EDF5F1] text-[#173F35]'
-                            : 'text-[#69716C] hover:bg-[#F5F7F6] hover:text-[#29302C]'
-                        }}
-                    "
-                >
-
-                    <svg
-                        class="h-[18px] w-[18px] shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                    >
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/>
-                        <path d="M16 11h6"/>
-                        <path d="M19 8v6"/>
-                    </svg>
-
-                    <span>
-                        Buyer Applications
-                    </span>
-
-                </a>
-
-            </nav>
-
-
-            {{-- ADMIN ACCOUNT --}}
-            <div class="border-t border-[#EDF0EE] p-4">
-
-                <div class="mb-3 flex items-center gap-3 rounded-xl bg-[#F8FAF8] p-3">
-
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#DDEBE4] text-xs font-bold text-[#173F35]">
-                        {{ strtoupper(substr(auth()->user()->first_name ?? auth()->user()->name ?? 'A', 0, 1)) }}
-                    </div>
-
-                    <div class="min-w-0 flex-1">
-
-                        <p class="truncate text-xs font-semibold text-[#29302C]">
-                            {{ auth()->user()->full_name ?? auth()->user()->name ?? 'Administrator' }}
-                        </p>
-
-                        <p class="truncate text-[11px] text-[#8A918C]">
-                            {{ auth()->user()->email ?? '' }}
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <form
-                    method="POST"
-                    action="{{ route('admin.logout') }}"
-                >
-                    @csrf
-
-                    <button
-                        type="submit"
-                        class="flex w-full items-center justify-center gap-2 rounded-xl border border-[#DEE3E0] bg-white px-4 py-2.5 text-xs font-semibold text-[#59615C] transition hover:bg-[#F5F7F6] hover:text-[#202421]"
-                    >
-
-                        <svg
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                        >
-                            <path d="M10 17l5-5-5-5"/>
-                            <path d="M15 12H3"/>
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                        </svg>
-
-                        Sign out
-                    </button>
+<body class="d-flex flex-column min-vh-100">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand fw-bold text-violet-500 d-flex align-items-center gap-2" href="{{ route('home') }}">
+        <img src="{{ asset('images/bilihublogo.png') }}" alt="Bili Hub" style="height: 42px; width: auto;">
+        <span class="fs-5">Bili Hub</span>
+      </a>
+      <span class="badge bg-violet-100 text-violet-600 px-3 py-2 rounded-pill">Admin Panel</span>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="adminNavbar">
+        <ul class="navbar-nav ms-auto align-items-center gap-3">
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="{{ route('admin.notifications.index') }}" title="Notifications">
+              <i class="bi bi-bell fs-5"></i>
+              @php
+              $unreadCount = \App\Models\Notification::where('user_id', Auth::id())->where('is_read', false)->count();
+              @endphp
+              @if($unreadCount > 0)
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill cart-badge" style="font-size: 0.65rem; min-width: 18px; height: 18px;">
+                {{ $unreadCount }}
+              </span>
+              @endif
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="adminUserDropdown" role="button" data-bs-toggle="dropdown">
+              <div class="rounded-full bg-violet-100 text-violet-600 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <span class="d-none d-md-inline fw-medium">{{ Auth::user()->name }}</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminUserDropdown">
+              <li>
+                <h6 class="dropdown-header fw-semibold">{{ Auth::user()->email }}</h6>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2 me-2 text-violet-500"></i>Dashboard</a></li>
+              <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person me-2 text-slate-400"></i>Account Settings</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                  @csrf
+                  <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
                 </form>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
 
-            </div>
+  <div class="container-fluid">
+    <div class="row">
+      <nav id="adminSidebar" class="col-md-3 col-lg-2 d-md-block admin-sidebar collapse show">
+        <div class="position-sticky pt-3">
+          <div class="px-3 mb-3">
+            <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Main Menu</small>
+          </div>
+          <nav class="nav flex-column px-3 admin-nav">
+            <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
+              <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{{ route('admin.seller-settlements.index') }}"
+              class="nav-link {{ request()->routeIs('admin.seller-settlements.*') ? 'active' : '' }}">
+              <i class="bi bi-wallet2 me-2"></i>
+              Seller Settlements
+            </a>
+            @php
+                $sellerWithdrawalPendingCount = 0;
 
-        </aside>
+                if (\Illuminate\Support\Facades\Schema::hasTable('seller_withdrawals')) {
+                    $sellerWithdrawalPendingCount = \App\Models\SellerWithdrawal::query()
+                        ->where('status', 'pending')
+                        ->count();
+                }
+            @endphp
+            <a href="{{ route('admin.seller-withdrawals.index') }}"
+              class="nav-link {{ request()->routeIs('admin.seller-withdrawals.*') ? 'active' : '' }}">
+              <i class="bi bi-cash-stack me-2"></i>
+              Seller Withdrawals
+              @if($sellerWithdrawalPendingCount > 0)
+                <span
+                  id="seller-withdrawal-pending-count"
+                  class="badge bg-danger ms-auto">
+                  {{ $sellerWithdrawalPendingCount }}
+                </span>
+              @endif
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.registrations.*') ? 'active' : '' }}" href="{{ route('admin.registrations.index') }}">
+              <i class="bi bi-clipboard-check"></i> Registrations
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}">
+              <i class="bi bi-people"></i> Users
+            </a>
 
+            <a class="nav-link {{ request()->routeIs('admin.buyers') ? 'active' : '' }}" href="{{ route('admin.buyers') }}">
+              <i class="bi bi-person-check"></i> Buyers
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.sellers') ? 'active' : '' }}" href="{{ route('admin.sellers') }}">
+              <i class="bi bi-shop"></i> Sellers
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.products') ? 'active' : '' }}" href="{{ route('admin.products') }}">
+              <i class="bi bi-box"></i> Products
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}" href="{{ route('admin.orders') }}">
+              <i class="bi bi-receipt"></i> Orders
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.riders') ? 'active' : '' }}" href="{{ route('admin.riders') }}">
+              <i class="bi bi-bicycle"></i> Riders
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.logistics.*') ? 'active' : '' }}" href="{{ route('admin.logistics.index') }}">
+              <i class="bi bi-truck"></i> Logistics
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.shipments.*') ? 'active' : '' }}" href="{{ route('admin.shipments.index') }}">
+              <i class="bi bi-box"></i> Shipments
+            </a>
+          </nav>
 
-        {{-- =====================================================
-            MAIN AREA
-        ====================================================== --}}
-        <div class="min-w-0 flex-1">
+          <div class="px-3 mb-3 mt-4">
+            <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Monitoring</small>
+          </div>
+          <nav class="nav flex-column px-3 admin-nav">
+            <a class="nav-link {{ request()->routeIs('admin.compliance.*') ? 'active' : '' }}" href="{{ route('admin.compliance.index') }}">
+              <i class="bi bi-shield-check"></i> Compliance
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.complaints.*') ? 'active' : '' }}" href="{{ route('admin.complaints.index') }}">
+              <i class="bi bi-exclamation-triangle"></i> Complaints
+            </a>
 
-            {{-- TOPBAR --}}
-            <header class="sticky top-0 z-30 border-b border-[#E5E9E6] bg-white/95 backdrop-blur">
+            <a class="nav-link {{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}"
+              href="{{ route('admin.commissions.index') }}">
+              <i class="bi bi-percent"></i> Commissions
+            </a>
 
-                <div class="flex h-[72px] items-center justify-between px-4 sm:px-6 lg:px-8">
-
-                    <div class="flex min-w-0 items-center gap-3">
-
-                        <button
-                            id="admin-sidebar-open"
-                            type="button"
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E2E7E4] text-[#5F6762] hover:bg-[#F5F7F6] lg:hidden"
-                            aria-label="Open navigation"
-                        >
-                            <svg
-                                class="h-5 w-5"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                            >
-                                <path d="M4 7h16"/>
-                                <path d="M4 12h16"/>
-                                <path d="M4 17h16"/>
-                            </svg>
-                        </button>
-
-
-                        <div class="min-w-0">
-
-                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A09A]">
-                                SUKI Administration
-                            </p>
-
-                            <h1 class="truncate text-sm font-semibold text-[#29302C]">
-                                @yield('page-heading', 'Admin')
-                            </h1>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="flex items-center gap-3">
-
-                        <div class="hidden text-right sm:block">
-
-                            <p class="text-xs font-semibold text-[#343B36]">
-                                {{ auth()->user()->first_name ?? 'Admin' }}
-                            </p>
-
-                            <p class="text-[10px] uppercase tracking-wide text-[#929994]">
-                                Administrator
-                            </p>
-
-                        </div>
-
-
-                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#173F35] text-xs font-bold text-white">
-                            {{ strtoupper(substr(auth()->user()->first_name ?? auth()->user()->name ?? 'A', 0, 1)) }}
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </header>
-
-
-            {{-- =====================================================
-                FLASH MESSAGES
-            ====================================================== --}}
-            <main class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-
-                @if(session('success'))
-
-                    <div class="mb-5 rounded-xl border border-[#CCE3D8] bg-[#F0F8F4] px-4 py-3 text-sm text-[#23634F]">
-                        {{ session('success') }}
-                    </div>
-
-                @endif
-
-
-                @if(session('error'))
-
-                    <div class="mb-5 rounded-xl border border-[#F0D4D4] bg-[#FFF5F5] px-4 py-3 text-sm text-[#9D3F3F]">
-                        {{ session('error') }}
-                    </div>
-
-                @endif
-
-
-                @if($errors->any())
-
-                    <div class="mb-5 rounded-xl border border-[#F0D4D4] bg-[#FFF5F5] px-4 py-3">
-
-                        @foreach($errors->all() as $error)
-
-                            <p class="text-sm text-[#9D3F3F]">
-                                {{ $error }}
-                            </p>
-
-                        @endforeach
-
-                    </div>
-
-                @endif
+            {{-- Financial Reconciliation --}}
+            <a class="nav-link d-flex align-items-center gap-2 {{ request()->routeIs('admin.financial-reconciliation.*') ? 'active' : '' }}"
+              href="{{ route('admin.financial-reconciliation.index') }}"
+              title="Financial Reconciliation">
+              <i class="bi bi-wallet2 flex-shrink-0"></i>
+              <span class="small text-nowrap">Financial Reconciliation</span>
+            </a>
+          </nav>
 
 
-                {{-- PAGE CONTENT --}}
-                @yield('content')
+          <div class="px-3 mb-3 mt-4">
+            <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em;">System</small>
+          </div>
+          <nav class="nav flex-column px-3 admin-nav">
+            <a class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.sales') }}">
+              <i class="bi bi-bar-chart"></i> Reports
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.messages.*') ? 'active' : '' }}" href="{{ route('admin.messages.index') }}">
+              <i class="bi bi-chat-dots"></i> Messages
+            </a>
+            <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}" href="{{ route('admin.settings.index') }}">
+              <i class="bi bi-gear"></i> Settings
+            </a>
+          </nav>
+        </div>
+      </nav>
 
-            </main>
-
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 d-flex flex-column flex-grow-1">
+        @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show rounded-2 border-0 shadow-sm">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {{ session('success') }}
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        @endif
+        @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show rounded-2 border-0 shadow-sm">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-circle-fill me-2"></i>
+            {{ session('error') }}
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        @endif
+        <div class="flex-grow-1">
+          @yield('content')
         </div>
 
+        <x-footer />
+      </main>
     </div>
+  </div>
 
-
-    {{-- =====================================================
-        MOBILE SIDEBAR SCRIPT
-    ====================================================== --}}
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            const sidebar =
-                document.getElementById('admin-sidebar');
-
-            const overlay =
-                document.getElementById('admin-sidebar-overlay');
-
-            const openButton =
-                document.getElementById('admin-sidebar-open');
-
-            const closeButton =
-                document.getElementById('admin-sidebar-close');
-
-
-            function openSidebar() {
-
-                sidebar?.classList.remove('-translate-x-full');
-
-                overlay?.classList.remove('hidden');
-
-                document.body.classList.add('overflow-hidden');
-            }
-
-
-            function closeSidebar() {
-
-                sidebar?.classList.add('-translate-x-full');
-
-                overlay?.classList.add('hidden');
-
-                document.body.classList.remove('overflow-hidden');
-            }
-
-
-            openButton?.addEventListener(
-                'click',
-                openSidebar
-            );
-
-
-            closeButton?.addEventListener(
-                'click',
-                closeSidebar
-            );
-
-
-            overlay?.addEventListener(
-                'click',
-                closeSidebar
-            );
-
-        });
-    </script>
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  @stack('scripts')
 </body>
+
 </html>

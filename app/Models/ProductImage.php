@@ -4,33 +4,38 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class ProductImage extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'product_id',
         'path',
-        'position',
+        'alt_text',
+        'is_primary',
+        'sort_order',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'position' => 'integer',
-        ];
-    }
+    protected $casts = [
+        'is_primary' => 'boolean',
+        'sort_order' => 'integer',
+    ];
 
-    /**
-     * Product this image belongs to.
-     */
+    protected $appends = [
+        'url',
+    ];
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function getUrlAttribute(): string
+    {
+        if (!$this->path) {
+            return '';
+        }
+
+        return Storage::disk('s3')->url($this->path);
     }
 }

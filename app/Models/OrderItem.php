@@ -7,69 +7,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
-    /**
-     * Supports both the existing SUKI order flow
-     * and the new seller-order architecture.
-     */
     protected $fillable = [
-
-        // Legacy production fields
-        'order_id',
-        'seller_id',
-        'product_slug',
-        'product_name',
-        'image',
-        'variation',
-        'unit_price',
-        'quantity',
-        'line_total',
-
-        // New architecture fields
         'seller_order_id',
         'product_id',
-        'product_variant_id',
-        'variant_name',
-        'unit_price_minor',
+        'product_name',
+        'price_minor',
+        'quantity',
+        'subtotal_minor',
+        'size_id',
+        'variant_id',
+        'discount_minor',
+        'seller_discount_minor',
+        'platform_discount_minor',
     ];
 
-    protected function casts(): array
-    {
-        return [
+    protected $casts = [
 
-            // Legacy
-            'variation' => 'array',
-            'unit_price' => 'decimal:2',
-            'line_total' => 'decimal:2',
-
-            // Shared / new
-            'quantity' => 'integer',
-            'unit_price_minor' => 'integer',
-        ];
-    }
+        // Milestone 4 integer centavo fields.
+        'price_minor' => 'integer',
+        'subtotal_minor' => 'integer',
+        'discount_minor' => 'integer',
+        'seller_discount_minor' => 'integer',
+        'platform_discount_minor' => 'integer',
+    ];
 
     /**
-     * Legacy parent order.
-     */
-    public function order(): BelongsTo
-    {
-        return $this->belongsTo(Order::class);
-    }
-
-    /**
-     * Legacy seller reference.
-     *
-     * Current production seller_id points to users.id.
-     */
-    public function seller(): BelongsTo
-    {
-        return $this->belongsTo(
-            User::class,
-            'seller_id'
-        );
-    }
-
-    /**
-     * New seller-order architecture.
+     * Seller-specific parent order.
      */
     public function sellerOrder(): BelongsTo
     {
@@ -81,8 +44,28 @@ class OrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function productVariant(): BelongsTo
+    public function size(): BelongsTo
     {
-        return $this->belongsTo(ProductVariant::class);
+        return $this->belongsTo(Size::class);
+    }
+
+    /**
+     * Product variant relationship.
+     *
+     * Keep the relationship name variation() temporarily for compatibility
+     * with existing controllers and views while using the new variant_id FK.
+     */
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    /**
+     * Legacy compatibility alias.
+     */
+    public function variation(): BelongsTo
+    {
+        return $this->variant();
     }
 }
+

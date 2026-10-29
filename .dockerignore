@@ -1,13 +1,58 @@
-.git
-.github
+﻿.git
+.gitignore
 .env
 .env.*
+!.env.example
+
 node_modules
 vendor
+tests
+coverage
+.phpunit.cache
+.phpunit.result.cache
+
 storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
-README.md
-phpunit.xml
-tests
+
+*.log
+*.sql
+*.dump
+*.backup
+
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+
+# Local private storage and temporary files
+storage/app/private/*
+!storage/app/private/.gitignore
+
+# Local uploaded files
+storage/app/public/*
+!storage/app/public/.gitignore
+
+# Additional sensitive files
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*.json
+*service-account*.json
+
+# Local testing artifacts
+phpunit.xml.bak
+*.sqlite
+*.sqlite3
+
+# Exclude local development backups and temporary files
+*.bak
+*.bak-*
+*.backup-*
+*-backup
+*-backup-*
+*.encoding-backup
+ntent .start.sh

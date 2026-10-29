@@ -9,36 +9,49 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SellerOrder extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'order_id',
         'seller_id',
-        'logistics_provider_id',
-        'subtotal_minor',
-        'shipping_fee_minor',
-        'commission_minor',
+        'logistic_id',
         'status',
-        'delivered_at',
-        'note',
+
+        'discount_minor',
+        'seller_discount_minor',
+        'platform_discount_minor',
+
+        // Return request
+        'return_status',
+        'return_reason',
+        'return_requested_at',
+
+        // Reschedule request
+        'reschedule_status',
+        'reschedule_reason',
+        'reschedule_requested_at',
+        'rescheduled_at',
+
+        // Money in centavos
+        'subtotal_minor',
+        'shipping_minor',
+        'total_minor',
+    ];
+
+    protected $casts = [
+        'return_requested_at' => 'datetime',
+        'reschedule_requested_at' => 'datetime',
+        'rescheduled_at' => 'datetime',
+
+        'subtotal_minor' => 'integer',
+        'shipping_minor' => 'integer',
+        'total_minor' => 'integer',
+
+        'discount_minor' => 'integer',
+        'seller_discount_minor' => 'integer',
+        'platform_discount_minor' => 'integer',
     ];
 
     /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'subtotal_minor' => 'integer',
-            'shipping_fee_minor' => 'integer',
-            'commission_minor' => 'integer',
-            'delivered_at' => 'datetime',
-        ];
-    }
-
-    /**
-     * Main order this seller order belongs to.
+     * Parent buyer checkout/order.
      */
     public function order(): BelongsTo
     {
@@ -46,7 +59,7 @@ class SellerOrder extends Model
     }
 
     /**
-     * Seller/shop responsible for this order.
+     * Shop/seller that owns this portion of the order.
      */
     public function seller(): BelongsTo
     {
@@ -56,12 +69,9 @@ class SellerOrder extends Model
     /**
      * Logistics provider assigned to this seller order.
      */
-    public function provider(): BelongsTo
+    public function logistic(): BelongsTo
     {
-        return $this->belongsTo(
-            LogisticsProvider::class,
-            'logistics_provider_id'
-        );
+        return $this->belongsTo(Logistic::class, 'logistic_id');
     }
 
     /**
@@ -73,10 +83,10 @@ class SellerOrder extends Model
     }
 
     /**
-     * Shipment for this seller order.
+     * Shipment assigned to this seller order.
      */
     public function shipment(): HasOne
     {
-        return $this->hasOne(Shipment::class);
+        return $this->hasOne(Shipment::class, 'seller_order_id');
     }
 }

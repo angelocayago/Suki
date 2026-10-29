@@ -8,9 +8,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cart extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'user_id',
     ];

@@ -5,134 +5,115 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+
 
 class Order extends Model
 {
-    /**
-     * Supports both the current production order flow
-     * and the future normalized order architecture.
-     */
     protected $fillable = [
+    'user_id',
+    'order_number',
+    'status',
+    'subtotal_minor',
+    'tax_minor',
+    'shipping_minor',
+    'total_minor',
+    'shipping_address',
+    'notes',
+    'ordered_at',
+    'shipped_at',
+    'delivered_at',
+    'return_status',
+    'return_reason',
+    'rider_id',
+    'delivery_status',
+    'proof_type',
+    'proof_data',
+    'delivery_notes',
+    'assigned_at',
+    'failed_at',
+    'failure_reason',
+    'payment_method',
+    'payment_status',
+    'amount_collected_minor',
+    'collected_at',
+    'collected_by',
+    'customer_latitude',
+    'customer_longitude',
+    'delivery_zone',
+    'ready_for_pickup',
+    'picked_up_at',
+    'confirmed_received_at',
+    'reschedule_reason',
+    'reschedule_requested_at',
+    'rescheduled_at',
+    'discount_minor',
+    'seller_discount_minor',
+    'platform_discount_minor',
 
-        // Legacy production fields
-        'order_number',
-        'buyer_id',
-        'seller_id',
-        'status',
-        'payment_method',
-        'payment_status',
+    // Proof of Delivery
+  'proof_of_delivery',
+'delivery_signature',
+'delivered_to',
+'reference',
+'cancelled_at',
+'cancellation_reason',
+];
 
-        'subtotal',
-        'shipping_fee',
-        'discount_amount',
-        'total_amount',
-        'voucher_code',
+    protected $casts = [
+    'shipping_address' => 'array',
 
-        'recipient_name',
-        'recipient_phone',
-        'province',
-        'municipality',
-        'barangay',
-        'street_address',
-        'delivery_notes',
+    'discount_minor' => 'integer',
+    'seller_discount_minor' => 'integer',
+    'platform_discount_minor' => 'integer',
+    'ordered_at' => 'datetime',
+    'shipped_at' => 'datetime',
+    'delivered_at' => 'datetime',
+    'assigned_at' => 'datetime',
+    'collected_at' => 'datetime',
+    'picked_up_at' => 'datetime',
+    'failed_at' => 'datetime',
+    'confirmed_received_at' => 'datetime',
+    'reschedule_requested_at' => 'datetime',
+    'rescheduled_at' => 'datetime',
 
-        'shipping_method',
-        'house_number',
-        'postal_code',
-        'address_label',
+    // Milestone 4 integer centavo fields.
+    'subtotal_minor' => 'integer',
+    'tax_minor' => 'integer',
+    'shipping_minor' => 'integer',
+    'total_minor' => 'integer',
+    'amount_collected_minor' => 'integer',
 
-        'placed_at',
-        'confirmed_at',
-        'preparing_at',
-        'ready_for_pickup_at',
-        'picked_up_at',
-        'at_sorting_center_at',
-        'sorted_at',
-        'assigned_to_rider_at',
-        'out_for_delivery_at',
-        'delivered_at',
-        'completed_at',
-        'delivery_failed_at',
-        'returned_at',
+    'customer_latitude' => 'decimal:7',
+    'customer_longitude' => 'decimal:7',
+    'ready_for_pickup' => 'boolean',
+];
 
-        'cancel_reason',
-        'cancelled_at',
-
-        // New architecture fields
-        'reference',
-        'total_minor',
-        'shipping_address',
-    ];
-
-    protected function casts(): array
+    public function user(): BelongsTo
     {
-        return [
-
-            // Legacy money fields
-            'subtotal' => 'decimal:2',
-            'shipping_fee' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
-            'total_amount' => 'decimal:2',
-
-            // Legacy order timestamps
-            'placed_at' => 'datetime',
-            'confirmed_at' => 'datetime',
-            'preparing_at' => 'datetime',
-            'ready_for_pickup_at' => 'datetime',
-            'picked_up_at' => 'datetime',
-            'at_sorting_center_at' => 'datetime',
-            'sorted_at' => 'datetime',
-            'assigned_to_rider_at' => 'datetime',
-            'out_for_delivery_at' => 'datetime',
-            'delivered_at' => 'datetime',
-            'completed_at' => 'datetime',
-            'delivery_failed_at' => 'datetime',
-            'returned_at' => 'datetime',
-            'cancelled_at' => 'datetime',
-
-            // New architecture
-            'total_minor' => 'integer',
-            'shipping_address' => 'array',
-        ];
+        return $this->belongsTo(User::class);
     }
 
     /**
-     * Buyer who placed the order.
-     */
-    public function buyer(): BelongsTo
-    {
-        return $this->belongsTo(
-            User::class,
-            'buyer_id'
-        );
-    }
-
-    /**
-     * Legacy seller reference.
+     * Order items are reached through seller_orders.
      *
-     * Current production seller_id points to users.id.
+     * orders.id -> seller_orders.order_id
+     * seller_orders.id -> order_items.seller_order_id
      */
-    public function seller(): BelongsTo
+    public function items(): HasManyThrough
     {
-        return $this->belongsTo(
-            User::class,
-            'seller_id'
-        );
-    }
-
-    /**
-     * Legacy order items used by current checkout.
-     */
-    public function items(): HasMany
-    {
-        return $this->hasMany(
+        return $this->hasManyThrough(
             OrderItem::class,
-            'order_id'
+            SellerOrder::class,
+            'order_id',
+            'seller_order_id',
+            'id',
+            'id'
         );
     }
 
     /**
-     * New normalized seller-order architecture.
+     * Seller-specific portions/parcels of this buyer order.
      */
     public function sellerOrders(): HasMany
     {
@@ -140,10 +121,82 @@ class Order extends Model
     }
 
     /**
-     * New payment architecture.
+     * All shipments belonging to this buyer order.
+     *
+     * orders.id -> seller_orders.order_id
+     * seller_orders.id -> shipments.seller_order_id
+     */
+    public function shipments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Shipment::class,
+            SellerOrder::class,
+            'order_id',
+            'seller_order_id',
+            'id',
+            'id'
+        );
+    }
+
+    /**
+     * Payment records for this order.
+     *
+     * Legacy payment fields on orders are intentionally retained
+     * during the Milestone 4 transition.
      */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function collector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'collected_by');
+    }
+
+    public function rider(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rider_id');
+    }
+
+    public function calculateDistance($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371;
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
+    }
+
+    public function statusBadgeClass(): string
+    {
+        return match ($this->status) {
+            'placed' => 'warning',
+            'confirmed' => 'info',
+            'preparing' => 'primary',
+            'ready_for_pickup' => 'primary',
+            'picked_up' => 'primary',
+            'at_sorting_center' => 'info',
+            'sorted' => 'success',
+            'assigned_to_rider' => 'warning',
+            'out_for_delivery' => 'primary',
+            'partially_delivered' => 'warning',
+            'delivered' => 'success',
+            'completed' => 'success',
+            'delivery_failed' => 'danger',
+            'returned' => 'secondary',
+            'cancelled' => 'danger',
+            'reschedule_requested' => 'warning',
+            'rescheduled' => 'info',
+            'return_requested' => 'warning',
+            default => 'secondary',
+        };
+    }
 }
+

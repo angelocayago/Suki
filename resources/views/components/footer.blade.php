@@ -1,242 +1,191 @@
-<footer
-    class="mt-14
-           border-t border-[#173F35]/10
-           bg-[#173F35]
-           text-white"
->
+@props(['compact' => false])
 
-    <div
-        class="mx-auto max-w-[1500px]
-               px-6 py-12
-               lg:px-10 lg:py-14"
-    >
+@php
+    $isAdmin = request()->routeIs('admin.*');
 
-        <div
-            class="grid gap-10
-                   lg:grid-cols-[1.35fr_.75fr_.75fr_.9fr]"
-        >
+    $socialLinks = array_values(array_filter([
+        ['label' => 'Facebook', 'url' => config('bilihub.social.facebook'), 'icon' => 'bi-facebook'],
+        ['label' => 'Instagram', 'url' => config('bilihub.social.instagram'), 'icon' => 'bi-instagram'],
+    ], fn ($social) => filled($social['url'])));
 
+    $legalLinks = [
+        ['label' => 'Privacy Policy', 'route' => 'privacy.policy'],
+        ['label' => 'Terms & Conditions', 'route' => 'terms'],
+        ['label' => 'Cookie Policy', 'route' => 'cookie.policy'],
+    ];
+@endphp
 
-            {{-- BRAND --}}
-            <div class="max-w-md">
+<footer class="bili-footer{{ $compact ? ' bili-footer-compact' : '' }}">
+    <div class="container">
 
-                <a
-                    href="{{ route('landing') }}"
-                    class="flex items-center gap-3"
-                >
+        <div class="bili-footer__top">
+            <div>
 
-                    <div
-                        class="flex h-11 w-11
-                               items-center justify-center
-                               rounded-xl
-                               bg-white/10"
+                {{-- BRAND --}}
+                <a href="{{ $isAdmin ? route('admin.dashboard') : route('home') }}"
+                   class="bili-footer__brand">
+
+                    <img
+                        src="{{ asset('images/bilihublogo.png') }}"
+                        alt="BiliHub"
+                        class="bili-footer__logo"
+                        width="44"
+                        height="44"
                     >
 
-                        <img
-                            src="{{ asset('images/suki-logo.png') }}"
-                            alt="SUKI SHOP"
-                            class="h-9 w-9 object-contain"
-                        >
+                    <span class="bili-footer__brand-text">
+                        <span class="bili-footer__name">BiliHub</span>
 
-                    </div>
-
-
-                    <div>
-
-                        <p
-                            class="text-base font-bold
-                                   tracking-[-0.03em]"
-                        >
-                            SUKI SHOP
-                        </p>
-
-                        <p
-                            class="mt-0.5
-                                   text-[9px]
-                                   uppercase tracking-[.16em]
-                                   text-white/50"
-                        >
-                            Connected Marketplace
-                        </p>
-
-                    </div>
+                        <span class="bili-footer__tagline">
+                            @if($isAdmin)
+                                Marketplace administration and management.
+                            @else
+                                {{ config('bilihub.tagline', 'Your marketplace, delivered.') }}
+                            @endif
+                        </span>
+                    </span>
 
                 </a>
 
 
-                <p
-                    class="mt-5
-                           text-sm
-                           leading-7
-                           text-white/60"
-                >
-                    A connected marketplace for buyers, sellers,
-                    riders, and logistics partners—from discovery
-                    to doorstep.
-                </p>
+                {{-- QUICK LINKS --}}
+                <ul class="bili-footer__quick-links">
+
+                    @if($isAdmin)
+
+                        @if(Route::has('admin.dashboard'))
+                            <li>
+                                <a href="{{ route('admin.dashboard') }}">
+                                    Dashboard
+                                </a>
+                            </li>
+                        @endif
+
+                        @if(Route::has('admin.reports'))
+                            <li>
+                                <a href="{{ route('admin.reports') }}">
+                                    Reports
+                                </a>
+                            </li>
+                        @endif
+
+                        @if(Route::has('admin.settings'))
+                            <li>
+                                <a href="{{ route('admin.settings') }}">
+                                    Settings
+                                </a>
+                            </li>
+                        @endif
+
+                    @else
+
+                        <li>
+                            <a href="{{ route('products.index') }}">
+                                All Products
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="{{ route('about') }}">
+                                About Us
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="{{ route('register') }}">
+                                Become a Seller
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="{{ route('apply.rider') }}">
+                                Become a Rider
+                            </a>
+                        </li>
+
+                    @endif
+
+                </ul>
 
             </div>
 
 
-            {{-- MARKETPLACE --}}
-            <div>
+            {{-- SOCIAL LINKS --}}
+            @if(!$isAdmin && $socialLinks)
 
-                <p
-                    class="text-[10px]
-                           font-semibold
-                           uppercase tracking-[.16em]
-                           text-white/45"
-                >
-                    Marketplace
-                </p>
+                <ul class="bili-footer__social">
 
+                    @foreach($socialLinks as $social)
 
-                <div
-                    class="mt-4 space-y-3
-                           text-sm
-                           text-white/65"
-                >
+                        <li>
+                            <a
+                                href="{{ $social['url'] }}"
+                                class="bili-footer__social-link"
+                                aria-label="BiliHub on {{ $social['label'] }}"
+                                title="{{ $social['label'] }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <i
+                                    class="bi {{ $social['icon'] }}"
+                                    aria-hidden="true"
+                                ></i>
+                            </a>
+                        </li>
 
-                    <a
-                        href="{{ route('buyer.shop') }}"
-                        class="block hover:text-white"
-                    >
-                        Shop products
-                    </a>
+                    @endforeach
 
-                    <a
-                        href="{{ route('seller.register') }}"
-                        class="block hover:text-white"
-                    >
-                        Become a seller
-                    </a>
+                </ul>
 
-                    <a
-                        href="{{ route('rider.apply') }}"
-                        class="block hover:text-white"
-                    >
-                        Become a rider
-                    </a>
-
-                </div>
-
-            </div>
-
-
-            {{-- ACCOUNT --}}
-            <div>
-
-                <p
-                    class="text-[10px]
-                           font-semibold
-                           uppercase tracking-[.16em]
-                           text-white/45"
-                >
-                    Account
-                </p>
-
-
-                <div
-                    class="mt-4 space-y-3
-                           text-sm
-                           text-white/65"
-                >
-
-                    <a
-                        href="{{ route('buyer.account') }}"
-                        class="block hover:text-white"
-                    >
-                        My account
-                    </a>
-
-                    <a
-                        href="{{ route('buyer.my-orders') }}"
-                        class="block hover:text-white"
-                    >
-                        My orders
-                    </a>
-
-                    <a
-                        href="{{ route('buyer.wishlist') }}"
-                        class="block hover:text-white"
-                    >
-                        Wishlist
-                    </a>
-
-                </div>
-
-            </div>
-
-
-            {{-- INFO CARD --}}
-            <div
-                class="rounded-2xl
-                       border border-white/10
-                       bg-white/[.06]
-                       p-5"
-            >
-
-                <p class="text-sm font-semibold">
-                    Built around everyday connections.
-                </p>
-
-
-                <p
-                    class="mt-2
-                           text-xs
-                           leading-6
-                           text-white/55"
-                >
-                    One consistent experience for shopping,
-                    selling, fulfillment, and delivery.
-                </p>
-
-
-                <a
-                    href="{{ route('landing') }}#how-it-works"
-                    class="mt-4
-                           inline-flex items-center gap-2
-                           text-xs font-semibold
-                           text-white"
-                >
-
-                    See how SUKI works
-
-                    <i
-                        data-lucide="arrow-up-right"
-                        class="h-3.5 w-3.5"
-                    ></i>
-
-                </a>
-
-            </div>
+            @endif
 
         </div>
 
 
+        <hr class="bili-footer__divider">
+
+
         {{-- BOTTOM --}}
-        <div
-            class="mt-10
-                   flex flex-col gap-3
-                   border-t border-white/10
-                   pt-5
-                   text-[11px]
-                   text-white/45
-                   sm:flex-row
-                   sm:items-center
-                   sm:justify-between"
-        >
+        <div class="bili-footer__bottom">
 
-            <p>
-                © {{ date('Y') }} SUKI SHOP. All rights reserved.
+            <p class="bili-footer__copyright">
+                &copy; {{ date('Y') }} BiliHub. All rights reserved.
             </p>
 
-            <p>
-                Shop. Sell. Deliver. Together.
-            </p>
+
+            <ul class="bili-footer__legal">
+
+                @foreach($legalLinks as $link)
+
+                    <li>
+
+                        @if(Route::has($link['route']))
+
+                            <a
+                                class="bili-footer__legal-item"
+                                href="{{ route($link['route']) }}"
+                            >
+                                {{ $link['label'] }}
+                            </a>
+
+                        @else
+
+                            <span
+                                class="bili-footer__legal-item is-pending"
+                                aria-disabled="true"
+                            >
+                                {{ $link['label'] }}
+                            </span>
+
+                        @endif
+
+                    </li>
+
+                @endforeach
+
+            </ul>
 
         </div>
 
     </div>
-
 </footer>

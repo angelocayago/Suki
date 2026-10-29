@@ -1,442 +1,144 @@
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+@source '../../resources/views/**/*.blade.php';
+@source '../../resources/js/**/*.js';
 
 @theme {
-    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
-/* ================================================================
-   SUKI SHOP UI SYSTEM
-   Based on the clean visual language of the landing page
-================================================================ */
+@layer base {
+  :root {
+    --color-primary: #8b5cf6;
+    --color-primary-dark: #7c3aed;
+    --color-primary-light: #c084fc;
+    --color-deep-purple: #6D35F2;
+    --color-soft-lavender: #EEE9FF;
+    --color-about-bg: #F8F7FC;
+    --color-text-dark: #111827;
+    --color-accent: #f1f5f9;
+    --color-surface: #ffffff;
+    --color-text: #0f172a;
+    --color-muted: #64748b;
+  }
 
-:root {
-    --suki-ink: #173F35;
-    --suki-brand: #1F6F5B;
-    --suki-brand-dark: #155244;
-    --suki-mint: #DDF3EC;
-    --suki-canvas: #F8FAF8;
-    --suki-panel: #FFFFFF;
-    --suki-line: #E3EAE6;
-    --suki-muted: #66736D;
-    --suki-soft: #EEF5F1;
+  html {
+    scroll-behavior: smooth;
+  }
 
-    --suki-shadow:
-        0 10px 30px rgba(23, 63, 53, .055);
-
-    --suki-shadow-hover:
-        0 18px 46px rgba(23, 63, 53, .085);
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-family: var(--font-sans);
+  }
 }
 
-html {
-    background: var(--suki-canvas);
-}
-
-body {
-    font-family: 'Poppins', sans-serif;
-}
-
-::selection {
-    background: var(--suki-mint);
-    color: var(--suki-ink);
-}
-
-.suki-buyer-app,
-.suki-dashboard-shell {
-    background: var(--suki-canvas);
-    color: #24312C;
-}
-
-.suki-dashboard-shell {
-    min-height: 100vh;
-}
-
-.suki-dashboard-shell main,
-.suki-buyer-app main {
-    background: transparent;
-}
-
-/* ================================================================
-   PANELS
-================================================================ */
-
-.suki-dashboard-shell .bg-white,
-.suki-buyer-app main .bg-white {
-    border-color: var(--suki-line);
-}
-
-.suki-dashboard-shell .shadow-sm,
-.suki-buyer-app main .shadow-sm {
-    box-shadow: var(--suki-shadow) !important;
-}
-
-.suki-dashboard-shell .shadow-lg,
-.suki-buyer-app main .shadow-lg {
-    box-shadow:
-        0 20px 55px rgba(23, 63, 53, .12) !important;
-}
-
-/* ================================================================
-   FORMS
-================================================================ */
-
-.suki-dashboard-shell input,
-.suki-dashboard-shell select,
-.suki-dashboard-shell textarea,
-.suki-buyer-app main input,
-.suki-buyer-app main select,
-.suki-buyer-app main textarea {
-    accent-color: var(--suki-brand);
-}
-
-.suki-dashboard-shell input:focus,
-.suki-dashboard-shell select:focus,
-.suki-dashboard-shell textarea:focus,
-.suki-buyer-app main input:focus,
-.suki-buyer-app main select:focus,
-.suki-buyer-app main textarea:focus {
-    outline: none;
-}
-
-/* ================================================================
-   DASHBOARD CARDS
-================================================================ */
-
-.suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
-.suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"] {
-    border-color: var(--suki-line) !important;
-    box-shadow: var(--suki-shadow);
-}
-
-.suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"]:hover,
-.suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"]:hover {
-    box-shadow: var(--suki-shadow-hover);
-}
-
-/* ================================================================
-   TABLES
-================================================================ */
-
-.suki-dashboard-shell table {
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.suki-dashboard-shell thead {
-    background: #F4F7F5;
-}
-
-.suki-dashboard-shell th {
-    color: #66736D;
-    font-size: 11px;
-    letter-spacing: .055em;
-    text-transform: uppercase;
-    font-weight: 600;
-}
-
-.suki-dashboard-shell tbody tr {
-    transition: background-color .18s ease;
-}
-
-.suki-dashboard-shell tbody tr:hover {
-    background: #FAFCFB;
-}
-
-/* ================================================================
-   SELLER / LOGISTICS SHARED CONTENT
-================================================================ */
-
-.suki-seller-content .min-h-screen > .bg-white.border-b:first-child {
-    display: none;
-}
-
-.suki-logistics-content .min-h-screen > header:first-child {
-    display: none;
-}
-
-.suki-seller-content > .min-h-screen,
-.suki-logistics-content > .min-h-screen {
-    min-height: auto;
-    background: transparent !important;
-}
-
-.suki-seller-content > .min-h-screen > [class*="max-w-7xl"],
-.suki-logistics-content > .min-h-screen > main,
-.suki-logistics-content > .min-h-screen > [class*="max-w-7xl"] {
-    padding-top: 1.75rem;
-}
-
-/* ================================================================
-   BUYER
-================================================================ */
-
-.suki-buyer-app main section,
-.suki-buyer-app main [class*="max-w-7xl"],
-.suki-buyer-app main [class*="max-w-6xl"] {
-    scroll-margin-top: 9rem;
-}
-
-/* ================================================================
-   LEGACY COLOR NORMALIZATION
-================================================================ */
-
-.suki-dashboard-shell main .text-gray-900,
-.suki-buyer-app main .text-gray-900 {
-    color: #24312C !important;
-}
-
-.suki-dashboard-shell main .text-gray-800,
-.suki-buyer-app main .text-gray-800 {
-    color: #34483F !important;
-}
-
-.suki-dashboard-shell main .text-gray-700,
-.suki-buyer-app main .text-gray-700 {
-    color: #52635B !important;
-}
-
-.suki-dashboard-shell main .text-gray-600,
-.suki-dashboard-shell main .text-gray-500,
-.suki-buyer-app main .text-gray-600,
-.suki-buyer-app main .text-gray-500 {
-    color: #728078 !important;
-}
-
-.suki-dashboard-shell main .border-gray-200,
-.suki-dashboard-shell main .border-gray-100,
-.suki-buyer-app main .border-gray-200,
-.suki-buyer-app main .border-gray-100 {
-    border-color: #E3EAE6 !important;
-}
-
-.suki-dashboard-shell main .bg-gray-50,
-.suki-buyer-app main .bg-gray-50 {
-    background-color: #F4F7F5 !important;
-}
-
-.suki-dashboard-shell main .bg-gray-100,
-.suki-buyer-app main .bg-gray-100 {
-    background-color: #EEF3F0 !important;
-}
-
-.suki-dashboard-shell main .rounded-3xl,
-.suki-buyer-app main .rounded-3xl {
-    border-radius: 18px !important;
-}
-
-.suki-dashboard-shell main h1,
-.suki-dashboard-shell main h2,
-.suki-dashboard-shell main h3 {
-    letter-spacing: -0.025em;
-}
-
-.suki-dashboard-shell main button,
-.suki-dashboard-shell main a,
-.suki-buyer-app main button,
-.suki-buyer-app main a {
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* ================================================================
-   SCROLLBAR
-================================================================ */
-
-* {
-    scrollbar-width: thin;
-    scrollbar-color: #B9C9C1 transparent;
-}
-
-*::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-*::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-    background: #C6D3CD;
-    border: 3px solid transparent;
-    background-clip: padding-box;
-    border-radius: 999px;
-}
-
-/* ================================================================
-   PORTAL HELPERS
-================================================================ */
-
-.suki-portal-sidebar {
-    width: 264px;
-}
-
-.suki-portal-main {
-    min-width: 0;
-    flex: 1;
-}
-
-/* ================================================================
-   SELLER SIDEBAR COLLAPSE
-================================================================ */
-
-#sellerSidebar,
-#sellerMainContent {
-    transition:
-        width .3s ease,
-        padding-left .3s ease,
-        transform .3s ease;
-}
-
-.seller-sidebar-brand-copy,
-.seller-sidebar-store-copy,
-.seller-sidebar-user-copy,
-.seller-sidebar-link-label,
-.seller-sidebar-signout-label,
-.seller-sidebar-section-label {
-    transition:
-        opacity .2s ease,
-        max-width .3s ease,
-        transform .2s ease;
-}
-
-@media (min-width: 1024px) {
-
-    html.seller-sidebar-collapsed #sellerSidebar {
-        width: 76px;
-        overflow-x: hidden;
-    }
-
-    html.seller-sidebar-collapsed #sellerMainContent {
-        padding-left: 76px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand {
-        gap: 0;
-        padding-right: 3px;
-        padding-left: 3px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link {
-        flex: 0 0 36px;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link > div:first-child {
-        width: 36px;
-        height: 36px;
-        flex: 0 0 36px;
-        border-radius: 10px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-link img {
-        width: 30px;
-        height: 30px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-brand-copy,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-copy,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user-copy,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label,
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout-label {
-        max-width: 0;
-        overflow: hidden;
-        opacity: 0;
-        transform: translateX(-5px);
-        white-space: nowrap;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse {
-        width: 30px;
-        height: 34px;
-        flex: 0 0 30px;
-        border-radius: 9px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-collapse svg {
-        transform: rotate(180deg);
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-wrap {
-        padding: 12px 8px 0;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-card {
-        padding: 8px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-store-content {
-        justify-content: center;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar nav {
-        padding-right: 8px;
-        padding-left: 8px;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-section-label {
-        height: 0;
-        max-width: 0;
-        margin: 0;
-        overflow: hidden;
-        padding: 0;
-        opacity: 0;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link {
-        justify-content: center;
-        gap: 0;
-        overflow: hidden;
-        padding-right: 0;
-        padding-left: 0;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-link-label {
-        display: inline-block;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-user {
-        justify-content: center;
-        gap: 0;
-        padding-right: 0;
-        padding-left: 0;
-    }
-
-    html.seller-sidebar-collapsed #sellerSidebar .seller-sidebar-signout {
-        justify-content: center;
-        gap: 0;
-        padding-right: 0;
-        padding-left: 0;
-    }
-
-}
-
-@media (max-width: 1023px) {
-
-    .suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
-    .suki-dashboard-shell main [class*="rounded-xl"][class*="bg-white"] {
-        box-shadow:
-            0 6px 22px rgba(23, 63, 53, .045);
-    }
-
-}
-
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        scroll-behavior: auto !important;
-        transition-duration: .01ms !important;
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-    }
-}
-
-[x-cloak] {
-    display: none !important;
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .btn-bili-hub {
+    @apply inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm placeholder:text-slate-400 transition focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20;
+  }
+
+  .hero-gradient {
+    @apply bg-gradient-to-br from-slate-50 via-violet-50 to-slate-100;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+
+  .hero-bg {
+    @apply bg-gradient-to-br from-violet-500 to-purple-600 text-white;
+  }
+
+  .product-image {
+    @apply w-full object-cover rounded-xl;
+  }
+
+  .product-card {
+    @apply transition-transform duration-200 ease-in-out;
+  }
+
+  .product-card:hover {
+    @apply translate-y-[-5px] shadow-lg;
+  }
+
+  .hover-shadow:hover {
+    @apply shadow-md;
+  }
+
+  .table-container {
+    @apply bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-4;
+  }
+
+  .variation-thumb {
+    @apply transition-all duration-200;
+    border: 2px solid #e2e8f0;
+  }
+
+  .variation-thumb:hover {
+    @apply border-violet-400;
+  }
+
+  .variation-thumb.variation-selected {
+    @apply border-violet-500 shadow-violet-200 ring-2 ring-violet-300 scale-105;
+    background-color: var(--color-soft-lavender);
+  }
+
+  .variation-thumb.variation-sold-out {
+    @apply opacity-50;
+  }
+
+  .stat-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md;
+  }
+
+  .stat-card:hover {
+    @apply transform translate-y-[-3px];
+  }
+
+  .stat-icon {
+    @apply flex items-center justify-center rounded-xl text-xl font-bold;
+  }
+
+  .notification-badge {
+    @apply text-xs font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-violet-500 text-white;
+  }
+
+  .cart-badge {
+    @apply bg-violet-500 text-white font-bold;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .typography-display {
+    @apply text-3xl font-bold text-slate-900 tracking-tight;
+  }
+
+  .typography-h3 {
+    @apply text-xl font-semibold text-slate-900;
+  }
+
+  .typography-body {
+    @apply text-slate-600 leading-relaxed;
+  }
+
+  .typography-small {
+    @apply text-sm text-slate-500 leading-relaxed;
+  }
 }

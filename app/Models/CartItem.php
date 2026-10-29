@@ -7,54 +7,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CartItem extends Model
 {
-    /**
-     * Temporary compatibility fields.
-     *
-     * Legacy production cart:
-     * user_id, product_slug, product_name, price, image, quantity
-     *
-     * New cart architecture:
-     * cart_id, product_variant_id, quantity, selected
-     */
     protected $fillable = [
-        // Legacy fields
         'user_id',
-        'product_slug',
-        'product_name',
-        'price',
-        'image',
-
-        // New schema fields
         'cart_id',
-        'product_variant_id',
-        'selected',
-
-        // Shared field
+        'product_id',
         'quantity',
+        'size_id',
+        'variant_id',
+        'is_buy_now',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            // Legacy schema
-            'price' => 'decimal:2',
-
-            // Shared/new schema
-            'quantity' => 'integer',
-            'selected' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'is_buy_now' => 'boolean',
+    ];
 
     /**
-     * Legacy cart owner.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
-     * New cart architecture.
+     * New cart relationship.
      */
     public function cart(): BelongsTo
     {
@@ -62,10 +30,52 @@ class CartItem extends Model
     }
 
     /**
-     * New product variant architecture.
+     * Legacy direct user relationship.
+     * Keep temporarily while transitioning to carts.
      */
-    public function productVariant(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(ProductVariant::class);
+        return $this->belongsTo(User::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function size(): BelongsTo
+    {
+        return $this->belongsTo(Size::class);
+    }
+
+    /**
+     * Product variant relationship.
+     *
+     * Keep the relationship name variation() temporarily for compatibility
+     * with existing controllers and views while using the new variant_id FK.
+     */
+    public function variation(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    /**
+     * Subtotal stored/calculated in integer centavos.
+     */
+    public function getSubtotalMinorAttribute(): int
+    {
+        $priceMinor = $this->variation
+            ? (int) $this->variation->effective_price_minor
+            : (int) ($this->product?->effective_price_minor ?? 0);
+
+        return $priceMinor * (int) $this->quantity;
+    }
+
+    /**
+     * Display-compatible subtotal in pesos.
+     */
+    public function getSubtotalAttribute(): float
+    {
+        return $this->subtotal_minor / 100;
     }
 }

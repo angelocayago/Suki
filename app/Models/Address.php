@@ -7,36 +7,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Address extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'user_id',
         'label',
-        'recipient',
-        'phone',
-        'line1',
-        'barangay',
+        'address_line1',
+        'address_line2',
         'city',
-        'region',
         'province',
         'postal_code',
+        'country',
+        'phone',
         'is_default',
+        'latitude',
+        'longitude',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'is_default' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'is_default' => 'boolean',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
+    ];
 
-    /**
-     * User who owns this address.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

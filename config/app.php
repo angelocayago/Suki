@@ -13,9 +13,7 @@ return [
     |
     */
 
-   'name' => env('APP_NAME', 'Laravel'),
-
-'supabase_url' => env('SUPABASE_URL'),
+    'name' => env('APP_NAME', 'Laravel'),
 
     /*
     |--------------------------------------------------------------------------
@@ -67,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Asia/Manila',
 
     /*
     |--------------------------------------------------------------------------

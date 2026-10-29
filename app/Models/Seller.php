@@ -8,16 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Seller extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'user_id',
         'name',
         'slug',
-        'business_category',
-        'seller_type',
-        'tin',
         'description',
         'logo_path',
         'banner_path',
@@ -28,39 +22,15 @@ class Seller extends Model
     ];
 
     /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'commission_bps' => 'integer',
-        ];
-    }
-
-    /**
-     * User who owns this shop.
+     * User/account that owns this shop.
      */
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(
-            User::class,
-            'user_id'
-        );
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
-     * Pickup address of this shop.
-     */
-    public function pickupAddress(): BelongsTo
-    {
-        return $this->belongsTo(
-            Address::class,
-            'pickup_address_id'
-        );
-    }
-
-    /**
-     * Products owned by this shop.
+     * Products that belong to this shop.
      */
     public function products(): HasMany
     {
@@ -68,15 +38,27 @@ class Seller extends Model
     }
 
     /**
-     * Seller orders belonging to this shop.
+     * Seller-specific orders that belong to this shop.
      */
     public function orders(): HasMany
     {
         return $this->hasMany(SellerOrder::class);
     }
 
-    public function documents(): HasMany
+    /**
+     * Pickup address of this shop.
+     */
+    public function pickupAddress(): BelongsTo
     {
-        return $this->hasMany(SellerDocument::class);
+        return $this->belongsTo(Address::class, 'pickup_address_id');
+    }
+
+    /**
+     * Vouchers created by this seller.
+     */
+    public function vouchers(): HasMany
+    {
+        return $this->hasMany(Voucher::class, 'seller_id')
+            ->where('owner_type', 'seller');
     }
 }

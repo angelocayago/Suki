@@ -1,112 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Email - SUKI SHOP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
+    <title>Verify Email | BiliHub</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    @vite(['resources/css/app.css'])
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #f7f7f8;
+            font-family: Arial, sans-serif;
+            color: #202124;
+        }
+
+        .verification-card {
+            width: min(420px, calc(100% - 32px));
+            box-sizing: border-box;
+            padding: 36px 30px;
+            background: white;
+            border: 1px solid #e7e7e7;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .brand {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 24px;
+        }
+
+        .description {
+            color: #666;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .email {
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .otp-input {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 22px 0 14px;
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 28px;
+            letter-spacing: 8px;
+            text-align: center;
+        }
+
+        .primary-button {
+            width: 100%;
+            padding: 14px;
+            background: #171717;
+            color: white;
+            border: 0;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .primary-button:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
+        .resend-button {
+            margin-top: 20px;
+            border: 0;
+            background: transparent;
+            color: #222;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .error {
+            margin: 12px 0;
+            color: #b42318;
+            font-size: 13px;
+        }
+
+        .success {
+            margin: 12px 0;
+            color: #067647;
+            font-size: 13px;
+        }
+
+        .hint {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
-    <main class="flex min-h-screen items-center justify-center px-4 py-10">
-        <section class="w-full max-w-md rounded-2xl border border-[#DDE6E1] bg-white p-6 shadow-sm sm:p-8">
-            <a href="{{ route('landing') }}" class="mb-8 flex justify-center">
-                <img
-                    src="{{ asset('images/suki-logo.png') }}"
-                    alt="SUKI SHOP"
-                    class="h-auto w-40 object-contain"
-                >
-            </a>
 
-            <div class="text-center">
-                <h1 class="text-2xl font-semibold text-[#173F35]">Verify your email address</h1>
-                <p class="mt-3 text-sm leading-6 text-gray-600">
-                    We sent a 6-digit verification code to:
-                </p>
-                <p class="font-medium text-[#1F6F5B]">{{ $email }}</p>
-            </div>
+<body>
+    <main class="verification-card">
+        <div class="brand">BiliHub</div>
 
-            @if (session('success'))
-                <p role="status" class="mt-5 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ session('success') }}
-                </p>
-            @endif
+        <h1>Verify Your Email</h1>
 
-            @if (session('error'))
-                <p role="alert" class="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-                    {{ session('error') }}
-                </p>
-            @endif
+        <p class="description">
+            We sent a 6-digit verification code to
+            <span class="email">{{ $email }}</span>.
+        </p>
 
-            @if (session('status'))
-                <p role="status" class="mt-5 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ session('status') }}
-                </p>
-            @endif
+        @if(session('success'))
+        <p class="success" role="status">
+            {{ session('success') }}
+        </p>
+        @endif
 
-            @error('email')
-                <p class="mt-4 text-sm text-red-600">{{ $message }}</p>
-            @enderror
+        @if($errors->any())
+        <div class="error" role="alert">
+            {{ $errors->first() }}
+        </div>
+        @endif
 
-            <form
-                action="{{ route('buyer.verification.verify') }}"
-                method="POST"
-                class="mt-7"
-                novalidate
-            >
-                @csrf
-                <label for="otp" class="block text-sm font-medium text-gray-700">
-                    6-digit verification code
-                </label>
-                <input
-                    id="otp"
-                    name="otp"
-                    type="text"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    maxlength="6"
-                    pattern="[0-9]{6}"
-                    value="{{ old('otp') }}"
-                    aria-invalid="{{ $errors->has('otp') ? 'true' : 'false' }}"
-                    aria-describedby="otp-error"
-                    class="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-xl tracking-[0.5em] outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/20"
-                >
-                <p id="otp-error" class="mt-2 min-h-5 text-sm text-red-600">
-                    @error('otp'){{ $message }}@enderror
-                </p>
-                <button
-                    type="submit"
-                    class="mt-4 w-full rounded-lg bg-[#1F6F5B] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#155244]"
-                >
-                    VERIFY EMAIL
-                </button>
-            </form>
+        <form method="POST" action="{{ route($verifyRoute ?? 'buyer.email.verify.submit') }}">
+            @csrf
 
-            <div class="mt-6 text-center text-sm text-gray-600">
-                <p>Didn't receive the code?</p>
-                <form action="{{ route('buyer.verification.resend') }}" method="POST" class="mt-2">
-                    @csrf
-                    <button type="submit" class="font-semibold text-[#1F6F5B] hover:underline">
-                        RESEND OTP
-                    </button>
-                </form>
-            </div>
+            <label for="otp">Verification Code</label>
 
-            <a href="{{ route('login') }}" class="mt-7 block text-center text-sm text-gray-500 hover:text-[#1F6F5B]">
-                Return to login
-            </a>
-        </section>
+            <input
+                id="otp"
+                name="otp"
+                class="otp-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                autocomplete="one-time-code"
+                placeholder="000000"
+                required
+                autofocus>
+
+            <button type="submit" class="primary-button">
+                Verify Email
+            </button>
+        </form>
+
+        <form method="POST" action="{{ route($resendRoute ?? 'buyer.email.otp.resend') }}">
+            @csrf
+
+            <button type="submit" class="resend-button">
+                Resend Verification Code
+            </button>
+        </form>
+
+        <p class="hint">
+            Your code expires in 5 minutes.
+            After verification, your account will still
+            require administrator approval.
+        </p>
     </main>
-
-    <script>
-        document.getElementById('otp')?.addEventListener('input', function () {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
-    </script>
 </body>
+
 </html>

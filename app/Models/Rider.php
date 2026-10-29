@@ -4,33 +4,42 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Rider extends Model
 {
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'user_id',
-        'logistics_provider_id',
+        'logistic_id',
         'vehicle_type',
-        'plate_no',
-        'is_active',
+        'license_number',
+        'rider_documents',
+        'or_document',
+        'cr_document',
+        'status',
+        'rejection_reason',
+        'approved_at',
+        'max_capacity',
+        'current_load',
+        'availability_status',
+        'assigned_zone',
+        'last_active_at',
+        'daily_pickups_completed',
+        'daily_deliveries_completed',
+        'last_quota_reset_date',
+    ];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
+        'last_active_at' => 'datetime',
+        'last_quota_reset_date' => 'date',
+        'max_capacity' => 'integer',
+        'current_load' => 'integer',
+        'daily_pickups_completed' => 'integer',
+        'daily_deliveries_completed' => 'integer',
     ];
 
     /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
-    {
-        return [
-            'is_active' => 'boolean',
-        ];
-    }
-
-    /**
-     * User account of this rider.
+     * Login/account associated with this rider profile.
      */
     public function user(): BelongsTo
     {
@@ -38,18 +47,10 @@ class Rider extends Model
     }
 
     /**
-     * Logistics provider this rider belongs to.
+     * Logistics company this rider belongs to.
      */
-    public function logisticsProvider(): BelongsTo
+    public function logistic(): BelongsTo
     {
-        return $this->belongsTo(LogisticsProvider::class);
-    }
-
-    /**
-     * Shipments assigned to this rider.
-     */
-    public function shipments(): HasMany
-    {
-        return $this->hasMany(Shipment::class);
+        return $this->belongsTo(Logistic::class);
     }
 }

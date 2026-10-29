@@ -3,63 +3,143 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Storage;
 
 class ProductVariant extends Model
 {
-    use SoftDeletes;
+    protected $table = 'product_variants';
 
-    /**
-     * Fields that can be mass assigned.
-     */
     protected $fillable = [
         'product_id',
-        'sku',
         'name',
-        'options',
+        'color',
+        'size',
         'price_minor',
         'stock',
-        'weight_grams',
-        'is_active',
+        'sku',
+        'image',
+        'image_id',
+        'discount_percent',
+        'discounted_price_minor',
+        'attributes',
     ];
 
-    /**
-     * Automatic data conversion.
-     */
-    protected function casts(): array
+    protected $casts = [
+        'price_minor' => 'integer',
+        'discount_percent' => 'decimal:2',
+        'discounted_price_minor' => 'integer',
+        'attributes' => 'array',
+    ];
+
+    public function hasActiveDiscount(): bool
     {
-        return [
-            'options' => 'array',
-            'price_minor' => 'integer',
-            'stock' => 'integer',
-            'weight_grams' => 'integer',
-            'is_active' => 'boolean',
-        ];
+        if (!$this->discount_percent || $this->discount_percent <= 0) {
+            return false;
+        }
+
+        if ($this->product) {
+            $now = now();
+
+            if ($this->product->discount_starts_at && $now->lt($this->product->discount_starts_at)) {
+                return false;
+            }
+
+            if ($this->product->discount_ends_at && $now->gt($this->product->discount_ends_at)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    /**
-     * Product this variant belongs to.
-     */
+    public function getEffectivePriceMinorAttribute(): int
+    {
+        $priceMinor = $this->price_minor !== null
+            ? (int) $this->price_minor
+            : (int) ($this->product?->price_minor ?? 0);
+
+        if (!$this->hasActiveDiscount()) {
+            return $priceMinor;
+        }
+
+        if ($this->discounted_price_minor !== null) {
+            return (int) $this->discounted_price_minor;
+        }
+
+        return (int) round(
+            $priceMinor * (1 - ((float) $this->discount_percent / 100))
+        );
+    }
+
+    public function getEffectivePriceAttribute(): float
+    {
+        return $this->effective_price_minor / 100;
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        if ($this->color && $this->size) {
+            return $this->color . ' / ' . $this->size;
+        }
+
+        if ($this->color) {
+            return $this->color;
+        }
+
+        if ($this->size) {
+            return $this->size;
+        }
+
+        return $this->name ?? '';
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * Cart items using this variant.
-     */
-    public function cartItems(): HasMany
+    public function productImage(): BelongsTo
     {
-        return $this->hasMany(CartItem::class);
+        return $this->belongsTo(ProductImage::class, 'image_id');
     }
 
-    /**
-     * Order items that reference this variant.
-     */
-    public function orderItems(): HasMany
+    public function sizes(): BelongsToMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->belongsToMany(
+            Size::class,
+            'product_variant_size',
+            'product_variant_id',
+            'size_id'
+        )->withPivot('stock');
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if ($this->image_id && $this->productImage) {
+            return $this->productImage->url;
+        }
+
+        if ($this->image) {
+            try {
+                if (Storage::disk('s3')->exists($this->image)) {
+                    return Storage::disk('s3')->url($this->image);
+                }
+            } catch (\Throwable $e) {
+                // Fall back to old local storage below.
+            }
+
+            if (Storage::disk('public')->exists($this->image)) {
+                return Storage::disk('public')->url($this->image);  
+            }
+        }
+
+        if ($this->product && $this->product->image_url) {
+            return $this->product->image_url;
+        }
+
+        return null;
     }
 }
+
