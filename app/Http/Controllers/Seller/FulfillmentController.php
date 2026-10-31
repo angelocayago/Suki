@@ -11,6 +11,7 @@ use App\Services\OrderWorkflowService;
 use App\Services\SellerSalesService;
 use App\Services\SellerWalletService;
 use App\Support\SellerDashboard;
+use App\Support\SellerOrders;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -27,15 +28,21 @@ class FulfillmentController extends Controller
         ]);
     }
 
-    public function orders(Request $request): View
+    public function orders(Request $request, SellerOrders $presentation): View
     {
-        $databaseOrders = $this->databaseOrders($this->sellerFor($request->user()));
+        return view('seller.orders', $presentation->listing($this->sellerFor($request->user()), $request));
+    }
 
-        $orders = $databaseOrders->isNotEmpty()
-            ? $databaseOrders->all()
-            : array_reverse($request->session()->get('orders', []), true);
+    public function show(Request $request, SellerOrder $sellerOrder, SellerOrders $presentation): View
+    {
+        $seller = $this->sellerFor($request->user());
+        abort_unless((int) $sellerOrder->seller_id === (int) $seller->id, 403);
+        $sellerOrder->load(['order', 'items', 'shipment.events', 'voucherRedemptions']);
 
-        return view('seller.orders', compact('orders'));
+        return view('seller.order-details', [
+            'order' => $presentation->present($sellerOrder, true),
+            'backUrl' => $presentation->backUrl($request),
+        ]);
     }
 
     public function inventory(Request $request): View

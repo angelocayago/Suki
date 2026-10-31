@@ -3057,6 +3057,11 @@ Route::get('/seller/orders', [SellerFulfillmentController::class, 'orders'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.orders');
 
+Route::get('/seller/orders/{sellerOrder}', [SellerFulfillmentController::class, 'show'])
+    ->whereNumber('sellerOrder')
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.orders.show');
+
 Route::post('/seller/orders/{sellerOrder}/status', [SellerFulfillmentController::class, 'update'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.orders.status');
