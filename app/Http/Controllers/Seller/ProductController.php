@@ -8,6 +8,7 @@ use App\Models\Seller;
 use App\Services\ProductCatalogService;
 use App\Services\SellerCategoryService;
 use App\Support\SellerProducts;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -40,7 +41,13 @@ class ProductController extends Controller
         $seller = $this->sellerFor($request);
         $data = $this->validated($request);
         $this->ensureAllowedCategory($seller, (int) $data['category_id'], $categories);
-        $catalog->create($seller, $data);
+        try {
+            $catalog->create($seller, $data);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'sku' => 'A product identifier was already assigned. Please save again to generate a unique identifier.',
+            ]);
+        }
 
         return redirect()
             ->route('seller.products')
@@ -74,6 +81,7 @@ class ProductController extends Controller
         $allowedCategories = $categories->allowedCategories($seller);
         return view('seller.products-edit', [
             'product' => $catalog->sellerItem($databaseProduct),
+            'imageColors' => $databaseProduct->images->pluck('color')->all(),
             'categories' => $allowedCategories,
             'assignedCategory' => $seller->category,
             'legacyProduct' => false,
@@ -99,7 +107,13 @@ class ProductController extends Controller
 
         $data = $this->validated($request, $databaseProduct);
         $this->ensureAllowedCategory($seller, (int) $data['category_id'], $categories);
-        $catalog->update($databaseProduct, $data);
+        try {
+            $catalog->update($databaseProduct, $data);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'sku' => 'A product identifier was already assigned. Please review the variants and save again.',
+            ]);
+        }
 
         return redirect()
             ->route('seller.products')
@@ -125,7 +139,7 @@ class ProductController extends Controller
     {
         $variantId = $product?->variants->first()?->id;
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'category_id' => [
                 'required',
@@ -150,8 +164,7 @@ class ProductController extends Controller
             'variation_name.*' => ['nullable', 'string', 'max:100'],
             'variation_value' => ['nullable', 'array'],
             'variation_value.*' => ['nullable', 'string', 'max:255'],
-            'shipping_options' => ['nullable', 'array'],
-            'shipping_options.*' => ['string', Rule::in(['suki_rider', 'logistics_partner'])],
+            'shipping_options' => ['prohibited'],
             'images' => ['nullable', 'array', 'max:8'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'image_colors' => ['nullable', 'array', 'max:8'],
@@ -167,6 +180,13 @@ class ProductController extends Controller
             'variants.*.options.Color' => ['nullable', 'string', 'max:100'],
             'variants.*.options.Size' => ['nullable', 'string', 'max:100'],
         ]);
+
+        // Shipping metadata is not a delivery selector. Preserve saved metadata;
+        // new products use the catalog service's existing empty-array default.
+        $data['shipping_options'] = $product?->shipping_options ?? [];
+        $data['sku'] ??= null;
+
+        return $data;
     }
 
     private function sellerFor(Request $request): Seller
