@@ -303,7 +303,21 @@
                             id="selectedColor"
                             value="{{ $product['colors'][0] ?? '' }}"
                         >
+                        <input type="hidden" name="variant_id" id="selectedVariant" value="{{ $product['variant_id'] ?? '' }}">
 
+                    @endif
+
+                    @if(!empty($product['sizes']))
+                        <div class="py-2">
+                            <div class="flex items-start gap-4">
+                                <span class="text-sm text-gray-500 w-16 pt-2">Size</span>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($product['sizes'] as $index => $size)
+                                        <button type="button" onclick="selectSize(this)" data-size="{{ $size }}" class="size-option px-4 py-2 rounded-lg text-sm font-medium {{ $index === 0 ? 'border-2 border-[#1F6F5B] bg-[#F8FAF8]' : 'border border-gray-200 hover:border-[#1F6F5B]' }}">{{ $size }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                     @endif
 
 
@@ -685,6 +699,21 @@
 
 {{-- PAGE SCRIPT --}}
 <script>
+    const purchasableVariants = @json($product['variants'] ?? []);
+    const mediaByColor = @json($product['media_by_color'] ?? []);
+    let selectedColor = document.getElementById('selectedColor')?.value || null;
+    let selectedSize = document.querySelector('.size-option.border-2')?.dataset.size || null;
+
+    function resolveVariant() {
+        const variant = purchasableVariants.find((item) => {
+            const options = item.options || {};
+            return (!selectedColor || options.Color === selectedColor) && (!selectedSize || options.Size === selectedSize);
+        });
+        const input = document.getElementById('selectedVariant');
+        const submit = document.querySelector('#addToCartForm button[type="submit"]');
+        if (input) input.value = variant?.id || '';
+        if (submit) submit.disabled = !variant || variant.stock < 1;
+    }
 
     // ==========================================
     // CHANGE PRODUCT IMAGE
@@ -742,7 +771,20 @@
 
         document.getElementById('selectedColor').value =
             button.dataset.color;
+        selectedColor = button.dataset.color;
+        const images = mediaByColor[selectedColor];
+        if (images?.length) document.getElementById('mainProductImage').src = images[0];
+        resolveVariant();
     }
+
+    function selectSize(button) {
+        document.querySelectorAll('.size-option').forEach((option) => option.classList.remove('border-2', 'border-[#1F6F5B]', 'bg-[#F8FAF8]'));
+        button.classList.add('border-2', 'border-[#1F6F5B]', 'bg-[#F8FAF8]');
+        selectedSize = button.dataset.size;
+        resolveVariant();
+    }
+
+    resolveVariant();
 
 
     // ==========================================

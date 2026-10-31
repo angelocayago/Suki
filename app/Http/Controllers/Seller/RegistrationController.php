@@ -20,6 +20,7 @@ class RegistrationController extends Controller
     {
         $categories = Category::query()
             ->where('is_active', true)
+            ->whereNull('parent_id')
             ->orderBy('position')
             ->orderBy('name')
             ->get(['id', 'name', 'parent_id']);

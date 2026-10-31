@@ -51,7 +51,7 @@ class SellerRegistrationRequest extends FormRequest
             'category_id' => [
                 'required',
                 'integer',
-                Rule::exists('categories', 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists('categories', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('parent_id')),
             ],
             'seller_type' => ['required', Rule::in(['individual', 'business'])],
             'tin' => ['required', 'string', 'regex:/^\d{3}-\d{3}-\d{3}-\d{3}$/'],

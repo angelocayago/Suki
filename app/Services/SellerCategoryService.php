@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 class SellerCategoryService
 {
     /**
-     * Return the seller's assigned category and every active descendant.
+     * Return active descendants of the seller's assigned root category.
      * The legacy category_seller pivot is intentionally not an authority.
      */
     public function allowedCategories(Seller $seller): Collection
@@ -44,7 +44,9 @@ class SellerCategoryService
 
             $visited[$categoryId] = true;
             $category->setAttribute('display_name', str_repeat('-- ', $depth).$category->name);
-            $allowed->push($category);
+            if ($depth > 0) {
+                $allowed->push($category);
+            }
 
             foreach ($children->get($categoryId, collect()) as $child) {
                 $visit((int) $child->id, $depth + 1);

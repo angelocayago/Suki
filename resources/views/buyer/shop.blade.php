@@ -197,8 +197,8 @@
 </section>
 
 {{-- Database-backed marketplace controls. All filters are preserved by the paginator. --}}
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5">
-    <form method="GET" action="{{ route('buyer.shop') }}" class="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-6">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-5">
+    <form id="catalogFilters" method="GET" action="{{ route('buyer.shop') }}" class="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-6">
         <label class="md:col-span-2">
             <span class="sr-only">Search products</span>
             <input name="q" value="{{ request('q') }}" maxlength="100" placeholder="Search products" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
@@ -227,6 +227,7 @@
                 <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest</option>
                 <option value="price_asc" @selected(request('sort') === 'price_asc')>Price: low to high</option>
                 <option value="price_desc" @selected(request('sort') === 'price_desc')>Price: high to low</option>
+                <option value="best_selling" @selected(request('sort') === 'best_selling')>Best-selling</option>
                 <option value="name" @selected(request('sort') === 'name')>Name</option>
             </select>
         </label>
@@ -251,7 +252,7 @@
 {{-- CATEGORY QUICK FILTER --}}
 {{-- ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-7">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-7">
 
     <div class="flex items-center justify-between mb-4">
 
@@ -272,18 +273,15 @@
 
     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
 
-        @foreach($categories as $category)
+        @foreach(($filterOptions['categories'] ?? collect())->whereNull('parent_id') as $category)
 
             <a
-                href="{{ route('buyer.shop') }}"
+                href="{{ route('buyer.shop', ['category' => $category->slug]) }}"
                 class="shrink-0 px-4 py-2.5 rounded-lg border
-                {{ $category === 'All Products'
-                    ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]'
-                }}
+                {{ request('category') === $category->slug ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]' }}
                 text-sm font-medium transition"
             >
-                {{ $category }}
+                {{ $category->name }}
             </a>
 
         @endforeach
@@ -297,7 +295,7 @@
 {{-- SHOP CONTENT --}}
 {{-- ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
 
     <div class="grid lg:grid-cols-[235px_1fr] gap-7">
 
@@ -482,7 +480,7 @@
 
                         <p class="text-sm text-gray-700">
 
-                            <span class="font-semibold">
+                            <span data-catalog-count class="font-semibold">
                                 {{ $catalogPaginator?->total() ?? count($products) }}
                             </span>
 
@@ -533,7 +531,7 @@
             {{-- PRODUCT GRID --}}
             {{-- ================================================= --}}
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div id="catalogResults" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
 
                 @foreach($products as $product)
 
@@ -689,7 +687,7 @@
                                 ></i>
 
                                 <span class="text-[11px] text-gray-400">
-                                    Free shipping available
+                                    ₱50 shipping per seller
                                 </span>
 
                             </div>
@@ -720,3 +718,30 @@
 </section>
 
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const form = document.getElementById('catalogFilters');
+    if (!form) return;
+    let timer;
+    const results = document.getElementById('catalogResults');
+    const count = document.querySelector('[data-catalog-count]');
+    const load = (url, push = true) => fetch(url, {headers: {'Accept': 'application/json'}})
+        .then(response => response.ok ? response.json() : Promise.reject(response))
+        .then(payload => {
+            results.innerHTML = payload.html;
+            if (count) count.textContent = payload.count;
+            if (push) history.pushState({}, '', url);
+        })
+        .catch(() => { window.location.assign(url); });
+    form.addEventListener('submit', event => { event.preventDefault(); const url = new URL(form.action); new FormData(form).forEach((value, key) => { if (value !== '' && !(key === 'in_stock' && value === '0')) url.searchParams.append(key, value); }); load(url); });
+    form.querySelectorAll('select, input[type="checkbox"]').forEach((field) => field.addEventListener('change', () => form.requestSubmit()));
+    form.querySelector('input[name="q"]')?.addEventListener('input', () => {
+        clearTimeout(timer); timer = setTimeout(() => form.requestSubmit(), 350);
+    });
+    document.querySelectorAll('a[href*="category="]').forEach(link => link.addEventListener('click', event => { event.preventDefault(); load(link.href); }));
+    window.addEventListener('popstate', () => load(window.location.href, false));
+})();
+</script>
+@endpush

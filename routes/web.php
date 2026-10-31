@@ -590,6 +590,23 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
 
     $product = $products[$slug];
 
+    $selectedVariantId = (int) $request->input('variant_id');
+    if ($selectedVariantId > 0) {
+        $selectedVariant = \App\Models\ProductVariant::query()
+            ->whereKey($selectedVariantId)
+            ->where('product_id', $product['id'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $product['variant_id'] = $selectedVariant->id;
+        $product['price'] = $selectedVariant->price_minor / 100;
+        $product['stock'] = $selectedVariant->stock;
+    }
+
+    if (empty($product['variant_id'])) {
+        return back()->withErrors(['variant_id' => 'Please select an available product option.']);
+    }
+
     $maxStock = (int) $product['stock'];
 
     $requestedQuantity = (int) $request->input('quantity', 1);
@@ -601,6 +618,7 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
 
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
+        ->where('product_variant_id', $product['variant_id'])
         ->first();
 
     if ($cartItem) {

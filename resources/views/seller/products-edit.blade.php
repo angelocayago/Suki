@@ -585,7 +585,7 @@
                             </div>
 
                             <p class="mt-2 text-[10px] leading-5 text-[#728078]">
-                                Assigned category: <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Keep the current legacy category or choose within the assigned tree.
+                                Assigned ROOT category (read-only): <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Select only a subcategory under this root.
                             </p>
 
                         </div>

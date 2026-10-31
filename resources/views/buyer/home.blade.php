@@ -130,7 +130,7 @@
    HERO CAROUSEL
 ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 pt-6">
 
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1.8fr)_minmax(260px,1fr)] gap-3">
 
@@ -704,7 +704,7 @@
    QUICK BENEFITS
 ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-6">
 
     <div class="grid grid-cols-2 md:grid-cols-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
 
@@ -831,7 +831,7 @@
 
 <section
     id="categories"
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12"
+    class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-12"
 >
 
     <div class="mb-5 flex items-end justify-between">
@@ -930,7 +930,7 @@
 
 <section
     id="flash-deals"
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14"
+    class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14"
 >
 
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
@@ -1083,7 +1083,7 @@
    BEST SELLERS
 ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14">
 
     <div class="mb-5 flex items-end justify-between">
 
@@ -1191,7 +1191,7 @@
    NEW ARRIVALS
 ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14">
 
     <div class="rounded-2xl bg-[#EEF8F3] p-6 md:p-8">
 
@@ -1284,7 +1284,7 @@
    SELLER / RIDER CTA
 ========================================================= --}}
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 mb-16">
+<section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14 mb-16">
 
     <div class="grid gap-4 md:grid-cols-2">
 

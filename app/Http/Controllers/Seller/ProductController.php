@@ -76,14 +76,6 @@ class ProductController extends Controller
         }
 
         $allowedCategories = $categories->allowedCategories($seller);
-        if (! $allowedCategories->contains('id', $databaseProduct->category_id) && $databaseProduct->category) {
-            $databaseProduct->category->setAttribute(
-                'display_name',
-                $databaseProduct->category->name.' (current legacy category)'
-            );
-            $allowedCategories->prepend($databaseProduct->category);
-        }
-
         return view('seller.products-edit', [
             'product' => $catalog->sellerItem($databaseProduct),
             'categories' => $allowedCategories,
@@ -110,12 +102,7 @@ class ProductController extends Controller
         }
 
         $data = $this->validated($request, $databaseProduct);
-        $this->ensureAllowedCategory(
-            $seller,
-            (int) $data['category_id'],
-            $categories,
-            (int) $databaseProduct->category_id
-        );
+        $this->ensureAllowedCategory($seller, (int) $data['category_id'], $categories);
         $catalog->update($databaseProduct, $data);
 
         return redirect()
@@ -171,6 +158,8 @@ class ProductController extends Controller
             'shipping_options.*' => ['string', Rule::in(['suki_rider', 'logistics_partner'])],
             'images' => ['nullable', 'array', 'max:8'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'image_colors' => ['nullable', 'array', 'max:8'],
+            'image_colors.*' => ['nullable', 'string', 'max:100'],
             'variants' => ['nullable', 'array', 'max:50'],
             'variants.*.id' => ['nullable', 'integer', 'distinct'],
             'variants.*.name' => ['required_with:variants', 'string', 'max:100'],
@@ -178,6 +167,9 @@ class ProductController extends Controller
             'variants.*.price' => ['required_with:variants', 'numeric', 'min:0', 'max:99999999.99'],
             'variants.*.stock' => ['required_with:variants', 'integer', 'min:0'],
             'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'variants.*.options' => ['nullable', 'array'],
+            'variants.*.options.Color' => ['nullable', 'string', 'max:100'],
+            'variants.*.options.Size' => ['nullable', 'string', 'max:100'],
         ]);
     }
 
@@ -193,13 +185,8 @@ class ProductController extends Controller
         Seller $seller,
         int $categoryId,
         SellerCategoryService $categories,
-        ?int $currentCategoryId = null
     ): void
     {
-        if ($currentCategoryId !== null && $categoryId === $currentCategoryId) {
-            return;
-        }
-
         if (! $categories->allows($seller, $categoryId)) {
             throw ValidationException::withMessages([
                 'category_id' => 'The selected category is outside your assigned category.',

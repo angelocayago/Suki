@@ -26,6 +26,7 @@ class ProductCatalogService
     public function marketplaceProducts(): array
     {
         return $this->marketplaceQuery()
+            ->withSum($this->completedSalesRelation(), 'quantity')
             ->orderByDesc('products.created_at')
             ->get()
             ->mapWithKeys(fn (Product $product) => [
@@ -49,7 +50,7 @@ class ProductCatalogService
      */
     public function marketplacePage(array $filters, int $perPage = 24): LengthAwarePaginator
     {
-        $query = $this->marketplaceQuery();
+        $query = $this->marketplaceQuery()->withSum($this->completedSalesRelation(), 'quantity');
 
         if (filled($filters['q'] ?? null)) {
             $term = trim((string) $filters['q']);
@@ -71,6 +72,7 @@ class ProductCatalogService
             'price_asc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) asc'),
             'price_desc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) desc'),
             'name' => $query->orderBy('products.name'),
+            'best_selling' => $query->orderByDesc('order_items_sum_quantity'),
             default => $query->orderByDesc('products.created_at'),
         };
 
@@ -107,7 +109,7 @@ class ProductCatalogService
 
             $product->variants()->create($this->variantAttributes($data, $product));
             $this->saveAdditionalVariants($product, $data['variants'] ?? []);
-            $this->storeImages($product, $data['images'] ?? []);
+            $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
             $this->moderation->recordInitialSubmission($product, $seller->owner);
 
             return $product->fresh(['category', 'images', 'variants']);
@@ -145,7 +147,7 @@ class ProductCatalogService
 
             $this->saveAdditionalVariants($product, $data['variants'] ?? []);
 
-            $this->storeImages($product, $data['images'] ?? []);
+            $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
 
             $fresh = $product->fresh(['category', 'images', 'variants', 'seller']);
             if ($hasNewImages || $before !== $this->materialFingerprint($fresh)) {
@@ -197,9 +199,10 @@ class ProductCatalogService
                 'price' => $additional->price_minor / 100,
                 'stock' => $additional->stock,
                 'status' => $additional->is_active ? 'active' : 'inactive',
+                'options' => $additional->options ?? [],
             ])->values()->all(),
             'shipping_options' => $product->shipping_options ?? [],
-            'sold' => 0,
+            'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'image' => $this->imageUrl($product->images->first()?->path),
             'images' => $product->images->map(fn ($image) => $this->imageUrl($image->path))->all(),
             'created_at' => $product->created_at?->toDateTimeString(),
@@ -254,12 +257,23 @@ class ProductCatalogService
             'discount' => '0%',
             'rating' => round((float) ($product->visible_reviews_avg_rating ?? 0), 1),
             'ratings' => $product->visible_reviews_count,
-            'sold' => 0,
+            'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'category' => $product->category?->name ?? 'Uncategorized',
             'stock' => $variant?->stock ?? 0,
             'image' => $images[0],
             'images' => $images,
-            'colors' => array_values((array) ($variant?->options['Color'] ?? [])),
+            'variants' => $product->variants->map(fn (ProductVariant $variant) => [
+                'id' => $variant->id,
+                'sku' => $variant->sku,
+                'name' => $variant->name,
+                'price' => $variant->price_minor / 100,
+                'stock' => $variant->stock,
+                'is_active' => $variant->is_active,
+                'options' => $variant->options ?? [],
+            ])->values()->all(),
+            'colors' => $product->variants->map(fn (ProductVariant $variant) => $variant->options['Color'] ?? null)->filter()->unique()->values()->all(),
+            'sizes' => $product->variants->map(fn (ProductVariant $variant) => $variant->options['Size'] ?? null)->filter()->unique()->values()->all(),
+            'media_by_color' => $product->images->filter(fn ($image) => filled($image->color))->groupBy('color')->map(fn ($images) => $images->map(fn ($image) => $this->imageUrl($image->path))->filter()->values()->all())->all(),
             'seller' => $product->seller?->name ?? 'SUKI Seller',
             'seller_slug' => $product->seller?->slug,
             'seller_logo' => $this->imageUrl($product->seller?->logo_path),
@@ -280,7 +294,7 @@ class ProductCatalogService
             $name = trim((string) $name);
             $value = trim((string) ($data['variation_value'][$index] ?? ''));
             if ($name !== '' && $value !== '') {
-                $options[$name] = $value;
+            $options[$name] = $value;
             }
         }
 
@@ -357,14 +371,15 @@ class ProductCatalogService
                 'price_minor' => (int) round(((float) $data['price']) * 100),
                 'stock' => (int) $data['stock'],
                 'is_active' => ($data['status'] ?? 'active') === 'active',
+                'options' => $this->normalisedOptions($data['options'] ?? []),
             ]);
             $variant->save();
         }
     }
 
-    private function storeImages(Product $product, array $images): void
+    private function storeImages(Product $product, array $images, array $imageColors = []): void
     {
-        foreach ($images as $image) {
+        foreach ($images as $key => $image) {
             if (! $image instanceof UploadedFile) {
                 continue;
             }
@@ -372,6 +387,7 @@ class ProductCatalogService
             ProductImage::create([
                 'product_id' => $product->id,
                 'path' => $image->store('products/'.$product->id, 'public'),
+                'color' => filled($imageColors[$key] ?? null) ? trim((string) $imageColors[$key]) : null,
                 'position' => (int) $product->images()->max('position') + 1,
             ]);
         }
@@ -408,5 +424,23 @@ class ProductCatalogService
         return Str::startsWith($path, ['http://', 'https://'])
             ? $path
             : Storage::disk('public')->url($path);
+    }
+
+    private function normalisedOptions(array $options): ?array
+    {
+        $options = collect($options)->only(['Color', 'Size'])->map(fn ($value) => trim((string) $value))->filter()->all();
+        return $options ?: null;
+    }
+
+    private function completedSalesRelation(): array
+    {
+        return ['orderItems as order_items_sum_quantity' => function ($query) {
+            // A sale is visible as soon as checkout creates a placed SellerOrder.
+            // Cancellation changes both the parent order and seller-order status, so
+            // neither cancelled path can continue contributing to the catalog count.
+            $query->whereHas('sellerOrder', fn ($sellerOrder) => $sellerOrder
+                ->where('status', '!=', 'cancelled')
+                ->whereHas('order', fn ($order) => $order->where('status', '!=', 'CANCELLED')));
+        }];
     }
 }

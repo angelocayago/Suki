@@ -410,7 +410,7 @@
                             </div>
 
                             <p class="mt-2 text-[10px] leading-5 text-[#728078]">
-                                Assigned category: <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Only this category and its subcategories are available.
+                                Assigned ROOT category (read-only): <strong>{{ $assignedCategory?->name ?? 'None' }}</strong>. Select only a subcategory under this root.
                             </p>
 
                             @if($categories->isEmpty())
@@ -1879,6 +1879,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
                     wrapper.appendChild(image);
+
+                    const color = document.createElement('input');
+                    color.name = 'image_colors[]';
+                    color.placeholder = 'Color for this image (optional)';
+                    color.className = 'absolute inset-x-2 bottom-2 h-8 rounded-lg border border-[#DDE6E1] bg-white/95 px-2 text-[10px] text-[#34483F]';
+                    wrapper.appendChild(color);
 
                     imagePreview.appendChild(wrapper);
 

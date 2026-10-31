@@ -339,7 +339,7 @@ class ProductController extends Controller
 
     public function shop(\Illuminate\Http\Request $request, ProductCatalogService $catalog)
     {
-        $validated = $request->validate(['q'=>['nullable','string','max:100'],'category'=>['nullable','string','max:100'],'seller'=>['nullable','string','max:100'],'in_stock'=>['nullable','in:0,1'],'min_price'=>['nullable','numeric','min:0'],'max_price'=>['nullable','numeric','min:0','gte:min_price'],'sort'=>['nullable','in:newest,price_asc,price_desc,name']]);
+        $validated = $request->validate(['q'=>['nullable','string','max:100'],'category'=>['nullable','string','max:100'],'seller'=>['nullable','string','max:100'],'in_stock'=>['nullable','in:0,1'],'min_price'=>['nullable','numeric','min:0'],'max_price'=>['nullable','numeric','min:0','gte:min_price'],'sort'=>['nullable','in:newest,price_asc,price_desc,name,best_selling']]);
         $products = $catalog->marketplacePage($validated);
         $filterOptions = [
             'categories' => \App\Models\Category::query()
@@ -352,6 +352,13 @@ class ProductController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'slug']),
         ];
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'html' => view('buyer.partials.catalog-results', compact('products'))->render(),
+                'count' => $products->total(),
+            ]);
+        }
 
         return view('buyer.shop', compact('products', 'filterOptions'));
     }
