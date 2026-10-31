@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\OrderWorkflowService;
 use App\Services\SellerSalesService;
 use App\Services\SellerWalletService;
+use App\Support\SellerDashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,20 +19,10 @@ use Illuminate\View\View;
 
 class FulfillmentController extends Controller
 {
-    public function dashboard(Request $request, SellerSalesService $sales, SellerWalletService $wallet): View
+    public function dashboard(Request $request, SellerSalesService $sales, SellerWalletService $wallet, SellerDashboard $dashboard): View
     {
         $seller = $this->sellerFor($request->user());
-        $databaseOrders = $this->databaseOrders($seller);
-        $databaseProducts = $this->databaseInventory($seller);
-
-        return view('seller.dashboard', [
-            'orders' => $databaseOrders->isNotEmpty()
-                ? $databaseOrders->all()
-                : $request->session()->get('orders', []),
-            'products' => $databaseProducts->isNotEmpty()
-                ? $databaseProducts->all()
-                : $request->session()->get('seller_products', []),
-            'completedSales' => $sales->completedSummary($seller),
+        return view('seller.dashboard', $dashboard->data($seller) + [
             'wallet' => $wallet->summary($seller),
         ]);
     }
