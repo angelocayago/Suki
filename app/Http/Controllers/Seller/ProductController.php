@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Seller;
 use App\Services\ProductCatalogService;
 use App\Services\SellerCategoryService;
+use App\Support\SellerProducts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,14 +16,9 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function index(Request $request, ProductCatalogService $catalog): View
+    public function index(Request $request, SellerProducts $listing, SellerCategoryService $categories): View
     {
-        $products = $catalog->sellerProducts($this->sellerFor($request));
-
-        return view('seller.products', [
-            'products' => $products ?: $request->session()->get('seller_products', []),
-            'databaseProducts' => $products !== [],
-        ]);
+        return view('seller.products', $listing->listing($this->sellerFor($request), $request, $categories));
     }
 
     public function create(Request $request, SellerCategoryService $categories): View
