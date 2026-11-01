@@ -53,6 +53,7 @@
 
         <div
             id="message-thread"
+            data-reference="{{ $conversation->reference }}"
             data-poll-url="{{ route($portal['route_prefix'].'.poll', $conversation->reference) }}"
             data-read-url="{{ route($portal['route_prefix'].'.read', $conversation->reference) }}"
             data-current-user="{{ auth()->id() }}"
@@ -69,7 +70,8 @@
 
         <footer class="border-t border-[#DCE5E0] bg-white p-4">
             @if($isActive)
-                <form method="POST" action="{{ route($portal['route_prefix'].'.store', $conversation->reference) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <p id="buyerMessageError" class="text-sm text-red-700" role="alert" hidden></p>
+                <form id="messageComposer" @if($portal['name']==='buyer') data-buyer-composer @endif method="POST" action="{{ route($portal['route_prefix'].'.store', $conversation->reference) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
                     @csrf
                     <div class="flex-1">
                         <label for="message-body" class="sr-only">Message</label>
@@ -78,12 +80,12 @@
                             name="body"
                             required
                             maxlength="10000"
-                            rows="3"
+                            rows="{{ $portal['name']==='buyer' ? 1 : 3 }}"
                             placeholder="Write a message"
                             class="w-full resize-none rounded-xl border border-[#DCE5E0] px-4 py-3 text-sm focus:border-[#1F6F5B] focus:ring-[#DDF3EC]"
                         >{{ old('body') }}</textarea>
                     </div>
-                    <button type="submit" class="rounded-xl bg-[#173F35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1F6F5B]">
+                    <button id="messageSend" type="submit" class="rounded-xl bg-[#173F35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1F6F5B]">
                         Send message
                     </button>
                 </form>
@@ -95,6 +97,10 @@
         </footer>
     </section>
 </div>
+
+@include('messages.partials.attachment-style')
+@include('messages.partials.attachment-lightbox')
+@include('messages.partials.attachment-script')
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -110,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scrollToBottom = () => { thread.scrollTop = thread.scrollHeight; };
 
     const markRead = async () => {
-        if (!lastMessageId) return;
+        if (!lastMessageId || document.hidden) return;
         try {
             await fetch(thread.dataset.readUrl, {
                 method: 'POST',
@@ -125,7 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
     };
 
-    const appendMessage = (message) => {
+    const appendMessage = (message, advance = true) => {
+        if (advance) lastMessageId = Math.max(lastMessageId, Number(message.id));
         if (thread.querySelector(`[data-message-id="${message.id}"]`)) return;
         document.getElementById('empty-thread')?.remove();
 
@@ -154,10 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
         time.className = `mt-2 block text-[10px] ${mine ? 'text-white/60' : 'text-gray-400'}`;
         time.textContent = message.sent_at ? new Date(message.sent_at).toLocaleString() : '';
 
-        bubble.append(meta, body, time);
+        bubble.append(meta, body);
+        if (message.attachments?.length) {
+            const gallery=window.SukiMessageImages.gallery(message.attachments,thread.dataset.reference);
+            if (gallery) bubble.appendChild(gallery);
+        }
+        bubble.appendChild(time);
         article.appendChild(bubble);
-        thread.appendChild(article);
-        lastMessageId = Math.max(lastMessageId, Number(message.id));
+        const before=Array.from(thread.querySelectorAll('[data-message-id]')).find(row=>Number(row.dataset.messageId)>Number(message.id));
+        thread.insertBefore(article,before ?? null);
     };
 
     const schedule = (delay = 5000) => {
@@ -177,7 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!response.ok) throw new Error('Polling failed');
             const payload = await response.json();
-            payload.messages.forEach(appendMessage);
+            payload.messages.forEach(message=>appendMessage(message));
+            @if($portal['name']==='buyer')
+            if (form) {closed=payload.conversation_status!=='ACTIVE';syncBuyerComposer();}
+            @endif
             if (payload.messages.length) {
                 scrollToBottom();
                 await markRead();
@@ -193,6 +208,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) poll();
     });
+
+    @if($portal['name']==='buyer')
+    const form=document.getElementById('messageComposer'),input=document.getElementById('message-body'),send=document.getElementById('messageSend'),error=document.getElementById('buyerMessageError');
+    let sending=false,closed={{ $isActive ? 'false' : 'true' }};
+    const fail=text=>{error.textContent=text;error.hidden=!text;};
+    function syncBuyerComposer() {
+        if (!form) return;
+        send.disabled=sending || closed || !input.value.trim();
+        input.disabled=sending || closed;
+        send.textContent=sending ? 'Sending…' : 'Send message';
+        input.style.overflowY='hidden';input.style.height='auto';
+        const height=Math.max(44,input.scrollHeight+2);input.style.height=Math.min(height,124)+'px';input.style.overflowY=height>124?'auto':'hidden';
+        if (closed) fail('This conversation cannot receive new messages.');
+    }
+    if (form) {
+        input.addEventListener('input',syncBuyerComposer);
+        input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();if(!send.disabled)form.requestSubmit();}});
+        form.addEventListener('submit',async event=>{
+            event.preventDefault();if(sending||closed||!input.value.trim())return;
+            const value=input.value;sending=true;fail('');syncBuyerComposer();
+            try {
+                const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},body:JSON.stringify({body:value})});
+                if(response.status===422){const data=await response.json();fail(Object.values(data.errors??{}).flat().join(' ')||'Please review your message.');return;}
+                if([401,403,419].includes(response.status)){closed=true;fail('Your session or conversation access changed. Refresh before sending.');return;}
+                if(response.status===429){fail('Too many messages. Wait before retrying.');return;}
+                if(!response.ok)throw new Error('Unknown send result');
+                const data=await response.json();appendMessage(data.message,false);input.value='';scrollToBottom();await poll();
+            } catch (_) {fail('Sending could not be confirmed. Your message may have been sent. Check the conversation before retrying.');}
+            finally {sending=false;syncBuyerComposer();}
+        });
+        syncBuyerComposer();
+    }
+    @endif
 
     scrollToBottom();
     markRead();

@@ -28,7 +28,9 @@
                 @endphp
                 @if($previousDay!==$display['day'])<div class="inbox-date" data-date="{{ $display['day'] }}">{{ $display['day_label'] }}</div>@endif
                 <article class="inbox-message {{ $mine ? 'is-mine' : '' }} {{ $grouped ? 'is-grouped' : '' }}" data-message-id="{{ $message->id }}" data-sender-id="{{ $senderKey }}" data-day="{{ $display['day'] }}" data-day-label="{{ $display['day_label'] }}">
-                    <div class="inbox-bubble"><div class="inbox-sender"><strong>{{ $mine ? 'You' : $sender }}</strong><span>{{ str($role)->lower()->replace('_',' ')->headline() }}</span></div><p>{{ $message->body }}</p><time datetime="{{ $message->sent_at->toIso8601String() }}" title="Asia/Manila">{{ $display['time'] }}</time></div>
+                    <div class="inbox-bubble"><div class="inbox-sender"><strong>{{ $mine ? 'You' : $sender }}</strong><span>{{ str($role)->lower()->replace('_',' ')->headline() }}</span></div><p>{{ $message->body }}</p>
+                        @include('messages.partials.attachment-gallery')
+                        <time datetime="{{ $message->sent_at->toIso8601String() }}" title="Asia/Manila">{{ $display['time'] }}</time></div>
                 </article>
                 @php($previousDay=$display['day'])
                 @php($previousSender=$senderKey)

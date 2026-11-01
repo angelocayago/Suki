@@ -6,6 +6,7 @@ use App\Enums\MessageType;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\MessagingService;
+use App\Services\MessageAttachmentService;
 use App\Support\SellerInbox;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,9 +26,11 @@ class MessageController extends MessagingController
         ]);
 
         $conversation->load('participants');
+        $attachments=app(MessageAttachmentService::class)->available();
         $older=isset($validated['before_id']);
         $query = $conversation->messages()
             ->with('sender:id,name,first_name,last_name')
+            ->when($attachments,fn ($q) => $q->with('attachments'))
             ->when(
                 isset($validated['after_id']),
                 fn ($query) => $query->where('id', '>', $validated['after_id'])
@@ -38,7 +41,7 @@ class MessageController extends MessagingController
         if ($older) $messages=$messages->reverse()->values();
 
         return response()->json([
-            'messages' => $messages->map(fn (Message $message) => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller')),
+            'messages' => $messages->map(fn (Message $message) => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller', $attachments ? $portal['route_prefix'] : null)),
             'latest_id' => $messages->last()?->id,
             'conversation_status' => $conversation->status->value,
             ...($older ? ['has_older'=>$messages->isNotEmpty() && $conversation->messages()->where('id','<',$messages->first()->id)->exists()] : []),
@@ -51,9 +54,15 @@ class MessageController extends MessagingController
         MessagingService $messaging,
     ): JsonResponse|RedirectResponse {
         $portal = $this->authorizeConversation($request, $conversation, $messaging, 'send');
+        $hasImages=$request->has('images');
+        if ($hasImages) {
+            abort_unless(in_array($portal['name'],['buyer','seller'],true),403);
+            app(MessageAttachmentService::class)->assertUploadsAvailable();
+        }
         $validated = $request->validate([
-            'body' => ['required', 'string', 'max:10000'],
+            'body' => [$hasImages ? 'nullable' : 'required', 'string', 'max:10000'],
             'reply_to_id' => ['nullable', 'integer'],
+            ...($hasImages ? ['images'=>['required','array','min:1','max:5']] : []),
         ]);
 
         $replyTo = isset($validated['reply_to_id'])
@@ -62,16 +71,17 @@ class MessageController extends MessagingController
         $message = $messaging->sendMessage(
             $conversation,
             $request->user(),
-            $validated['body'],
+            $validated['body'] ?? '',
             MessageType::Text,
-            $replyTo
+            $replyTo,
+            $validated['images'] ?? [],
         );
 
         if ($request->expectsJson()) {
             $conversation->load('participants');
 
             return response()->json([
-                'message' => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller'),
+                'message' => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller', app(MessageAttachmentService::class)->available() ? $portal['route_prefix'] : null),
             ], 201)->header('Cache-Control', 'private, no-store');
         }
 
@@ -80,12 +90,14 @@ class MessageController extends MessagingController
             ->with('success', 'Message sent.');
     }
 
-    private function serializeMessage(Conversation $conversation, Message $message, bool $seller = false): array
+    private function serializeMessage(Conversation $conversation, Message $message, bool $seller = false, ?string $attachmentPrefix = null): array
     {
         $participant = $conversation->participants
             ->first(fn ($candidate) => (int) $candidate->user_id === (int) $message->sender_id);
 
         return [
+            ...($attachmentPrefix ? ['attachments'=>$message->loadMissing('attachments')->attachments->map(fn ($file) => app(MessageAttachmentService::class)->metadata($file,$conversation,$attachmentPrefix))->values(),
+                'preview'=>MessageAttachmentService::preview($message)] : []),
             ...($seller ? ['display'=>app(SellerInbox::class)->messageDisplay($message)] : []),
             'id' => $message->id,
             'type' => $message->type->value,

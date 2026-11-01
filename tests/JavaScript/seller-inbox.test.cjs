@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../../resources/views/seller/messages/script.blade.php'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 const message=(id,body='Incoming',sender='22',day='2026-11-01')=>({id:Number(id),body,sent_at:day+'T01:00:00+08:00',sender:{id:Number(sender),name:'Buyer Gagsti',role_context:sender==='11'?'SELLER':'BUYER'},display:{id:String(id),sender_id:sender,day,day_label:'Today',time:'1:00 AM',relative:'1h ago',full_time:'Nov 1, 2026 1:00 AM Manila'}});
 
-function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(initial.at(-1)??0)}={}) {
+function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(initial.at(-1)??0),imageApi=null}={}) {
     const document={hidden,handlers:{}};
     function element(tag='div') {
         const node={tag,children:[],parentElement:null,dataset:{},handlers:{},className:'',style:{setProperty(){}},hidden:false,disabled:false,textContent:'',value:'',removed:false,
@@ -38,7 +38,7 @@ function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(init
     const response=(data={},status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
     const fire=async(node,type,extra={})=>{const event={preventDefault(){this.prevented=true;},...extra};for(const fn of node.handlers[type]??[])await fn(event);return event;};
     let submits=0;form.requestSubmit=()=>{submits++;return fire(form,'submit');};
-    vm.runInNewContext(source,{document,URL,window:{innerHeight:900,visualViewport:null,location:{origin:'https://shop.test'},addEventListener(type,fn){(windowHandlers[type]??=[]).push(fn);}},
+    vm.runInNewContext(source,{document,URL,window:{SukiMessageImages:imageApi,innerHeight:900,visualViewport:null,location:{origin:'https://shop.test'},addEventListener(type,fn){(windowHandlers[type]??=[]).push(fn);}},
         setTimeout(fn,delay){const id=++timerId;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);},
         async fetch(url,options){const kind=new URL(url).pathname.split('/').at(-1);calls.push({url:String(url),options,kind});const next=replies[kind].shift();if(next instanceof Error)throw next;return next??response(kind==='poll'?{messages:[],conversation_status:'ACTIVE'}:{},kind==='read'?204:200);},
     });
@@ -147,4 +147,14 @@ test('composer accounts for borders, grows to five lines, then scrolls and shrin
     assert.equal(h.body.style.height,'124px');assert.equal(h.body.style.overflowY,'auto');assert.equal(h.body.scrollTop,20);
     h.body.value='';h.body.scrollHeight=42;await h.fire(h.body,'input');
     assert.equal(h.body.style.height,'44px');assert.equal(h.body.style.overflowY,'hidden');assert.equal(h.body.scrollTop,0);assert.equal(h.send.disabled,true);
+});
+
+test('Seller stays text-only even if an upload adapter is present',async()=>{
+    let mounted=false;const imageApi={attach(){mounted=true;throw Error('Uploads must not mount');}};
+    const h=harness({imageApi});await h.flush();assert.equal(mounted,false);assert.equal(h.send.disabled,true);
+    await h.sendText('');assert.equal(h.calls.filter(c=>c.kind==='send').length,0);
+    await h.sendText('Text only',h.response({message:message(11,'Text only','11')},201));
+    const request=h.calls.find(c=>c.kind==='send');assert.equal(request.options.headers['Content-Type'],'application/json');
+    assert.deepEqual(JSON.parse(request.options.body),{body:'Text only'});assert.equal(h.body.value,'');
+    for(const event of ['paste','drop','dragover'])assert.equal(h.thread.handlers[event],undefined);
 });

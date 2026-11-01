@@ -16,5 +16,8 @@
         <section class="inbox-selection" aria-label="Conversation"><div><i data-lucide="messages-square" aria-hidden="true"></i><h2>Select a conversation</h2><p>Choose a conversation to read and reply.</p></div></section>
     @endif
 </div>
+@include('messages.partials.attachment-style')
+@include('messages.partials.attachment-lightbox')
+@include('messages.partials.attachment-script')
 @include('seller.messages.script')
 @endsection

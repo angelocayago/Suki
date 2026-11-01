@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\MessageAttachmentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -54,8 +55,9 @@ class SellerInbox
                 });
             });
         }
+        $images=app(MessageAttachmentService::class)->available();
         $memberships=$query->addSelect(['unread_count'=>(clone $unread)->selectRaw('COUNT(*)')])
-            ->with(['conversation.latestMessage','conversation.participants.user:id,name,first_name,last_name'])
+            ->with(['conversation.latestMessage'=>fn ($q) => $q->when($images,fn ($q) => $q->withCount('attachments')),'conversation.participants.user:id,name,first_name,last_name'])
             ->orderByDesc(Conversation::query()->selectRaw('COALESCE(last_message_at, created_at)')
                 ->whereColumn('conversations.id','conversation_participants.conversation_id')->limit(1))
             ->orderByDesc('conversation_id')->paginate(15)->appends($criteria);

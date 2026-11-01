@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Services\MessagingService;
+use App\Services\MessageAttachmentService;
 use App\Support\SellerInbox;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -17,9 +18,10 @@ class ConversationController extends MessagingController
     {
         $portal = $this->portal($request);
         $user = $request->user();
+        $attachmentsAvailable=app(MessageAttachmentService::class)->available();
 
         if ($portal['name'] === 'seller') {
-            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + ['portal'=>$portal,'conversation'=>null]);
+            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + ['portal'=>$portal,'conversation'=>null,'attachmentsAvailable'=>$attachmentsAvailable]);
         }
 
         $memberships = ConversationParticipant::query()
@@ -29,7 +31,7 @@ class ConversationController extends MessagingController
             ->whereNull('left_at')
             ->whereHas('conversation')
             ->with([
-                'conversation.latestMessage.sender:id,name,first_name,last_name',
+                'conversation.latestMessage'=>fn ($q) => $q->when($attachmentsAvailable,fn ($q) => $q->withCount('attachments'))->with('sender:id,name,first_name,last_name'),
                 'conversation.participants.user:id,name,first_name,last_name',
             ])
             ->addSelect([
@@ -53,7 +55,7 @@ class ConversationController extends MessagingController
 
         $this->removeStaleMemberships($memberships, $user, $portal['role_contexts'], $messaging);
 
-        return view('messages.index', compact('memberships', 'portal'));
+        return view('messages.index', compact('memberships', 'portal','attachmentsAvailable'));
     }
 
     public function show(
@@ -62,6 +64,9 @@ class ConversationController extends MessagingController
         MessagingService $messaging,
     ): View {
         $portal = $this->authorizeConversation($request, $conversation, $messaging);
+        $files=app(MessageAttachmentService::class);
+        $attachmentsAvailable=$files->available();
+        $canAttach=in_array($portal['name'],['buyer','seller'],true) && $conversation->status->value==='ACTIVE' && $files->canUpload();
         $conversation->load([
             'participants.user:id,name,first_name,last_name',
             'participants.seller:id,name',
@@ -71,6 +76,7 @@ class ConversationController extends MessagingController
 
         $messages = $conversation->messages()
             ->with('sender:id,name,first_name,last_name')
+            ->when($attachmentsAvailable,fn ($q) => $q->with('attachments'))
             ->reorder('messages.id', 'desc')
             ->limit(50)
             ->get()
@@ -79,10 +85,10 @@ class ConversationController extends MessagingController
 
         if ($portal['name'] === 'seller') {
             $hasOlder=$messages->isNotEmpty() && $conversation->messages()->where('id','<',$messages->first()->id)->exists();
-            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + compact('conversation','messages','portal','hasOlder'));
+            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + compact('conversation','messages','portal','hasOlder','attachmentsAvailable','canAttach'));
         }
 
-        return view('messages.show', compact('conversation', 'messages', 'portal'));
+        return view('messages.show', compact('conversation', 'messages', 'portal','attachmentsAvailable','canAttach'));
     }
 
     private function removeStaleMemberships(

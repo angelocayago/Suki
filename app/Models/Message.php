@@ -45,4 +45,9 @@ class Message extends Model
     {
         return $this->hasMany(self::class, 'reply_to_id');
     }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(MessageAttachment::class)->orderBy('position');
+    }
 }

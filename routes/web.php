@@ -5292,6 +5292,12 @@ $registerMessagingRoutes = function (
             Route::get('/messages', [MessagingConversationController::class, 'index'])
                 ->defaults('messaging_portal', $portal)
                 ->name('index');
+            foreach (['show'=>'','thumbnail'=>'/thumbnail','download'=>'/download'] as $action=>$suffix) {
+                Route::get('/messages/{conversation:reference}/attachments/{attachment}'.$suffix, [\App\Http\Controllers\Messaging\MessageAttachmentController::class, 'show'])
+                    ->whereNumber('attachment')
+                    ->defaults('messaging_portal', $portal)
+                    ->name('attachments.'.$action);
+            }
             Route::get('/messages/{conversation:reference}/poll', [MessagingMessageController::class, 'index'])
                 ->middleware('throttle:120,1')
                 ->defaults('messaging_portal', $portal)

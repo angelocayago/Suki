@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selected=inbox.querySelector('.inbox-row.is-selected');
         if (!selected || BigInt(idOf(message))<BigInt(selected.dataset.previewId ?? '0')) return;
         selected.dataset.previewId=idOf(message);
-        selected.querySelector('.inbox-row-preview').textContent=message.body;
+        selected.querySelector('.inbox-row-preview').textContent=message.preview ?? message.body;
         const time=selected.querySelector('time');
         if (time) {time.textContent=message.display.relative;time.dateTime=message.sent_at;time.title=message.display.full_time;}
     }
@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body.style.height=Math.min(naturalHeight,124)+'px';
         body.style.overflowY=naturalHeight>124 ? 'auto' : 'hidden';
         body.scrollTop=naturalHeight>124 ? textareaScroll : 0;
+        const composer=thread.querySelector('.inbox-composer');
+        if (composer) thread.style.setProperty('--inbox-composer-height',composer.getBoundingClientRect().height+'px');
     }
     function applyStatus(value) {
         if (!['ACTIVE','CLOSED','ARCHIVED'].includes(value)) return;
@@ -97,7 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
             meta.append(name,role);
             const text=document.createElement('p');text.textContent=message.body;
             const time=document.createElement('time');time.textContent=message.display.time;time.dateTime=message.sent_at;time.title='Asia/Manila';
-            bubble.append(meta,text,time);row.appendChild(bubble);
+            bubble.append(meta,text);
+            if (message.attachments?.length && window.SukiMessageImages) {
+                const gallery=window.SukiMessageImages.gallery(message.attachments,thread.dataset.reference);
+                if (gallery) bubble.appendChild(gallery);
+            }
+            bubble.appendChild(time);row.appendChild(bubble);
             messages.insertBefore(row,existing.find(node=>BigInt(node.dataset.messageId)>BigInt(id)) ?? null);
             document.getElementById('inboxEmptyThread')?.remove();added++;
         }

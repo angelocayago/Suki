@@ -62,7 +62,7 @@
 
                     <div class="mt-3 flex items-center justify-between gap-4">
                         <p class="truncate text-sm {{ $unreadCount > 0 ? 'font-semibold text-gray-800' : 'text-gray-500' }}">
-                            {{ $latestMessage ? \Illuminate\Support\Str::limit($latestMessage->body, 100) : 'No messages yet.' }}
+                            {{ \App\Services\MessageAttachmentService::preview($latestMessage) }}
                         </p>
                         <time class="shrink-0 text-xs text-gray-400">
                             {{ ($latestMessage?->sent_at ?? $conversation->created_at)->format('M d, Y h:i A') }}

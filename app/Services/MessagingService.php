@@ -204,49 +204,77 @@ class MessagingService
         string $body,
         MessageType $type = MessageType::Text,
         ?Message $replyTo = null,
+        array $images = [],
     ): Message {
         $body = trim($body);
-        if ($body === '' || Str::length($body) > 10000) {
+        if (($body === '' && !$images) || Str::length($body) > 10000) {
             throw ValidationException::withMessages([
                 'body' => 'A message between 1 and 10,000 characters is required.',
             ]);
         }
 
-        return DB::transaction(function () use ($conversation, $sender, $body, $type, $replyTo) {
-            $locked = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
-            $this->ensureCanAccess($locked, $sender);
+        $files=$images ? app(MessageAttachmentService::class) : null;
+        $paths=[];
+        try {
+            return DB::transaction(function () use ($conversation, $sender, $body, $type, $replyTo, $images, $files, &$paths) {
+                $locked = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
+                $this->ensureCanAccess($locked, $sender);
 
-            if ($locked->status !== ConversationStatus::Active) {
-                throw ValidationException::withMessages([
-                    'conversation' => 'Messages can only be sent to an active conversation.',
+                if ($locked->status !== ConversationStatus::Active) {
+                    throw ValidationException::withMessages([
+                        'conversation' => 'Messages can only be sent to an active conversation.',
+                    ]);
+                }
+
+                if ($type === MessageType::System && ! $this->isActiveAdmin($sender)) {
+                    abort(403, 'Only an active administrator can send a system message.');
+                }
+
+                if ($replyTo && (int) $replyTo->conversation_id !== (int) $locked->id) {
+                    throw ValidationException::withMessages([
+                        'reply_to' => 'The reply target does not belong to this conversation.',
+                    ]);
+                }
+
+                $validatedImages=[];
+                if ($images) {
+                    $roles=[];
+                    if ($sender->hasRole('buyer')) $roles[]='BUYER';
+                    if ($sender->hasRole('seller')) $roles[]='SELLER';
+                    $this->ensureCanAccessAs($locked,$sender,$roles);
+                    if ($type!==MessageType::Text) abort(403);
+                    $validatedImages=$files->validate($images);
+                }
+
+                $sentAt = now();
+                $message = Message::create([
+                    'conversation_id' => $locked->id,
+                    'sender_id' => $sender->id,
+                    'type' => $type,
+                    'body' => $body,
+                    'reply_to_id' => $replyTo?->id,
+                    'sent_at' => $sentAt,
                 ]);
+
+                if ($validatedImages) $files->persist($message,$locked->reference,$validatedImages,$paths);
+
+                $locked->update(['last_message_at' => $sentAt]);
+                $this->updateReadCursor($locked, $sender, $message, $sentAt);
+
+                return $message->fresh(['sender', 'replyTo']);
+            });
+        } catch (\Throwable $exception) {
+            if ($files) {
+                $files->cleanup($paths);
+                if (!($exception instanceof ValidationException)
+                    && !($exception instanceof \Illuminate\Auth\Access\AuthorizationException)
+                    && !($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface)) {
+                    report($exception);
+                    throw ValidationException::withMessages(['images'=>'Images could not be saved. Please try again.']);
+                }
             }
-
-            if ($type === MessageType::System && ! $this->isActiveAdmin($sender)) {
-                abort(403, 'Only an active administrator can send a system message.');
-            }
-
-            if ($replyTo && (int) $replyTo->conversation_id !== (int) $locked->id) {
-                throw ValidationException::withMessages([
-                    'reply_to' => 'The reply target does not belong to this conversation.',
-                ]);
-            }
-
-            $sentAt = now();
-            $message = Message::create([
-                'conversation_id' => $locked->id,
-                'sender_id' => $sender->id,
-                'type' => $type,
-                'body' => $body,
-                'reply_to_id' => $replyTo?->id,
-                'sent_at' => $sentAt,
-            ]);
-
-            $locked->update(['last_message_at' => $sentAt]);
-            $this->updateReadCursor($locked, $sender, $message, $sentAt);
-
-            return $message->fresh(['sender', 'replyTo']);
-        });
+            throw $exception;
+        }
     }
 
     public function markRead(Conversation $conversation, User $actor, ?Message $through = null): void

@@ -14,6 +14,7 @@ use Tests\TestCase;
 /** Explicit disposable memory schema only. Never runs application migrations. */
 class SellerMessagesInboxTest extends TestCase
 {
+    use \Tests\Support\CreatesMessageAttachmentSchema;
     private User $seller;
 
     protected function setUp(): void
@@ -216,5 +217,36 @@ class SellerMessagesInboxTest extends TestCase
         foreach (['filter'=>'fake','search'=>str_repeat('x',101),'page'=>0] as $key=>$value) $this->getJson(route('seller.messages.index',[$key=>$value]))->assertUnprocessable();
         $this->seller->forceFill(['verification_required_at'=>'2026-11-01','email_verified_at'=>null])->save();
         $this->actingAs($this->seller)->get(route('seller.messages.index'))->assertForbidden();
+    }
+
+    public function test_buyer_and_seller_have_no_upload_ui_even_when_backend_enabled_and_keep_existing_image_history(): void
+    {
+        $this->createAttachmentTable();config(['messaging.attachments_enabled'=>true]);
+        $conversation=$this->conversation();$message=$this->message($conversation,'');
+        for($i=0;$i<5;$i++) DB::table('message_attachments')->insert(['message_id'=>$message,'position'=>$i,'disk'=>'message_attachments',
+            'path'=>'PRIVATE-NOT-FOR-HTML-'.$i,'original_name'=>$i===0?'<img src=x onerror=evil()>':'photo-'.$i.'.png','mime_type'=>'image/png','size'=>100,'width'=>640,'height'=>320]);
+        foreach (['seller'=>11,'buyer'=>22] as $portal=>$id) {
+            $response=$this->actingAs(User::findOrFail($id))->get(route($portal.'.messages.show',$conversation->reference))->assertOk()
+                ->assertDontSee('data-image-composer',false)->assertDontSee('type="file"',false)->assertDontSee('name="images[]"',false)
+                ->assertDontSee('multipart/form-data',false)->assertDontSee('Attach images')->assertDontSee('dragover')->assertDontSee('clipboardData')
+                ->assertSee('data-message-gallery',false)->assertSee('>+1<',false)
+                ->assertSee('id="messageImageLightbox"',false)->assertDontSee('PRIVATE-NOT-FOR-HTML')->assertDontSee('<img src=x onerror=evil()>',false);
+            $this->assertMatchesRegularExpression('/<textarea[^>]*name="body"[^>]*required/', $response->getContent());
+            $this->assertSame(4,substr_count($response->getContent(),'data-image-index="'));
+            $this->get(route($portal.'.messages.index'))->assertOk()->assertSee('📷 5 photos');
+            $this->getJson(route($portal.'.messages.poll',$conversation->reference))->assertOk()->assertJsonPath('messages.0.preview','📷 5 photos')->assertJsonCount(5,'messages.0.attachments');
+            if(($dir=getenv('SELLER_INBOX_CHECK_DIR')) && $portal==='buyer') file_put_contents($dir.'/buyer-images.html',$response->getContent());
+        }
+        // Image-only previews are metadata-derived; mixed messages keep text.
+        DB::table('messages')->where('id',$message)->update(['body'=>'Actual caption']);
+        $this->inbox()->assertSee('Actual caption');
+    }
+
+    public function test_disabled_attachment_ui_does_not_advertise_uploads_and_limits_gate_is_independent_of_text(): void
+    {
+        $conversation=$this->conversation();
+        $this->actingAs($this->seller)->get(route('seller.messages.show',$conversation->reference))->assertOk()->assertDontSee('data-image-composer data-form=',false);
+        $this->actingAs(User::findOrFail(22))->get(route('buyer.messages.show',$conversation->reference))->assertOk()->assertDontSee('name="images[]"',false);
+        $this->assertTrue(app(\App\Services\MessageAttachmentService::class)->uploadLimitsSufficient());
     }
 }

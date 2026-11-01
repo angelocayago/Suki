@@ -30,7 +30,7 @@
                 <span class="inbox-avatar" aria-hidden="true">{{ $identity['initial'] }}</span>
                 <span class="inbox-row-content"><span class="inbox-row-heading"><strong>{{ $identity['name'] }}</strong><time datetime="{{ $activity?->toIso8601String() }}" title="{{ $activity?->copy()->timezone('Asia/Manila')->format('M j, Y g:i A').' Manila' }}">{{ $activity?->diffForHumans(short:true) }}</time></span>
                     <span class="inbox-row-context">{{ $identity['context'] ?: $identity['roles'] }}</span>
-                    <span class="inbox-row-preview">{{ $latest ? \Illuminate\Support\Str::limit($latest->body,100) : 'No messages yet.' }}</span>
+                    <span class="inbox-row-preview">{{ \App\Services\MessageAttachmentService::preview($latest) }}</span>
                     <span class="inbox-row-bottom"><span class="inbox-type">{{ $identity['type_label'] }}</span><span class="inbox-unread" data-inbox-unread data-count="{{ $unread }}" @if(!$unread) hidden @endif aria-label="{{ $unread }} unread messages">{{ $unread>99 ? '99+' : $unread }}</span></span>
                 </span>
             </a>

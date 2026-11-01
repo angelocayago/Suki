@@ -30,6 +30,16 @@ return [
 
     'disks' => [
 
+        'message_attachments' => [
+            'driver' => 'local',
+            'root' => env('MESSAGE_ATTACHMENTS_ROOT', storage_path('app/private/message-attachments')),
+            'visibility' => 'private',
+            'directory_visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'permissions' => ['file' => ['private' => 0600], 'dir' => ['private' => 0700]],
+        ],
+
         'delivery_proofs' => [
             'driver' => 'local',
             'root' => storage_path('app/private/delivery-proofs'),
