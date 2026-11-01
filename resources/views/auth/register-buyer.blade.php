@@ -481,6 +481,27 @@
                             </div>
 
 
+                            <!-- Postal Code -->
+                            <div>
+                                <label
+                                    for="postal_code"
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                >
+                                    Postal Code
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="postal_code"
+                                    name="postal_code"
+                                    value=""
+                                    placeholder="Auto-filled from city / municipality"
+                                    readonly
+                                    tabindex="-1"
+                                    class="w-full cursor-not-allowed px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-700 outline-none"
+                                >
+                            </div>
+
                             <!-- Street Address -->
                             <div>
                                 <label
@@ -989,6 +1010,9 @@
             const barangaySelect =
                 document.getElementById('barangay');
 
+            const postalCodeInput =
+                document.getElementById('postal_code');
+
             const oldProvince =
                 @json(old('province'));
 
@@ -1023,6 +1047,10 @@
                     '<option value="">Select municipality / city</option>';
 
                 municipalitySelect.disabled = true;
+
+                if (postalCodeInput) {
+                    postalCodeInput.value = '';
+                }
             }
 
 
@@ -1117,9 +1145,40 @@
                     const base = isRegion ? 'regions' : 'provinces';
                     const municipalities = await fetchItems(`${API_BASE}/${base}/${encodeURIComponent(parentCode)}/cities-municipalities`);
                     setOptions(municipalitySelect, 'Select municipality / city', municipalities, restore ? oldMunicipality : '');
-                    if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+                    if (restore && oldMunicipality) {
+                        await Promise.all([
+                            loadBarangays(oldMunicipality, true),
+                            loadPostalCode(oldMunicipality),
+                        ]);
+                    }
                 } catch (_) {
                     municipalitySelect.innerHTML = '<option value="">Unable to load municipalities / cities</option>';
+                }
+            }
+
+
+            async function loadPostalCode(municipalityCode) {
+                if (!postalCodeInput || !municipalityCode) {
+                    if (postalCodeInput) postalCodeInput.value = '';
+                    return;
+                }
+
+                postalCodeInput.value = '';
+
+                try {
+                    const response = await fetch(
+                        `${API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/postal-code`,
+                        { headers: { 'Accept': 'application/json' } }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`Request failed: ${response.status}`);
+                    }
+
+                    const payload = await response.json();
+                    postalCodeInput.value = payload.postal_code || '';
+                } catch (_) {
+                    postalCodeInput.value = '';
                 }
             }
 
@@ -1163,7 +1222,13 @@
                 function () {
                     resetBarangays();
 
-                    if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
+                    if (!municipalitySelect.value) {
+                        if (postalCodeInput) postalCodeInput.value = '';
+                        return;
+                    }
+
+                    loadBarangays(municipalitySelect.value);
+                    loadPostalCode(municipalitySelect.value);
                 }
             );
 

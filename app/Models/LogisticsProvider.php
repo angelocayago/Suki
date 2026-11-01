@@ -23,6 +23,7 @@ class LogisticsProvider extends Model
         'province',
         'city',
         'barangay',
+        'postal_code',
         'government_id_path',
         'business_permit_path',
     ];

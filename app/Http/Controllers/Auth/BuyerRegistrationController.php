@@ -41,7 +41,7 @@ class BuyerRegistrationController extends Controller
                     $address = $user->addresses()->where('is_default', true)->first();
                     ($address ?? $user->addresses()->make(['label' => 'Home', 'is_default' => true]))->fill([
                         'recipient' => $name, 'phone' => $data['phone'], 'line1' => $data['street_address'],
-                        'region' => $data['region'], 'region_code' => $data['region_code'], 'barangay' => $data['barangay'], 'barangay_code' => $data['barangay_code'], 'city' => $data['municipality'], 'city_municipality_code' => $data['city_municipality_code'], 'province' => $data['province'], 'province_code' => $data['province_code'], 'postal_code' => null,
+                        'region' => $data['region'], 'region_code' => $data['region_code'], 'barangay' => $data['barangay'], 'barangay_code' => $data['barangay_code'], 'city' => $data['municipality'], 'city_municipality_code' => $data['city_municipality_code'], 'province' => $data['province'], 'province_code' => $data['province_code'], 'postal_code' => $data['postal_code'] ?? null,
                     ])->save();
                     $google->linkIfPending($request, $user, 'buyer');
                     $user->update(['status' => 'active']);
@@ -58,7 +58,7 @@ class BuyerRegistrationController extends Controller
                 $user->addresses()->create([
                     'label' => 'Home', 'recipient' => $name, 'phone' => $data['phone'], 'line1' => $data['street_address'],
                     'region' => $data['region'], 'region_code' => $data['region_code'], 'barangay' => $data['barangay'], 'barangay_code' => $data['barangay_code'], 'city' => $data['municipality'], 'city_municipality_code' => $data['city_municipality_code'], 'province' => $data['province'], 'province_code' => $data['province_code'],
-                    'postal_code' => null, 'is_default' => true,
+                    'postal_code' => $data['postal_code'] ?? null, 'is_default' => true,
                 ]);
                 if ($google->linkIfPending($request, $user, 'buyer')) {
                     $user->update(['status' => 'active']);

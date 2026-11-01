@@ -499,6 +499,23 @@
                             @error('barangay') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700" for="postal_code">Postal Code</label>
+                            <input
+                                id="postal_code"
+                                name="postal_code"
+                                type="text"
+                                value=""
+                                readonly
+                                tabindex="-1"
+                                placeholder="Auto-filled from city / municipality"
+                                class="w-full cursor-not-allowed rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
+                            >
+                            <p class="mt-1.5 text-xs text-gray-500">
+                                Automatically determined from the selected city or municipality.
+                            </p>
+                        </div>
+
                     </div>
 
                     <label class="mb-2 mt-5 block text-sm font-medium text-gray-700">
@@ -948,6 +965,7 @@
     const provinceSelect = document.getElementById('province');
     const municipalitySelect = document.getElementById('municipality');
     const barangaySelect = document.getElementById('barangay');
+    const postalCodeInput = document.getElementById('postal_code');
     const oldRegion = @json(old('region'));
     const oldProvince = @json(old('province'));
     const oldMunicipality = @json(old('municipality'));
@@ -984,8 +1002,34 @@
         provinceRequired.classList.add('hidden');
     }
 
-    function resetMunicipalities() { resetAddressSelect(municipalitySelect, 'Select city / municipality'); }
-    function resetBarangays() { resetAddressSelect(barangaySelect, 'Select barangay'); }
+    function resetMunicipalities() {
+        resetAddressSelect(municipalitySelect, 'Select city / municipality');
+        if (postalCodeInput) postalCodeInput.value = '';
+    }
+
+    function resetBarangays() {
+        resetAddressSelect(barangaySelect, 'Select barangay');
+    }
+
+    async function loadPostalCode(cityCode) {
+        if (!postalCodeInput) return;
+
+        postalCodeInput.value = 'Loading...';
+
+        try {
+            const response = await fetch(
+                `${addressApi}/cities-municipalities/${encodeURIComponent(cityCode)}/postal-code`,
+                { headers: { Accept: 'application/json' } }
+            );
+
+            if (!response.ok) throw new Error(`Postal request failed: ${response.status}`);
+
+            const payload = await response.json();
+            postalCodeInput.value = payload.postal_code || '';
+        } catch (_) {
+            postalCodeInput.value = '';
+        }
+    }
 
     async function loadBarangays(cityCode, restore = false) {
         resetBarangays();
@@ -1004,7 +1048,12 @@
         try {
             const parent = isRegion ? 'regions' : 'provinces';
             setAddressOptions(municipalitySelect, 'Select city / municipality', await addressItems(`${parent}/${encodeURIComponent(parentCode)}/cities-municipalities`), restore ? oldMunicipality : '');
-            if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+            if (restore && oldMunicipality) {
+                await Promise.all([
+                    loadBarangays(oldMunicipality, true),
+                    loadPostalCode(oldMunicipality),
+                ]);
+            }
         } catch (_) {
             resetAddressSelect(municipalitySelect, 'Unable to load cities / municipalities. Please retry.');
         }
@@ -1057,7 +1106,14 @@
         });
         municipalitySelect.addEventListener('change', () => {
             resetBarangays();
-            if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
+
+            if (!municipalitySelect.value) {
+                if (postalCodeInput) postalCodeInput.value = '';
+                return;
+            }
+
+            loadBarangays(municipalitySelect.value);
+            loadPostalCode(municipalitySelect.value);
         });
         loadRegions();
     }

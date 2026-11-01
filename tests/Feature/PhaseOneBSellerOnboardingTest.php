@@ -32,6 +32,7 @@ class PhaseOneBSellerOnboardingTest extends TestCase
         $this->sms = new SellerOnboardingSmsSender();
         $this->app->instance(SmsSender::class, $this->sms);
         Mail::fake();
+
     }
 
     public function test_registration_creates_a_complete_pending_seller_application(): void
@@ -70,7 +71,7 @@ class PhaseOneBSellerOnboardingTest extends TestCase
             'city' => 'City A',
             'barangay' => 'Barangay A',
             'line1' => '10 Market Street',
-            'postal_code' => '4009',
+            'postal_code' => '4004',
         ]);
 
         $this->assertSame('pending', $application->status);
@@ -393,8 +394,8 @@ class PhaseOneBSellerOnboardingTest extends TestCase
                 ['code' => '01', 'name' => 'Region A'], ['code' => '13', 'name' => 'NCR-style'],
             ]]),
             'https://psgc.cloud/api/v2/regions/01/provinces' => Http::response(['data' => [['code' => '0101', 'name' => 'Province A']]]),
-            'https://psgc.cloud/api/v2/provinces/0101/cities-municipalities' => Http::response(['data' => [['code' => '010101', 'name' => 'City A']]]),
-            'https://psgc.cloud/api/v2/cities-municipalities/010101/barangays' => Http::response(['data' => [['code' => '010101001', 'name' => 'Barangay A']]]),
+            'https://psgc.cloud/api/v2/provinces/0101/cities-municipalities' => Http::response(['data' => [['code' => '0403410000', 'name' => 'City A']]]),
+            'https://psgc.cloud/api/v2/cities-municipalities/0403410000/barangays' => Http::response(['data' => [['code' => '040341000001', 'name' => 'Barangay A']]]),
             'https://psgc.cloud/api/v2/regions/13/provinces' => Http::response(['data' => []]),
             'https://psgc.cloud/api/v2/regions/13/cities-municipalities' => Http::response(['data' => [['code' => '130001', 'name' => 'NCR City']]]),
             'https://psgc.cloud/api/v2/cities-municipalities/130001/barangays' => Http::response(['data' => [['code' => '130001001', 'name' => 'NCR Barangay']]]),
@@ -413,10 +414,10 @@ class PhaseOneBSellerOnboardingTest extends TestCase
             'email' => 'new-seller@example.com',
             'region' => '01',
             'province' => '0101',
-            'municipality' => '010101',
-            'barangay' => '010101001',
+            'municipality' => '0403410000',
+            'barangay' => '040341000001',
             'address' => '10 Market Street',
-            'postal_code' => '4009',
+            'postal_code' => '9999',
             'business_name' => 'Sela Store',
             'category_id' => $category->id,
             'seller_type' => 'business',

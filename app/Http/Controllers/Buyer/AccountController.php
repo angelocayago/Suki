@@ -67,9 +67,9 @@ class AccountController extends Controller
 
     private function addressData(Request $request, PhilippineAddressService $addresses): array
     {
-        $data=$request->validate(['name'=>['required','string','max:100'],'phone'=>['required','string','max:30'],'region'=>['required','string','max:20'],'province'=>['nullable','string','max:20'],'municipality'=>['required','string','max:20'],'barangay'=>['required','string','max:20'],'street'=>['required','string','max:255'],'postal_code'=>['required','string','max:20'],'label'=>['required','string','max:50']]);
+        $data=$request->validate(['name'=>['required','string','max:100'],'phone'=>['required','string','max:30'],'region'=>['required','string','max:20'],'province'=>['nullable','string','max:20'],'municipality'=>['required','string','max:20'],'barangay'=>['required','string','max:20'],'street'=>['required','string','max:255'],'postal_code'=>['nullable','string','max:20'],'label'=>['required','string','max:50']]);
         $resolved = $addresses->resolve($data);
-        return ['label'=>$data['label'],'recipient'=>$data['name'],'phone'=>$data['phone'],'line1'=>$data['street'],'region'=>$resolved['region'],'region_code'=>$resolved['region_code'],'barangay'=>$resolved['barangay'],'barangay_code'=>$resolved['barangay_code'],'city'=>$resolved['municipality'],'city_municipality_code'=>$resolved['city_municipality_code'],'province'=>$resolved['province'],'province_code'=>$resolved['province_code'],'postal_code'=>$data['postal_code']];
+        return ['label'=>$data['label'],'recipient'=>$data['name'],'phone'=>$data['phone'],'line1'=>$data['street'],'region'=>$resolved['region'],'region_code'=>$resolved['region_code'],'barangay'=>$resolved['barangay'],'barangay_code'=>$resolved['barangay_code'],'city'=>$resolved['municipality'],'city_municipality_code'=>$resolved['city_municipality_code'],'province'=>$resolved['province'],'province_code'=>$resolved['province_code'],'postal_code'=>$resolved['postal_code'] ?? null];
     }
 
     private function buyer(Request $request): \App\Models\User

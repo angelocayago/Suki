@@ -19,6 +19,7 @@
     $province = old('province', $pickupAddress?->province_code ?? '');
     $municipality = old('municipality', $pickupAddress?->city_municipality_code ?? '');
     $barangay = old('barangay', $pickupAddress?->barangay_code ?? '');
+    $postalCode = $pickupAddress?->postal_code ?? '';
     $streetAddress = $pickupAddress?->line1;
     $profilePhoto = $seller->logo_path;
     $status = $seller->status;
@@ -660,6 +661,30 @@
 
                 </div>
 
+                {{-- POSTAL CODE --}}
+                <div>
+                    <label
+                        for="profilePostalCode"
+                        class="text-sm font-medium text-gray-700"
+                    >
+                        Postal Code
+                    </label>
+
+                    <input
+                        id="profilePostalCode"
+                        type="text"
+                        value="{{ $postalCode }}"
+                        readonly
+                        tabindex="-1"
+                        placeholder="Auto-filled from city / municipality"
+                        class="mt-2 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
+                    >
+
+                    <p class="mt-1 text-xs text-gray-500">
+                        Automatically determined from the selected city or municipality.
+                    </p>
+                </div>
+
             </div>
 
 
@@ -1086,6 +1111,11 @@ document.addEventListener('DOMContentLoaded', function () {
             'profileBarangay'
         );
 
+    const postalCodeInput =
+        document.getElementById(
+            'profilePostalCode'
+        );
+
 
     const currentRegion = @json($region);
     const currentProvince = @json($province);
@@ -1214,6 +1244,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return response.json();
 
+    }
+
+
+
+    async function loadPostalCode(municipalityCode) {
+        if (!postalCodeInput || !municipalityCode) {
+            if (postalCodeInput) postalCodeInput.value = '';
+            return;
+        }
+
+        postalCodeInput.value = '';
+
+        try {
+            const payload = await fetchJson(
+                `${PSGC_API_BASE}/cities-municipalities/${encodeURIComponent(municipalityCode)}/postal-code`
+            );
+
+            postalCodeInput.value = payload.postal_code || '';
+        } catch (error) {
+            console.error(error);
+            postalCodeInput.value = '';
+        }
     }
 
 
@@ -1356,10 +1408,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 && selectedOption.dataset.code
             ) {
 
-                await loadBarangays(
-                    selectedOption.dataset.code,
-                    selectedBarangay
-                );
+                await Promise.all([
+                    loadBarangays(
+                        selectedOption.dataset.code,
+                        selectedBarangay
+                    ),
+                    loadPostalCode(
+                        selectedOption.dataset.code
+                    ),
+                ]);
 
             }
 
@@ -1407,7 +1464,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const municipalities = await fetchJson(`${PSGC_API_BASE}/regions/${encodeURIComponent(regionCode)}/cities-municipalities`);
             populateSelect(municipalitySelect, 'Select municipality/city', municipalities, selectedMunicipality);
             municipalitySelect.disabled = false;
-            if (selectedMunicipality) await loadBarangays(selectedMunicipality, selectedBarangay);
+            if (selectedMunicipality) {
+                await Promise.all([
+                    loadBarangays(selectedMunicipality, selectedBarangay),
+                    loadPostalCode(selectedMunicipality),
+                ]);
+            }
         } catch (error) { setSingleOption(municipalitySelect, '', 'Unable to load municipalities/cities'); }
     }
 
@@ -1589,13 +1651,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     barangaySelect.disabled =
                         true;
 
+                    if (postalCodeInput) {
+                        postalCodeInput.value = '';
+                    }
+
                     return;
                 }
 
 
-                await loadBarangays(
-                    municipalityCode
-                );
+                await Promise.all([
+                    loadBarangays(municipalityCode),
+                    loadPostalCode(municipalityCode),
+                ]);
 
             }
         );

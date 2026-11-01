@@ -126,6 +126,16 @@ Route::prefix('address')->middleware('throttle:60,1')->group(function () {
     Route::get('regions/{region}/cities-municipalities', fn (string $region, PhilippineAddressService $address) => preg_match('/^\d+$/', $region) && ($items = $address->locations('regions/'.$region.'/cities-municipalities')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
     Route::get('provinces/{province}/cities-municipalities', fn (string $province, PhilippineAddressService $address) => preg_match('/^\d+$/', $province) && ($items = $address->locations('provinces/'.$province.'/cities-municipalities')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
     Route::get('cities-municipalities/{city}/barangays', fn (string $city, PhilippineAddressService $address) => preg_match('/^\d+$/', $city) && ($items = $address->locations('cities-municipalities/'.$city.'/barangays')) !== null ? response()->json($items) : response()->json(['message' => 'Address data is temporarily unavailable.'], 502));
+
+    Route::get('cities-municipalities/{city}/postal-code', function (string $city, PhilippineAddressService $address) {
+        if (! preg_match('/^\d+$/', $city)) {
+            return response()->json(['message' => 'Invalid city or municipality code.'], 422);
+        }
+
+        return response()->json([
+            'postal_code' => $address->postalCode($city),
+        ]);
+    });
 });
 
 

@@ -561,12 +561,14 @@
                             </label>
 
                             <input
+                                id="buyerPostalCode"
                                 type="text"
                                 name="postal_code"
                                 value="{{ old('postal_code') }}"
-                                placeholder="4026"
-                                required
-                                class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
+                                placeholder="Auto-filled from city / municipality"
+                                readonly
+                                tabindex="-1"
+                                class="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
                             >
 
                             @error('postal_code')
@@ -847,6 +849,7 @@
     // are PSGC codes; the server resolves labels and validates the hierarchy.
     (() => {
         const region = document.getElementById('buyerRegion'), province = document.getElementById('buyerProvince'), city = document.getElementById('buyerCity'), barangay = document.getElementById('buyerBarangay');
+        const postalCode = document.getElementById('buyerPostalCode');
         if (!region) return;
         const fill = (select, items, text) => { select.innerHTML = `<option value="">${text}</option>`; items.forEach(item => select.add(new Option(item.name, item.code))); select.disabled = false; };
         const get = path => fetch(`/address/${path}`).then(r => r.ok ? r.json() : Promise.reject());
@@ -854,7 +857,24 @@
         get('regions').then(items => fill(region, items, 'Select region'));
         region.addEventListener('change', async () => { reset(province, 'Loading provinces...'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first'); const items = await get(`regions/${encodeURIComponent(region.value)}/provinces`); if (items.length) fill(province, items, 'Select province'); else { reset(province, 'No province required'); province.disabled = true; fill(city, await get(`regions/${encodeURIComponent(region.value)}/cities-municipalities`), 'Select municipality / city'); } });
         province.addEventListener('change', async () => { reset(city, 'Loading cities...'); reset(barangay, 'Select city first'); fill(city, await get(`provinces/${encodeURIComponent(province.value)}/cities-municipalities`), 'Select municipality / city'); });
-        city.addEventListener('change', async () => { reset(barangay, 'Loading barangays...'); fill(barangay, await get(`cities-municipalities/${encodeURIComponent(city.value)}/barangays`), 'Select barangay'); });
+        city.addEventListener('change', async () => {
+            reset(barangay, 'Loading barangays...');
+            if (postalCode) postalCode.value = '';
+
+            if (!city.value) return;
+
+            const [items, postal] = await Promise.all([
+                get(`cities-municipalities/${encodeURIComponent(city.value)}/barangays`),
+                get(`cities-municipalities/${encodeURIComponent(city.value)}/postal-code`)
+                    .catch(() => ({ postal_code: null })),
+            ]);
+
+            fill(barangay, items, 'Select barangay');
+
+            if (postalCode) {
+                postalCode.value = postal.postal_code || '';
+            }
+        });
     })();
 
 </script>

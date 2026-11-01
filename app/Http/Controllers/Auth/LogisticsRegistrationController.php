@@ -48,11 +48,12 @@ class LogisticsRegistrationController extends Controller
                     'user_id'=>$user->id,'name'=>$data['business_name'],'slug'=>Str::slug($data['business_name']).'-'.$user->id,
                     'status'=>'pending','contact_phone'=>$data['phone'],'address'=>$data['address'],
                     'region'=>$data['region'],'province'=>$data['province'],'city'=>$data['municipality'],'barangay'=>$data['barangay'],
+                    'postal_code'=>$data['postal_code'] ?? null,
                     'government_id_path'=>$paths['government_id'],'business_permit_path'=>$paths['business_permit'],
                 ]);
                 $application = Application::query()->create([
                     'user_id'=>$user->id,'application_type'=>'logistics','status'=>'pending',
-                    'application_data'=>['business_name'=>$data['business_name'],'address'=>$data['address'],'region'=>$data['region'],'province'=>$data['province'],'city'=>$data['municipality'],'barangay'=>$data['barangay']], 'documents'=>$paths,
+                    'application_data'=>['business_name'=>$data['business_name'],'address'=>$data['address'],'region'=>$data['region'],'province'=>$data['province'],'city'=>$data['municipality'],'barangay'=>$data['barangay'],'postal_code'=>$data['postal_code'] ?? null], 'documents'=>$paths,
                 ]);
                 $google->linkIfPending($request, $user, 'logistics');
                 app(DomainNotificationService::class)->adminsAfterCommit('Logistics application pending', 'A logistics application is awaiting review.', ['application_id' => $application->id]);

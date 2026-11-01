@@ -672,6 +672,30 @@
 
         </div>
 
+        {{-- POSTAL CODE --}}
+        <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="postal_code">
+                Postal Code
+            </label>
+
+            <input
+                id="postal_code"
+                name="postal_code"
+                type="text"
+                value=""
+                readonly
+                tabindex="-1"
+                placeholder="Auto-filled from city / municipality"
+                class="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-4 py-3.5 text-sm text-gray-700 outline-none"
+            >
+
+            <p class="mt-1 text-xs text-gray-500">
+                Automatically determined from the selected city or municipality.
+            </p>
+
+        </div>
+
 
     </div>
 
@@ -1173,6 +1197,7 @@ const regionSelect = document.getElementById('region');
 const provinceSelect = document.getElementById('province');
 const municipalitySelect = document.getElementById('municipality');
 const barangaySelect = document.getElementById('barangay');
+const postalCodeInput = document.getElementById('postal_code');
 const oldRegion = @json(old('region'));
 const oldProvince = @json(old('province'));
 const oldMunicipality = @json(old('municipality'));
@@ -1211,10 +1236,39 @@ function resetProvince() {
 
 function resetMunicipalities() {
     resetSelect(municipalitySelect, 'Select municipality/city');
+
+    if (postalCodeInput) {
+        postalCodeInput.value = '';
+    }
 }
 
 function resetBarangays() {
     resetSelect(barangaySelect, 'Select barangay');
+}
+
+async function loadPostalCode(cityCode) {
+    if (!postalCodeInput || !cityCode) {
+        if (postalCodeInput) postalCodeInput.value = '';
+        return;
+    }
+
+    postalCodeInput.value = '';
+
+    try {
+        const response = await fetch(
+            `${ADDRESS_API_BASE}/cities-municipalities/${encodeURIComponent(cityCode)}/postal-code`,
+            { headers: { Accept: 'application/json' } }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Postal request failed: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        postalCodeInput.value = payload.postal_code || '';
+    } catch (_) {
+        postalCodeInput.value = '';
+    }
 }
 
 async function loadBarangays(cityCode, restore = false) {
@@ -1234,7 +1288,12 @@ async function loadMunicipalities(parentCode, isRegion = false, restore = false)
     try {
         const parent = isRegion ? 'regions' : 'provinces';
         setOptions(municipalitySelect, 'Select municipality/city', await fetchItems(`${parent}/${encodeURIComponent(parentCode)}/cities-municipalities`), restore ? oldMunicipality : '');
-        if (restore && oldMunicipality) await loadBarangays(oldMunicipality, true);
+        if (restore && oldMunicipality) {
+            await Promise.all([
+                loadBarangays(oldMunicipality, true),
+                loadPostalCode(oldMunicipality),
+            ]);
+        }
     } catch (_) {
         resetSelect(municipalitySelect, 'Unable to load municipalities/cities. Please retry.');
     }
@@ -1287,7 +1346,14 @@ if (regionSelect && provinceSelect && municipalitySelect && barangaySelect) {
     });
     municipalitySelect.addEventListener('change', () => {
         resetBarangays();
-        if (municipalitySelect.value) loadBarangays(municipalitySelect.value);
+
+        if (!municipalitySelect.value) {
+            if (postalCodeInput) postalCodeInput.value = '';
+            return;
+        }
+
+        loadBarangays(municipalitySelect.value);
+        loadPostalCode(municipalitySelect.value);
     });
     loadRegions();
 }

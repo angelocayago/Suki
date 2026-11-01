@@ -21,6 +21,42 @@ class PhilippineAddressService
         return array_values(array_filter($items, fn ($item) => is_array($item) && is_string($item['code'] ?? null) && is_string($item['name'] ?? null)));
     }
 
+    public function postalCode(?string $cityMunicipalityCode): ?string
+    {
+        if (
+            ! is_string($cityMunicipalityCode)
+            || ! preg_match('/^\d+$/', $cityMunicipalityCode)
+        ) {
+            return null;
+        }
+
+        static $postalCodes = null;
+
+        if ($postalCodes === null) {
+            $path = resource_path('data/postal_by_psgc_code.json');
+
+            if (! is_file($path)) {
+                return null;
+            }
+
+            $decoded = json_decode(
+                (string) file_get_contents($path),
+                true
+            );
+
+            $postalCodes = is_array($decoded)
+                ? $decoded
+                : [];
+        }
+
+        $postalCode = $postalCodes[$cityMunicipalityCode] ?? null;
+
+        return is_string($postalCode)
+            && preg_match('/^\d{4}$/', $postalCode)
+                ? $postalCode
+                : null;
+    }
+
     public function resolve(array $address): array
     {
         $get = function (string $path, string $field): array {
@@ -49,6 +85,7 @@ class PhilippineAddressService
             'municipality' => $city['name'], 'barangay' => $barangay['name'],
             'region_code' => $region['code'], 'province_code' => $province['code'] ?? null,
             'city_municipality_code' => $city['code'], 'barangay_code' => $barangay['code'],
+            'postal_code' => $this->postalCode($city['code']),
         ];
     }
 }
