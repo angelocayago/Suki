@@ -275,13 +275,16 @@ class UserManagementController extends Controller
     )
     {
 
-        $request->validate([
+        $validated = $request->validate([
 
             'status' =>
                 'required|in:active,suspended,inactive',
 
-            'reason' =>
-                'nullable|required_if:status,suspended,inactive|string|max:1000',
+            'reason' => 'nullable|string|max:1000',
+
+            'reason_code' => 'nullable|required_if:status,suspended,inactive|in:policy_violation,suspicious_activity,fraud_misleading_activity,repeated_complaints,verification_issue,prohibited_activity,terms_violation,other',
+
+            'custom_reason' => 'nullable|required_if:reason_code,other|string|max:1000',
 
         ]);
 
@@ -293,7 +296,9 @@ class UserManagementController extends Controller
             $user,
             $request->string('status')->toString(),
             $request->user(),
-            $request->input('reason')
+            ($validated['reason_code'] ?? null) === 'other'
+                ? $validated['custom_reason']
+                : ($validated['reason_code'] ?? $request->input('reason'))
         );
 
 

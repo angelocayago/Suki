@@ -139,6 +139,11 @@
     $sellerName = $sellerProfile['seller_name']
         ?? 'Seller';
 
+    $assignedRootCategory = auth()->user()?->sellers()
+        ->with('category:id,name')
+        ->where('status', 'approved')
+        ->first()?->category?->name;
+
 @endphp
 
 
@@ -194,8 +199,8 @@
                     ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
                     ['complaints.mine.index', 'Complaints', 'message-square-warning', 'complaints.*'],
                 ],
-                'Store' => [
-                    ['seller.store.profile', 'Store Profile', 'store', 'seller.store.*'],
+                'Account Settings' => [
+                    ['seller.store.profile', 'Account Settings', 'store', 'seller.store.*'],
                     ['buyer.shop', 'View Marketplace', 'external-link', 'buyer.shop'],
                 ],
             ] as $section => $links)
@@ -220,7 +225,7 @@
         <div class="seller-sidebar-footer">
             <div class="seller-sidebar-account" title="{{ $sellerName }}">
                 <span class="seller-sidebar-account-icon"><i data-lucide="user-round" aria-hidden="true"></i></span>
-                <span class="seller-sidebar-account-copy"><strong>{{ $sellerName }}</strong><small>Seller</small></span>
+                <span class="seller-sidebar-account-copy"><strong>{{ $sellerName }}</strong><small>Seller · Category: {{ $assignedRootCategory ?? 'Not assigned' }}</small></span>
             </div>
             <form action="{{ route('logout') }}" method="POST" data-confirm-logout>
                 @csrf
