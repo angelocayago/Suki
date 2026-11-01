@@ -200,7 +200,7 @@
                     ['seller.notifications.index', 'Notifications', 'bell', 'seller.notifications.*'],
                     ['reviews.seller-page', 'Reviews', 'star', 'reviews.seller-page'],
                     ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
-                    ['complaints.mine.index', 'Complaints', 'message-square-warning', 'complaints.*'],
+                    ['seller.complaints.index', 'Complaints', 'message-square-warning', 'seller.complaints.*'],
                 ],
                 'Account' => [
                     ['seller.store.profile', 'Store Profile', 'store', 'seller.store.*'],

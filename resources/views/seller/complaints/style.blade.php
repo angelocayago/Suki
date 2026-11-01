@@ -1,0 +1,4 @@
+<style>
+.seller-complaints .cmp-contact{margin-bottom:16px}
+.seller-complaints .cmp-open{background:#fff6df;color:#9a610c}.seller-complaints :is(.cmp-under_review,.cmp-waiting_response){background:#eaf3fa;color:#316585}.seller-complaints .cmp-resolved{background:#e5f7ee;color:#157054}.seller-complaints .cmp-dismissed{background:#fff0ef;color:#a34040}.seller-complaints .cmp-success{border:1px solid #b9e0cd;background:#edf9f2;color:#157054;padding:12px 16px;border-radius:10px;margin-bottom:16px}.cmp-evidence{overflow-wrap:anywhere}.cmp-evidence small{display:block;font-size:10px;color:#71817b;margin-top:5px}.cmp-evidence-form label{display:block;font-weight:600;font-size:11px;margin:12px 0 6px}.cmp-evidence-form input[type=file]{display:block;width:100%;min-width:0;max-width:100%;font:inherit;font-size:12px}.cmp-evidence-form .rr-button{margin-top:12px;width:100%}
+</style>

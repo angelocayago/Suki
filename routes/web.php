@@ -3197,6 +3197,10 @@ Route::post('/seller/store-profile/photo/remove', function (Request $request) {
     return app(\App\Http\Controllers\Seller\StoreProfileController::class)->removePhoto($request);
 })->name('seller.store.profile.photo.remove');
 
+Route::post('/seller/store-profile/banner/remove', function (Request $request) {
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->removeBanner($request);
+})->name('seller.store.profile.banner.remove');
+
 
 Route::post('/seller/store-profile/address', function (
     Request $request
@@ -5252,6 +5256,10 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->group(fu
 });
 
 Route::middleware(['auth', 'not_suspended', 'approved', 'role:seller'])->group(function () {
+    Route::get('/seller/complaints', [\App\Http\Controllers\Seller\ComplaintController::class, 'index'])
+        ->name('seller.complaints.index');
+    Route::get('/seller/complaints/{complaint}', [\App\Http\Controllers\Seller\ComplaintController::class, 'show'])
+        ->whereNumber('complaint')->name('seller.complaints.show');
     Route::get('/seller/orders/{sellerOrder}/complaints/create', [ParticipantComplaintController::class, 'createForSellerOrder'])
         ->name('seller.complaints.create');
     Route::post('/seller/orders/{sellerOrder}/complaints', [ParticipantComplaintController::class, 'storeForSellerOrder'])
