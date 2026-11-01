@@ -30,6 +30,7 @@ use App\Http\Controllers\Rider\ShipmentTrackingController as RiderShipmentTracki
 use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillmentController;
 use App\Http\Controllers\Logistics\RiderServiceAreaController;
 use App\Http\Controllers\ShipmentWaybillController;
+use App\Http\Controllers\ShipmentScannerController;
 use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
 use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
@@ -5201,6 +5202,9 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
     Route::post('/rider/erp-orders/{sellerOrder}/accept-pickup', [RiderFulfillmentController::class, 'accept'])
         ->name('rider.database.pickup.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
+    Route::get('/rider/shipment-scanner', [ShipmentScannerController::class, 'rider'])->name('rider.shipment-scanner');
+    Route::post('/rider/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.resolve');
+    Route::post('/rider/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.action');
         ->name('rider.database.pickup.decline');
     Route::post('/rider/erp-orders/{sellerOrder}/accept-delivery', [RiderFulfillmentController::class, 'acceptDelivery'])->name('rider.database.delivery.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-delivery', [RiderFulfillmentController::class, 'declineDelivery'])->name('rider.database.delivery.decline');
@@ -5228,6 +5232,9 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::post('/logistics/riders/{rider}/service-areas', [RiderServiceAreaController::class, 'store'])->name('logistics.riders.service-areas.store');
     Route::delete('/logistics/riders/{rider}/service-areas/{area}', [RiderServiceAreaController::class, 'destroy'])->name('logistics.riders.service-areas.destroy');
     Route::get('/logistics/parcel-lookup', [LogisticsFulfillmentController::class, 'lookup'])->name('logistics.parcels.lookup');
+    Route::get('/logistics/shipment-scanner', [ShipmentScannerController::class, 'logistics'])->name('logistics.shipment-scanner');
+    Route::post('/logistics/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.resolve');
+    Route::post('/logistics/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.action');
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
     Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
         ->name('logistics.database.orders.receive');
