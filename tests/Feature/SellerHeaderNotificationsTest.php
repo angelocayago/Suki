@@ -57,7 +57,7 @@ class SellerHeaderNotificationsTest extends TestCase
         $response->assertSee(route('buyer.stores.show','owned-shop'))->assertSee(route('seller.products.create'))->assertSee(route('seller.store.profile'))
             ->assertSee('seller-store-assets/owned.webp')->assertSee('Lance Seller profile menu')->assertDontSee('FOREIGN-SESSION-PHOTO')->assertDontSee('seller-store-assets/FOREIGN.webp')->assertSee(route('seller.profile'))
             ->assertSee('id="sellerNotificationBell"',false)->assertSee('id="sellerProfileToggle"',false)
-            ->assertSee('method="POST" data-confirm-logout',false)->assertSee('name="_token"',false);
+            ->assertSee('method="POST" data-seller-logout',false)->assertSee('name="_token"',false);
         $html=$response->getContent();
         $this->assertStringNotContainsString('href="'.route('seller.promotions').'"',$html);
         $this->assertStringContainsString('href="'.route('seller.vouchers.index').'"',$html);

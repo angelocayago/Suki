@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         item.root.addEventListener('focusout', event => {
+            if (document.getElementById('sellerLogoutDialog')?.contains(event.relatedTarget)) return;
             if (event.relatedTarget && !item.root.contains(event.relatedTarget)) close(item);
         });
     });

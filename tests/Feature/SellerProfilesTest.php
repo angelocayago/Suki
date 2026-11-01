@@ -49,18 +49,33 @@ class SellerProfilesTest extends TestCase
     {
         $profile=$this->actingAs($this->seller)->get(route('seller.profile'))->assertOk()->assertSee('My Profile')->assertSee('owned@example.test')
             ->assertSee(route('seller.store.profile'))->assertSee(route('seller.notifications.index'))->assertSee(route('seller.vouchers.index'))
-            ->assertSee('id="sellerNotificationBell"',false)->assertSee('id="sellerProfileToggle"',false)->assertSee('data-confirm-logout',false)
+            ->assertSee('id="sellerNotificationBell"',false)->assertSee('id="sellerProfileToggle"',false)->assertSee('data-seller-logout',false)
             ->assertDontSee('<div class="seller-sidebar-account"',false)->assertDontSee('href="'.route('seller.promotions').'"',false);
         $html=$profile->getContent();
         $this->assertMatchesRegularExpression('/<a href="'.preg_quote(route('seller.profile'),'/').'"[^>]*aria-current="page"/',$html);
         $this->assertStringContainsString('sellerSidebarCollapse',$html); $this->assertStringContainsString('sellerSidebarOpen',$html);
-        $this->assertStringContainsString('method="POST" data-confirm-logout',$html);
+        $this->assertStringContainsString('method="POST" data-seller-logout',$html);
+        $this->assertSame(2,substr_count($html,'method="POST" data-seller-logout'));
+        $this->assertSame(1,substr_count($html,'<dialog id="sellerLogoutDialog"'));
+        $this->assertStringNotContainsString('data-confirm-logout',$html);
+        $this->assertStringContainsString('You will be signed out of your seller account.',$html);
         $this->assertStringContainsString('action="'.route('seller.store.password.update').'"',$html);
         $this->assertStringNotContainsString('name="email"',$html); $this->assertStringNotContainsString('name="profile_photo"',$html);
         $this->assertStringNotContainsString($this->seller->getAuthPassword(),$html); $this->assertStringNotContainsString('PRIVATE-USER-ID',$html);
         $store=$this->get(route('seller.store.profile'))->assertOk()->assertSee('Store Profile');
         $this->assertMatchesRegularExpression('/<a href="'.preg_quote(route('seller.store.profile'),'/').'"[^>]*aria-current="page"/',$store->getContent());
         if($dir=getenv('SELLER_PROFILE_CHECK_DIR')) { file_put_contents($dir.'/personal.html',$html); file_put_contents($dir.'/store.html',$store->getContent()); }
+    }
+
+    public function test_existing_post_logout_ends_session_and_regenerates_csrf_token(): void
+    {
+        $this->actingAs($this->seller)->withSession(['private_marker'=>'secret','_token'=>'before-logout-token']);
+        $this->post(route('logout'),['_token'=>'before-logout-token'])
+            ->assertRedirect(route('landing'))->assertSessionMissing('private_marker')
+            ->assertSessionHas('success','You have been logged out successfully.');
+        $this->assertGuest();
+        $this->assertNotSame('before-logout-token',session()->token());
+        $this->get(route('seller.profile'))->assertRedirect(route('login'));
     }
 
     public function test_store_profile_reads_canonical_shop_owner_address_and_photo_not_stale_session(): void
