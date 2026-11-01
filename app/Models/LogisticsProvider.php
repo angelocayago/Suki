@@ -47,6 +47,11 @@ class LogisticsProvider extends Model
         return $this->hasMany(Rider::class);
     }
 
+    public function hubs(): HasMany
+    {
+        return $this->hasMany(LogisticsHub::class);
+    }
+
     public function riderServiceAreas(): HasMany
     {
         return $this->hasMany(RiderServiceArea::class);

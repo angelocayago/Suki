@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\LogisticsHub;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
@@ -214,6 +215,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($pickupUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'at_sorting_center'])
+        $replacement->update(['logistics_hub_id' => $provider->hubs()->sole()->id]);
             ->assertSessionHasErrors('status');
 
         $this->actingAs($pickupUser)
@@ -635,3 +637,18 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
     }
 }
+        $hub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id,
+            'name' => 'Step Five Barangay Hub',
+            'region' => 'Test Region',
+            'region_code' => '010000000',
+            'province' => 'Test Province',
+            'province_code' => '010000000',
+            'city' => 'Test City',
+            'city_municipality_code' => '010000000',
+            'barangay' => 'Test Barangay',
+            'barangay_code' => '010000000',
+            'is_active' => true,
+        ]);
+        $pickupRider->update(['logistics_hub_id' => $hub->id]);
+        $deliveryRider->update(['logistics_hub_id' => $hub->id]);

@@ -14,6 +14,7 @@ class Rider extends Model
     protected $fillable = [
         'user_id',
         'logistics_provider_id',
+        'logistics_hub_id',
         'vehicle_type',
         'plate_no',
         'license_number',
@@ -51,6 +52,11 @@ class Rider extends Model
     public function logisticsProvider(): BelongsTo
     {
         return $this->belongsTo(LogisticsProvider::class);
+    }
+
+    public function logisticsHub(): BelongsTo
+    {
+        return $this->belongsTo(LogisticsHub::class);
     }
 
     /**
@@ -100,6 +106,7 @@ class Rider extends Model
             && $this->user?->status === 'active'
             && ! $this->user?->is_suspended
             && $this->user?->hasVerifiedContacts()
-            && $this->logisticsProvider?->status === 'approved';
+            && $this->logisticsProvider?->status === 'approved'
+            && (! $this->logistics_hub_id || ($this->logisticsHub?->is_active && $this->logisticsHub?->logistics_provider_id === $this->logistics_provider_id));
     }
 }

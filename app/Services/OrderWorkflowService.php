@@ -59,6 +59,7 @@ class OrderWorkflowService
                 throw ValidationException::withMessages(['pickup_rider_id' => 'Select an active rider from your approved logistics provider.']);
             }
             app(RiderServiceAreaEligibilityService::class)->pickup($lockedOrder, $provider, $rider);
+            app(LogisticsHubEligibilityService::class)->pickup($lockedOrder, $provider, $rider);
 
             if ($shipment->pickup_accepted_at) {
                 throw ValidationException::withMessages(['order' => 'The pickup rider cannot be changed after accepting this parcel.']);
@@ -237,6 +238,7 @@ class OrderWorkflowService
 
                 $provider = LogisticsProvider::query()->findOrFail($lockedOrder->shipment->logistics_provider_id);
                 app(RiderServiceAreaEligibilityService::class)->delivery($lockedOrder, $provider, $rider);
+                app(LogisticsHubEligibilityService::class)->delivery($lockedOrder, $provider, $rider);
 
                 $lockedOrder->shipment->update(['rider_id' => $rider->id]);
             }
@@ -341,6 +343,7 @@ class OrderWorkflowService
                 throw ValidationException::withMessages(['rider_id' => 'Select an online active rider from your provider.']);
             }
             app(RiderServiceAreaEligibilityService::class)->delivery($locked, $provider, $rider);
+            app(LogisticsHubEligibilityService::class)->delivery($locked, $provider, $rider);
             $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null]);
             $this->recordEvent($shipment, 'DELIVERY_RIDER_REASSIGNED', $actor, 'Delivery rider assigned to '.$rider->user->full_name.'.');
             app(DomainNotificationService::class)->afterCommit($rider->user_id, 'Delivery assignment', 'A delivery has been assigned to you.', ['shipment_id' => $shipment->id]);
@@ -581,6 +584,7 @@ class OrderWorkflowService
                 throw ValidationException::withMessages(['rider_id' => 'Select an available rider from your provider.']);
             }
             app(RiderServiceAreaEligibilityService::class)->delivery($order, $provider, $rider);
+            app(LogisticsHubEligibilityService::class)->delivery($order, $provider, $rider);
             $oldRider = $shipment->rider;
             $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null, 'rescheduled_at' => $scheduledAt, 'workflow_status' => OrderStatus::AssignedToRider, 'status' => 'assigned', 'status_changed_at' => now()]);
             $order->update(['workflow_status' => OrderStatus::AssignedToRider, 'status' => 'shipped', 'status_changed_at' => now()]);
