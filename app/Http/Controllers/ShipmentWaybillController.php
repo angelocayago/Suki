@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shipment;
+use App\Services\ShipmentQrService;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\SvgWriter;
 use Picqer\Barcode\BarcodeGeneratorSVG;
@@ -11,7 +12,7 @@ use Illuminate\View\View;
 
 class ShipmentWaybillController extends Controller
 {
-    public function show(Request $request, Shipment $shipment): View
+    public function show(Request $request, Shipment $shipment, ShipmentQrService $qr): View
     {
         $shipment->load(['sellerOrder.order.buyer', 'sellerOrder.seller', 'sellerOrder.items', 'provider', 'rider.user', 'pickupRider.user']);
         $user = $request->user();
@@ -28,9 +29,10 @@ class ShipmentWaybillController extends Controller
         // The tracking code is intentionally the only encoded payload.  It
         // contains no address, buyer, payment, or account information.
         $trackingCode = $shipment->tracking_code;
-        $qrDataUri = (new SvgWriter())->write(new QrCode(data: $trackingCode, size: 150))->getDataUri();
+        $qrPayload = $qr->payload($shipment);
+        $qrDataUri = (new SvgWriter())->write(new QrCode(data: $qrPayload, size: 150))->getDataUri();
         $barcodeSvg = (new BarcodeGeneratorSVG())->getBarcode($trackingCode, BarcodeGeneratorSVG::TYPE_CODE_128, 2, 60);
 
-        return view('shipments.waybill', compact('shipment', 'qrDataUri', 'barcodeSvg'));
+        return view('shipments.waybill', compact('shipment', 'qrDataUri', 'barcodeSvg', 'qrPayload'));
     }
 }
