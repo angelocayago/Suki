@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ReturnRefundEvidence;
 use App\Models\ReturnRefundRequest;
 use App\Models\Seller;
+use App\Support\SellerReturnFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -28,18 +29,36 @@ class ReturnRefundUiController extends Controller
     public function sellerIndex(Request $request)
     {
         $seller = $this->seller($request);
-        $requests = $this->requests()->where('seller_id', $seller->id)->latest()->get();
+        $criteria = SellerReturnFilters::criteria($request);
+        $owned = $this->requests()->where('seller_id', $seller->id)
+            ->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $seller->id));
+        $counts = (clone $owned)->reorder()->select('status')->selectRaw('COUNT(*) AS aggregate')
+            ->groupBy('status')->pluck('aggregate', 'status');
+        $summary = [
+            'Total requests' => (int) $counts->sum(),
+            'Pending review' => (int) $counts->only(['SUBMITTED', 'SELLER_RESPONDED', 'UNDER_REVIEW'])->sum(),
+            'Approved by Admin' => (int) ($counts['ADMIN_APPROVED'] ?? 0),
+            'Rejected by Admin' => (int) ($counts['ADMIN_REJECTED'] ?? 0),
+        ];
+        $requests = SellerReturnFilters::apply($owned, $criteria)->latest()->orderByDesc('id')
+            ->paginate(15)->appends(array_filter($criteria, fn ($value, $key) => $value !== '' && $value !== 'all' && $value !== 'any', ARRAY_FILTER_USE_BOTH));
+        $statuses = SellerReturnFilters::STATUSES;
+        $dates = SellerReturnFilters::DATES;
 
-        return view('seller.returns.index', compact('requests'));
+        return view('seller.returns.index', compact('requests', 'criteria', 'summary', 'statuses', 'dates'));
     }
 
     public function sellerShow(Request $request, ReturnRefundRequest $returnRefundRequest)
     {
         $seller = $this->seller($request);
-        $returnRefundRequest = $this->requests()->where('seller_id', $seller->id)->findOrFail($returnRefundRequest->id);
+        $returnRefundRequest = $this->requests()->where('seller_id', $seller->id)
+            ->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $seller->id))
+            ->with(['events' => fn ($query) => $query->orderBy('created_at')->orderBy('id')])
+            ->findOrFail($returnRefundRequest->id);
         $evidence = $this->evidence($returnRefundRequest);
+        $statuses = SellerReturnFilters::STATUSES;
 
-        return view('seller.returns.show', compact('returnRefundRequest', 'evidence'));
+        return view('seller.returns.show', compact('returnRefundRequest', 'evidence', 'statuses'));
     }
 
     public function adminIndex()
