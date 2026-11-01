@@ -23,11 +23,12 @@ class ReviewPageController extends Controller
         return view('reviews.buyer', compact('orders', 'reviews', 'riders'));
     }
 
-    public function seller(Request $request)
+    public function seller(Request $request, \App\Support\SellerReviews $page)
     {
-        $sellerIds = Seller::where('user_id', $request->user()->id)->pluck('id');
-        $reviews = TransactionReview::whereIn('seller_id', $sellerIds)->whereIn('kind', ['product', 'seller'])->latest()->paginate(25);
-        return view('reviews.seller', compact('reviews'));
+        if ($request->expectsJson() && $request->query('lookup') === 'products') {
+            return response()->json($page->products($request))->header('Cache-Control','no-store, private');
+        }
+        return view('reviews.seller', $page->listing($request));
     }
 
     public function admin()
