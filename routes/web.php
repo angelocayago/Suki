@@ -5673,7 +5673,7 @@ $requireAdmin = function () {
     if (!auth()->check()) {
 
         return redirect()
-            ->route('admin.login')
+            ->route('login')
             ->with(
                 'error',
                 'Please log in as an administrator.'
@@ -5689,7 +5689,7 @@ $requireAdmin = function () {
     ) {
 
         return redirect()
-            ->route('admin.login')
+            ->route('login')
             ->with(
                 'error',
                 'You do not have administrator access.'
@@ -5875,7 +5875,7 @@ Route::post(
 
 
         return redirect()
-            ->route('admin.login')
+            ->route('login')
             ->with(
                 'success',
                 'Administrator logged out successfully.'

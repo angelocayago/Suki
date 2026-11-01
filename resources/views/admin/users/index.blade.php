@@ -23,6 +23,8 @@ x-data="{
 
     selectedStatus:'',
 
+    selectedReason:'',
+
     selectedUrl:'',
 
 
@@ -31,6 +33,8 @@ x-data="{
         this.selectedUserName = name;
 
         this.selectedStatus = status;
+
+        this.selectedReason = '';
 
         this.selectedUrl = url;
 
@@ -510,8 +514,11 @@ x-data="{
     <!-- CONFIRM MODAL -->
 
 
+    <style>[x-cloak]{display:none!important}</style>
+
     <div
 
+        x-cloak
         x-show="showModal"
 
         x-transition
@@ -611,16 +618,18 @@ x-data="{
                     x-show="selectedStatus === 'suspended' || selectedStatus === 'inactive'"
                     class="mt-4"
                 >
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Reason
-                    </label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Suspension reason</label>
+                    <select name="reason_code" x-model="selectedReason" x-bind:required="selectedStatus === 'suspended' || selectedStatus === 'inactive'" class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
+                        <option value="">Select a reason</option><option value="policy_violation">Policy violation</option><option value="suspicious_activity">Suspicious activity</option><option value="fraud_misleading_activity">Fraud / misleading activity</option><option value="repeated_complaints">Repeated complaints</option><option value="verification_issue">Verification issue</option><option value="prohibited_activity">Prohibited product/activity</option><option value="terms_violation">Terms violation</option><option value="other">Other</option>
+                    </select>
                     <textarea
-                        name="reason"
-                        x-bind:required="selectedStatus === 'suspended' || selectedStatus === 'inactive'"
+                        name="custom_reason"
+                        x-show="selectedReason === 'other'"
+                        x-bind:required="selectedReason === 'other'"
                         maxlength="1000"
                         rows="3"
                         class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                        placeholder="Explain why this account is being restricted"
+                        placeholder="Custom reason when Other is selected"
                     ></textarea>
                 </div>
 

@@ -1,7 +1,7 @@
 @extends('layouts.seller')
 
-@section('title', 'Account Management')
-@section('page-title', 'Account Management')
+@section('title', 'Account Settings')
+@section('page-title', 'Account Settings')
 @section('page-subtitle', 'Your shop profile, pickup address and security')
 
 @section('content')
@@ -10,7 +10,7 @@
     $profile = session('seller_profile', []);
 
     $shopName = $profile['shop_name'] ?? '';
-    $businessCategory = $profile['business_category'] ?? '';
+    $businessCategory = $seller->category?->name ?? '';
     $sellerName = $profile['seller_name'] ?? '';
     $phone = $profile['phone'] ?? '';
     $email = $profile['email'] ?? '';
