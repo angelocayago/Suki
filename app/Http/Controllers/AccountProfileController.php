@@ -13,7 +13,12 @@ class AccountProfileController extends Controller
     {
         $this->authorizeArea($request, $area);
 
-        return view($area === 'seller' ? 'seller.my-profile' : 'account.self-profile', ['area' => $area, 'user' => $request->user()]);
+        $data = ['area' => $area, 'user' => $request->user()];
+        if ($area === 'seller') {
+            $data['store'] = $request->user()->sellers()->select('id', 'user_id', 'status')->orderBy('id')->first();
+        }
+
+        return view($area === 'seller' ? 'seller.my-profile' : 'account.self-profile', $data);
     }
 
     public function update(Request $request, string $area): RedirectResponse

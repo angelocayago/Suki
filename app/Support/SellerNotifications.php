@@ -20,7 +20,7 @@ class SellerNotifications
         $name = trim($user->full_name ?: $user->name ?: '') ?: 'Seller';
         return [
             'name'=>$name, 'initial'=>mb_strtoupper(mb_substr($name,0,1)),
-            'photo'=>$this->photo($shop?->logo_path),
+            'photo'=>null,
             'store_url'=>filled($shop?->slug) ? route('buyer.stores.show',$shop->slug) : null,
             'unread_count'=>$user->unreadNotifications()->count(),
             'recent'=>$this->present($user,$this->recent($user),$shop),
@@ -80,11 +80,4 @@ class SellerNotifications
         return filter_var($value,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]) ?: null;
     }
 
-    private function photo(?string $path): ?string
-    {
-        if (!$path) return null;
-        if (str_starts_with($path,'https://') || str_starts_with($path,'http://')) return $path;
-        if (str_starts_with($path,'/storage/')) return url($path);
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($path);
-    }
 }

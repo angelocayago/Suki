@@ -51,11 +51,11 @@ class SellerHeaderNotificationsTest extends TestCase
         return $this->actingAs($this->seller)->get(route('seller.notifications.index',$query))->assertOk();
     }
 
-    public function test_header_keeps_actions_uses_owned_photo_profile_links_and_post_logout(): void
+    public function test_header_keeps_actions_and_initials_avatar_profile_links_and_post_logout(): void
     {
         $response=$this->actingAs($this->seller)->withSession(['seller_profile'=>['profile_photo'=>'FOREIGN-SESSION-PHOTO.webp']])->get(route('seller.notifications.index'))->assertOk();
         $response->assertSee(route('buyer.stores.show','owned-shop'))->assertSee(route('seller.products.create'))->assertSee(route('seller.store.profile'))
-            ->assertSee('seller-store-assets/owned.webp')->assertSee('Lance Seller profile menu')->assertDontSee('FOREIGN-SESSION-PHOTO')->assertDontSee('seller-store-assets/FOREIGN.webp')->assertSee(route('seller.profile'))
+            ->assertDontSee('seller-store-assets/owned.webp')->assertSee('data-seller-avatar-fallback >L</span>',false)->assertSee('Lance Seller profile menu')->assertDontSee('FOREIGN-SESSION-PHOTO')->assertDontSee('seller-store-assets/FOREIGN.webp')->assertSee(route('seller.profile'))
             ->assertSee('id="sellerNotificationBell"',false)->assertSee('id="sellerProfileToggle"',false)
             ->assertSee('method="POST" data-seller-logout',false)->assertSee('name="_token"',false);
         $html=$response->getContent();

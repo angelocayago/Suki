@@ -373,4 +373,56 @@ class SellerProfilesTest extends TestCase
         $this->assertSame('R1',DB::table('addresses')->where('id',1)->value('region_code'));
         $this->assertSame('Owned street',DB::table('addresses')->where('id',1)->value('line1'));
     }
+
+    public function test_my_profile_has_one_heading_and_personal_forms_without_address_or_store_image_controls(): void
+    {
+        $addresses=DB::table('addresses')->orderBy('id')->get()->toJson();
+        $page=$this->actingAs($this->seller)->get(route('seller.profile'))->assertOk()->assertSee('Manage your personal information and account security.')
+            ->assertSee('Personal Information')->assertSee('Account Status')->assertSee('Account Security')->assertSee('Lance Owner')->assertSee('owned@example.test')
+            ->assertDontSee('Personal Address')->assertDontSee('Save personal address')->assertDontSee('Owned street')->assertDontSee('FOREIGN ADDRESS');
+        foreach(['region','province','municipality','barangay','address','postal_code','profile_photo','banner','store_name','email','status'] as $field)$page->assertDontSee('name="'.$field.'"',false);
+        $this->assertSame(1,preg_match_all('/<h[1-6][^>]*>\s*My Profile\s*<\/h[1-6]>/', $page->getContent()));
+        $this->assertSame(1,substr_count($page->getContent(),'id="personal-information"'));
+        $this->assertSame(1,substr_count($page->getContent(),'id="security"'));
+        $this->assertSame($addresses,DB::table('addresses')->orderBy('id')->get()->toJson());
+        $store=$this->get(route('seller.store.profile'))->assertOk()->assertSee('id="storeAddressForm"',false)->assertSee('profileMunicipality')->assertSee('pickupLocationRetry');
+        $this->assertSame($addresses,DB::table('addresses')->orderBy('id')->get()->toJson());
+    }
+
+    public function test_my_profile_statuses_are_canonical_owned_and_read_only_including_missing_store_fallback(): void
+    {
+        DB::table('sellers')->where('id',101)->update(['status'=>'pending']);
+        $page=$this->actingAs($this->seller)->get(route('seller.profile'))->assertOk()->assertSee('data-status="active"',false)->assertSee('data-status="pending"',false)->assertSee('Pending');
+        $this->assertSame(101,$page->viewData('store')->id);
+        $this->assertSame('pending',$page->viewData('store')->status);
+        DB::table('sellers')->where('id',101)->delete();
+        $this->get(route('seller.profile'))->assertOk()->assertSee('No store record')->assertDontSee('FOREIGN STORE');
+        $this->assertSame(2,DB::table('addresses')->count());
+    }
+
+    public function test_my_profile_feedback_is_near_the_correct_form_and_success_is_not_duplicated(): void
+    {
+        $this->actingAs($this->seller)->from(route('seller.profile'))->patch(route('seller.profile.update'),$this->personal())->assertSessionHasNoErrors()->assertSessionHas('success','Profile updated.');
+        $html=$this->get(route('seller.profile'))->assertOk()->getContent();
+        $this->assertSame(1,substr_count($html,'Profile updated.'));
+        $this->assertMatchesRegularExpression('/sp-form-footer.*?Profile updated\..*?Save Profile/s',$html);
+        $this->post(route('seller.store.password.update'),['current_password'=>'CurrentPass1!','password'=>'NewPass123!','password_confirmation'=>'NewPass123!'])->assertSessionHasNoErrors();
+        $html=$this->get(route('seller.profile'))->assertOk()->getContent();
+        $this->assertSame(1,substr_count($html,'Password updated successfully.'));
+        $this->assertMatchesRegularExpression('/id="security".*?Password updated successfully\..*?Update Password/s',$html);
+    }
+
+    public function test_my_profile_password_fields_never_render_old_password_values_and_addresses_ignore_profile_payload(): void
+    {
+        $addresses=DB::table('addresses')->orderBy('id')->get()->toJson();
+        $this->actingAs($this->seller)->withSession(['_old_input'=>['current_password'=>'DO-NOT-RENDER-CURRENT','password'=>'DO-NOT-RENDER-NEW','password_confirmation'=>'DO-NOT-RENDER-CONFIRM']]);
+        $page=$this->get(route('seller.profile'))->assertOk()->assertDontSee('DO-NOT-RENDER')->assertDontSee($this->seller->getAuthPassword());
+        preg_match_all('/<input[^>]*type="password"[^>]*>/', $page->getContent(), $fields);
+        $this->assertCount(3,$fields[0]);foreach($fields[0] as $field)$this->assertStringNotContainsString('value=',$field);
+        $this->from(route('seller.profile'))->patch(route('seller.profile.update'),$this->personal(['region'=>'FORGED','address'=>'Do not change addresses','address_id'=>2]))->assertSessionHasNoErrors();
+        $this->assertSame($addresses,DB::table('addresses')->orderBy('id')->get()->toJson());
+        $this->from(route('seller.profile').'#security')->post(route('seller.store.password.update'),['current_password'=>'Incorrect','password'=>'NewPass123!','password_confirmation'=>'NewPass123!'])->assertSessionHasErrors('current_password');
+        $this->get(route('seller.profile'))->assertOk()->assertSee('Please review your password.')->assertSee('aria-describedby="spCurrentPasswordError"',false);
+    }
+
 }
