@@ -5202,10 +5202,10 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
     Route::post('/rider/erp-orders/{sellerOrder}/accept-pickup', [RiderFulfillmentController::class, 'accept'])
         ->name('rider.database.pickup.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
+        ->name('rider.database.pickup.decline');
     Route::get('/rider/shipment-scanner', [ShipmentScannerController::class, 'rider'])->name('rider.shipment-scanner');
     Route::post('/rider/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.resolve');
     Route::post('/rider/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.action');
-        ->name('rider.database.pickup.decline');
     Route::post('/rider/erp-orders/{sellerOrder}/accept-delivery', [RiderFulfillmentController::class, 'acceptDelivery'])->name('rider.database.delivery.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-delivery', [RiderFulfillmentController::class, 'declineDelivery'])->name('rider.database.delivery.decline');
     Route::post('/rider/erp-orders/{sellerOrder}/status', [RiderFulfillmentController::class, 'update'])
