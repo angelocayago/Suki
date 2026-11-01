@@ -94,7 +94,7 @@ Route::get('/buyer/help', [PublicContentController::class, 'buyerHelp'])
     ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])
     ->name('buyer.help');
 
-foreach (['admin', 'logistics', 'rider'] as $profileArea) {
+foreach (['admin', 'logistics', 'rider', 'seller'] as $profileArea) {
     Route::get('/'.$profileArea.'/profile', [AccountProfileController::class, 'show'])
         ->defaults('area', $profileArea)->middleware(['auth', 'not_suspended', 'approved', 'role:'.$profileArea])->name($profileArea.'.profile');
     Route::patch('/'.$profileArea.'/profile', [AccountProfileController::class, 'update'])
@@ -3176,26 +3176,8 @@ Route::post('/seller/store-profile/profile', function (
 })->name('seller.store.profile.update');
 
 
-Route::post('/seller/store-profile/photo/remove', function () use ($requireSeller) {
-
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $profile = session('seller_profile', []);
-
-    if (! empty($profile['profile_photo'])) {
-
-        Storage::disk('public')->delete($profile['profile_photo']);
-
-        unset($profile['profile_photo']);
-
-        session()->put('seller_profile', $profile);
-    }
-
-    return redirect(route('seller.store.profile') . '#shop-profile')
-        ->with('success', 'Shop photo removed successfully.');
-
+Route::post('/seller/store-profile/photo/remove', function (Request $request) {
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->removePhoto($request);
 })->name('seller.store.profile.photo.remove');
 
 
@@ -3203,7 +3185,7 @@ Route::post('/seller/store-profile/address', function (
     Request $request
 ) use ($requireSeller) {
 
-    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->address($request);
+    return app(\App\Http\Controllers\Seller\StoreProfileController::class)->address($request, app(\App\Services\PhilippineAddressService::class));
 
     if ($redirect = $requireSeller()) {
         return $redirect;
@@ -3256,7 +3238,7 @@ Route::post('/seller/store-profile/password', function (
 
     auth()->user()->update(['password' => $request->password]);
 
-    return redirect(route('seller.store.profile') . '#security')
+    return redirect(route('seller.profile') . '#security')
         ->with('success', 'Password updated successfully.');
 
 })->name('seller.store.password.update');

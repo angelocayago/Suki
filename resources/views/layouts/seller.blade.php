@@ -202,8 +202,9 @@
                     ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
                     ['complaints.mine.index', 'Complaints', 'message-square-warning', 'complaints.*'],
                 ],
-                'Account Settings' => [
-                    ['seller.store.profile', 'Account Settings', 'store', 'seller.store.*'],
+                'Account' => [
+                    ['seller.store.profile', 'Store Profile', 'store', 'seller.store.*'],
+                    ['seller.profile', 'My Profile', 'user-round', 'seller.profile*'],
                     ['buyer.shop', 'View Marketplace', 'external-link', 'buyer.shop'],
                 ],
             ] as $section => $links)
@@ -226,10 +227,6 @@
             @endforeach
         </nav>
         <div class="seller-sidebar-footer">
-            <div class="seller-sidebar-account" title="{{ $sellerName }}">
-                <span class="seller-sidebar-account-icon"><i data-lucide="user-round" aria-hidden="true"></i></span>
-                <span class="seller-sidebar-account-copy"><strong>{{ $sellerName }}</strong><small>Seller · Category: {{ $assignedRootCategory ?? 'Not assigned' }}</small></span>
-            </div>
             <form action="{{ route('logout') }}" method="POST" data-confirm-logout>
                 @csrf
                 <button type="submit" class="seller-sidebar-link seller-sidebar-signout" title="Sign Out" aria-label="Sign Out">

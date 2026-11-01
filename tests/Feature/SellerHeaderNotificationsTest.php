@@ -55,7 +55,7 @@ class SellerHeaderNotificationsTest extends TestCase
     {
         $response=$this->actingAs($this->seller)->withSession(['seller_profile'=>['profile_photo'=>'FOREIGN-SESSION-PHOTO.webp']])->get(route('seller.notifications.index'))->assertOk();
         $response->assertSee(route('buyer.stores.show','owned-shop'))->assertSee(route('seller.products.create'))->assertSee(route('seller.store.profile'))
-            ->assertSee('seller-store-assets/owned.webp')->assertSee('Lance Seller profile menu')->assertDontSee('FOREIGN-SESSION-PHOTO')->assertDontSee('seller-store-assets/FOREIGN.webp')->assertDontSee('My Profile')
+            ->assertSee('seller-store-assets/owned.webp')->assertSee('Lance Seller profile menu')->assertDontSee('FOREIGN-SESSION-PHOTO')->assertDontSee('seller-store-assets/FOREIGN.webp')->assertSee(route('seller.profile'))
             ->assertSee('id="sellerNotificationBell"',false)->assertSee('id="sellerProfileToggle"',false)
             ->assertSee('method="POST" data-confirm-logout',false)->assertSee('name="_token"',false);
         $html=$response->getContent();

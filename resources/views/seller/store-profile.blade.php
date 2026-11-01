@@ -1,59 +1,34 @@
 @extends('layouts.seller')
 
-@section('title', 'Account Settings')
-@section('page-title', 'Account Settings')
-@section('page-subtitle', 'Your shop profile, pickup address and security')
+@section('title', 'Store Profile')
+@section('page-title', 'Store Profile')
+@section('page-subtitle', 'Your shop profile, pickup address and business information')
 
 @section('content')
 
 @php
-    $profile = session('seller_profile', []);
-
-    $shopName = $profile['shop_name'] ?? '';
+    $owner = $seller->owner;
+    $shopName = $seller->name;
     $businessCategory = $seller->category?->name ?? '';
-    $sellerName = $profile['seller_name'] ?? '';
-    $phone = $profile['phone'] ?? '';
-    $email = $profile['email'] ?? '';
-
-    $description = $profile['description'] ?? '';
-
+    $sellerName = $owner?->full_name ?: $owner?->name;
+    $phone = $owner?->phone;
+    $email = $owner?->email;
+    $description = $seller->description;
     $pickupAddress = $seller->pickupAddress;
     $region = old('region', $pickupAddress?->region_code ?? '');
     $province = old('province', $pickupAddress?->province_code ?? '');
     $municipality = old('municipality', $pickupAddress?->city_municipality_code ?? '');
     $barangay = old('barangay', $pickupAddress?->barangay_code ?? '');
-    $streetAddress = $profile['address'] ?? '';
-
-    $profilePhoto = $profile['profile_photo'] ?? null;
-
-    $status = $profile['status'] ?? '';
-
-    $isVerified =
-        $status === 'approved'
-        && !empty($profile['valid_id'])
-        && !empty($profile['business_permit']);
-
+    $streetAddress = $pickupAddress?->line1;
+    $profilePhoto = $seller->logo_path;
+    $status = $seller->status;
+    $isVerified = $status === 'approved' && filled($seller->valid_id_path) && filled($seller->business_permit_path);
     $accountStatus = match ($status) {
-        'approved' => 'Active',
-        'pending' => 'Pending',
-        'suspended' => 'Suspended',
-        'rejected' => 'Rejected',
-        default => 'Not available',
+        'approved' => 'Active', 'pending' => 'Pending', 'suspended' => 'Suspended',
+        'rejected' => 'Rejected', default => 'Not available',
     };
-
-    $memberSince = null;
-
-    if (!empty($profile['created_at'])) {
-        try {
-            $memberSince = \Illuminate\Support\Carbon::parse(
-                $profile['created_at']
-            )->format('F j, Y');
-        } catch (\Throwable $e) {
-            $memberSince = null;
-        }
-    }
+    $memberSince = $seller->created_at?->format('F j, Y');
 @endphp
-
 
 <div class="mx-auto max-w-5xl space-y-6">
 
@@ -149,7 +124,7 @@
 
 
         <a
-            href="#security"
+            href="{{ route('seller.profile') }}#security"
             class="rounded-full border border-gray-200
                    bg-white px-4 py-2
                    text-xs font-medium text-gray-600
@@ -314,6 +289,7 @@
                             <button
                                 type="submit"
                                 formaction="{{ route('seller.store.profile.photo.remove') }}"
+                                formnovalidate
                                 class="text-xs font-medium
                                        text-red-500
                                        hover:text-red-600"
@@ -339,6 +315,11 @@
             </div>
 
 
+
+            <div>
+                <label for="store_name" class="text-sm font-medium text-gray-700">Store name</label>
+                <input id="store_name" name="store_name" maxlength="150" value="{{ old('store_name', $shopName) }}" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+            </div>
 
             {{-- CONTACT NUMBER --}}
             <div>
@@ -956,181 +937,7 @@
 
 
 
-    {{-- =====================================================
-        SECURITY
-    ====================================================== --}}
 
-    <section
-        id="security"
-        class="scroll-mt-28
-               rounded-2xl
-               border border-gray-200
-               bg-white
-               p-6 shadow-sm
-               sm:p-7"
-    >
-
-        <div class="mb-6">
-
-            <p
-                class="text-xs font-bold
-                       uppercase tracking-[0.08em]
-                       text-[#1F6F5B]"
-            >
-                Security
-            </p>
-
-
-            <p class="mt-1 text-xs text-gray-400">
-                Change your password.
-            </p>
-
-        </div>
-
-
-
-        <form
-            action="{{ route('seller.store.password.update') }}"
-            method="POST"
-            class="max-w-xl space-y-5"
-        >
-
-            @csrf
-
-
-
-            {{-- CURRENT PASSWORD --}}
-            <div>
-
-                <label
-                    for="currentPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    Current password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="currentPassword"
-                    type="password"
-                    name="current_password"
-                    required
-                    autocomplete="current-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-            </div>
-
-
-
-            {{-- NEW PASSWORD --}}
-            <div>
-
-                <label
-                    for="newPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    New password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="newPassword"
-                    type="password"
-                    name="password"
-                    required
-                    minlength="8"
-                    autocomplete="new-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-
-                <p
-                    class="mt-2 text-[11px]
-                           text-gray-400"
-                >
-                    At least 8 characters and different
-                    from your current password.
-                </p>
-
-            </div>
-
-
-
-            {{-- CONFIRM PASSWORD --}}
-            <div>
-
-                <label
-                    for="confirmPassword"
-                    class="text-sm font-medium
-                           text-gray-700"
-                >
-                    Confirm new password
-                    <span class="text-red-500">*</span>
-                </label>
-
-
-                <input
-                    id="confirmPassword"
-                    type="password"
-                    name="password_confirmation"
-                    required
-                    minlength="8"
-                    autocomplete="new-password"
-                    class="mt-2 w-full
-                           rounded-xl
-                           border border-gray-200
-                           bg-white
-                           px-4 py-3
-                           text-sm text-gray-700
-                           outline-none
-                           focus:border-[#1F6F5B]
-                           focus:ring-2
-                           focus:ring-[#1F6F5B]/10"
-                >
-
-            </div>
-
-
-
-            <button
-                type="submit"
-                class="rounded-xl
-                       bg-[#1F6F5B]
-                       px-5 py-3
-                       text-sm font-semibold
-                       text-white
-                       transition
-                       hover:bg-[#155244]"
-            >
-                Update password
-            </button>
-
-        </form>
-
-    </section>
 
 
 </div>

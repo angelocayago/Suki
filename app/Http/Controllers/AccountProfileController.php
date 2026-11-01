@@ -13,7 +13,7 @@ class AccountProfileController extends Controller
     {
         $this->authorizeArea($request, $area);
 
-        return view('account.self-profile', ['area' => $area, 'user' => $request->user()]);
+        return view($area === 'seller' ? 'seller.my-profile' : 'account.self-profile', ['area' => $area, 'user' => $request->user()]);
     }
 
     public function update(Request $request, string $area): RedirectResponse
@@ -48,6 +48,7 @@ class AccountProfileController extends Controller
             'admin' => $user->isAdmin(),
             'logistics' => $user->isLogistics(),
             'rider' => $user->isRider(),
+            'seller' => $user->isSeller(),
             default => false,
         }, 403);
     }

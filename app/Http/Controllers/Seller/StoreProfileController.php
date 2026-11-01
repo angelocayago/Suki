@@ -37,6 +37,18 @@ class StoreProfileController extends Controller
         return redirect(route('seller.store.profile').'#pickup-address')->with('success', 'Pickup address updated successfully.');
     }
 
+    public function removePhoto(Request $request): RedirectResponse
+    {
+        $seller = $this->seller($request);
+        $path = $seller->logo_path;
+        $seller->update(['logo_path'=>null]);
+        if ($path && (str_starts_with($path,'seller-store-assets/') || str_starts_with($path,'seller-profiles/'))) {
+            Storage::disk('public')->delete($path);
+        }
+
+        return redirect(route('seller.store.profile').'#shop-profile')->with('success','Shop photo removed successfully.');
+    }
+
     private function seller(Request $request): Seller
     {
         $user = $request->user();
