@@ -1,4 +1,4 @@
-@extends('layouts.logistics')
+@extends('layouts.auth')
 
 @section('content')
 
@@ -13,7 +13,7 @@
             <a href="{{ route('buyer.home') }}" class="flex items-center gap-3">
 
                 <img
-                    src="{{ asset('images/suki-logistics.jpg') }}"
+                    src="{{ asset('images/logistics-logo.png') }}"
                     alt="SUKI SHOP"
                     class="h-10 w-auto object-contain sm:h-11"
                 >
@@ -48,7 +48,7 @@
 
 
     <!-- MAIN -->
-    <main class="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12 lg:py-16">
+    <main class="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
 
 
         <!-- PAGE INTRO -->
@@ -90,7 +90,7 @@
             method="POST"
             action="{{ route('logistics.register.submit') }}"
             enctype="multipart/form-data"
-            class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]"
+            class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
         >
 
             @csrf
@@ -712,7 +712,7 @@
 
 
             <!-- RIGHT SIDEBAR -->
-            <aside class="hidden" aria-hidden="true">
+            <aside class="space-y-5 xl:sticky xl:top-6">
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
 
@@ -759,7 +759,7 @@
 
                                 <p class="text-sm font-medium text-gray-900">
 
-                                    Submit Registration
+                                    Submit Application
 
                                 </p>
 
@@ -871,7 +871,7 @@
 
                         <i data-lucide="send" class="h-4 w-4"></i>
 
-                        Submit Registration
+                        Submit Application
 
                     </button>
 

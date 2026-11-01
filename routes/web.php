@@ -3602,6 +3602,16 @@ Route::get('/rider/application-pending', function () {
 })->name('rider.application.pending');
 
 Route::get('/logistics/register', function () {
+    $user = auth()->user();
+
+    if (
+        $user?->hasRole('logistics') &&
+        $user->status === 'active' &&
+        ! $user->is_suspended
+    ) {
+        return redirect()->route('logistics.dashboard');
+    }
+
     return view('logistics.register');
 })->name('logistics.register');
 
@@ -4883,23 +4893,6 @@ Route::post(
 // =====================================================
 // SUKI LOGISTICS DASHBOARD
 // =====================================================
-
-Route::get('/logistics', function () {
-
-    $application =
-        session('rider_application', []);
-
-    return view('logistics.dashboard', [
-
-        'application' =>
-            $application,
-
-        'partner' =>
-            $application['partner'] ?? null,
-    ]);
-
-})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
-    ->name('logistics.dashboard');
 
 // =====================================================
 // LOGISTICS PARCEL SORTING
