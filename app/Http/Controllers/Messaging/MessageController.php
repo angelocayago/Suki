@@ -6,6 +6,7 @@ use App\Enums\MessageType;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\MessagingService;
+use App\Support\SellerInbox;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,26 +18,30 @@ class MessageController extends MessagingController
         Conversation $conversation,
         MessagingService $messaging,
     ): JsonResponse {
-        $this->authorizeConversation($request, $conversation, $messaging);
+        $portal=$this->authorizeConversation($request, $conversation, $messaging);
         $validated = $request->validate([
-            'after_id' => ['nullable', 'integer', 'min:0'],
+            'after_id' => ['nullable', 'integer', 'min:0','prohibits:before_id'],
+            'before_id' => ['nullable', 'integer', 'min:1','prohibits:after_id'],
         ]);
 
         $conversation->load('participants');
-        $messages = $conversation->messages()
+        $older=isset($validated['before_id']);
+        $query = $conversation->messages()
             ->with('sender:id,name,first_name,last_name')
             ->when(
                 isset($validated['after_id']),
                 fn ($query) => $query->where('id', '>', $validated['after_id'])
             )
-            ->orderBy('id')
-            ->limit(100)
-            ->get();
+            ->when($older,fn ($q) => $q->where('id','<',$validated['before_id']))
+            ->reorder('messages.id',$older ? 'desc' : 'asc');
+        $messages=$query->limit($older ? 50 : 100)->get();
+        if ($older) $messages=$messages->reverse()->values();
 
         return response()->json([
-            'messages' => $messages->map(fn (Message $message) => $this->serializeMessage($conversation, $message)),
+            'messages' => $messages->map(fn (Message $message) => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller')),
             'latest_id' => $messages->last()?->id,
             'conversation_status' => $conversation->status->value,
+            ...($older ? ['has_older'=>$messages->isNotEmpty() && $conversation->messages()->where('id','<',$messages->first()->id)->exists()] : []),
         ])->header('Cache-Control', 'private, no-store');
     }
 
@@ -66,7 +71,7 @@ class MessageController extends MessagingController
             $conversation->load('participants');
 
             return response()->json([
-                'message' => $this->serializeMessage($conversation, $message),
+                'message' => $this->serializeMessage($conversation, $message, $portal['name'] === 'seller'),
             ], 201)->header('Cache-Control', 'private, no-store');
         }
 
@@ -75,12 +80,13 @@ class MessageController extends MessagingController
             ->with('success', 'Message sent.');
     }
 
-    private function serializeMessage(Conversation $conversation, Message $message): array
+    private function serializeMessage(Conversation $conversation, Message $message, bool $seller = false): array
     {
         $participant = $conversation->participants
             ->first(fn ($candidate) => (int) $candidate->user_id === (int) $message->sender_id);
 
         return [
+            ...($seller ? ['display'=>app(SellerInbox::class)->messageDisplay($message)] : []),
             'id' => $message->id,
             'type' => $message->type->value,
             'body' => $message->body,

@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Services\MessagingService;
+use App\Support\SellerInbox;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
@@ -16,6 +17,10 @@ class ConversationController extends MessagingController
     {
         $portal = $this->portal($request);
         $user = $request->user();
+
+        if ($portal['name'] === 'seller') {
+            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + ['portal'=>$portal,'conversation'=>null]);
+        }
 
         $memberships = ConversationParticipant::query()
             ->select('conversation_participants.*')
@@ -66,11 +71,16 @@ class ConversationController extends MessagingController
 
         $messages = $conversation->messages()
             ->with('sender:id,name,first_name,last_name')
-            ->latest('id')
+            ->reorder('messages.id', 'desc')
             ->limit(50)
             ->get()
             ->reverse()
             ->values();
+
+        if ($portal['name'] === 'seller') {
+            $hasOlder=$messages->isNotEmpty() && $conversation->messages()->where('id','<',$messages->first()->id)->exists();
+            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + compact('conversation','messages','portal','hasOlder'));
+        }
 
         return view('messages.show', compact('conversation', 'messages', 'portal'));
     }
