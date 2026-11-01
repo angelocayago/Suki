@@ -30,16 +30,36 @@ class StoreController extends Controller
         return view('buyer.followed-stores', compact('stores'));
     }
 
-    public function show(Seller $seller): View
+    public function show(Request $request, Seller $seller): View
     {
         $this->visibleSeller($seller);
-        $products = $seller->products()->with(['category', 'images', 'variants' => fn ($query) => $query->where('is_active', true)])
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'category' => ['nullable', 'integer', 'min:1'],
+            'sort' => ['nullable', 'in:newest,price_asc,price_desc'],
+        ]);
+        $filters = array_replace(['q'=>'', 'category'=>'', 'sort'=>'newest'], array_filter($filters, fn ($value) => $value !== null));
+        $seller->loadMissing('category');
+        // Keep the existing public storefront eligibility, including stock.
+        $visible = $seller->products()
             ->where('is_active', true)->where('moderation_status', ProductModerationStatus::Approved->value)
-            ->whereHas('variants', fn ($query) => $query->where('is_active', true)->where('stock', '>', 0))->paginate(18);
-        $following = auth()->check() && BuyerStoreFollow::query()->where('buyer_id', auth()->id())->where('seller_id', $seller->id)->exists();
+            ->whereHas('variants', fn ($query) => $query->where('is_active', true)->where('stock', '>', 0));
+        $visibleCount = (clone $visible)->count();
+        $categories = \App\Models\Category::query()->whereIn('id', (clone $visible)->select('category_id'))->orderBy('name')->get(['id', 'name']);
+        $query = (clone $visible)->with(['category', 'images', 'variants' => fn ($query) => $query->where('is_active', true)->orderBy('id')])
+            ->withMin(['variants as storefront_price' => fn ($query) => $query->where('is_active', true)], 'price_minor');
+        $term = trim($filters['q']);
+        if ($term !== '') {
+            $query->whereRaw('LOWER(products.name) LIKE ? ESCAPE \'!\'', ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term)).'%']);
+        }
+        if ($filters['category'] !== '') $query->where('category_id', $filters['category']);
+        if ($filters['sort'] === 'newest') $query->orderByDesc('products.created_at');
+        else $query->orderBy('storefront_price', $filters['sort'] === 'price_asc' ? 'asc' : 'desc');
+        $products = $query->orderByDesc('products.id')->paginate(12)->withQueryString()->fragment('products');
+        $following = $request->user()?->isBuyer() && BuyerStoreFollow::query()->where('buyer_id', $request->user()->id)->where('seller_id', $seller->id)->exists();
         $seller->loadCount('visibleReviews')->loadAvg('visibleReviews', 'rating');
-        $reviews = $seller->visibleReviews()->latest()->paginate(10, ['*'], 'reviews_page');
-        return view('buyer.store', compact('seller', 'products', 'following', 'reviews'));
+        $reviews = $seller->visibleReviews()->latest()->orderByDesc('id')->paginate(6, ['*'], 'reviews_page')->withQueryString()->fragment('reviews');
+        return view('buyer.store', compact('seller', 'products', 'following', 'reviews', 'filters', 'visibleCount', 'categories'), ['title'=>$seller->name.' | SUKI SHOP']);
     }
 
     public function follow(Request $request, Seller $seller): RedirectResponse

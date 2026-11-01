@@ -252,8 +252,8 @@ class SellerProfilesTest extends TestCase
     public function test_storefront_still_reads_the_same_saved_shop_fields(): void
     {
         foreach([
-            'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, category_id INTEGER, is_active INTEGER, moderation_status TEXT, deleted_at TEXT',
-            'product_variants'=>'id INTEGER PRIMARY KEY, product_id INTEGER, is_active INTEGER, stock INTEGER, deleted_at TEXT',
+            'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, category_id INTEGER, is_active INTEGER, moderation_status TEXT, deleted_at TEXT, created_at TEXT',
+            'product_variants'=>'id INTEGER PRIMARY KEY, product_id INTEGER, is_active INTEGER, stock INTEGER, deleted_at TEXT, price_minor INTEGER',
             'buyer_store_follows'=>'id INTEGER PRIMARY KEY, buyer_id INTEGER, seller_id INTEGER',
             'transaction_reviews'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, kind TEXT, hidden_at TEXT, rating INTEGER, created_at TEXT',
         ] as $table=>$columns)DB::statement('CREATE TABLE '.$table.' ('.$columns.')');

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>{{ $title ?? 'SUKI SHOP' }}</title>
+    @stack('head')
 
     {{-- Vite / Laravel Assets --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
