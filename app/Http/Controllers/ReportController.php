@@ -7,6 +7,7 @@ use App\Models\Rider;
 use App\Models\Seller;
 use App\Services\ReportService;
 use App\Services\SellerWalletService;
+use App\Support\SellerReports;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,14 +23,14 @@ class ReportController extends Controller
         return view('admin.reports.phase-five', compact('data', 'dates'));
     }
 
-    public function seller(Request $request, ReportService $reports, SellerWalletService $wallet): View|Response
+    public function seller(Request $request, SellerReports $reports, SellerWalletService $wallet): View|Response
     {
         $seller = $request->user()->sellers()->where('status', 'approved')->firstOrFail();
-        $dates = $this->dates($request);
-        $data = $reports->seller($seller, ...$dates);
+        $period = $reports->period($request);
+        if ($request->boolean('export')) return $this->csv('seller-sales-report.csv', $reports->export($seller, $period), ['name','units','raw_minor']);
+        $data = $reports->data($seller, $period);
         $data['wallet'] = $wallet->summary($seller);
-        if ($request->boolean('export')) return $this->csv('seller-sales-report.csv', $data['products'], ['name','units','raw_minor']);
-        return view('seller.phase-five-reports', compact('data', 'dates'));
+        return view('seller.phase-five-reports', compact('data', 'period'));
     }
 
     public function logistics(Request $request, ReportService $reports): View|Response
