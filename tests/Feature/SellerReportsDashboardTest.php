@@ -30,7 +30,8 @@ class SellerReportsDashboardTest extends TestCase
             'delivery_events'=>'id INTEGER PRIMARY KEY, shipment_id INTEGER, status TEXT, note TEXT, occurred_at TEXT',
             'voucher_redemptions'=>'id INTEGER PRIMARY KEY, seller_order_id INTEGER, scope_snapshot TEXT, discount_minor INTEGER',
             'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, name TEXT, deleted_at TEXT',
-            'seller_wallet_entries'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, type TEXT, status TEXT, amount_minor INTEGER',
+            'seller_wallet_entries'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, payout_id INTEGER, type TEXT, status TEXT, amount_minor INTEGER',
+            'payouts'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, status TEXT, amount_minor INTEGER',
             'notifications'=>'id TEXT PRIMARY KEY, notifiable_type TEXT, notifiable_id INTEGER, read_at TEXT',
         ];
         foreach ($schema as $table=>$columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
@@ -154,6 +155,7 @@ class SellerReportsDashboardTest extends TestCase
 
     public function test_current_wallet_is_real_ledger_data_and_does_not_follow_report_dates(): void
     {
+        DB::table('payouts')->insert(['id'=>51,'seller_id'=>101,'status'=>'PAID','amount_minor'=>5000]);
         DB::table('seller_wallet_entries')->insert([
             ['id'=>1,'seller_id'=>101,'type'=>'SALE_EARNING','status'=>'AVAILABLE','amount_minor'=>15000],
             ['id'=>2,'seller_id'=>101,'type'=>'REFUND_ADJUSTMENT','status'=>'AVAILABLE','amount_minor'=>-1000],
@@ -162,11 +164,29 @@ class SellerReportsDashboardTest extends TestCase
             ['id'=>5,'seller_id'=>101,'type'=>'PAYOUT_COMPLETED','status'=>'POSTED','amount_minor'=>5000],
             ['id'=>6,'seller_id'=>202,'type'=>'SALE_EARNING','status'=>'AVAILABLE','amount_minor'=>999999],
         ]);
+        DB::table('seller_wallet_entries')->where('id',5)->update(['payout_id'=>51]);
         $all=$this->report()->viewData('data')['wallet'];
         $filtered=$this->report(['date'=>'custom','from'=>'2000-01-01','to'=>'2000-01-01'])->viewData('data')['wallet'];
-        $this->assertSame($all,$filtered); $this->assertSame(12000,$all['available_minor']);
+        $this->assertSame($all,$filtered); $this->assertSame(7000,$all['available_minor']);
         $this->assertSame(3000,$all['held_minor']); $this->assertSame(2000,$all['reserved_minor']); $this->assertSame(5000,$all['paid_out_minor']);
         $this->assertSame(6,DB::table('seller_wallet_entries')->count());
+    }
+
+    public function test_paid_payout_changes_wallet_without_changing_historical_sales_or_export(): void
+    {
+        $this->sale(1);
+        DB::table('seller_wallet_entries')->insert(['id'=>1,'seller_id'=>101,'type'=>'SALE_EARNING','status'=>'AVAILABLE','amount_minor'=>7000]);
+        $before=$this->report()->viewData('data');
+        $csv=$this->get(route('seller.reports',['export'=>1]))->assertOk()->getContent();
+        DB::table('payouts')->insert(['id'=>1,'seller_id'=>101,'status'=>'PAID','amount_minor'=>2000]);
+        DB::table('seller_wallet_entries')->insert(['id'=>2,'seller_id'=>101,'payout_id'=>1,'type'=>'PAYOUT_COMPLETED','status'=>'POSTED','amount_minor'=>2000]);
+        $after=$this->report()->viewData('data');
+        $this->assertSame(7000,$before['wallet']['available_minor']);
+        $this->assertSame(5000,$after['wallet']['available_minor']);
+        $this->assertSame(2000,$after['wallet']['paid_out_minor']);
+        $this->assertSame(7000,$after['summary']['net_minor']);
+        foreach (['summary','sales_chart','status_chart','completed_orders','units_sold'] as $key) $this->assertSame($before[$key],$after[$key]);
+        $this->assertSame($csv,$this->get(route('seller.reports',['export'=>1]))->assertOk()->getContent());
     }
 
     public function test_product_rankings_preserve_snapshots_stable_ties_and_paginated_period_links(): void

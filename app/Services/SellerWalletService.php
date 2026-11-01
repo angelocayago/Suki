@@ -51,10 +51,39 @@ class SellerWalletService
     /** Read-only ledger summary. */
     public function summary(Seller $seller): array
     {
-        $entries = SellerWalletEntry::query()->where('seller_id', $seller->id);
-        $reserved = (int) (clone $entries)->where('type', 'PAYOUT_RESERVATION')->where('status', 'RESERVED')->sum('amount_minor');
-        $available = (int) (clone $entries)->whereIn('type', ['SALE_EARNING','REFUND_ADJUSTMENT'])->where('status', 'AVAILABLE')->sum('amount_minor');
-        return ['available_minor'=>$available-$reserved,'held_minor'=>(int)(clone $entries)->where('type','SALE_EARNING')->where('status','HELD')->sum('amount_minor'),'reserved_minor'=>$reserved,'paid_out_minor'=>(int)(clone $entries)->where('type','PAYOUT_COMPLETED')->sum('amount_minor'),'total_earnings_minor'=>(int)(clone $entries)->where('type','SALE_EARNING')->sum('amount_minor')];
+        // A disbursement has one identity: its owned, PAID payout. Match the
+        // positive POSTED ledger entry to its amount; duplicate rows must not
+        // deduct the same payout twice. No historical records are rewritten.
+        $completed = DB::table('seller_wallet_entries as completed')
+            ->where('completed.seller_id', $seller->id)
+            ->where('completed.type', 'PAYOUT_COMPLETED')->where('completed.status', 'POSTED')
+            ->where('completed.amount_minor', '>', 0)
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')->from('payouts')
+                    ->whereColumn('payouts.id', 'completed.payout_id')
+                    ->whereColumn('payouts.seller_id', 'completed.seller_id')
+                    ->whereColumn('payouts.amount_minor', 'completed.amount_minor')
+                    ->where('payouts.status', 'PAID');
+            })->groupBy('completed.payout_id')->selectRaw('MAX(completed.amount_minor) AS amount_minor');
+        $paid = DB::query()->fromSub($completed, 'completed_payouts')->selectRaw('COALESCE(SUM(amount_minor), 0)');
+
+        // Standard CASE aggregates plus the scalar subquery use one statement
+        // snapshot on PostgreSQL and SQLite, without a join multiplying entries.
+        $totals = DB::table('seller_wallet_entries')->where('seller_id', $seller->id)
+            ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('SALE_EARNING', 'REFUND_ADJUSTMENT') AND status = 'AVAILABLE' THEN amount_minor ELSE 0 END), 0) AS available_credits_minor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'PAYOUT_RESERVATION' AND status = 'RESERVED' THEN amount_minor ELSE 0 END), 0) AS reserved_minor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'SALE_EARNING' AND status = 'HELD' THEN amount_minor ELSE 0 END), 0) AS held_minor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'PAYOUT_COMPLETED' THEN amount_minor ELSE 0 END), 0) AS paid_out_minor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'SALE_EARNING' THEN amount_minor ELSE 0 END), 0) AS total_earnings_minor")
+            ->selectSub($paid, 'completed_minor')->first();
+
+        return [
+            'available_minor'=>(int) $totals->available_credits_minor - (int) $totals->reserved_minor - (int) $totals->completed_minor,
+            'held_minor'=>(int) $totals->held_minor,
+            'reserved_minor'=>(int) $totals->reserved_minor,
+            'paid_out_minor'=>(int) $totals->paid_out_minor,
+            'total_earnings_minor'=>(int) $totals->total_earnings_minor,
+        ];
     }
 
     public function request(Seller $seller, int $amountMinor): Payout

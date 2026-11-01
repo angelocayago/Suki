@@ -3,24 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payout;
-use App\Models\SellerWalletEntry;
 use App\Services\SellerWalletService;
+use App\Support\SellerWalletPage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PayoutController extends Controller
 {
-    public function seller(Request $request, SellerWalletService $wallet): View
+    public function seller(Request $request, SellerWalletService $wallet, SellerWalletPage $page): View
     {
         $seller = $request->user()->sellers()->where('status', 'approved')->firstOrFail();
-        return view('seller.wallet.index', ['wallet'=>$wallet->summary($seller),'payouts'=>Payout::query()->where('seller_id',$seller->id)->latest()->get(),'entries'=>SellerWalletEntry::query()->where('seller_id',$seller->id)->latest()->limit(30)->get()]);
+        return view('seller.wallet.index', $page->history($seller, $request) + ['wallet'=>$wallet->summary($seller)]);
     }
 
     public function request(Request $request, SellerWalletService $wallet): RedirectResponse
     {
         $seller = $request->user()->sellers()->where('status', 'approved')->firstOrFail();
-        $amount = $request->validate(['amount'=>['required','regex:/^\d+(?:\.\d{1,2})?$/']])['amount'];
+        $amount = $request->validate(['amount'=>['required','regex:/\A[0-9]+(?:\.[0-9]{1,2})?\z/']])['amount'];
         $wallet->request($seller, $this->toMinor((string) $amount));
         return back()->with('success', 'Payout requested.');
     }
@@ -44,6 +44,14 @@ class PayoutController extends Controller
     private function toMinor(string $amount): int
     {
         [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
-        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+        $minor = ltrim($whole.str_pad($fraction, 2, '0'), '0');
+        $limit = (string) PHP_INT_MAX;
+        if ($minor === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['amount'=>'Enter a positive payout amount.']);
+        }
+        if (strlen($minor) > strlen($limit) || (strlen($minor) === strlen($limit) && strcmp($minor, $limit) > 0)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['amount'=>'Payout amount exceeds the supported integer limit.']);
+        }
+        return (int) $minor;
     }
 }

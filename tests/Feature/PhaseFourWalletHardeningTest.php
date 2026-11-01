@@ -77,7 +77,10 @@ class PhaseFourWalletHardeningTest extends TestCase
         $payout = $wallet->request($fixture['seller'], 5000);
         $this->assertSame(4000, $wallet->summary($fixture['seller'])['available_minor']);
         $wallet->review($payout, $admin, 'APPROVED');
+        $this->assertSame(4000, $wallet->summary($fixture['seller'])['available_minor']);
         $wallet->markPaid($payout, $admin, 'manual', 'REF-1');
+        $this->assertSame(4000, $wallet->summary($fixture['seller'])['available_minor']);
+        $this->assertSame(0, $wallet->summary($fixture['seller'])['reserved_minor']);
         $this->assertSame(5000, $wallet->summary($fixture['seller'])['paid_out_minor']);
         $this->expectException(ValidationException::class);
         $wallet->markPaid($payout, $admin, 'manual', 'REF-2');
