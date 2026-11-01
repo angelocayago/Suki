@@ -1,8 +1,31 @@
 @extends('layouts.seller')
-@section('title','Store Vouchers')
-@section('page-title','Store Vouchers')
+@section('title', 'Shop Vouchers')
+@section('page-title', 'Vouchers')
 @section('content')
-<div class="space-y-5"><h1 class="text-2xl font-bold">Store vouchers</h1>@if(session('success'))<div class="rounded bg-green-50 p-3 text-green-800">{{ session('success') }}</div>@endif
-<form method="POST" action="{{ route('seller.vouchers.store') }}" class="grid gap-3 rounded border bg-white p-5 md:grid-cols-3">@csrf<input name="code" required placeholder="Code" class="rounded border p-2"><select name="discount_type" class="rounded border p-2"><option value="FIXED">Fixed ₱</option><option value="PERCENTAGE">Percentage</option></select><input name="discount_value" type="number" step="0.01" min="0.01" required placeholder="Value" class="rounded border p-2"><input name="starts_at" type="datetime-local" class="rounded border p-2"><input name="expires_at" type="datetime-local" class="rounded border p-2"><button class="rounded bg-[#173F35] p-2 font-semibold text-white">Create store voucher</button></form>
-@forelse($vouchers as $voucher)<div class="flex items-center justify-between rounded border bg-white p-4"><div><b>{{ $voucher->code }}</b> · {{ $voucher->discount_type === 'PERCENTAGE' ? number_format($voucher->discount_bps/100,2).'%' : '₱'.number_format($voucher->discount_minor/100,2) }}<p class="text-sm text-gray-500">{{ $voucher->is_active && !$voucher->archived_at ? 'Active':'Inactive' }}</p></div><form method="POST" action="{{ route('seller.vouchers.archive',$voucher) }}">@csrf @method('DELETE')<button class="text-sm text-red-700">Archive</button></form></div>@empty<div class="rounded border bg-white p-5 text-gray-500">No store vouchers yet.</div>@endforelse</div>
+@include('seller.vouchers.partials.style')
+<div class="seller-vouchers">
+    <header class="sv-heading"><div><h2>Shop Vouchers</h2><p>Create discounts for eligible merchandise in your shop.</p></div><a class="sv-primary" href="{{ route('seller.vouchers.create') }}">Create Shop Voucher</a></header>
+    @include('seller.vouchers.partials.feedback')
+    <details class="sv-card sv-filters"><summary>Filters @if(count($criteria))<span class="sv-badge">{{ count($criteria) }}</span>@endif</summary>
+        <form method="GET" action="{{ route('seller.vouchers.index') }}"><label>Voucher search<input type="search" name="search" maxlength="64" value="{{ $criteria['search'] ?? '' }}" placeholder="Search voucher code"></label><label>Status<select name="status"><option value="">All statuses</option>@foreach(\App\Support\SellerVouchers::statuses() as $value=>$label)<option value="{{ $value }}" @selected(($criteria['status'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></label><button type="submit" class="sv-primary">Apply Filters</button><a href="{{ route('seller.vouchers.index') }}">Clear Filters</a></form>
+    </details>
+    @if(count($criteria))<p class="sv-applied">{{ $vouchers->total() }} voucher(s) match your filters. <a href="{{ route('seller.vouchers.index') }}">Clear All</a></p>@endif
+    <section class="sv-card sv-list">
+        <header><h3>Your Vouchers</h3><span>{{ $vouchers->total() }} voucher(s)</span></header>
+        @if($vouchers->isEmpty())<div class="sv-empty"><strong>{{ count($criteria) ? 'No vouchers match your filters.' : 'No shop vouchers yet.' }}</strong><p>@if(count($criteria))<a href="{{ route('seller.vouchers.index') }}">Clear Filters</a>@else<a href="{{ route('seller.vouchers.create') }}">Create your first voucher</a>@endif</p></div>
+        @else<div class="sv-table-scroll"><table><thead><tr><th>Voucher Code</th><th>Discount</th><th>Usage</th><th>Validity (Manila)</th><th>Actions</th></tr></thead><tbody>
+            @foreach($vouchers as $voucher)
+                @php($state = \App\Support\SellerVouchers::status($voucher))
+                <tr><td><strong class="sv-code">{{ $voucher->code }}</strong><span class="sv-status sv-status-{{ $state }}">{{ \App\Support\SellerVouchers::statuses()[$state] }}</span></td>
+                    <td><strong>{{ $voucher->discount_type === 'PERCENTAGE' ? \App\Support\SellerVouchers::decimal($voucher->discount_bps).'%' : 'PHP '.\App\Support\SellerVouchers::decimal($voucher->discount_minor) }}</strong><small>{{ $voucher->discount_type === 'PERCENTAGE' ? 'Percentage ? no maximum cap' : 'Fixed amount' }}</small></td>
+                    <td>{{ $voucher->used_count }} used<small>{{ $voucher->usage_limit === null ? 'Unlimited total uses' : 'Total limit: '.$voucher->usage_limit }}</small></td>
+                    <td><small>Starts: {{ $voucher->starts_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A') ?? 'Any time' }}</small><small>Expires: {{ $voucher->expires_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A') ?? 'No expiry' }}</small></td>
+                    <td><div class="sv-row-actions"><a href="{{ route('seller.vouchers.edit',$voucher) }}">Edit</a>@unless($voucher->archived_at)<form method="POST" action="{{ route('seller.vouchers.archive',$voucher) }}" data-voucher-archive>@csrf @method('DELETE')<button type="submit" class="sv-archive">Archive</button></form>@endunless</div></td>
+                </tr>
+            @endforeach
+        </tbody></table></div><div class="sv-pagination">{{ $vouchers->links() }}</div>@endif
+    </section>
+    <p class="sv-note">Shop vouchers apply only to this shop's eligible merchandise. Minimum purchase amounts, per-buyer usage limits, names, descriptions and percentage caps are not currently available. Archived vouchers cannot be redeemed.</p>
+</div>
+@include('seller.vouchers.partials.script')
 @endsection

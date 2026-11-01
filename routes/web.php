@@ -3096,7 +3096,10 @@ Route::get('/seller-legacy', function () use ($requireSeller) {
 Route::get('/seller', [SellerFulfillmentController::class, 'dashboard'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.dashboard');
-Route::get('/seller/vouchers', [VoucherController::class, 'sellerIndex'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.index');
+Route::get('/seller/vouchers', [\App\Http\Controllers\Seller\VoucherController::class, 'index'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.index');
+Route::get('/seller/vouchers/create', [\App\Http\Controllers\Seller\VoucherController::class, 'create'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.create');
+Route::get('/seller/vouchers/generate-code', [\App\Http\Controllers\Seller\VoucherController::class, 'generate'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.generate');
+Route::get('/seller/vouchers/{voucher}/edit', [\App\Http\Controllers\Seller\VoucherController::class, 'edit'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.edit');
 Route::get('/seller/wallet', [PayoutController::class, 'seller'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.wallet');
 Route::get('/rider/cod-remittances', [CodRemittanceController::class, 'rider'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances');
 Route::post('/rider/cod-remittances/{remittance}', [CodRemittanceController::class, 'riderSubmit'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances.submit');
@@ -3104,9 +3107,9 @@ Route::get('/logistics/cod-remittances', [CodRemittanceController::class, 'logis
 Route::patch('/logistics/cod-remittances/{remittance}', [CodRemittanceController::class, 'logisticsReview'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.review');
 Route::post('/logistics/cod-remittances', [CodRemittanceController::class, 'logisticsSubmit'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.submit');
 Route::post('/seller/wallet/payouts', [PayoutController::class, 'request'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.payouts.store');
-Route::post('/seller/vouchers', [VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.store');
-Route::patch('/seller/vouchers/{voucher}', [VoucherController::class, 'update'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.update');
-Route::delete('/seller/vouchers/{voucher}', [VoucherController::class, 'archive'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.vouchers.archive');
+Route::post('/seller/vouchers', [\App\Http\Controllers\Seller\VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->block(10,10)->name('seller.vouchers.store');
+Route::patch('/seller/vouchers/{voucher}', [\App\Http\Controllers\Seller\VoucherController::class, 'update'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.update');
+Route::delete('/seller/vouchers/{voucher}', [\App\Http\Controllers\Seller\VoucherController::class, 'archive'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.archive');
 
 
 // =====================================================
