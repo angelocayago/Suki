@@ -3339,19 +3339,13 @@ Route::put('/seller/inventory/{variant}', [SellerInventoryController::class, 'se
 // SELLER SALES
 // =====================================================
 
-Route::get('/seller/sales', function () use ($requireSeller) {
+Route::get('/seller/sales', [\App\Http\Controllers\Seller\SalesController::class, 'index'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.sales');
 
-    if ($redirect = $requireSeller()) {
-        return $redirect;
-    }
-
-    $orders = collect(session('orders', []));
-
-    return view('seller.sales', [
-        'orders' => $orders,
-    ]);
-
-})->name('seller.sales');
+Route::get('/seller/sales/products', [\App\Http\Controllers\Seller\SalesController::class, 'products'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
+    ->name('seller.sales.products');
 
 
 // =====================================================
