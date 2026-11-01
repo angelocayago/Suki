@@ -36,13 +36,15 @@ class InventoryController extends Controller
         SellerInventoryService $inventory
     ): RedirectResponse {
         $validated = $request->validate([
-            'stock' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'stock' => ['required', 'integer', 'min:0', 'max:'.SellerInventoryService::MAX_STOCK],
+            'expected_stock' => ['required', 'integer', 'min:0', 'max:'.SellerInventoryService::MAX_STOCK],
         ]);
 
         $inventory->setStock(
             $this->sellerFor($request),
             $this->variantId($variant),
-            (int) $validated['stock']
+            (int) $validated['stock'],
+            (int) $validated['expected_stock']
         );
 
         return back()->with('success', 'Product stock set successfully.');

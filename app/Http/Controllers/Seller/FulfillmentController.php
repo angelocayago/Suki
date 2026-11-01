@@ -47,13 +47,31 @@ class FulfillmentController extends Controller
 
     public function inventory(Request $request): View
     {
-        $databaseProducts = $this->databaseInventory($this->sellerFor($request->user()));
+        $seller = $this->sellerFor($request->user());
+        $criteria = array_replace(['search'=>'', 'category'=>'', 'stock'=>'all'], array_filter($request->validate([
+            'search'=>['nullable', 'string', 'max:100'],
+            'category'=>['nullable', 'integer', 'min:1'],
+            'stock'=>['nullable', Rule::in(['all','in-stock','low-stock','out-of-stock'])],
+        ]), fn ($value) => $value !== null));
+        $totals = $seller->products()->withSum(['variants'=>fn ($query) => $query->where('is_active', true)], 'stock')->get();
+        $inventorySummary = [
+            'total'=>$totals->count(), 'units'=>(int)$totals->sum('variants_sum_stock'),
+            'in_stock'=>$totals->filter(fn ($product) => $product->variants_sum_stock > 10)->count(),
+            'low_stock'=>$totals->filter(fn ($product) => $product->variants_sum_stock >= 1 && $product->variants_sum_stock <= 10)->count(),
+            'out_of_stock'=>$totals->filter(fn ($product) => ($product->variants_sum_stock ?? 0) <= 0)->count(),
+        ];
+        $inventoryCategories = \App\Models\Category::query()->whereIn('id', $seller->products()->select('category_id'))->orderBy('name')->get(['id','name']);
+        $databaseProducts = $this->databaseInventory($seller, $criteria);
+        $productUnits = $totals->pluck('variants_sum_stock', 'id');
+        $databaseProducts = $databaseProducts->map(function ($row) use ($productUnits) {
+            $row['product_stock'] = (int) ($productUnits[$row['product_id']] ?? 0);
+            return $row;
+        });
 
         return view('seller.inventory', [
-            'products' => $databaseProducts->isNotEmpty()
-                ? $databaseProducts->all()
-                : $request->session()->get('seller_products', []),
-            'databaseInventory' => $databaseProducts->isNotEmpty(),
+            'products' => $databaseProducts->all(),
+            'databaseInventory' => true,
+            'inventorySummary'=>$inventorySummary, 'inventoryCategories'=>$inventoryCategories, 'criteria'=>$criteria,
         ]);
     }
 
@@ -169,10 +187,26 @@ class FulfillmentController extends Controller
         ];
     }
 
-    private function databaseInventory(Seller $seller): Collection
+    private function databaseInventory(Seller $seller, array $criteria): Collection
     {
+        $term = mb_strtolower(trim($criteria['search']));
+        $term = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
+        $variants = function ($query) use ($criteria, $term) {
+            if (trim($criteria['search']) !== '') {
+                $query->where(fn ($query) => $query->whereRaw("LOWER(sku) LIKE ? ESCAPE '!'", [$term])
+                    ->orWhereHas('product', fn ($product) => $product->whereRaw("LOWER(products.name) LIKE ? ESCAPE '!'", [$term])));
+            }
+            match ($criteria['stock']) {
+                'in-stock'=>$query->where('stock','>',10),
+                'low-stock'=>$query->whereBetween('stock',[1,10]),
+                'out-of-stock'=>$query->where('stock','<=',0),
+                default=>null,
+            };
+        };
         return $seller->products()
-            ->with(['category', 'images', 'variants'])
+            ->when($criteria['category'] !== '', fn ($query) => $query->where('category_id', $criteria['category']))
+            ->whereHas('variants', $variants)
+            ->with(['category', 'images', 'variants'=>$variants])
             ->orderBy('name')
             ->get()
             ->flatMap(function ($product) use ($seller) {
@@ -190,8 +224,10 @@ class FulfillmentController extends Controller
                     'price' => $variant->price_minor / 100,
                     'stock' => $variant->stock,
                     'status' => $product->is_active && $variant->is_active ? 'active' : 'inactive',
-                    'image' => $product->images->first()?->path,
-                    'updated_at' => $variant->updated_at?->toDateTimeString(),
+                    'image' => ($path = $product->images->first()?->path)
+                        ? (\Illuminate\Support\Str::startsWith($path, ['https://','http://']) ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path)) : null,
+                    // This is a general variant update, not a stock-only audit event.
+                    'updated_at' => $variant->updated_at?->copy()->setTimezone('Asia/Manila'),
                 ]);
             })
             ->values();

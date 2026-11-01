@@ -174,25 +174,27 @@ class PhaseTwoASellerProductEnforcementTest extends TestCase
         $variant = $lowProduct->variants()->firstOrFail();
 
         $this->actingAs($owner)
-            ->put(route('seller.inventory.set', $variant), ['stock' => 7])
+            ->put(route('seller.inventory.set', $variant), ['stock' => 7, 'expected_stock' => 10])
             ->assertRedirect();
         $this->assertSame(7, $variant->fresh()->stock);
 
         $this->actingAs($otherUser)
-            ->put(route('seller.inventory.set', $variant), ['stock' => 5])
+            ->put(route('seller.inventory.set', $variant), ['stock' => 5, 'expected_stock' => 7])
             ->assertNotFound();
 
         $this->actingAs($owner)
-            ->put(route('seller.inventory.set', $variant), ['stock' => -1])
+            ->put(route('seller.inventory.set', $variant), ['stock' => -1, 'expected_stock' => 7])
             ->assertSessionHasErrors('stock');
         $this->assertSame(7, $variant->fresh()->stock);
 
         $variant->refresh()->update(['stock' => 10]);
-        $this->actingAs($owner)
+        $page = $this->actingAs($owner)
             ->get(route('seller.products'))
-            ->assertOk()
-            ->assertSee('10 left')
-            ->assertSee('11 in stock');
+            ->assertOk();
+        $rows = $page->viewData('paginator')->getCollection()->keyBy('id');
+        $this->assertSame('Low stock', $rows[$lowProduct->id]['stock_status']);
+        $this->assertSame(10, $rows[$lowProduct->id]['stock']);
+        $this->assertSame('In stock', $rows[$normalProduct->id]['stock_status']);
 
         $this->assertSame(11, $normalProduct->variants()->firstOrFail()->stock);
     }

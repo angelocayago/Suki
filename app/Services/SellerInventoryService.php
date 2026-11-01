@@ -10,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class SellerInventoryService
 {
-    private const MAX_STOCK = 4294967295;
+    // PostgreSQL stores Laravel's unsignedInteger as a signed INTEGER.
+    public const MAX_STOCK = 2147483647;
 
     public function increase(Seller $seller, int $variantId, int $quantity = 1): ProductVariant
     {
@@ -22,7 +23,7 @@ class SellerInventoryService
         return $this->adjust($seller, $variantId, -$quantity);
     }
 
-    public function setStock(Seller $seller, int $variantId, int $stock): ProductVariant
+    public function setStock(Seller $seller, int $variantId, int $stock, ?int $expectedStock = null): ProductVariant
     {
         if ($stock < 0 || $stock > self::MAX_STOCK) {
             throw ValidationException::withMessages([
@@ -30,8 +31,13 @@ class SellerInventoryService
             ]);
         }
 
-        return DB::transaction(function () use ($seller, $variantId, $stock) {
+        return DB::transaction(function () use ($seller, $variantId, $stock, $expectedStock) {
             $variant = $this->lockedOwnedVariant($seller, $variantId);
+            if ($expectedStock !== null && $variant->stock !== $expectedStock) {
+                throw ValidationException::withMessages([
+                    'stock' => 'Stock changed since this page was loaded. Reload Inventory and try again.',
+                ]);
+            }
             $variant->update(['stock' => $stock]);
 
             return $variant->fresh();

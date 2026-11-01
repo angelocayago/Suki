@@ -107,6 +107,9 @@ class PhaseThreeInventoryUnificationTest extends TestCase
     {
         [$user, $seller] = $this->seller('product-update-owner');
         $category = $this->category();
+        $root = Category::create(['name'=>'Inventory Root', 'slug'=>'inventory-root', 'is_active'=>true]);
+        $category->update(['parent_id' => $root->id]);
+        $seller->update(['category_id' => $root->id]);
         $product = $this->product($seller, 'Editable Product', $category);
         $variant = $this->variant($product, 'EDITABLE-STOCK', 2);
 
@@ -150,13 +153,17 @@ class PhaseThreeInventoryUnificationTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(1, $variant->fresh()->stock);
+        $this->actingAs($sellerUser)->from(route('seller.inventory'))
+            ->put(route('seller.inventory.set', $variant), ['stock'=>12, 'expected_stock'=>3])
+            ->assertSessionHasErrors('stock');
+        $this->assertSame(1, $variant->fresh()->stock, 'A stale seller form must not overwrite checkout deductions.');
         $this->assertDatabaseHas('order_items', [
             'product_variant_id' => $variant->id,
             'quantity' => 2,
         ]);
     }
 
-    public function test_session_inventory_remains_a_read_only_separate_fallback(): void
+    public function test_session_inventory_is_only_visible_on_the_read_only_legacy_page(): void
     {
         [$user, $seller] = $this->seller('legacy-inventory-owner');
         $legacy = [
@@ -173,7 +180,9 @@ class PhaseThreeInventoryUnificationTest extends TestCase
             ->withSession(['seller_products' => $legacy])
             ->get(route('seller.inventory'))
             ->assertOk()
-            ->assertSee('Legacy Inventory Product');
+            ->assertDontSee('Legacy Inventory Product');
+
+        $this->get(route('seller.inventory.legacy'))->assertOk()->assertSee('Legacy Inventory Product');
 
         $this->actingAs($user)
             ->withSession(['seller_products' => $legacy])
