@@ -78,6 +78,14 @@ Route::middleware('auth')->prefix('notifications')->name('notifications.')->grou
     Route::post('/{notification}/read', [NotificationInboxController::class, 'markRead'])->name('read');
 });
 
+Route::prefix('seller/notifications')->name('seller.notifications.')->middleware(['auth','not_suspended','approved','role:seller'])->group(function () {
+    Route::get('/', [\App\Http\Controllers\Seller\NotificationController::class, 'index'])->name('index');
+    Route::get('/preview', [\App\Http\Controllers\Seller\NotificationController::class, 'preview'])->name('preview');
+    Route::post('/read-all', [\App\Http\Controllers\Seller\NotificationController::class, 'readAll'])->name('read-all');
+    Route::post('/{notification}/read', [\App\Http\Controllers\Seller\NotificationController::class, 'read'])->whereUuid('notification')->name('read');
+    Route::post('/{notification}/open', [\App\Http\Controllers\Seller\NotificationController::class, 'open'])->whereUuid('notification')->name('open');
+});
+
 Route::get('/policies/{policy}', [PublicContentController::class, 'policy'])
     ->whereIn('policy', ['terms-of-service', 'privacy-policy', 'shipping-policy', 'returns-refund-policy'])
     ->name('policies.show');

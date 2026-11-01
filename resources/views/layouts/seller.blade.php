@@ -126,6 +126,7 @@
         }
     </style>
 
+    @include('seller.header.style')
 </head>
 
 
@@ -139,12 +140,15 @@
     $sellerName = $sellerProfile['seller_name']
         ?? 'Seller';
 
-    $assignedRootCategory = auth()->user()?->sellers()
+    $headerShop = auth()->user()?->sellers()
         ->with('category:id,name')
         ->where('status', 'approved')
-        ->first()?->category?->name;
+        ->first();
+    $assignedRootCategory = $headerShop?->category?->name;
+    $sellerHeader = app(\App\Support\SellerNotifications::class)->header(auth()->user(), $headerShop);
 
 @endphp
+
 
 
 <body
@@ -190,11 +194,10 @@
                     ['seller.reports', 'Reports', 'chart-no-axes-combined', 'seller.reports'],
                     ['seller.vouchers.index', 'Vouchers', 'badge-percent', 'seller.vouchers.*'],
                     ['seller.wallet', 'Wallet & Payouts', 'wallet', 'seller.wallet'],
-                    ['seller.promotions', 'Promotions', 'megaphone', 'seller.promotions*'],
                 ],
                 'Customer Service' => [
                     ['seller.messages.index', 'Messages', 'message-circle', 'seller.messages.*'],
-                    ['notifications.page', 'Notifications', 'bell', 'notifications.*'],
+                    ['seller.notifications.index', 'Notifications', 'bell', 'seller.notifications.*'],
                     ['reviews.seller-page', 'Reviews', 'star', 'reviews.seller-page'],
                     ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
                     ['complaints.mine.index', 'Complaints', 'message-square-warning', 'complaints.*'],
@@ -207,10 +210,10 @@
                 <p class="seller-sidebar-section-label">{{ $section }}</p>
                 <div class="seller-sidebar-group">
                     @foreach($links as [$destination, $label, $icon, $activePattern])
-                        @if($destination === 'notifications.page')
+                        @if($destination === 'seller.notifications.index')
                             <div class="seller-sidebar-notification">
                                 <i data-lucide="bell" aria-hidden="true"></i>
-                                <x-notification-link class="seller-sidebar-link seller-sidebar-notification-link" title="Notifications" aria-label="Notifications" :aria-current="request()->routeIs($activePattern) ? 'page' : null" />
+                                <a href="{{ route($destination) }}" class="seller-sidebar-link seller-sidebar-notification-link" title="Notifications" aria-label="Notifications" @if(request()->routeIs($activePattern)) aria-current="page" @endif>Notifications <span data-seller-unread-badge @if(!$sellerHeader['unread_count']) hidden @endif aria-hidden="true">{{ $sellerHeader['unread_count'] ? ($sellerHeader['unread_count'] > 99 ? '99+' : $sellerHeader['unread_count']) : '' }}</span></a>
                             </div>
                         @else
                             <a href="{{ route($destination) }}" class="seller-sidebar-link" title="{{ $label }}" aria-label="{{ $label }}" @if(request()->routeIs($activePattern)) aria-current="page" @endif>
@@ -254,7 +257,7 @@
         >
 
             <div
-                class="flex min-h-[74px]
+                class="seller-topbar-row flex min-h-[74px]
                        items-center gap-4
                        px-4
                        sm:px-6
@@ -342,11 +345,12 @@
 
 
                 {{-- ACTIONS --}}
-                <div class="flex items-center gap-2">
+                <div class="seller-header-actions flex items-center gap-2">
 
                     <a
-                        href="{{ route('buyer.home') }}"
+                        href="{{ $sellerHeader['store_url'] ?? route('buyer.home') }}"
                         target="_blank"
+                        rel="noopener noreferrer"
                         class="hidden h-10
                                items-center gap-2
                                rounded-xl
@@ -374,6 +378,8 @@
 
                     <a
                         href="{{ route('seller.products.create') }}"
+                        aria-label="Add Product"
+                        title="Add Product"
                         class="flex h-10
                                items-center gap-2
                                rounded-xl
@@ -398,6 +404,7 @@
 
                     </a>
 
+                    @include('seller.header.controls')
                 </div>
 
             </div>
@@ -423,6 +430,7 @@
     </div>
 
 
+    @include('seller.header.script')
     @stack('scripts')
 
 
