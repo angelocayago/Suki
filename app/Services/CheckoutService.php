@@ -35,6 +35,8 @@ class CheckoutService
                 $available = $variant
                     && $product
                     && $this->isMarketplaceEligible($variant)
+                    && (int) $variant->price_minor >= 0
+                    && (int) $cartItem->quantity > 0
                     && (int) $cartItem->quantity <= (int) $variant->stock;
 
                 $image = $product?->images->first()?->path ?? $cartItem->image;
@@ -43,10 +45,12 @@ class CheckoutService
                 }
 
                 return [
-                    $cartItem->product_slug => [
+                    $cartItem->id => [
+                        'id' => $cartItem->id,
                         'slug' => $cartItem->product_slug,
                         'name' => $product?->name ?? $cartItem->product_name,
                         'price' => $variant ? $variant->price_minor / 100 : (float) $cartItem->price,
+                        'price_minor' => $variant ? (int) $variant->price_minor : (int) round((float) $cartItem->price * 100),
                         'image' => $image,
                         'quantity' => (int) $cartItem->quantity,
                         'variant' => $variant?->name,
@@ -60,7 +64,7 @@ class CheckoutService
             ->all();
 
         $subtotalMinor = collect($items)->sum(
-            fn (array $item) => (int) round($item['price'] * 100) * $item['quantity']
+            fn (array $item) => $item['price_minor'] * $item['quantity']
         );
         $sellerCount = collect($items)
             ->filter(fn (array $item) => $item['available'] && $item['seller_id'])
@@ -71,7 +75,7 @@ class CheckoutService
         $sellerSubtotals = collect($items)
             ->filter(fn (array $item) => $item['available'] && $item['seller_id'])
             ->groupBy('seller_id')
-            ->map(fn (Collection $sellerItems) => $sellerItems->sum(fn (array $item) => (int) round($item['price'] * 100) * $item['quantity']));
+            ->map(fn (Collection $sellerItems) => $sellerItems->sum(fn (array $item) => $item['price_minor'] * $item['quantity']));
         $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals);
         $discountMinor = collect($voucherPreview['redemptions'])->sum('amount');
 
@@ -135,6 +139,11 @@ class CheckoutService
             $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
             $discountMinor = collect($redemptions)->sum('amount');
             $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
+            if ($discountMinor < 0 || $discountMinor > $subtotalMinor || $totalMinor < 0
+                || $sellerDiscounts->contains(fn ($discount, $sellerId) => $discount < 0 || $discount > $sellerSubtotals[$sellerId])
+                || $sellerDiscounts->sum() !== $discountMinor) {
+                throw ValidationException::withMessages(['voucher' => 'Discount allocations could not be reconciled.']);
+            }
             $orderNumber = $this->orderNumber();
             $now = now();
 
@@ -239,7 +248,21 @@ class CheckoutService
 
                     $variant->decrement('stock', $line['quantity']);
                 }
-                foreach ([['seller_funded_discount_minor',$sellerFundedDiscount],['platform_funded_discount_minor',$platformFundedDiscount]] as [$field,$discount]) { $remaining=$discount; foreach ($createdItems as $index=>$item) { $share=$index===count($createdItems)-1?$remaining:min((int)$item->unit_price_minor*(int)$item->quantity,$remaining); $item->update([$field=>$share]); $remaining-=$share; } }
+                // Both funding sources share the same remaining item capacity.
+                // The stable cart-ID order assigns every minor unit exactly once.
+                foreach ([['seller_funded_discount_minor', $sellerFundedDiscount], ['platform_funded_discount_minor', $platformFundedDiscount]] as [$field, $discount]) {
+                    $remaining = $discount;
+                    foreach ($createdItems as $item) {
+                        $capacity = (int) $item->unit_price_minor * (int) $item->quantity
+                            - (int) $item->seller_funded_discount_minor - (int) $item->platform_funded_discount_minor;
+                        $share = min($capacity, $remaining);
+                        $item->update([$field => $share]);
+                        $remaining -= $share;
+                    }
+                    if ($remaining !== 0) {
+                        throw ValidationException::withMessages(['voucher' => 'Item discounts could not be reconciled.']);
+                    }
+                }
                 foreach ($redemptions as $redemption) {
                     $amount = (int) ($redemption['allocation'][$seller->id] ?? 0);
                     if (!$amount) continue;
@@ -282,7 +305,7 @@ class CheckoutService
 
         $seller = $product->seller;
 
-        if ($quantity < 1 || $variant->stock < $quantity) {
+        if ($quantity < 1 || $variant->stock < $quantity || $variant->price_minor < 0) {
             throw ValidationException::withMessages([
                 'cart' => "Insufficient inventory for {$product->name}.",
             ]);
@@ -315,9 +338,10 @@ class CheckoutService
                 ->lockForUpdate()
                 ->find($cartItem->product_variant_id);
 
-            if ($variant) {
-                return $variant;
+            if (! $variant) {
+                throw ValidationException::withMessages(['cart' => "{$cartItem->product_name} is no longer available. Please remove it from your cart."]);
             }
+            return $variant;
         }
 
         $product = Product::query()
@@ -362,6 +386,19 @@ class CheckoutService
         return $variants->count() === 1
             ? $variants->first()->setRelation('product', $product)
             : null;
+    }
+
+    /** Called inside an owned cart-row transaction by the Buyer controller. */
+    public function updateCartQuantity(CartItem $cartItem, int $quantity): void
+    {
+        $variant = $this->lockedVariant($cartItem);
+        if (! $this->isMarketplaceEligible($variant) || $variant->product?->slug !== $cartItem->product_slug) {
+            throw ValidationException::withMessages(['quantity' => 'This product option is no longer available. Please remove it from your cart.']);
+        }
+        if ($quantity < 1 || $quantity > (int) $variant->stock) {
+            throw ValidationException::withMessages(['quantity' => 'Choose a quantity between 1 and the available stock ('.$variant->stock.').']);
+        }
+        $cartItem->update(['quantity' => $quantity]);
     }
 
     private function isMarketplaceEligible(ProductVariant $variant): bool

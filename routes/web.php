@@ -610,6 +610,7 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
 
     $product = $products[$slug];
 
+    $request->validate(['quantity' => ['sometimes', 'integer', 'min:1', 'max:2147483647'], 'variant_id' => ['nullable', 'integer', 'min:1']]);
     $selectedVariantId = (int) $request->input('variant_id');
     if ($selectedVariantId > 0) {
         $selectedVariant = \App\Models\ProductVariant::query()
@@ -628,6 +629,9 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
     }
 
     $maxStock = (int) $product['stock'];
+    if ($maxStock < 1) {
+        return back()->withErrors(['quantity' => 'This product option is out of stock.']);
+    }
 
     $requestedQuantity = (int) $request->input('quantity', 1);
 
@@ -681,153 +685,16 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
 // INCREASE CART QUANTITY
 // =====================================================
 
-Route::post('/cart/increase/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $user = auth()->user();
-
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if (!$cartItem) {
-        abort(404);
-    }
-
-    $maxStock = (int) $products[$slug]['stock'];
-
-    if ($cartItem->quantity < $maxStock) {
-        $cartItem->increment('quantity');
-    }
-
-    return redirect()->back();
-
-})->name('buyer.cart.increase');
-
-
-// =====================================================
-// DECREASE CART QUANTITY
-// =====================================================
-
-Route::post('/cart/decrease/{slug}', function ($slug) use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $user = auth()->user();
-
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if (!$cartItem) {
-        abort(404);
-    }
-
-    if ($cartItem->quantity > 1) {
-
-        $cartItem->decrement('quantity');
-
-    } else {
-
-        $cartItem->delete();
-    }
-
-    return redirect()->back();
-
-})->name('buyer.cart.decrease');
-
-// =====================================================
-// REMOVE FROM CART
-// =====================================================
-
-Route::post('/cart/remove/{slug}', function ($slug) use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $user = auth()->user();
-
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if ($cartItem) {
-        $cartItem->delete();
-    }
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            'Item removed from cart.'
-        );
-
-})->name('buyer.cart.remove');
-
-// =====================================================
-// UPDATE CART QUANTITY
-// =====================================================
-
-Route::post('/cart/update/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $user = auth()->user();
-
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if (!$cartItem) {
-        abort(404);
-    }
-
-    $quantity = (int) request()->input('quantity', 1);
-
-    $maxStock = (int) $products[$slug]['stock'];
-
-    $quantity = max(
-        1,
-        min($quantity, $maxStock)
-    );
-
-    $cartItem->update([
-        'quantity' => $quantity,
-    ]);
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            'Cart updated successfully.'
-        );
-
-})->name('buyer.cart.update');
+Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->group(function () {
+    Route::post('/cart/increase/{cartItem}', [CartController::class, 'increase'])->whereNumber('cartItem')->name('buyer.cart.increase');
+    Route::post('/cart/decrease/{cartItem}', [CartController::class, 'decrease'])->whereNumber('cartItem')->name('buyer.cart.decrease');
+    Route::post('/cart/remove/{cartItem}', [CartController::class, 'remove'])->whereNumber('cartItem')->name('buyer.cart.remove');
+    Route::post('/cart/update/{cartItem}', [CartController::class, 'update'])->whereNumber('cartItem')->name('buyer.cart.update');
+});
 
 // =====================================================
 // CLEAR CART
 // =====================================================
-
 Route::post('/cart/clear', function () use ($requireBuyer) {
 
     if ($redirect = $requireBuyer()) {
@@ -883,7 +750,7 @@ Route::get('/wishlist', function () use ($requireBuyer) {
 // ADD TO WISHLIST
 // =====================================================
 
-Route::post('/wishlist/add/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
+Route::post('/wishlist/add/{slug}', function (Request $request, $slug) use ($resolveProductCatalog, $requireBuyer) {
 
     $products = $resolveProductCatalog();
 
@@ -899,6 +766,11 @@ Route::post('/wishlist/add/{slug}', function ($slug) use ($resolveProductCatalog
 
     $product = $products[$slug];
 
+    $request->validate(['cart_item_id' => ['nullable', 'integer', 'min:1']]);
+    $cartItem = $request->filled('cart_item_id')
+        ? CartItem::where('user_id', $user->id)->where('product_slug', $slug)->findOrFail($request->input('cart_item_id'))
+        : null;
+
     WishlistItem::updateOrCreate(
         [
             'user_id' => $user->id,
@@ -913,9 +785,7 @@ Route::post('/wishlist/add/{slug}', function ($slug) use ($resolveProductCatalog
 
     // Kapag nasa cart ang product,
     // alisin ito dahil nilipat na sa wishlist.
-    CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->delete();
+    $cartItem?->delete();
 
     return redirect()
         ->back()
@@ -1042,8 +912,12 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($resolveProdu
     $maxStock = (int) $product['stock'];
 
     // Check kung nasa cart na ang product.
+    if ($maxStock < 1 || empty($product['variant_id'])) {
+        return back()->withErrors(['cart' => 'This product option is out of stock.']);
+    }
     $cartItem = CartItem::where('user_id', $user->id)
         ->where('product_slug', $slug)
+        ->where('product_variant_id', $product['variant_id'])
         ->first();
 
     if ($cartItem) {
@@ -1108,7 +982,7 @@ $orderToViewArray = function (Order $order): array {
 
     foreach ($order->items as $item) {
 
-        $items[$item->product_slug] = [
+        $items[$item->id] = [
             'slug' => $item->product_slug,
             'name' => $item->product_name,
             'price' => (float) $item->unit_price,
@@ -1306,6 +1180,8 @@ $orderToViewArray = function (Order $order): array {
 // =====================================================
 
 Route::get('/checkout-legacy', function () use ($requireBuyer) {
+    return redirect()->route('buyer.checkout');
+
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -1518,6 +1394,8 @@ Route::post(
             return $redirect;
         }
 
+
+        return app()->call([app(CheckoutController::class), 'store'], ['request' => $request]);
 
         $user =
             auth()->user();

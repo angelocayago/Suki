@@ -29,7 +29,8 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
 
         $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['quantity' => 2])->assertRedirect();
         $this->assertDatabaseHas('cart_items', ['user_id' => $buyer->id, 'product_slug' => $product->slug, 'quantity' => 2]);
-        $this->actingAs($other)->post(route('buyer.cart.remove', $product->slug))->assertRedirect();
+        $cartItem = CartItem::where('user_id', $buyer->id)->sole();
+        $this->actingAs($other)->post(route('buyer.cart.remove', $cartItem->id))->assertNotFound();
         $this->assertDatabaseHas('cart_items', ['user_id' => $buyer->id, 'product_slug' => $product->slug]);
         $this->actingAs($buyer)->get(route('buyer.cart'))->assertOk()->assertSee('Cart product');
 

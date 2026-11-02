@@ -74,7 +74,7 @@
         @endif
 
 
-        <form action="{{ route('buyer.checkout.place-order') }}" method="POST">
+        <form action="{{ route('buyer.checkout.place-order') }}" method="POST" onsubmit="if (this.dataset.submitting) return false; this.dataset.submitting = '1'; const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.textContent = 'Placing order…'; }">
             @csrf
 
             <div class="grid gap-6 lg:grid-cols-3">
@@ -288,7 +288,7 @@
 
                         <div class="divide-y divide-gray-100">
 
-                            @foreach($cart as $slug => $item)
+                            @foreach($cart as $item)
 
                                 <div class="flex gap-4 px-5 py-5 sm:px-6">
 
@@ -310,6 +310,9 @@
 
                                         @if(!empty($item['variant']))
                                             <p class="mt-1 text-xs text-gray-500">Variant: {{ $item['variant'] }}</p>
+                                        @endif
+                                        @if(!empty($item['variation']))
+                                            <p class="mt-1 text-xs text-gray-500">{{ collect($item['variation'])->map(fn ($value, $option) => $option.': '.$value)->implode(' / ') }}</p>
                                         @endif
 
                                         <p class="mt-1 text-sm text-gray-500">

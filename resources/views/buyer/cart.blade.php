@@ -145,11 +145,9 @@
     @else
 
         @php
-            $subtotal = 0;
             $totalItems = 0;
 
             foreach ($cart as $item) {
-                $subtotal += (float) $item['price'] * (int) $item['quantity'];
                 $totalItems += (int) $item['quantity'];
             }
         @endphp
@@ -191,7 +189,7 @@
                 {{-- PRODUCT ITEMS --}}
                 <div class="space-y-4">
 
-                    @foreach($cart as $slug => $item)
+                    @foreach($cart as $cartItemId => $item)
 
                         @php
                             $itemPrice = (float) $item['price'];
@@ -207,7 +205,7 @@
                                    PRODUCT IMAGE
                                 ================================== --}}
                                 <a
-                                    href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                                    href="{{ route('buyer.product', ['slug' => $item['slug']]) }}"
                                     class="group relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-xl bg-gray-100"
                                 >
 
@@ -231,7 +229,7 @@
                                         <div class="min-w-0">
 
                                             <a
-                                                href="{{ route('buyer.product', ['slug' => $slug]) }}"
+                                                href="{{ route('buyer.product', ['slug' => $item['slug']]) }}"
                                                 class="line-clamp-2 text-sm sm:text-base font-semibold leading-6 text-gray-900 transition hover:text-[#1F6F5B]"
                                             >
                                                 {{ $item['name'] }}
@@ -243,6 +241,12 @@
 
                                             @if(!empty($item['variant']))
                                                 <p class="mt-1 text-xs text-gray-500">Variant: {{ $item['variant'] }}</p>
+                                            @endif
+                                            @if(!empty($item['variation']))
+                                                <p class="mt-1 text-xs text-gray-500">{{ collect($item['variation'])->map(fn ($value, $option) => $option.': '.$value)->implode(' / ') }}</p>
+                                            @endif
+                                            @if(!empty($item['available']))
+                                                <p class="mt-1 text-xs text-gray-500">{{ $item['stock'] }} available</p>
                                             @endif
 
                                             @if(empty($item['available']))
@@ -256,7 +260,7 @@
 
                                         {{-- REMOVE --}}
                                         <form
-                                            action="{{ route('buyer.cart.remove', ['slug' => $slug]) }}"
+                                            action="{{ route('buyer.cart.remove', ['cartItem' => $cartItemId]) }}"
                                             method="POST"
                                             class="shrink-0"
                                         >
@@ -319,7 +323,7 @@
 
                                                 {{-- DECREASE --}}
                                                 <form
-                                                    action="{{ route('buyer.cart.decrease', ['slug' => $slug]) }}"
+                                                    action="{{ route('buyer.cart.decrease', ['cartItem' => $cartItemId]) }}"
                                                     method="POST"
                                                 >
                                                     @csrf
@@ -347,7 +351,7 @@
 
                                                 {{-- INCREASE --}}
                                                 <form
-                                                    action="{{ route('buyer.cart.increase', ['slug' => $slug]) }}"
+                                                    action="{{ route('buyer.cart.increase', ['cartItem' => $cartItemId]) }}"
                                                     method="POST"
                                                 >
                                                     @csrf
@@ -373,10 +377,11 @@
 
                                         {{-- MOVE TO WISHLIST --}}
                                         <form
-                                            action="{{ route('buyer.wishlist.add', ['slug' => $slug]) }}"
+                                            action="{{ route('buyer.wishlist.add', ['slug' => $item['slug']]) }}"
                                             method="POST"
                                         >
                                             @csrf
+                                            <input type="hidden" name="cart_item_id" value="{{ $cartItemId }}">
 
                                             <button
                                                 type="submit"
