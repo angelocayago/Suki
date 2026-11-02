@@ -15,8 +15,7 @@ class CheckoutController extends Controller
 {
     public function index(Request $request, CheckoutService $checkout): View|RedirectResponse
     {
-        $summary = $checkout->cartSummary($request->user());
-        $summary['voucher_codes'] = $request->session()->get('checkout_voucher_codes', []);
+        $summary = $checkout->cartSummary($request->user(), $request->session()->get('checkout_voucher_codes', []));
 
         if ($summary['cart'] === []) {
             return redirect()

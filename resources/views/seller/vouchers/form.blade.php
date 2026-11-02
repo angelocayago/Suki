@@ -7,6 +7,7 @@
     $editing = $voucher !== null;
     $type = old('discount_type', $voucher?->discount_type ?? 'FIXED');
     $value = $voucher ? \App\Support\SellerVouchers::decimal($voucher->discount_type === 'PERCENTAGE' ? $voucher->discount_bps : $voucher->discount_minor) : '';
+    $minimumSpend = $voucher ? \App\Support\SellerVouchers::decimal($voucher->minimum_spend_minor) : '';
 @endphp
 <div class="seller-vouchers sv-form-page">
     <a class="sv-back" href="{{ route('seller.vouchers.index') }}">&larr; Back to Vouchers</a>
@@ -28,6 +29,7 @@
             <div class="sv-grid">
                 <div><label for="voucherDiscountType">Discount Type</label><select id="voucherDiscountType" name="discount_type" required><option value="FIXED" @selected($type === 'FIXED')>Fixed Amount (PHP)</option><option value="PERCENTAGE" @selected($type === 'PERCENTAGE')>Percentage (%)</option></select><p class="sv-error">@error('discount_type'){{ $message }}@enderror</p></div>
                 <div><label for="voucherDiscountValue" id="voucherDiscountLabel">Discount Value {{ $type === 'PERCENTAGE' ? '(%)' : '(PHP)' }}</label><input id="voucherDiscountValue" type="number" name="discount_value" min="0.01" max="{{ $type === 'PERCENTAGE' ? '100' : '21474836.47' }}" step="0.01" required value="{{ old('discount_value',$value) }}" aria-describedby="discount_value-error" aria-invalid="{{ $errors->has('discount_value') ? 'true' : 'false' }}"><p class="sv-error" id="discount_value-error">@error('discount_value'){{ $message }}@enderror</p></div>
+                <div><label for="voucherMinimumSpend">Minimum eligible merchandise (PHP) <span class="sv-muted">(optional)</span></label><input id="voucherMinimumSpend" type="number" name="minimum_spend" min="0" max="21474836.47" step="0.01" value="{{ old('minimum_spend',$minimumSpend) }}" aria-describedby="minimum_spend-error"><p class="sv-error" id="minimum_spend-error">@error('minimum_spend'){{ $message }}@enderror</p></div>
             </div>
         </section>
         <section class="sv-card" aria-labelledby="svUsageHeading">

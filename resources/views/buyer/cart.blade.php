@@ -299,7 +299,7 @@
                                                 data-lucide="truck"
                                                 class="w-3.5 h-3.5"
                                             ></i>
-                                            Free shipping
+                                            PHP 50 delivery per seller shipment
                                         </span>
 
                                     </div>
@@ -477,7 +477,10 @@
                             <input id="voucher_code" name="voucher_code" required placeholder="Voucher code" class="min-w-0 flex-1 rounded border px-3 py-2 text-sm">
                             <button class="rounded bg-[#1F6F5B] px-3 py-2 text-sm font-semibold text-white">Apply</button>
                         </form>
-                        @foreach(session('checkout_voucher_codes', []) as $voucherCode)
+                        @if($voucher_error)
+                            <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{{ $voucher_error }}</p>
+                        @endif
+                        @foreach($voucher_codes ?? [] as $voucherCode)
                             <div class="flex items-center justify-between text-sm"><span class="font-medium">Voucher: {{ $voucherCode }}</span><form method="POST" action="{{ route('buyer.cart.vouchers.remove', $voucherCode) }}">@csrf @method('DELETE')<button class="text-red-700">Remove</button></form></div>
                         @endforeach
 
@@ -495,15 +498,19 @@
                         </div>
 
 
+                        @foreach($applied_vouchers ?? [] as $voucher)
+                            <div class="flex items-center justify-between text-sm text-[#1F6F5B]"><span>Voucher {{ $voucher['code'] }}</span><span>-PHP {{ number_format($voucher['discount'], 2) }}</span></div>
+                        @endforeach
+
                         {{-- SHIPPING --}}
                         <div class="flex items-center justify-between text-sm">
 
                             <span class="text-gray-500">
-                                Shipping
+                                Shipping (PHP {{ number_format($shipping_per_seller ?? 50, 2) }} x {{ $seller_count ?? 0 }} seller{{ ($seller_count ?? 0) === 1 ? '' : 's' }})
                             </span>
 
-                            <span class="font-semibold text-[#1F6F5B]">
-                                FREE
+                            <span class="font-semibold text-gray-900">
+                                PHP {{ number_format($shipping ?? 0, 2) }}
                             </span>
 
                         </div>
@@ -511,7 +518,7 @@
                     </div>
 
 
-                    {{-- FREE SHIPPING NOTICE --}}
+                    {{-- DELIVERY NOTICE --}}
                     <div class="mt-5 flex items-start gap-2.5 rounded-xl bg-[#EEF8F3] px-3.5 py-3">
 
                         <i
@@ -520,7 +527,7 @@
                         ></i>
 
                         <p class="text-xs leading-5 text-[#155244]">
-                            You qualify for free shipping on this order.
+                            Delivery is charged at PHP {{ number_format($shipping_per_seller ?? 50, 2) }} for each seller shipment.
                         </p>
 
                     </div>
@@ -537,7 +544,7 @@
                                 </p>
 
                                 <p class="mt-1 text-xs text-gray-400">
-                                    Including shipping
+                                    Including delivery and applied vouchers
                                 </p>
                             </div>
 

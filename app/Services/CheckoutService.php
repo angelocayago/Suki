@@ -23,7 +23,7 @@ class CheckoutService
 {
     /** The project-wide COD shipping fee charged once for each seller shipment. */
     public const SHIPPING_FEE_PER_SELLER_MINOR = 5000;
-    public function cartSummary(User $buyer): array
+    public function cartSummary(User $buyer, array $voucherCodes = []): array
     {
         $items = CartItem::query()
             ->where('user_id', $buyer->id)
@@ -68,6 +68,12 @@ class CheckoutService
             ->unique()
             ->count();
         $shippingMinor = $sellerCount * self::SHIPPING_FEE_PER_SELLER_MINOR;
+        $sellerSubtotals = collect($items)
+            ->filter(fn (array $item) => $item['available'] && $item['seller_id'])
+            ->groupBy('seller_id')
+            ->map(fn (Collection $sellerItems) => $sellerItems->sum(fn (array $item) => (int) round($item['price'] * 100) * $item['quantity']));
+        $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals);
+        $discountMinor = collect($voucherPreview['redemptions'])->sum('amount');
 
         return [
             'cart' => $items,
@@ -75,7 +81,11 @@ class CheckoutService
             'seller_count' => $sellerCount,
             'shipping_per_seller' => self::SHIPPING_FEE_PER_SELLER_MINOR / 100,
             'shipping' => $shippingMinor / 100,
-            'total' => ($subtotalMinor + $shippingMinor) / 100,
+            'voucher_codes' => array_values(array_unique(array_filter(array_map(fn ($code) => strtoupper(trim((string) $code)), $voucherCodes)))),
+            'voucher_error' => $voucherPreview['error'],
+            'applied_vouchers' => collect($voucherPreview['redemptions'])->map(fn (array $redemption) => ['code' => $redemption['voucher']->code, 'discount' => $redemption['amount'] / 100])->values()->all(),
+            'discount' => $discountMinor / 100,
+            'total' => ($subtotalMinor + $shippingMinor - $discountMinor) / 100,
             'has_unavailable_items' => collect($items)->contains(
                 fn (array $item) => ! $item['available']
             ),

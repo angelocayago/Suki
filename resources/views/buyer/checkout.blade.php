@@ -577,7 +577,15 @@
                                 <span>Total Shipping</span>
                                 <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
                             </div>
-
+                            @if($voucher_error)
+                                <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{{ $voucher_error }} Remove it from your cart before placing the order.</p>
+                            @endif
+                            @foreach($applied_vouchers ?? [] as $voucher)
+                                <div class="flex items-center justify-between text-sm text-[#1F6F5B]">
+                                    <span>Voucher {{ $voucher['code'] }}</span>
+                                    <span>-PHP {{ number_format($voucher['discount'], 2) }}</span>
+                                </div>
+                            @endforeach
 
                             {{-- SUKI LOGISTICS DELIVERY --}}
 <div class="flex items-center justify-between gap-4 text-sm">

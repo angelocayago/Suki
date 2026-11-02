@@ -26,7 +26,7 @@ class SellerVouchersTest extends TestCase
         foreach([
             'users'=>'id INTEGER PRIMARY KEY, name TEXT, first_name TEXT, last_name TEXT, middle_initial TEXT, role TEXT, status TEXT, is_suspended INTEGER DEFAULT 0, verification_required_at TEXT, email_verified_at TEXT, phone_verified_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT',
             'sellers'=>'id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT, status TEXT, created_at TEXT, updated_at TEXT',
-            'vouchers'=>'id INTEGER PRIMARY KEY, code TEXT UNIQUE, scope TEXT, seller_id INTEGER, discount_type TEXT, discount_minor INTEGER DEFAULT 0, discount_bps INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, starts_at TEXT, expires_at TEXT, usage_limit INTEGER, used_count INTEGER DEFAULT 0, archived_at TEXT, created_at TEXT, updated_at TEXT',
+            'vouchers'=>'id INTEGER PRIMARY KEY, code TEXT UNIQUE, scope TEXT, seller_id INTEGER, discount_type TEXT, discount_minor INTEGER DEFAULT 0, discount_bps INTEGER DEFAULT 0, minimum_spend_minor INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, starts_at TEXT, expires_at TEXT, usage_limit INTEGER, used_count INTEGER DEFAULT 0, archived_at TEXT, created_at TEXT, updated_at TEXT',
             'voucher_redemptions'=>'id INTEGER PRIMARY KEY, voucher_id INTEGER, code_snapshot TEXT, discount_minor INTEGER',
             'notifications'=>'id TEXT PRIMARY KEY, notifiable_type TEXT, notifiable_id INTEGER, read_at TEXT',
         ] as $table=>$columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
@@ -64,7 +64,7 @@ class SellerVouchersTest extends TestCase
         $create=$this->actingAs($this->seller)->get(route('seller.vouchers.create'))->assertOk()
             ->assertSee('Create Shop Voucher')->assertSee('Basic Information')->assertSee('Discount Settings')->assertSee('Usage &amp; Validity',false)
             ->assertSee('LEAVE EMPTY TO AUTO-GENERATE')->assertSee('Generate Code')->assertSee('name="_token"',false)->assertSee('name="creation_token"',false)
-            ->assertDontSee('name="min_purchase_amount"',false)->assertDontSee('name="per_buyer_limit"',false)->assertDontSee('name="description"',false)
+            ->assertSee('name="minimum_spend"',false)->assertDontSee('name="min_purchase_amount"',false)->assertDontSee('name="per_buyer_limit"',false)->assertDontSee('name="description"',false)
             ->assertDontSee('not currently supported')->assertDontSee('Codes are saved in uppercase.')->assertDontSee('voucherDiscountHelp')->assertDontSee('Dates and times are in Asia/Manila.');
         $this->actingAs($this->seller)->withSession(['seller_promotions'=>[['name'=>'POISON']]])->get(route('seller.vouchers.index'))->assertOk()->assertSee('EXISTING')->assertDontSee('FOREIGN')->assertDontSee('PLATFORM')->assertDontSee('POISON')->assertSee(route('seller.vouchers.edit',1));
         $this->assertSame(3,Voucher::count());

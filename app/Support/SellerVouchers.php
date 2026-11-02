@@ -60,6 +60,7 @@ class SellerVouchers
             'code'=>[$voucher ? 'required' : 'nullable','string','max:64'],
             'discount_type'=>['required',Rule::in(['FIXED','PERCENTAGE'])],
             'discount_value'=>['required','numeric','gt:0','regex:/^\d{1,8}(\.\d{1,2})?$/', $request->input('discount_type') === 'PERCENTAGE' ? 'max:100' : 'max:21474836.47'],
+            'minimum_spend'=>['nullable','numeric','min:0','regex:/^\d{1,8}(\.\d{1,2})?$/','max:21474836.47'],
             'usage_limit'=>['nullable','integer','min:1','max:2147483647'],
             'starts_at'=>['nullable','date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'],
             'expires_at'=>['nullable','date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'],
@@ -79,6 +80,7 @@ class SellerVouchers
         return [
             'code'=>$data['code'] ?? null, 'discount_type'=>$data['discount_type'],
             'discount_minor'=>$percentage ? 0 : $value, 'discount_bps'=>$percentage ? $value : 0,
+            'minimum_spend_minor'=>self::hundredths((string)($data['minimum_spend'] ?? '0')),
             'usage_limit'=>$data['usage_limit'] ?? null,
             'starts_at'=>$this->date($data['starts_at'] ?? null), 'expires_at'=>$this->date($data['expires_at'] ?? null),
             'is_active'=>$voucher?->archived_at ? false : $request->boolean('is_active',true),
