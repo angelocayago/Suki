@@ -27,11 +27,13 @@ function stockRow(value, status = 'active') {
         : selector.includes('data-variant-status') ? state : selector.includes('data-stock-indicator') ? output : stock;
     return { row, stock, state, output };
 }
-function harness() {
+function harness(withChips = false) {
     const primary = stockRow(0);
     const ids = Object.fromEntries(['productForm', 'productVariantRows', 'productVariantTemplate', 'addProductVariant', 'primaryOptions', 'addPrimaryOption', 'images', 'imagePreview', 'imageUploadStatus'].map(id => [id, element()]));
-    ids.productForm.querySelectorAll = () => [primary.row];
-    ids.productVariantRows.querySelectorAll = () => [{ name: 'variants[4][id]' }];
+    const optionInputs = [{name:'variants[4][options][Flavor]',value:'Vanilla'},{name:'variants[4][options][Color]',value:'Blue'}];
+    if (withChips) ids.variantOptionChips = element();
+    ids.productForm.querySelectorAll = selector => selector === '[data-stock-row]' ? [primary.row] : [];
+    ids.productVariantRows.querySelectorAll = selector => selector === '[name]' ? [{name:'variants[4][id]'}] : optionInputs;
     ids.productVariantTemplate.innerHTML = '<div><input name="variants[__INDEX__][stock]"></div>';
     const inserted = [], revoked = [];
     vm.runInNewContext(source, {
@@ -50,7 +52,7 @@ function harness() {
         window: { addEventListener() {} },
         URL: { createObjectURL: file => 'blob:' + file.name, revokeObjectURL: url => revoked.push(url) },
     });
-    return { primary, ids, inserted, revoked };
+    return { primary, ids, inserted, revoked, optionInputs };
 }
 
 test('active variant stock boundaries, inactive exclusion, and input updates', () => {
@@ -79,9 +81,9 @@ test('adding variants after sparse validation input allocates unused indexes', (
 test('photos validate limits and retain aligned color inputs with safe filenames', () => {
     const { ids, revoked } = harness();
     const image = name => ({ name, type: 'image/png', size: 100 });
-    ids.images.files = Array.from({length: 9}, () => image('too-many.png'));
+    ids.images.files = Array.from({length: 21}, () => image('too-many.png'));
     ids.images.handlers.change();
-    assert.match(ids.images.validationMessage, /up to 8/);
+    assert.match(ids.images.validationMessage, /up to 20/);
     assert.equal(ids.imagePreview.children.length, 0);
     ids.images.files = [image('<unsafe>.png'), image('red.png')];
     ids.images.handlers.change();
@@ -96,5 +98,14 @@ test('photos validate limits and retain aligned color inputs with safe filenames
     assert.equal(revoked.length, 2);
     assert.equal(ids.imagePreview.children.length, 1);
     ids.images.files = [{name:'oversize.png',type:'image/png',size:6*1024*1024}]; ids.images.handlers.change();
-    assert.match(ids.images.validationMessage, /no larger than 5 MB/);
+    assert.match(ids.images.validationMessage, /no larger than 4 MB/);
+});
+
+test('edit variant summary retains incoming chips for both Color and custom options', () => {
+    const {ids,optionInputs} = harness(true);
+    assert.deepEqual(ids.variantOptionChips.children.map(group=>group.children[0].textContent),['Flavor','Color']);
+    assert.equal(ids.variantOptionChips.children[0].children[1].children[0].textContent,'Vanilla');
+    optionInputs[0].value='Chocolate';
+    ids.productForm.handlers.input({target:{name:optionInputs[0].name,closest:()=>null}});
+    assert.equal(ids.variantOptionChips.children[0].children[1].children[0].textContent,'Chocolate');
 });

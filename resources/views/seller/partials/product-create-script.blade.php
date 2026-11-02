@@ -123,8 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let photos = [], urls = [];
     function renderPhotos() {
         urls.forEach(url => URL.revokeObjectURL(url)); urls = []; preview.replaceChildren();
-        const invalid = photos.length > 8 || photos.some(({file}) => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5*1024*1024);
-        const message = invalid ? 'Choose up to 8 JPG, PNG or WebP photos, each no larger than 5 MB.' : '';
+        const invalid = photos.length > 20 || photos.some(({file}) => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 4*1024*1024);
+        const message = invalid ? 'Choose up to 20 JPG, PNG or WebP photos, each no larger than 4 MB.' : '';
         picker.setCustomValidity(message); uploadStatus.textContent = message;
         photos.forEach((photo,index) => {
             const figure = document.createElement('figure'), image = document.createElement('img');

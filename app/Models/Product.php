@@ -30,6 +30,8 @@ class Product extends Model
         'moderation_reason',
         'moderated_by',
         'moderated_at',
+        'video_path',
+        'video_mime',
     ];
 
     /**

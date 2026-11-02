@@ -111,6 +111,7 @@ class ProductCatalogService
             $product->variants()->create($this->variantAttributes($data, $product));
             $this->saveAdditionalVariants($product, $data['variants'] ?? []);
             $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
+            $this->syncVideo($product, $data['video'] ?? null, false);
             $this->moderation->recordInitialSubmission($product, $seller->owner);
 
             return $product->fresh(['category', 'images', 'variants']);
@@ -125,6 +126,8 @@ class ProductCatalogService
             $hasNewImages = collect($data['images'] ?? [])->contains(
                 fn ($image) => $image instanceof UploadedFile
             );
+            $hasNewVideo = ($data['video'] ?? null) instanceof UploadedFile;
+            $removeVideo = (bool) ($data['remove_video'] ?? false);
 
             $product->update([
                 'category_id' => $data['category_id'],
@@ -149,9 +152,10 @@ class ProductCatalogService
             $this->saveAdditionalVariants($product, $data['variants'] ?? []);
 
             $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
+            $this->syncVideo($product, $data['video'] ?? null, $removeVideo);
 
             $fresh = $product->fresh(['category', 'images', 'variants', 'seller']);
-            if ($hasNewImages || $before !== $this->materialFingerprint($fresh)) {
+            if ($hasNewImages || $hasNewVideo || $removeVideo || $before !== $this->materialFingerprint($fresh)) {
                 $this->moderation->returnToPendingAfterMaterialEdit($fresh, $fresh->seller->owner);
                 $fresh = $fresh->fresh(['category', 'images', 'variants']);
             }
@@ -207,6 +211,8 @@ class ProductCatalogService
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'image' => $this->imageUrl($product->images->first()?->path),
             'images' => $product->images->map(fn ($image) => $this->imageUrl($image->path))->all(),
+            'video' => $this->imageUrl($product->video_path),
+            'video_mime' => $product->video_mime,
             'created_at' => $product->created_at?->toDateTimeString(),
             'updated_at' => $product->updated_at?->toDateTimeString(),
         ];
@@ -241,7 +247,7 @@ class ProductCatalogService
     {
         $variant = $product->variants->sortBy('id')->first();
         $images = $product->images
-            ->map(fn ($image) => $this->imageUrl($image->path))
+            ->map(fn ($image) => $this->marketplaceImageUrl($image->path))
             ->filter()
             ->values()
             ->all();
@@ -264,6 +270,8 @@ class ProductCatalogService
             'stock' => $variant?->stock ?? 0,
             'image' => $images[0],
             'images' => $images,
+            'video' => $this->marketplaceImageUrl($product->video_path),
+            'video_mime' => $product->video_mime,
             'variants' => $product->variants->sortBy('id')->map(fn (ProductVariant $variant) => [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
@@ -277,7 +285,7 @@ class ProductCatalogService
             'option_groups' => $product->variants->flatMap(fn (ProductVariant $variant) => array_keys($variant->options ?? []))
                 ->unique()->mapWithKeys(fn ($name) => [$name => $product->variants->map(fn ($variant) => $variant->options[$name] ?? null)->filter(fn ($value) => $value !== null && $value !== '')->unique()->values()->all()])->all(),
             'sizes' => $product->variants->map(fn (ProductVariant $variant) => $variant->options['Size'] ?? null)->filter()->unique()->values()->all(),
-            'media_by_color' => $product->images->filter(fn ($image) => filled($image->color))->groupBy('color')->map(fn ($images) => $images->map(fn ($image) => $this->imageUrl($image->path))->filter()->values()->all())->all(),
+            'media_by_color' => $product->images->filter(fn ($image) => filled($image->color))->groupBy('color')->map(fn ($images) => $images->map(fn ($image) => $this->marketplaceImageUrl($image->path))->filter()->values()->all())->all(),
             'seller' => $product->seller?->name ?? 'SUKI Seller',
             'seller_slug' => $product->seller?->slug,
             'seller_logo' => $this->imageUrl($product->seller?->logo_path),
@@ -400,6 +408,36 @@ class ProductCatalogService
         }
     }
 
+    private function syncVideo(Product $product, mixed $video, bool $remove): void
+    {
+        if (! $video instanceof UploadedFile && ! $remove) {
+            return;
+        }
+
+        $oldPath = $product->video_path;
+        $newPath = null;
+        $mime = null;
+
+        if ($video instanceof UploadedFile) {
+            $newPath = $video->store('products/'.$product->id.'/video', 'public');
+
+            if (! $newPath || ! Storage::disk('public')->exists($newPath)) {
+                throw new \RuntimeException('Product video storage failed.');
+            }
+
+            $mime = $video->getMimeType();
+        }
+
+        $product->forceFill([
+            'video_path' => $newPath,
+            'video_mime' => $mime,
+        ])->save();
+
+        if ($oldPath && $oldPath !== $newPath && ! Str::startsWith($oldPath, ['http://', 'https://'])) {
+            DB::afterCommit(fn () => Storage::disk('public')->delete($oldPath));
+        }
+    }
+
     private function uniqueSlug(string $name): string
     {
         $base = Str::slug($name) ?: 'product';
@@ -431,6 +469,21 @@ class ProductCatalogService
         return Str::startsWith($path, ['http://', 'https://'])
             ? $path
             : Storage::disk('public')->url($path);
+    }
+
+    private function marketplaceImageUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        return Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->url($path)
+            : null;
     }
 
     private function normalisedOptions(array $options): ?array

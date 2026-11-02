@@ -71,7 +71,7 @@
         </section>
         <section class="spf-card" aria-labelledby="photosHeading">
             <h3 id="photosHeading">Product Photos</h3>
-            <p>Upload up to 8 JPG, PNG or WebP images per save, up to 5 MB each. The first saved image is the cover.</p>
+            <p>Upload up to 20 JPG, PNG or WebP images per save, up to 4 MB each. The first saved image is the cover.</p>
             @if($editing && !empty($item['images']))
                 <div class="spf-photos" aria-label="Saved photos">
                     @foreach($item['images'] as $index => $image)
@@ -84,6 +84,8 @@
             <p id="photo-help">Selecting files replaces the pending selection. Choose files again after a validation error.</p>
             <div id="imagePreview" class="spf-photos"></div>
             <p id="imageUploadStatus" class="spf-error" role="status" aria-live="polite"></p>
+
+            @include('seller.partials.product-video-fields')
         </section>
         <details class="spf-card">
             <summary>Package Details (optional)</summary>
@@ -104,3 +106,5 @@
     </form>
 </div>
 @include('seller.partials.product-form-script')
+
+@include('seller.partials.product-video-script')

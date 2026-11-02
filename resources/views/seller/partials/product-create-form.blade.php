@@ -45,9 +45,10 @@
             <noscript><p>Simple products can be submitted without JavaScript. Enable JavaScript to generate custom options.</p></noscript>
         </section>
         <section class="spf-card" aria-labelledby="photosHeading">
-            <h3 id="photosHeading">Product Photos</h3><p>Up to 8 JPG, PNG or WebP photos, 5 MB each. The first selected photo is the cover. Photos are shared by this product's variants.</p>
+            <h3 id="photosHeading">Product Photos</h3><p>Up to 20 JPG, PNG or WebP photos, 4 MB each. The first selected photo is the cover. Photos are shared by this product's variants.</p>
             <label for="images" class="spf-upload">Click to upload photos<input id="images" name="images[]" type="file" multiple accept="image/jpeg,image/png,image/webp" aria-describedby="photoHelp imageUploadStatus"></label>
             <p id="photoHelp">Preview or remove pending photos below. Files must be selected again after a server validation error.</p><div id="imagePreview" class="spf-photos"></div><p id="imageUploadStatus" class="spf-error" role="status" aria-live="polite"></p>
+            @include('seller.partials.product-video-fields', ['editing' => false])
         </section>
         <details class="spf-card"><summary>Package Details (optional)</summary><p>Package dimensions use the existing default-variant fields.</p><div class="spf-grid">@foreach(['length'=>'Length (cm)', 'width'=>'Width (cm)', 'height'=>'Height (cm)'] as $field=>$label)@include('seller.partials.product-form-field', ['field'=>$field, 'label'=>$label, 'type'=>'number', 'step'=>'0.01', 'maximum'=>'214748364'])@endforeach</div></details>
         <section class="spf-card spf-actions" aria-label="Product actions">
@@ -59,3 +60,5 @@
 </div>
 @include('seller.partials.product-option-engine')
 @include('seller.partials.product-create-script')
+
+@include('seller.partials.product-video-script')

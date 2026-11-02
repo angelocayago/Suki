@@ -115,6 +115,8 @@ test('pending photo removal updates FileList and cover order without uploading',
     ids.imagePreview.children[0].children.at(-1).fire('click');
     assert.equal(ids.images.files.length,1);assert.equal(ids.images.files[0].name,'two.png');
     assert.match(ids.imagePreview.children[0].children[1].textContent,/Cover · two.png/);
-    ids.images.files=Array.from({length:9},()=>({name:'x.png',type:'image/png',size:20}));ids.images.fire('change');
-    assert.match(ids.images.validationMessage,/up to 8/);
+    ids.images.files=Array.from({length:21},()=>({name:'x.png',type:'image/png',size:20}));ids.images.fire('change');
+    assert.match(ids.images.validationMessage,/up to 20/);
+    ids.images.files=[{name:'large.png',type:'image/png',size:4*1024*1024+1}];ids.images.fire('change');
+    assert.match(ids.images.validationMessage,/no larger than 4 MB/);
 });
