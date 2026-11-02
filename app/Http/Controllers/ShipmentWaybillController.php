@@ -14,7 +14,7 @@ class ShipmentWaybillController extends Controller
 {
     public function show(Request $request, Shipment $shipment, ShipmentQrService $qr): View
     {
-        $shipment->load(['sellerOrder.order.buyer', 'sellerOrder.seller', 'sellerOrder.items', 'provider', 'rider.user', 'pickupRider.user']);
+        $shipment->load(['sellerOrder.order.buyer', 'sellerOrder.seller.pickupAddress', 'sellerOrder.items', 'provider', 'rider.user', 'pickupRider.user']);
         $user = $request->user();
         $sellerOrder = $shipment->sellerOrder;
         $allowed = $sellerOrder->order->buyer_id === $user->id
@@ -26,8 +26,8 @@ class ShipmentWaybillController extends Controller
             || $user->hasRole('superadmin');
         abort_unless($allowed, 403);
 
-        // The tracking code is intentionally the only encoded payload.  It
-        // contains no address, buyer, payment, or account information.
+        // The QR contains only the tracking code and an application-key HMAC.
+        // Address, buyer, payment, and workflow data are never encoded.
         $trackingCode = $shipment->tracking_code;
         $qrPayload = $qr->payload($shipment);
         $qrDataUri = (new SvgWriter())->write(new QrCode(data: $qrPayload, size: 150))->getDataUri();

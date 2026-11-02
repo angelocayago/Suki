@@ -1122,6 +1122,7 @@ $orderToViewArray = function (Order $order): array {
     }
 
     return [
+        'order_id' => $order->id,
         'id' => $order->order_number,
 
         'seller_orders' => $order->sellerOrders

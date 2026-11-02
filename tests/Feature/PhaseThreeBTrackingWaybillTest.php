@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
+use App\Models\Address;
 use App\Models\LogisticsProvider;
 use App\Models\Order;
 use App\Models\Rider;
@@ -27,6 +28,11 @@ class PhaseThreeBTrackingWaybillTest extends TestCase
         $this->actingAs($buyer)->getJson(route('buyer.seller-order.tracking-data', [$order, $sellerOrder]))
             ->assertOk()->assertJsonPath('longitude', 120.9842);
         $this->actingAs($buyer)->get(route('buyer.seller-order.track', [$order, $sellerOrder]))->assertOk()->assertSee('Live delivery tracking');
+        $this->actingAs($buyer)->get(route('buyer.order-details', $order->order_number))
+            ->assertOk()
+            ->assertSee($order->order_number)
+            ->assertSee(route('buyer.seller-order.track', [$order->id, $sellerOrder->id]), false)
+            ->assertDontSee(route('buyer.seller-order.track', [$order->order_number, $sellerOrder->id]), false);
     }
 
     public function test_tracking_is_private_and_rejects_invalid_or_terminal_updates(): void
@@ -38,6 +44,14 @@ class PhaseThreeBTrackingWaybillTest extends TestCase
 
         $this->getJson(route('buyer.seller-order.tracking-data', [$order, $sellerOrder]))->assertUnauthorized();
         $this->actingAs($other)->getJson(route('buyer.seller-order.tracking-data', [$order, $sellerOrder]))->assertNotFound();
+        $this->actingAs($other)->get(route('buyer.seller-order.track', [$order, $sellerOrder]))->assertNotFound();
+
+        $differentOrder = $order->replicate(['order_number', 'reference']);
+        $differentOrder->order_number = 'TRACK-OTHER';
+        $differentOrder->reference = 'TRACK-OTHER';
+        $differentOrder->save();
+        $this->actingAs($buyer)->get(route('buyer.seller-order.track', [$differentOrder, $sellerOrder]))->assertNotFound();
+        $this->actingAs($buyer)->getJson(route('buyer.seller-order.tracking-data', [$differentOrder, $sellerOrder]))->assertNotFound();
         $this->actingAs($otherRiderUser)->postJson(route('rider.shipments.location.store', $shipment), ['latitude' => 14, 'longitude' => 120])->assertForbidden();
         $this->actingAs($riderUser)->postJson(route('rider.shipments.location.store', $shipment), ['latitude' => 91, 'longitude' => 120])->assertJsonValidationErrors('latitude');
 
@@ -48,7 +62,9 @@ class PhaseThreeBTrackingWaybillTest extends TestCase
     public function test_waybill_is_scoped_to_related_participants_and_assignment_event_is_preserved(): void
     {
         extract($this->context());
-        $this->actingAs($buyer)->get(route('shipments.waybill', $shipment))->assertOk()->assertSee($shipment->tracking_code);
+        $pickup = Address::create(['user_id' => $sellerUser->id, 'label' => 'Store pickup', 'recipient' => 'Tracking Seller', 'phone' => '0912', 'line1' => 'Canonical pickup street', 'province' => 'Pickup Province', 'city' => 'Pickup City', 'barangay' => 'Pickup Barangay', 'postal_code' => '']);
+        $seller->update(['pickup_address_id' => $pickup->id]);
+        $this->actingAs($buyer)->get(route('shipments.waybill', $shipment))->assertOk()->assertSee($shipment->tracking_code)->assertSee('Canonical pickup street, Pickup Barangay, Pickup City, Pickup Province')->assertDontSee('Seller / pickup</dt><dd>Tracking Seller — Street, City', false);
         $outsider = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
         $this->actingAs($outsider)->get(route('shipments.waybill', $shipment))->assertForbidden();
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'ASSIGNED_TO_RIDER']);

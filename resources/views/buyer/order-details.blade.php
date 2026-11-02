@@ -46,7 +46,7 @@
                     <a href="{{ route('shipments.delivery-proof', $sellerOrder['shipment_id']) }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B]">View delivery proof · {{ $sellerOrder['seller_name'] }}</a>
                 @endif
                 @if(in_array($sellerOrder['status'] ?? '', ['assigned_to_rider', 'out_for_delivery'], true))
-                    <a href="{{ route('buyer.seller-order.track', [$order['id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
+                    <a href="{{ route('buyer.seller-order.track', [$order['order_id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
                 @endif
             @endforeach
         </div>
