@@ -24,7 +24,7 @@ class SellerProductFormsTest extends TestCase
             'users'=>'id INTEGER PRIMARY KEY, name TEXT, first_name TEXT, last_name TEXT, middle_initial TEXT, role TEXT, status TEXT, is_suspended INTEGER DEFAULT 0, verification_required_at TEXT, email_verified_at TEXT, phone_verified_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT',
             'sellers'=>'id INTEGER PRIMARY KEY, user_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, status TEXT, created_at TEXT, updated_at TEXT',
             'categories'=>'id INTEGER PRIMARY KEY, parent_id INTEGER, name TEXT, slug TEXT, is_active INTEGER, position INTEGER DEFAULT 0',
-            'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, brand TEXT, description TEXT, shipping_options TEXT, is_active INTEGER, moderation_status TEXT, moderation_reason TEXT, moderated_by INTEGER, moderated_at TEXT, deleted_at TEXT, created_at TEXT, updated_at TEXT',
+            'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, brand TEXT, description TEXT, shipping_options TEXT, is_active INTEGER, moderation_status TEXT, moderation_reason TEXT, moderated_by INTEGER, moderated_at TEXT, video_path TEXT, video_mime TEXT, deleted_at TEXT, created_at TEXT, updated_at TEXT',
             'product_variants'=>'id INTEGER PRIMARY KEY, product_id INTEGER, sku TEXT UNIQUE, weight_grams INTEGER, length_mm INTEGER, width_mm INTEGER, height_mm INTEGER, name TEXT, options TEXT, price_minor INTEGER, stock INTEGER, is_active INTEGER, deleted_at TEXT, created_at TEXT, updated_at TEXT',
             'product_images'=>'id INTEGER PRIMARY KEY, product_id INTEGER, path TEXT, position INTEGER, color TEXT, created_at TEXT, updated_at TEXT',
             'product_moderation_events'=>'id INTEGER PRIMARY KEY, product_id INTEGER, seller_id INTEGER, actor_id INTEGER, previous_status TEXT, new_status TEXT, reason TEXT, source TEXT, metadata TEXT, created_at TEXT, updated_at TEXT',
@@ -204,4 +204,181 @@ class SellerProductFormsTest extends TestCase
         $this->assertFileExists($root.'/'.$photos[1]->path);
         $this->assertSame('PENDING',Product::find(1)->moderation_status->value);
     }
+
+    public function test_product_video_can_be_uploaded_replaced_and_removed(): void
+    {
+        $this->product(1);
+
+        $root=sys_get_temp_dir().'/suki-form-video-'.bin2hex(random_bytes(8));
+        config(['filesystems.disks.public.root'=>$root]);
+
+        $first=\Illuminate\Http\UploadedFile::fake()->create(
+            'demo.mp4',
+            1024,
+            'video/mp4'
+        );
+
+        $this->actingAs($this->seller)->put(
+            route('seller.products.update',1),
+            $this->payload([
+                'name'=>'Owned Product 1',
+                'description'=>'Saved description',
+                'price'=>100,
+                'video'=>$first,
+            ])
+        )->assertSessionHasNoErrors()->assertRedirect(route('seller.products'));
+
+        $product=DB::table('products')->where('id',1)->first();
+
+        $this->assertNotNull($product->video_path);
+        $this->assertSame('video/mp4',$product->video_mime);
+        $this->assertFileExists($root.'/'.$product->video_path);
+        $this->assertSame(
+            'PENDING',
+            Product::find(1)->moderation_status->value
+        );
+
+        $oldPath=$product->video_path;
+
+        $replacement=\Illuminate\Http\UploadedFile::fake()->create(
+            'replacement.webm',
+            1024,
+            'video/webm'
+        );
+
+        $this->put(
+            route('seller.products.update',1),
+            $this->payload([
+                'name'=>'Owned Product 1',
+                'description'=>'Saved description',
+                'price'=>100,
+                'video'=>$replacement,
+            ])
+        )->assertSessionHasNoErrors();
+
+        $product=DB::table('products')->where('id',1)->first();
+
+        $this->assertNotSame($oldPath,$product->video_path);
+        $this->assertSame('video/webm',$product->video_mime);
+        $this->assertFileDoesNotExist($root.'/'.$oldPath);
+        $this->assertFileExists($root.'/'.$product->video_path);
+
+        $replacementPath=$product->video_path;
+
+        $this->put(
+            route('seller.products.update',1),
+            $this->payload([
+                'name'=>'Owned Product 1',
+                'description'=>'Saved description',
+                'price'=>100,
+                'remove_video'=>1,
+            ])
+        )->assertSessionHasNoErrors();
+
+        $product=DB::table('products')->where('id',1)->first();
+
+        $this->assertNull($product->video_path);
+        $this->assertNull($product->video_mime);
+        $this->assertFileDoesNotExist($root.'/'.$replacementPath);
+    }
+
+    public function test_product_video_validation_rejects_wrong_type_and_files_over_25_mb(): void
+    {
+        $this->product(1);
+
+        $wrongType=\Illuminate\Http\UploadedFile::fake()->create(
+            'clip.mov',
+            100,
+            'video/quicktime'
+        );
+
+        $this->actingAs($this->seller)->put(
+            route('seller.products.update',1),
+            $this->payload([
+                'name'=>'Owned Product 1',
+                'description'=>'Saved description',
+                'price'=>100,
+                'video'=>$wrongType,
+            ])
+        )->assertSessionHasErrors('video');
+
+        $tooLarge=\Illuminate\Http\UploadedFile::fake()->create(
+            'huge.mp4',
+            25601,
+            'video/mp4'
+        );
+
+        $this->put(
+            route('seller.products.update',1),
+            $this->payload([
+                'name'=>'Owned Product 1',
+                'description'=>'Saved description',
+                'price'=>100,
+                'video'=>$tooLarge,
+            ])
+        )->assertSessionHasErrors('video');
+
+        $this->assertNull(
+            DB::table('products')->where('id',1)->value('video_path')
+        );
+    }
+
+    public function test_marketplace_exposes_existing_media_and_falls_back_when_local_files_are_missing(): void
+    {
+        $this->product(1);
+
+        $root=sys_get_temp_dir().'/suki-marketplace-media-'.bin2hex(random_bytes(8));
+        config(['filesystems.disks.public.root'=>$root]);
+
+        \Illuminate\Support\Facades\Storage::disk('public')
+            ->put('products/1/cover.webp','image-fixture');
+
+        \Illuminate\Support\Facades\Storage::disk('public')
+            ->put('products/1/video/demo.mp4','video-fixture');
+
+        DB::table('product_images')->insert([
+            'id'=>1,
+            'product_id'=>1,
+            'path'=>'products/1/cover.webp',
+            'color'=>'Blue',
+            'position'=>0,
+        ]);
+
+        DB::table('products')->where('id',1)->update([
+            'video_path'=>'products/1/video/demo.mp4',
+            'video_mime'=>'video/mp4',
+        ]);
+
+        $catalog=app(ProductCatalogService::class);
+        $item=$catalog->marketplaceProduct('product-1');
+
+        $this->assertNotNull($item);
+        $this->assertSame(
+            \Illuminate\Support\Facades\Storage::disk('public')
+                ->url('products/1/cover.webp'),
+            $item['image']
+        );
+        $this->assertSame(
+            \Illuminate\Support\Facades\Storage::disk('public')
+                ->url('products/1/video/demo.mp4'),
+            $item['video']
+        );
+        $this->assertSame('video/mp4',$item['video_mime']);
+
+        \Illuminate\Support\Facades\Storage::disk('public')
+            ->delete([
+                'products/1/cover.webp',
+                'products/1/video/demo.mp4',
+            ]);
+
+        $item=$catalog->marketplaceProduct('product-1');
+
+        $this->assertNotNull($item);
+        $this->assertStringStartsWith(
+            'https://placehold.co/800x800?text=',
+            $item['image']
+        );
+        $this->assertNull($item['video']);
+    }
+
 }

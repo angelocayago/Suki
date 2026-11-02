@@ -7,6 +7,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const template = document.getElementById('productVariantTemplate');
     // Old input can contain sparse indexes after removing an unsaved row.
     let nextIndex = Math.max(-1, ...Array.from(rows.querySelectorAll('[name]'), input => Number(input.name.match(/^variants\[(\d+)\]/)?.[1] ?? -1))) + 1;
+    function syncVariantChips() {
+        const colorContainer = document.getElementById('variantColorChips');
+        const sizeContainer = document.getElementById('variantSizeChips');
+
+        if (!colorContainer || !sizeContainer) return;
+
+        const colors = new Set();
+        const sizes = new Set();
+
+        rows.querySelectorAll('input[name*="[options][Color]"]').forEach((input) => {
+            const value = input.value.trim();
+            if (value) colors.add(value);
+        });
+
+        rows.querySelectorAll('input[name*="[options][Size]"]').forEach((input) => {
+            const value = input.value.trim();
+            if (value) sizes.add(value);
+        });
+
+        function render(container, values, emptyText) {
+            container.replaceChildren();
+
+            if (!values.size) {
+                const empty = document.createElement('span');
+                empty.className = 'spf-variant-empty';
+                empty.textContent = emptyText;
+                container.appendChild(empty);
+                return;
+            }
+
+            values.forEach((value) => {
+                const chip = document.createElement('span');
+                chip.className = 'spf-variant-chip';
+                chip.textContent = value;
+                container.appendChild(chip);
+            });
+        }
+
+        render(colorContainer, colors, 'No colors yet');
+        render(sizeContainer, sizes, 'No sizes yet');
+    }
+
     function updateStock(row) {
         const stock = row.querySelector('[data-variant-stock], #stock');
         const status = row.querySelector('[data-variant-status]');
@@ -17,9 +59,15 @@ document.addEventListener('DOMContentLoaded', () => {
         output.textContent = !active ? 'Inactive variant: excluded from stock alerts' : !Number.isInteger(value) || value < 0 ? 'Enter a valid stock quantity' : value === 0 ? 'Out of Stock' : value <= 10 ? 'Low Stock' : 'In Stock';
     }
     form.querySelectorAll('[data-stock-row]').forEach(updateStock);
+    syncVariantChips();
+
     form.addEventListener('input', event => {
         const row = event.target.closest('[data-stock-row]');
         if (row) updateStock(row);
+
+        if (event.target.matches('input[name*="[options][Color]"], input[name*="[options][Size]"]')) {
+            syncVariantChips();
+        }
     });
     form.addEventListener('change', event => {
         const row = event.target.closest('[data-stock-row]');
@@ -32,11 +80,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = holder.firstElementChild;
         rows.appendChild(row);
         updateStock(row);
+        syncVariantChips();
         row.querySelector('input:not([type=hidden])').focus();
     });
     rows.addEventListener('click', event => {
         const button = event.target.closest('.remove-product-variant');
-        if (button) button.closest('.product-variant-row').remove();
+
+        if (button) {
+            button.closest('.product-variant-row').remove();
+            syncVariantChips();
+        }
     });
     const options = document.getElementById('primaryOptions');
     document.getElementById('addPrimaryOption').addEventListener('click', () => {
@@ -62,8 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
         urls = [];
         preview.replaceChildren();
         const files = Array.from(picker.files);
-        const invalid = files.length > 8 || files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024);
-        const message = invalid ? 'Choose up to 8 JPG, PNG or WebP images, each no larger than 5 MB.' : '';
+        const invalid = files.length > 20 || files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024);
+        const message = invalid ? 'Choose up to 20 JPG, PNG or WebP images, each no larger than 4 MB.' : '';
         picker.setCustomValidity(message);
         uploadStatus.textContent = message;
         if (invalid) return;
@@ -88,7 +141,48 @@ document.addEventListener('DOMContentLoaded', () => {
             preview.appendChild(figure);
         });
     });
-    window.addEventListener('pagehide', () => urls.forEach(url => URL.revokeObjectURL(url)));
+    const videoPicker = document.getElementById('video');
+    const videoPreview = document.getElementById('videoPreview');
+    const videoStatus = document.getElementById('videoUploadStatus');
+    let videoUrl = null;
+
+    videoPicker?.addEventListener('change', () => {
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+        videoUrl = null;
+        videoPreview.replaceChildren();
+
+        const file = videoPicker.files[0];
+        if (!file) {
+            videoPicker.setCustomValidity('');
+            videoStatus.textContent = '';
+            return;
+        }
+
+        const invalid = !['video/mp4', 'video/webm'].includes(file.type) || file.size > 25 * 1024 * 1024;
+        const message = invalid ? 'Choose one MP4 or WebM video no larger than 25 MB.' : '';
+
+        videoPicker.setCustomValidity(message);
+        videoStatus.textContent = message;
+
+        if (invalid) return;
+
+        const video = document.createElement('video');
+        videoUrl = URL.createObjectURL(file);
+        video.src = videoUrl;
+        video.controls = true;
+        video.preload = 'metadata';
+        video.style.width = '100%';
+        video.style.maxHeight = '360px';
+        video.style.marginTop = '12px';
+        video.style.borderRadius = '12px';
+
+        videoPreview.appendChild(video);
+    });
+
+    window.addEventListener('pagehide', () => {
+        urls.forEach(url => URL.revokeObjectURL(url));
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+    });
 });
 </script>
 @endpush

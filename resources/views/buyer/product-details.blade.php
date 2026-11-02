@@ -53,17 +53,52 @@
         <div class="grid lg:grid-cols-2 gap-8">
 
 
-            {{-- PRODUCT IMAGE --}}
+            {{-- PRODUCT MEDIA --}}
             <div>
 
-                <div class="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                @php
+                    $productMediaCount = count($product['images'] ?? []) + (!empty($product['video']) ? 1 : 0);
+                @endphp
+
+                <div id="productMediaStage" class="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
 
                     <img
                         id="mainProductImage"
                         src="{{ $product['image'] }}"
                         alt="{{ $product['name'] }}"
-                        class="w-full h-full object-cover"
+                        class="w-full h-full object-contain"
                     >
+
+                    <video
+                        id="mainProductVideo"
+                        controls
+                        preload="metadata"
+                        class="hidden w-full h-full object-contain bg-black"
+                    >
+                        @if(!empty($product['video']))
+                            <source src="{{ $product['video'] }}" type="{{ $product['video_mime'] ?? 'video/mp4' }}">
+                        @endif
+                    </video>
+
+                    @if($productMediaCount > 1)
+                        <button
+                            type="button"
+                            id="productMediaPrevious"
+                            class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/90 border border-gray-200 shadow flex items-center justify-center"
+                            aria-label="Previous product media"
+                        >
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+
+                        <button
+                            type="button"
+                            id="productMediaNext"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/90 border border-gray-200 shadow flex items-center justify-center"
+                            aria-label="Next product media"
+                        >
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                    @endif
 
                     {{-- ===================================================== --}}
 {{-- WISHLIST TOGGLE --}}
@@ -124,31 +159,41 @@
     </button>
 </form>
 
-                {{-- THUMBNAILS --}}
-                <div class="grid grid-cols-4 gap-3 mt-4">
+                {{-- MEDIA THUMBNAILS --}}
+                <div class="flex gap-3 mt-4 overflow-x-auto pb-2" id="productMediaThumbnails">
 
                     @foreach($product['images'] as $index => $image)
-
                         <button
                             type="button"
-                            onclick="changeImage(this)"
-                            data-image="{{ $image }}"
-                            class="product-thumb aspect-square rounded-lg overflow-hidden
-                                   border-2
-                                   {{ $index === 0
-                                        ? 'border-[#1F6F5B]'
-                                        : 'border-transparent hover:border-[#1F6F5B]' }}"
+                            data-product-media
+                            data-media-type="image"
+                            data-media-src="{{ $image }}"
+                            data-media-index="{{ $index }}"
+                            class="product-thumb shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 {{ $index === 0 ? 'border-[#1F6F5B]' : 'border-transparent hover:border-[#1F6F5B]' }}"
+                            aria-label="View product image {{ $index + 1 }}"
                         >
-
                             <img
                                 src="{{ $image }}"
                                 class="w-full h-full object-cover"
                                 alt="{{ $product['name'] }} image {{ $index + 1 }}"
                             >
-
                         </button>
-
                     @endforeach
+
+                    @if(!empty($product['video']))
+                        <button
+                            type="button"
+                            data-product-media
+                            data-media-type="video"
+                            data-media-src="{{ $product['video'] }}"
+                            data-media-index="{{ count($product['images'] ?? []) }}"
+                            class="product-thumb shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 border-transparent hover:border-[#1F6F5B] bg-gray-900 text-white flex flex-col items-center justify-center gap-1"
+                            aria-label="Play product video"
+                        >
+                            <i data-lucide="play-circle" class="w-7 h-7"></i>
+                            <span class="text-[10px]">Video</span>
+                        </button>
+                    @endif
 
                 </div>
 
@@ -716,25 +761,57 @@
     }
 
     // ==========================================
-    // CHANGE PRODUCT IMAGE
+    // PRODUCT MEDIA CAROUSEL
     // ==========================================
 
-    function changeImage(button) {
+    const productMediaButtons = Array.from(document.querySelectorAll('[data-product-media]'));
+    const mainProductImage = document.getElementById('mainProductImage');
+    const mainProductVideo = document.getElementById('mainProductVideo');
+    const previousMediaButton = document.getElementById('productMediaPrevious');
+    const nextMediaButton = document.getElementById('productMediaNext');
+    let currentMediaIndex = 0;
 
-        const image = button.dataset.image;
+    function showProductMedia(index) {
+        if (!productMediaButtons.length) return;
 
-        document.getElementById('mainProductImage').src = image;
+        currentMediaIndex = (index + productMediaButtons.length) % productMediaButtons.length;
+        const button = productMediaButtons[currentMediaIndex];
+        const type = button.dataset.mediaType;
+        const source = button.dataset.mediaSrc;
 
-        document.querySelectorAll('.product-thumb').forEach(function (thumb) {
-
+        productMediaButtons.forEach((thumb) => {
             thumb.classList.remove('border-[#1F6F5B]');
             thumb.classList.add('border-transparent');
-
+            thumb.setAttribute('aria-current', 'false');
         });
 
         button.classList.remove('border-transparent');
         button.classList.add('border-[#1F6F5B]');
+        button.setAttribute('aria-current', 'true');
+        button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+        if (type === 'video') {
+            mainProductImage.classList.add('hidden');
+            mainProductVideo.classList.remove('hidden');
+
+            if (mainProductVideo.currentSrc !== source && mainProductVideo.src !== source) {
+                mainProductVideo.src = source;
+                mainProductVideo.load();
+            }
+        } else {
+            mainProductVideo.pause();
+            mainProductVideo.classList.add('hidden');
+            mainProductImage.classList.remove('hidden');
+            mainProductImage.src = source;
+        }
     }
+
+    productMediaButtons.forEach((button, index) => {
+        button.addEventListener('click', () => showProductMedia(index));
+    });
+
+    previousMediaButton?.addEventListener('click', () => showProductMedia(currentMediaIndex - 1));
+    nextMediaButton?.addEventListener('click', () => showProductMedia(currentMediaIndex + 1));
 
 
     // ==========================================
@@ -773,7 +850,23 @@
             button.dataset.color;
         selectedColor = button.dataset.color;
         const images = mediaByColor[selectedColor];
-        if (images?.length) document.getElementById('mainProductImage').src = images[0];
+
+        if (images?.length) {
+            const matchingIndex = productMediaButtons.findIndex((media) =>
+                media.dataset.mediaType === 'image' &&
+                media.dataset.mediaSrc === images[0]
+            );
+
+            if (matchingIndex >= 0) {
+                showProductMedia(matchingIndex);
+            } else {
+                mainProductVideo.pause();
+                mainProductVideo.classList.add('hidden');
+                mainProductImage.classList.remove('hidden');
+                mainProductImage.src = images[0];
+            }
+        }
+
         resolveVariant();
     }
 
