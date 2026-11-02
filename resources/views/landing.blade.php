@@ -21,7 +21,10 @@
 </head>
 
 
-<body>
+<body
+    data-login-url="{{ route('login') }}"
+    data-authenticated="{{ auth()->check() ? '1' : '0' }}"
+>
 
 
 @php
@@ -110,44 +113,25 @@
     ];
 
 
-    $landingProducts = [
-
+    $heroSlides = [
         [
-            'name' => 'Wireless Earbuds',
-            'image' => 'product-earbuds.png',
-            'price' => '₱1,299',
+            'image' => asset('images/landing/hero/hero-main.png'),
+            'eyebrow' => 'YOUR EVERYDAY SUKI, ONLINE.',
+            'heading' => 'Everything you love, all in one place.',
+            'description' => 'Discover quality products for your everyday lifestyle.',
         ],
-
         [
-            'name' => 'Minimalist Backpack',
-            'image' => 'product-backpack.png',
-            'price' => '₱1,899',
+            'image' => asset('images/landing/hero/hero-thumb-1.png'),
+            'eyebrow' => 'FRESH FINDS FOR EVERYDAY LIVING.',
+            'heading' => 'Find something worth coming back for.',
+            'description' => 'Explore useful finds from sellers across the SUKI marketplace.',
         ],
-
         [
-            'name' => 'Insulated Tumbler',
-            'image' => 'product-tumbler.png',
-            'price' => '₱799',
+            'image' => asset('images/landing/hero/hero-thumb-2.png'),
+            'eyebrow' => 'SHOP LOCAL. SHOP WITH CONFIDENCE.',
+            'heading' => 'Your next favorite find starts here.',
+            'description' => 'Browse everyday essentials, new arrivals, and trusted marketplace finds.',
         ],
-
-        [
-            'name' => 'Casual Sneakers',
-            'image' => 'product-sneakers.png',
-            'price' => '₱2,499',
-        ],
-
-        [
-            'name' => 'Indoor Plant',
-            'image' => 'product-plant.png',
-            'price' => '₱599',
-        ],
-
-        [
-            'name' => 'Mechanical Keyboard',
-            'image' => 'product-keyboard.png',
-            'price' => '₱3,299',
-        ],
-
     ];
 
 @endphp
@@ -178,138 +162,90 @@
 
 
         {{-- =================================================
-            TRANSPARENT LANDING NAVBAR
+            SUKI LANDING NAVBAR
         ================================================== --}}
 
         <header class="landing-header">
-
-
             <div class="landing-container">
-
-
                 <div class="navbar">
 
-
-                    <a
-                        href="{{ url('/') }}"
-                        class="brand-logo"
-                        aria-label="SUKI Home"
-                    >
-
-                        <img
-                            src="{{ asset('images/suki-logo.png') }}"
-                            alt="SUKI"
-                        >
-
+                    <a href="{{ url('/') }}" class="brand-logo" aria-label="SUKI Home">
+                        <img src="{{ asset('images/suki-logo.png') }}" alt="SUKI">
+                        <span>SUKI SHOP</span>
                     </a>
 
+                    <nav class="primary-nav" aria-label="Main navigation">
+                        <a href="#home" class="active">Home</a>
+                        <a href="#categories">Categories</a>
+                        <a href="{{ route('buyer.shop') }}">Stores</a>
+                        <a href="{{ route('buyer.shop') }}">Deals</a>
+                    </nav>
 
-
-                    <form
-                        class="hero-search"
-                        action="{{ route('buyer.shop') }}"
-                        method="GET"
-                    >
-
+                    <form class="hero-search" action="{{ route('buyer.shop') }}" method="GET">
                         <i data-lucide="search"></i>
-
                         <input
                             type="search"
                             name="search"
-                            placeholder="Search for products, brands and more..."
+                            placeholder="Search for products, stores, or categories..."
                             aria-label="Search products"
                         >
-
+                        <button type="submit" class="hero-search-submit" aria-label="Search">
+                            <i data-lucide="arrow-right"></i>
+                        </button>
                     </form>
-
-
 
                     <div class="nav-actions">
 
+                        <button
+                            type="button"
+                            class="theme-toggle"
+                            id="landingThemeToggle"
+                            aria-label="Toggle dark mode"
+                            aria-pressed="false"
+                        >
+                            <i data-lucide="moon"></i>
+                        </button>
+
                         @auth
+                            @php
+                                $landingAccountUrl = auth()->user()->role === 'buyer'
+                                    ? route('buyer.home')
+                                    : route('login');
+                            @endphp
+
+                            <a
+                                href="{{ $landingAccountUrl }}"
+                                class="account-link"
+                                aria-label="Account"
+                            >
+                                <i data-lucide="user"></i>
+                            </a>
+
                             <form
                                 method="POST"
                                 action="{{ route('login.switch') }}"
                                 class="landing-login-switch"
                             >
                                 @csrf
-
-                                <button
-                                    type="submit"
-                                    class="login-link"
-                                    aria-label="Log in with a different account"
-                                >
-                                    Log In
+                                <button type="submit" class="auth-cta">
+                                    Switch Account
                                 </button>
                             </form>
                         @else
-                        <a
-                            href="{{ route('login') }}"
-                            class="login-link"
-                        >
-                            Log In
-                        </a>
+                            <a href="{{ route('login') }}" class="auth-cta">
+                                Sign In
+                            </a>
                         @endauth
 
-
-                        <a
-                            href="{{ route('register') }}"
-                            class="register-btn"
-                        >
+                        <a href="{{ route('register') }}" class="shop-now-cta">
                             Register
                         </a>
 
-
                     </div>
 
-
                 </div>
-
-
-
-                <nav
-                    class="secondary-nav"
-                    aria-label="Landing navigation"
-                >
-
-
-                    <a href="#categories">
-
-                        <i data-lucide="menu"></i>
-
-                        All Categories
-
-                    </a>
-
-
-                    <a href="{{ route('buyer.shop') }}">
-                        New Arrivals
-                    </a>
-
-
-                    <a href="{{ route('buyer.shop') }}">
-                        Deals
-                    </a>
-
-
-                    <a href="{{ route('buyer.shop') }}">
-                        Best Sellers
-                    </a>
-
-
-                    <a href="{{ route('buyer.shop') }}">
-                        Gift Ideas
-                    </a>
-
-
-                </nav>
-
-
             </div>
-
-
         </header>
-
 
 
         {{-- =================================================
@@ -318,273 +254,136 @@
 
         <div class="landing-container hero-inner">
 
-
             <div class="hero-content">
 
-
-                <p class="hero-small">
-                    YOUR EVERYDAY SUKI, ONLINE.
+                <p class="hero-small" id="heroEyebrow">
+                    {{ $heroSlides[0]['eyebrow'] }}
                 </p>
-
 
                 <h1>
                     SUKI <span>SHOP</span>
                 </h1>
 
-
-                <h2>
-                    Everything you love,
-                    <br>
-                    all in one place.
+                <h2 id="heroHeading">
+                    {{ $heroSlides[0]['heading'] }}
                 </h2>
 
-
-                <p class="hero-description">
-                    Discover quality products for your everyday lifestyle.
+                <p class="hero-description" id="heroDescription">
+                    {{ $heroSlides[0]['description'] }}
                 </p>
 
+                <div class="hero-actions">
+                    <a href="{{ route('buyer.shop') }}" class="hero-btn">
+                        Shop Now
+                        <i data-lucide="arrow-right"></i>
+                    </a>
 
-                <a
-                    href="{{ route('buyer.shop') }}"
-                    class="hero-btn"
-                >
-
-                    Shop Now
-
-                    <i data-lucide="arrow-right"></i>
-
-                </a>
-
-
+                    <a href="#categories" class="hero-secondary-btn">
+                        Explore Categories
+                    </a>
+                </div>
 
                 <div class="hero-features">
 
-
                     <div>
-
                         <i data-lucide="leaf"></i>
-
-                        <span>
-                            Curated Essentials
-                        </span>
-
+                        <span>Curated Essentials</span>
                     </div>
 
-
                     <div>
-
                         <i data-lucide="truck"></i>
-
-                        <span>
-                            Fast Delivery
-                        </span>
-
+                        <span>Fast Delivery</span>
                     </div>
-
 
                     <div>
-
                         <i data-lucide="shield-check"></i>
-
-                        <span>
-                            Trusted Quality
-                        </span>
-
+                        <span>Trusted Quality</span>
                     </div>
-
 
                 </div>
 
-
             </div>
 
-
         </div>
 
 
+        <div class="hero-carousel-controls">
 
-        {{-- =================================================
-            HERO DOTS
-        ================================================== --}}
+            <div class="carousel-dots">
+                @foreach($heroSlides as $index => $slide)
+                    <button
+                        type="button"
+                        class="hero-dot {{ $index === 0 ? 'active' : '' }}"
+                        data-image="{{ $slide['image'] }}"
+                        data-eyebrow="{{ $slide['eyebrow'] }}"
+                        data-heading="{{ $slide['heading'] }}"
+                        data-description="{{ $slide['description'] }}"
+                        aria-label="Hero slide {{ $index + 1 }}"
+                        aria-current="{{ $index === 0 ? 'true' : 'false' }}"
+                    ></button>
+                @endforeach
+            </div>
 
-        <div class="carousel-dots">
-
-
-            <button
-                type="button"
-                class="hero-dot active"
-                data-image="{{ asset('images/landing/hero/hero-main.png') }}"
-                aria-label="Hero slide 1"
-                aria-current="true"
-            ></button>
-
-
-            <button
-                type="button"
-                class="hero-dot"
-                data-image="{{ asset('images/landing/hero/hero-thumb-1.png') }}"
-                aria-label="Hero slide 2"
-                aria-current="false"
-            ></button>
-
-
-            <button
-                type="button"
-                class="hero-dot"
-                data-image="{{ asset('images/landing/hero/hero-thumb-2.png') }}"
-                aria-label="Hero slide 3"
-                aria-current="false"
-            ></button>
-
+            <span class="hero-counter">
+                <strong id="heroCurrent">01</strong>
+                <span>/</span>
+                <span>{{ str_pad((string) count($heroSlides), 2, '0', STR_PAD_LEFT) }}</span>
+            </span>
 
         </div>
 
+        <div class="hero-carousel-actions">
+            <button
+                type="button"
+                class="hero-arrow hero-prev"
+                aria-label="Previous slide"
+            >
+                <i data-lucide="chevron-left"></i>
+            </button>
+
+            <button
+                type="button"
+                class="hero-arrow hero-next"
+                aria-label="Next slide"
+            >
+                <i data-lucide="chevron-right"></i>
+            </button>
+
+            <button
+                type="button"
+                class="hero-toggle"
+                id="heroToggle"
+                aria-label="Pause carousel"
+                aria-pressed="false"
+            >
+                <i data-lucide="pause"></i>
+            </button>
+        </div>
 
     </section>
 
 
 
-    {{-- =====================================================
-        EDITORIAL COLLECTIONS
-    ====================================================== --}}
-
-    <section class="editorial-section">
-
-
-        <div class="landing-container">
-
-
-            <div class="editorial-heading">
-
-
-                <p class="section-label">
-                    MORE THAN JUST PRODUCTS
-                </p>
-
-
-                <h2>
-                    Everyday living, made better.
-                </h2>
-
-
-                <p>
-                    Explore essentials, smart finds, and everyday favorites
-                    made for the way you live.
-                </p>
-
-
-            </div>
-
-
-
-            <div class="editorial-grid">
-
-
-                <a
-                    href="{{ route('buyer.shop') }}"
-                    class="editorial-item"
-                >
-
-
-                    <img
-                        src="{{ asset('images/landing/shortcuts/shortcut-category.png') }}"
-                        alt="Home Essentials"
-                    >
-
-
-                    <div class="editorial-overlay"></div>
-
-
-                    <div class="editorial-content">
-
-
-                        <span>
-                            FOR A BETTER HOME
-                        </span>
-
-
-                        <h3>
-                            Home Essentials
-                        </h3>
-
-
-                        <p>
-                            Create a space you love.
-                        </p>
-
-
-                        <strong>
-
-                            Explore
-
-                            <i data-lucide="arrow-right"></i>
-
-                        </strong>
-
-
-                    </div>
-
-
-                </a>
-
-
-
-                <a
-                    href="{{ route('buyer.shop') }}"
-                    class="editorial-item"
-                >
-
-
-                    <img
-                        src="{{ asset('images/landing/shortcuts/shortcut-essentials.png') }}"
-                        alt="Everyday Tech"
-                    >
-
-
-                    <div class="editorial-overlay"></div>
-
-
-                    <div class="editorial-content">
-
-
-                        <span>
-                            SMARTER LIVING
-                        </span>
-
-
-                        <h3>
-                            Everyday Tech
-                        </h3>
-
-
-                        <p>
-                            Smart tools for daily life.
-                        </p>
-
-
-                        <strong>
-
-                            Explore
-
-                            <i data-lucide="arrow-right"></i>
-
-                        </strong>
-
-
-                    </div>
-
-
-                </a>
-
-
-            </div>
-
-
+    <section class="trust-strip" aria-label="Why shop with SUKI">
+        <div class="landing-container trust-strip-grid">
+            <article class="trust-item">
+                <span class="trust-icon"><i data-lucide="shield-check"></i></span>
+                <div><h3>Secure Checkout</h3><p>Shop with confidence</p></div>
+            </article>
+            <article class="trust-item">
+                <span class="trust-icon"><i data-lucide="badge-check"></i></span>
+                <div><h3>Trusted Sellers</h3><p>Verified and reliable</p></div>
+            </article>
+            <article class="trust-item">
+                <span class="trust-icon"><i data-lucide="package"></i></span>
+                <div><h3>Wide Variety</h3><p>Everything you need</p></div>
+            </article>
+            <article class="trust-item">
+                <span class="trust-icon"><i data-lucide="truck"></i></span>
+                <div><h3>Fast &amp; Reliable Delivery</h3><p>Bringing your orders safely to your doorstep</p></div>
+            </article>
         </div>
-
-
     </section>
-
 
 
     {{-- =====================================================
@@ -606,11 +405,6 @@
                 <div>
 
 
-                    <p class="section-label">
-                        SHOP BY CATEGORY
-                    </p>
-
-
                     <h2>
                         Browse Categories
                     </h2>
@@ -626,28 +420,10 @@
 
 
                 <div class="category-controls">
-
-
-                    <button
-                        type="button"
-                        class="category-arrow category-prev"
-                        aria-label="Previous categories"
-                    >
-
-                        <i data-lucide="chevron-left"></i>
-
-                    </button>
-
-
-                    <button
-                        type="button"
-                        class="category-arrow category-next"
-                        aria-label="Next categories"
-                    >
-
-                        <i data-lucide="chevron-right"></i>
-
-                    </button>
+                    <a href="{{ route('buyer.shop') }}" class="section-link">
+                        View All Categories
+                        <i data-lucide="arrow-right"></i>
+                    </a>
 
 
                 </div>
@@ -739,11 +515,6 @@
                 <div>
 
 
-                    <p class="section-label">
-                        FEATURED PRODUCTS
-                    </p>
-
-
                     <h2>
                         Featured Products
                     </h2>
@@ -758,16 +529,13 @@
 
 
 
-                <a
-                    href="{{ route('buyer.shop') }}"
-                    class="section-link"
-                >
+                <div class="product-section-actions">
+                    <a href="{{ route('buyer.shop') }}" class="section-link">
+                        View All Products
+                        <i data-lucide="arrow-right"></i>
+                    </a>
 
-                    View Shop
-
-                    <i data-lucide="arrow-right"></i>
-
-                </a>
+                </div>
 
 
             </div>
@@ -777,242 +545,66 @@
             <div class="product-grid">
 
 
-                @foreach($landingProducts as $product)
-
+                @forelse($landingProducts as $product)
 
                     <article class="product-card">
 
-
-                        <button
-                            type="button"
-                            class="wishlist-btn"
-                            aria-label="Save {{ $product['name'] }}"
-                            aria-pressed="false"
-                        >
-
-                            <i data-lucide="heart"></i>
-
-                        </button>
-
-
-
                         <a
-                            href="{{ route('buyer.shop') }}"
+                            href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
                             class="product-image"
                             aria-label="View {{ $product['name'] }}"
                         >
-
-
                             <img
-                                src="{{ asset('images/landing/products/' . $product['image']) }}"
+                                src="{{ $product['image'] }}"
                                 alt="{{ $product['name'] }}"
+                                loading="lazy"
                             >
-
-
                         </a>
-
-
 
                         <div class="product-info">
 
+                            <p class="product-seller">
+                                <i data-lucide="store"></i>
+                                {{ $product['seller'] ?? 'SUKI Seller' }}
+                            </p>
 
                             <h3>
-                                {{ $product['name'] }}
+                                <a href="{{ route('buyer.product', ['slug' => $product['slug']]) }}">
+                                    {{ $product['name'] }}
+                                </a>
                             </h3>
 
+                            <a href="{{ route('buyer.product', ['slug' => $product['slug']]) }}" class="product-details-link">
+                                View Details
+                            </a>
 
                             <div class="rating">
-
-
-                                <span
-                                    class="rating-stars"
-                                    aria-hidden="true"
-                                >
-                                    ★★★★★
-                                </span>
-
-
+                                <span class="rating-stars">★</span>
                                 <span>
-                                    New
+                                    {{ number_format((float) ($product['rating'] ?? 0), 1) }}
+                                    @if(($product['sold'] ?? 0) > 0)
+                                        · {{ number_format((int) $product['sold']) }} sold
+                                    @endif
                                 </span>
-
-
                             </div>
-
-
 
                             <div class="product-bottom">
-
-
                                 <strong>
-                                    {{ $product['price'] }}
+                                    ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
                                 </strong>
-
-
-                                <a
-                                    href="{{ route('buyer.shop') }}"
-                                    class="cart-btn"
-                                >
-
-                                    <i data-lucide="shopping-bag"></i>
-
-                                    View Product
-
-                                </a>
-
-
                             </div>
-
 
                         </div>
 
-
                     </article>
 
+                @empty
 
-                @endforeach
-
-
-            </div>
-
-
-        </div>
-
-
-    </section>
-
-
-
-    {{-- =====================================================
-        BENEFITS
-    ====================================================== --}}
-
-    <section class="benefits-section">
-
-
-        <div class="landing-container">
-
-
-            <div class="benefits-grid">
-
-
-                <div class="benefit-item">
-
-
-                    <div class="benefit-icon">
-
-                        <i data-lucide="truck"></i>
-
+                    <div class="products-empty">
+                        Products will appear here when approved marketplace items are available.
                     </div>
 
-
-                    <div>
-
-
-                        <h3>
-                            Fast & Reliable Delivery
-                        </h3>
-
-
-                        <p>
-                            Get your orders delivered with care.
-                        </p>
-
-
-                    </div>
-
-
-                </div>
-
-
-
-                <div class="benefit-item">
-
-
-                    <div class="benefit-icon">
-
-                        <i data-lucide="shield-check"></i>
-
-                    </div>
-
-
-                    <div>
-
-
-                        <h3>
-                            Secure Payments
-                        </h3>
-
-
-                        <p>
-                            Shop with confidence and peace of mind.
-                        </p>
-
-
-                    </div>
-
-
-                </div>
-
-
-
-                <div class="benefit-item">
-
-
-                    <div class="benefit-icon">
-
-                        <i data-lucide="badge-check"></i>
-
-                    </div>
-
-
-                    <div>
-
-
-                        <h3>
-                            Trusted Marketplace
-                        </h3>
-
-
-                        <p>
-                            Quality products from verified sellers.
-                        </p>
-
-
-                    </div>
-
-
-                </div>
-
-
-
-                <div class="benefit-item">
-
-
-                    <div class="benefit-icon">
-
-                        <i data-lucide="headphones"></i>
-
-                    </div>
-
-
-                    <div>
-
-
-                        <h3>
-                            Dedicated Support
-                        </h3>
-
-
-                        <p>
-                            We're here to help every step of the way.
-                        </p>
-
-
-                    </div>
-
-
-                </div>
+                @endforelse
 
 
             </div>
@@ -1054,20 +646,19 @@
 
 
                 <p class="cta-label">
-                    GOOD PRODUCTS. BRIGHTER DAYS.
+                    EVERYDAY ESSENTIALS, GREATER POSSIBILITIES
                 </p>
 
 
                 <h2>
-                    More Everyday Goodness
+                    Everyday finds.
                     <br>
-                    at SUKI SHOP
+                    Better shopping.
                 </h2>
 
 
                 <p>
-                    Discover products that make life simpler,
-                    better, and brighter.
+                    Quality products from trusted sellers, all in one place.
                 </p>
 
 
@@ -1076,7 +667,7 @@
                     class="cta-btn"
                 >
 
-                    Explore Now
+                    Shop the Deals
 
                     <i data-lucide="arrow-right"></i>
 
@@ -1092,6 +683,109 @@
     </section>
 
 
+
+    {{-- =====================================================
+        BETTER WAY TO SHOP
+    ====================================================== --}}
+
+    <section class="shopping-steps-section">
+
+        <div class="landing-container">
+
+            <p class="section-label">
+                WHY CHOOSE SUKI?
+            </p>
+
+            <h2>
+                A better way to shop on SUKI
+            </h2>
+
+            <div class="shopping-steps-grid">
+
+                <article class="shopping-step">
+                    <div class="shopping-step-icon">
+                        <i data-lucide="search"></i>
+                    </div>
+                    <h3>Discover</h3>
+                    <p>
+                        Browse a wide variety of products from trusted sellers.
+                    </p>
+                </article>
+
+                <article class="shopping-step">
+                    <div class="shopping-step-icon">
+                        <i data-lucide="shopping-cart"></i>
+                    </div>
+                    <h3>Shop</h3>
+                    <p>
+                        Find what you need at great prices.
+                    </p>
+                </article>
+
+                <article class="shopping-step">
+                    <div class="shopping-step-icon">
+                        <i data-lucide="shield-check"></i>
+                    </div>
+                    <h3>Check Out</h3>
+                    <p>
+                        Enjoy a secure and hassle-free checkout experience.
+                    </p>
+                </article>
+
+                <article class="shopping-step">
+                    <div class="shopping-step-icon">
+                        <i data-lucide="package-check"></i>
+                    </div>
+                    <h3>Receive</h3>
+                    <p>
+                        Get your items delivered and start enjoying them.
+                    </p>
+                </article>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    {{-- =====================================================
+        SUKI COMMUNITY
+    ====================================================== --}}
+
+    <section class="community-section">
+
+        <div class="landing-container community-inner">
+
+            <div class="community-copy">
+                <div>
+                    <h2>Be Part of the SUKI Community</h2>
+                    <p>Get exclusive deals, new arrivals, and marketplace updates.</p>
+                </div>
+
+            </div>
+
+            <form
+                class="community-form"
+                action="{{ route('buyer.shop') }}"
+                method="GET"
+            >
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    aria-label="Email address"
+                >
+                <button type="submit">
+                    Subscribe
+                </button>
+            </form>
+
+        </div>
+
+    </section>
+
+
 </main>
 
 
@@ -1102,83 +796,64 @@
 
 <footer class="landing-footer">
 
-
     <div class="landing-container">
 
-
-        <div class="footer-row">
-
+        <div class="footer-grid">
 
             <div class="footer-brand">
-
-
-                <img
-                    src="{{ asset('images/suki-logo.png') }}"
-                    alt="SUKI"
-                >
-
-
-                <p>
-                    Quality products. Brighter everyday living.
-                </p>
-
-
+                <div class="footer-logo-line">
+                    <strong>SUKI SHOP</strong>
+                </div>
+                <p>Your trusted online marketplace.</p>
             </div>
 
-
-
-            <nav
-                class="footer-links"
-                aria-label="Footer navigation"
-            >
-
-
-                <a href="{{ route('buyer.shop') }}">
-                    Shop
-                </a>
-
-
-                <a href="#categories">
-                    Categories
-                </a>
-
-
-                <a href="#featured">
-                    Products
-                </a>
-
-
-                <a href="{{ route('login') }}">
-                    Account
-                </a>
-
-
-            </nav>
-
-
-
-            <div class="footer-legal">
-
-
-                <span>
-                    © {{ date('Y') }} SUKI SHOP.
-                </span>
-
-
-                <a href="{{ route('policies.show', 'privacy-policy') }}">Privacy Policy</a>
-
-
-                <a href="{{ route('policies.show', 'terms-of-service') }}">Terms of Service</a>
-
-
+            <div>
+                <h3>Shop</h3>
+                <a href="#categories">All Categories</a>
+                <a href="{{ route('buyer.shop') }}">Deals</a>
+                <a href="{{ route('buyer.shop') }}">New Arrivals</a>
+                <a href="{{ route('buyer.shop') }}">Best Sellers</a>
             </div>
 
+            <div>
+                <h3>Help</h3>
+                <a href="{{ route('buyer.shop') }}">Shipping & Delivery</a>
+                <a href="{{ route('policies.show', 'terms-of-service') }}">Returns & Refunds</a>
+                <a href="{{ route('policies.show', 'privacy-policy') }}">Privacy</a>
+            </div>
+
+            <div>
+                <h3>Sell on SUKI</h3>
+                <a href="{{ route('register') }}">Become a Seller</a>
+                <a href="{{ route('login') }}">Seller Centre</a>
+            </div>
+
+            <div class="footer-news">
+                <h3>Stay in the loop</h3>
+                <p>Get the latest deals and updates.</p>
+            </div>
 
         </div>
 
+        <div class="footer-bottom">
+
+            <span>
+                © {{ date('Y') }} SUKI SHOP. All rights reserved.
+            </span>
+
+            <div>
+                <a href="{{ route('policies.show', 'terms-of-service') }}">
+                    Terms of Service
+                </a>
+
+                <a href="{{ route('policies.show', 'privacy-policy') }}">
+                    Privacy Policy
+                </a>
+            </div>
+
+        </div>
 
     </div>
-
 
 </footer>
 

@@ -117,8 +117,14 @@
             ->where('product_slug', $slug)
             ->exists();
     }
+
+    $canPurchase = auth()->check()
+        && auth()->user()->role === 'buyer'
+        && auth()->user()->status === 'active'
+        && ! auth()->user()->is_suspended;
 @endphp
 
+@if($canPurchase)
 <form
     action="{{ route('buyer.wishlist.toggle', ['slug' => $slug]) }}"
     method="POST"
@@ -158,6 +164,16 @@
         ></i>
     </button>
 </form>
+@else
+<a
+    href="{{ route('login') }}"
+    class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-600 shadow-sm transition hover:border-[#1F6F5B] hover:text-[#1F6F5B]"
+    title="Sign in to save to wishlist"
+    aria-label="Sign in to save to wishlist"
+>
+    <i data-lucide="heart" class="w-5 h-5"></i>
+</a>
+@endif
 
                 {{-- MEDIA THUMBNAILS --}}
                 <div class="flex gap-3 mt-4 overflow-x-auto pb-2" id="productMediaThumbnails">
@@ -326,6 +342,19 @@
                     @endforeach
                     @endif
                     <p id="variantAvailability" class="mb-3 text-sm text-red-700" role="status" aria-live="polite"></p>
+
+                    @if(!empty($product['variants']))
+                        <div class="py-5 border-t border-gray-100">
+                            <p class="text-sm font-medium text-gray-700">Available options</p>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                @foreach($product['variants'] as $variant)
+                                    <span class="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600">
+                                        {{ $variant['name'] }} · &#8369;{{ number_format((float) $variant['price'], 2) }} · {{ $variant['stock'] }} available
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                     {{-- QUANTITY --}}
                     <div class="flex items-center gap-4">
 
@@ -379,6 +408,7 @@
 
 
                     {{-- ACTIONS --}}
+                    @if($canPurchase)
                     <div class="grid sm:grid-cols-2 gap-3 mt-7">
 
                         {{-- ADD TO CART --}}
@@ -416,6 +446,16 @@
                         </button>
 
                     </div>
+                    @else
+                    <div class="mt-7 rounded-lg border border-[#1F6F5B]/20 bg-[#F8FAF8] p-4">
+                        <p class="text-sm font-semibold text-gray-800">Sign in to purchase or save this item.</p>
+                        <p class="mt-1 text-xs text-gray-500">Create an account to add this product to your cart or wishlist.</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <a href="{{ route('login') }}" class="rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]">Sign In</a>
+                            <a href="{{ route('register') }}" class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#155244]">Register</a>
+                        </div>
+                    </div>
+                    @endif
 
                 </form>
 

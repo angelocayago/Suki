@@ -432,7 +432,13 @@ $resolveProductCatalog = static function (): array {
 // =====================================================
 
 Route::get('/', function () {
-    return view('landing');
+    $landingProducts = array_values(
+        app(\App\Services\ProductCatalogService::class)->marketplaceProducts()
+    );
+
+    return view('landing', [
+        'landingProducts' => array_slice($landingProducts, 0, 12),
+    ]);
 })->name('landing');
 
 
