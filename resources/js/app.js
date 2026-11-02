@@ -1,4 +1,8 @@
 import './bootstrap';
+import Alpine from 'alpinejs';
+
+window.Alpine = Alpine;
+Alpine.start();
 
 document.addEventListener('submit', (event) => {
     const form = event.target.closest('form[data-confirm-logout]');
