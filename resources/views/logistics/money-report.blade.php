@@ -1,0 +1,5 @@
+@extends('layouts.logistics')
+@section('title','COD Financial Report')
+@section('content')
+<div class="mx-auto max-w-6xl space-y-6"><div><h1 class="text-2xl font-bold text-[#173F35]">COD Financial Report</h1><p class="mt-1 text-sm text-[#617169]">Rider custody and upstream COD remittance; rider shipping earnings are not deducted.</p></div><div class="grid gap-4 sm:grid-cols-3"><x-money-card label="Received from Riders" :amount="$data['received_from_riders_minor']"/><x-money-card label="Remitted to Admin" :amount="$data['remitted_to_admin_minor']"/><x-money-card label="Held by Logistics" :amount="$data['held_by_logistics_minor']"/></div><section class="rounded-xl bg-white p-5 shadow"><h2 class="font-semibold">Rider COD liabilities</h2><table class="mt-3 w-full text-sm"><thead><tr><th>Rider</th><th>Shipment</th><th>Full COD</th><th>Status</th></tr></thead><tbody>@foreach($data['riderRemittances'] as $row)<tr class="border-t"><td>{{ $row->rider->user->name }}</td><td>{{ $row->shipment->tracking_code }}</td><td>₱{{ number_format($row->expected_minor/100,2) }}</td><td>{{ $row->status }}</td></tr>@endforeach</tbody></table></section></div>
+@endsection

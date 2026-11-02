@@ -31,6 +31,7 @@ use App\Http\Controllers\Logistics\FulfillmentController as LogisticsFulfillment
 use App\Http\Controllers\Logistics\RiderServiceAreaController;
 use App\Http\Controllers\ShipmentWaybillController;
 use App\Http\Controllers\ShipmentScannerController;
+use App\Http\Controllers\MoneyReportController;
 use App\Http\Controllers\Messaging\ConversationController as MessagingConversationController;
 use App\Http\Controllers\Messaging\ContextConversationController;
 use App\Http\Controllers\Messaging\ConversationReadController;
@@ -3128,9 +3129,12 @@ Route::get('/seller/vouchers/generate-code', [\App\Http\Controllers\Seller\Vouch
 Route::get('/seller/vouchers/{voucher}/edit', [\App\Http\Controllers\Seller\VoucherController::class, 'edit'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.edit');
 Route::get('/seller/wallet', [PayoutController::class, 'seller'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.wallet');
 Route::get('/rider/cod-remittances', [CodRemittanceController::class, 'rider'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances');
+Route::get('/seller/settlements', [MoneyReportController::class, 'seller'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.settlements');
 Route::post('/rider/cod-remittances/{remittance}', [CodRemittanceController::class, 'riderSubmit'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.cod-remittances.submit');
+Route::get('/rider/money', [MoneyReportController::class, 'rider'])->middleware(['auth','not_suspended','approved','role:rider'])->name('rider.money');
 Route::get('/logistics/cod-remittances', [CodRemittanceController::class, 'logistics'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances');
 Route::patch('/logistics/cod-remittances/{remittance}', [CodRemittanceController::class, 'logisticsReview'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.review');
+Route::get('/logistics/money', [MoneyReportController::class, 'logistics'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.money');
 Route::post('/logistics/cod-remittances', [CodRemittanceController::class, 'logisticsSubmit'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.submit');
 Route::post('/seller/wallet/payouts', [PayoutController::class, 'request'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.payouts.store');
 Route::post('/seller/vouchers', [\App\Http\Controllers\Seller\VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->block(10,10)->name('seller.vouchers.store');
@@ -5668,6 +5672,8 @@ $registerAdminPortalRoutes = function (): void {
         Route::post('/settings/announcements', [SettingController::class, 'storeAnnouncement'])->name('settings.announcement.store');
         Route::patch('/settings/announcements/{announcement}', [SettingController::class, 'updateAnnouncement'])->name('settings.announcement.update');
         Route::patch('/settings/announcements/{announcement}/deactivate', [SettingController::class, 'deactivateAnnouncement'])->name('settings.announcement.deactivate');
+
+        Route::get('/financial-report', [MoneyReportController::class, 'admin'])->name('financial-report');
 };
 
 Route::prefix('admin')
