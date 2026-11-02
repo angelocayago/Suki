@@ -27,6 +27,33 @@ class PhaseFiveBuyerAddressTest extends TestCase
         $this->assertDatabaseHas('addresses',['id'=>$first->id,'user_id'=>$buyer->id]);
     }
 
+    public function test_buyer_can_open_and_submit_the_existing_address_edit_route_for_a_legacy_address(): void
+    {
+        $buyer = $this->buyer(); $other = $this->buyer(); $this->fakePsgc();
+        $address = Address::create([
+            'user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Legacy Buyer', 'phone' => '09171234567',
+            'line1' => 'Near the Barangay Hall', 'region' => 'Region IV-A', 'province' => 'Laguna',
+            'city' => 'Cavinti', 'barangay' => 'Paowin', 'postal_code' => '4013', 'is_default' => true,
+        ]);
+        $payload = ['name' => 'Updated Buyer', 'phone' => '09179876543', 'region' => '01', 'province' => '0101', 'municipality' => '010101', 'barangay' => '010101001', 'street' => 'Updated Street', 'postal_code' => '4026', 'label' => 'Work'];
+
+        $this->actingAs($buyer)->get(route('buyer.addresses'))
+            ->assertOk()
+            ->assertSee('Edit Address')
+            ->assertSee('Legacy Buyer')
+            ->assertSee(route('buyer.addresses.update', $address), false)
+            ->assertSee('region_code', false);
+
+        $this->actingAs($other)->patch(route('buyer.addresses.update', $address), $payload)->assertNotFound();
+        $this->actingAs($buyer)->patch(route('buyer.addresses.update', $address), $payload)
+            ->assertRedirect(route('buyer.addresses'));
+
+        $this->assertDatabaseHas('addresses', [
+            'id' => $address->id, 'recipient' => 'Updated Buyer', 'region_code' => '01', 'province_code' => '0101',
+            'city_municipality_code' => '010101', 'barangay_code' => '010101001',
+        ]);
+    }
+
     private function buyer(): User
     {
         $user=User::factory()->create(['role'=>'buyer','status'=>'active']);

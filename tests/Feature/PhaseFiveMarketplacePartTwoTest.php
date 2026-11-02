@@ -116,6 +116,32 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
         Storage::disk('public')->assertExists($seller->logo_path);
     }
 
+    public function test_approved_seller_can_save_a_verified_pickup_address_through_the_named_route(): void
+    {
+        [$seller] = $this->visibleProduct('Pickup profile product');
+        $this->fakePsgc();
+
+        $this->actingAs($seller->owner)->post(route('seller.store.address.update'), [
+            'region' => '01',
+            'province' => '0101',
+            'municipality' => '010101',
+            'barangay' => '010101001',
+            'address' => 'Verified pickup street',
+        ])->assertRedirect(route('seller.store.profile').'#pickup-address');
+
+        $seller->refresh();
+        $this->assertNotNull($seller->pickup_address_id);
+        $this->assertDatabaseHas('addresses', [
+            'id' => $seller->pickup_address_id,
+            'user_id' => $seller->user_id,
+            'line1' => 'Verified pickup street',
+            'region_code' => '01',
+            'province_code' => '0101',
+            'city_municipality_code' => '010101',
+            'barangay_code' => '010101001',
+        ]);
+    }
+
     private function visibleProduct(string $name): array
     {
         $category = Category::firstOrCreate(['slug' => 'market'], ['name' => 'Market', 'is_active' => true]);

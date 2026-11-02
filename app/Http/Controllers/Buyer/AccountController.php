@@ -29,7 +29,7 @@ class AccountController extends Controller
 
     public function addresses(Request $request): View
     {
-        $addresses = $this->buyer($request)->addresses()->orderByDesc('is_default')->latest()->get()->map(fn (Address $a) => ['id'=>$a->id,'name'=>$a->recipient,'phone'=>$a->phone,'province'=>$a->province,'municipality'=>$a->city,'barangay'=>$a->barangay,'street'=>$a->line1,'house_number'=>'','postal_code'=>$a->postal_code,'label'=>$a->label,'is_default'=>$a->is_default])->all();
+        $addresses = $this->buyer($request)->addresses()->orderByDesc('is_default')->latest()->get()->map(fn (Address $a) => ['id'=>$a->id,'name'=>$a->recipient,'phone'=>$a->phone,'region'=>$a->region,'region_code'=>$a->region_code,'province'=>$a->province,'province_code'=>$a->province_code,'municipality'=>$a->city,'city_municipality_code'=>$a->city_municipality_code,'barangay'=>$a->barangay,'barangay_code'=>$a->barangay_code,'street'=>$a->line1,'house_number'=>'','postal_code'=>$a->postal_code,'label'=>$a->label,'is_default'=>$a->is_default])->all();
         return view('buyer.addresses', compact('addresses'));
     }
 

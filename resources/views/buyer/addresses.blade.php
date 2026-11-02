@@ -341,6 +341,21 @@
                             </div>
 
 
+                            <div class="flex items-center gap-2">
+
+                            <button
+                                type="button"
+                                data-address='@json($address + ['update_url' => route('buyer.addresses.update', $address['id'])])'
+                                onclick="openEditAddress(this.dataset.address)"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#1F6F5B] hover:bg-[#EEF8F3] hover:text-[#1F6F5B]"
+                            >
+
+                                <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+
+                                Edit Address
+
+                            </button>
+
                             <form
                                 action="{{ route('buyer.addresses.delete', $address['id']) }}"
                                 method="POST"
@@ -364,6 +379,8 @@
                                 </button>
 
                             </form>
+
+                            </div>
 
                         </div>
 
@@ -424,7 +441,7 @@
 
                     <div>
 
-                        <h2 class="text-lg font-semibold text-gray-900">
+                        <h2 id="addressModalTitle" class="text-lg font-semibold text-gray-900">
                             Add New Address
                         </h2>
 
@@ -458,12 +475,14 @@
             {{-- ================================================= --}}
 
             <form
+                id="addressForm"
                 action="{{ route('buyer.addresses.store') }}"
                 method="POST"
                 class="max-h-[75vh] overflow-y-auto"
             >
 
                 @csrf
+                <input id="addressFormMethod" type="hidden" name="_method" value="PATCH" disabled>
 
 
                 <div class="space-y-5 px-5 py-6 sm:px-6">
@@ -800,25 +819,20 @@
 
 <script>
 
-    function openAddressModal() {
+    const addressModal = document.getElementById('addressModal');
+    const addressForm = document.getElementById('addressForm');
+    const addressMethod = document.getElementById('addressFormMethod');
+    const addressTitle = document.getElementById('addressModalTitle');
+    const addressStoreUrl = @json(route('buyer.addresses.store'));
 
-        const modal = document.getElementById('addressModal');
-
-        modal.classList.remove('hidden');
-
+    function showAddressModal() {
+        addressModal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
-
     }
 
-
     function closeAddressModal() {
-
-        const modal = document.getElementById('addressModal');
-
-        modal.classList.add('hidden');
-
+        addressModal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
-
     }
 
 
@@ -845,8 +859,6 @@
 
     });
 
-    // The browser only calls narrow application-owned endpoints. Submitted values
-    // are PSGC codes; the server resolves labels and validates the hierarchy.
     (() => {
         const region = document.getElementById('buyerRegion'), province = document.getElementById('buyerProvince'), city = document.getElementById('buyerCity'), barangay = document.getElementById('buyerBarangay');
         const postalCode = document.getElementById('buyerPostalCode');
@@ -854,27 +866,77 @@
         const fill = (select, items, text) => { select.innerHTML = `<option value="">${text}</option>`; items.forEach(item => select.add(new Option(item.name, item.code))); select.disabled = false; };
         const get = path => fetch(`/address/${path}`).then(r => r.ok ? r.json() : Promise.reject());
         const reset = (select, text) => { select.innerHTML = `<option value="">${text}</option>`; select.disabled = true; };
-        get('regions').then(items => fill(region, items, 'Select region'));
-        region.addEventListener('change', async () => { reset(province, 'Loading provinces...'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first'); const items = await get(`regions/${encodeURIComponent(region.value)}/provinces`); if (items.length) fill(province, items, 'Select province'); else { reset(province, 'No province required'); province.disabled = true; fill(city, await get(`regions/${encodeURIComponent(region.value)}/cities-municipalities`), 'Select municipality / city'); } });
-        province.addEventListener('change', async () => { reset(city, 'Loading cities...'); reset(barangay, 'Select city first'); fill(city, await get(`provinces/${encodeURIComponent(province.value)}/cities-municipalities`), 'Select municipality / city'); });
-        city.addEventListener('change', async () => {
-            reset(barangay, 'Loading barangays...');
-            if (postalCode) postalCode.value = '';
-
-            if (!city.value) return;
-
-            const [items, postal] = await Promise.all([
-                get(`cities-municipalities/${encodeURIComponent(city.value)}/barangays`),
-                get(`cities-municipalities/${encodeURIComponent(city.value)}/postal-code`)
-                    .catch(() => ({ postal_code: null })),
-            ]);
-
-            fill(barangay, items, 'Select barangay');
-
-            if (postalCode) {
-                postalCode.value = postal.postal_code || '';
+        const loadRegions = () => get('regions').then(items => fill(region, items, 'Select region'));
+        const loadRegion = async () => { reset(province, 'Loading provinces...'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first'); const items = await get(`regions/${encodeURIComponent(region.value)}/provinces`); if (items.length) fill(province, items, 'Select province'); else { reset(province, 'No province required'); fill(city, await get(`regions/${encodeURIComponent(region.value)}/cities-municipalities`), 'Select municipality / city'); } };
+        const loadProvince = async () => { reset(city, 'Loading cities...'); reset(barangay, 'Select city first'); fill(city, await get(`provinces/${encodeURIComponent(province.value)}/cities-municipalities`), 'Select municipality / city'); };
+        const loadPostalCode = async () => {
+            if (!postalCode || !city.value) {
+                if (postalCode) postalCode.value = '';
+                return;
             }
-        });
+
+            postalCode.value = '';
+
+            try {
+                const payload = await get(`cities-municipalities/${encodeURIComponent(city.value)}/postal-code`);
+                postalCode.value = payload.postal_code || '';
+            } catch (_) {
+                postalCode.value = '';
+            }
+        };
+
+        const loadCity = async () => {
+            reset(barangay, 'Loading barangays...');
+            await Promise.all([
+                get(`cities-municipalities/${encodeURIComponent(city.value)}/barangays`)
+                    .then(items => fill(barangay, items, 'Select barangay')),
+                loadPostalCode(),
+            ]);
+        };
+        const selectOption = (select, value) => { if (value && Array.from(select.options).some(option => option.value === value)) select.value = value; };
+
+        region.addEventListener('change', loadRegion);
+        province.addEventListener('change', loadProvince);
+        city.addEventListener('change', loadCity);
+
+        window.openAddressModal = () => {
+            addressForm.reset();
+            addressForm.action = addressStoreUrl;
+            addressMethod.disabled = true;
+            addressTitle.textContent = 'Add New Address';
+            reset(province, 'Select region first'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first');
+            loadRegions();
+            showAddressModal();
+        };
+
+        window.openEditAddress = async encodedAddress => {
+            const address = JSON.parse(encodedAddress);
+            addressForm.reset();
+            addressForm.action = address.update_url;
+            addressMethod.disabled = false;
+            addressTitle.textContent = 'Edit Address';
+            ['name', 'phone', 'street'].forEach(field => addressForm.elements[field].value = address[field] || '');
+            if (postalCode) postalCode.value = address.postal_code || '';
+            addressForm.querySelectorAll('input[name="label"]').forEach(input => input.checked = input.value === address.label);
+            reset(province, 'Select region first'); reset(city, 'Select province or region first'); reset(barangay, 'Select city first');
+            await loadRegions();
+            selectOption(region, address.region_code);
+            if (region.value) {
+                await loadRegion();
+                if (address.province_code) {
+                    selectOption(province, address.province_code);
+                    if (province.value) await loadProvince();
+                }
+                selectOption(city, address.city_municipality_code);
+                if (city.value) {
+                    await loadCity();
+                    selectOption(barangay, address.barangay_code);
+                }
+            }
+            showAddressModal();
+        };
+
+        loadRegions();
     })();
 
 </script>
