@@ -31,13 +31,26 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($pickupUser)
             ->get(route('rider.deliveries'))
             ->assertOk()
-            ->assertSee('STEP5-ORDER');
+            ->assertSee('STEP5-ORDER')
+            ->assertSee('Pickup Assigned')
+            ->assertSee('Accept Pickup')
+            ->assertSee('Decline Pickup')
+            ->assertDontSee('Pickup Accepted')
+            ->assertDontSee('Confirm Parcel Collection')
+            ->assertSee(route('rider.database.pickup.accept', $sellerOrder), false);
 
         $this->actingAs($pickupUser)
             ->post(route('rider.database.pickup.accept', $sellerOrder))
             ->assertSessionHasNoErrors();
         $this->assertSame($pickupRider->id, $shipment->fresh()->pickup_rider_id);
+        $this->assertNotNull($shipment->fresh()->pickup_accepted_at);
         $this->assertSame(OrderStatus::ReadyForPickup, $sellerOrder->fresh()->workflow_status);
+        $this->actingAs($pickupUser)
+            ->get(route('rider.deliveries'))
+            ->assertOk()
+            ->assertSee('Pickup Accepted')
+            ->assertSee('Confirm Parcel Collection')
+            ->assertDontSee('Accept Pickup');
 
         $this->actingAs($pickupUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'picked_up'])
@@ -56,12 +69,18 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame($provider->id, $shipment->fresh()->logistics_provider_id);
         $this->assertSame($provider->id, $sellerOrder->fresh()->logistics_provider_id);
+        $this->actingAs($logisticsUser)
+            ->get(route('logistics.sorting'))
+            ->assertOk()
+            ->assertSee('Destination area: Cavinti, Laguna')
+            ->assertDontSee('value="Area A"', false);
 
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
                 'status' => 'sorted',
-                'sorting_area' => 'Area A',
+                'sorting_area' => 'Cavinti, Laguna',
             ])->assertSessionHasNoErrors();
+        $this->assertSame('Cavinti, Laguna', $shipment->fresh()->sorting_area);
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
                 'status' => 'assigned_to_rider',
@@ -71,7 +90,25 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($deliveryUser)
             ->get(route('rider.deliveries'))
             ->assertOk()
-            ->assertSee('Buyer Street');
+            ->assertSee('Buyer Street')
+            ->assertSee('Accept Delivery')
+            ->assertSee('Decline Delivery')
+            ->assertDontSee('Mark Out for Delivery');
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
+            ->assertForbidden();
+        $this->assertNull($shipment->fresh()->delivery_accepted_at);
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.delivery.accept', $sellerOrder))
+            ->assertSessionHasNoErrors();
+        $this->assertNotNull($shipment->fresh()->delivery_accepted_at);
+        $this->actingAs($deliveryUser)
+            ->get(route('rider.deliveries'))
+            ->assertOk()
+            ->assertSee('Mark Out for Delivery')
+            ->assertDontSee('Accept Delivery');
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
@@ -99,6 +136,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($logisticsUser)->post(route('logistics.database.delivery.reschedule', $sellerOrder), [
             'rider_id' => $deliveryRider->id, 'scheduled_at' => now()->addDay()->toDateTimeString(),
         ])->assertSessionHasNoErrors();
+        $this->actingAs($deliveryUser)->post(route('rider.database.delivery.accept', $sellerOrder))->assertSessionHasNoErrors();
         $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])->assertSessionHasNoErrors();
 
         $this->actingAs($deliveryUser)
@@ -132,9 +170,11 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unavailable');
         $this->assertSame(OrderStatus::DeliveryFailed, $sellerOrder->fresh()->workflow_status);
         $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $deliveryRider, now()->addDay()->toDateTimeString());
+        $workflow->acceptDelivery($sellerOrder, $deliveryRider);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
         $workflow->rescheduleDelivery($sellerOrder, $provider, $logisticsUser, $deliveryRider, now()->addDays(2)->toDateTimeString());
+        $workflow->acceptDelivery($sellerOrder, $deliveryRider);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'access_issue');
         $this->assertSame(OrderStatus::RtsInitiated, $sellerOrder->fresh()->workflow_status);
@@ -175,6 +215,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RETRY-1', 'is_active' => true, 'approved_at' => now()]);
+        $replacement->update(['logistics_hub_id' => $provider->hubs()->sole()->id]);
         RiderServiceArea::create(['rider_id'=>$replacement->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
         $workflow = app(OrderWorkflowService::class);
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
@@ -185,6 +226,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
             ->assertForbidden();
+        $workflow->acceptDelivery($sellerOrder, $replacement);
         $workflow->transition($sellerOrder, $replacementUser, OrderStatus::OutForDelivery);
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
     }
@@ -215,7 +257,6 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($pickupUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'at_sorting_center'])
-        $replacement->update(['logistics_hub_id' => $provider->hubs()->sole()->id]);
             ->assertSessionHasErrors('status');
 
         $this->actingAs($pickupUser)
@@ -585,9 +626,9 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'total_minor' => 11000,
             'recipient_name' => 'Step Five Buyer',
             'recipient_phone' => '09123456789',
-            'province' => 'Province',
+            'province' => 'Laguna',
             'region_code' => '010000000', 'province_code' => '010000000', 'city_municipality_code' => '010000000', 'barangay_code' => '010000000',
-            'municipality' => 'Municipality',
+            'municipality' => 'Cavinti',
             'barangay' => 'Barangay',
             'street_address' => 'Buyer Street',
             'shipping_address' => ['street_address' => 'Buyer Street'],
@@ -616,6 +657,21 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'attempts' => 0,
             'status_changed_at' => now(),
         ]);
+        $hub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id,
+            'name' => 'Step Five Barangay Hub',
+            'region' => 'Test Region',
+            'region_code' => '010000000',
+            'province' => 'Test Province',
+            'province_code' => '010000000',
+            'city' => 'Test City',
+            'city_municipality_code' => '010000000',
+            'barangay' => 'Test Barangay',
+            'barangay_code' => '010000000',
+            'is_active' => true,
+        ]);
+        $pickupRider->update(['logistics_hub_id' => $hub->id]);
+        $deliveryRider->update(['logistics_hub_id' => $hub->id]);
         foreach ([$pickupRider, $deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>\App\Models\RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact(
@@ -634,21 +690,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $workflow->receiveAtSortingCenter($sellerOrder, $provider, $logisticsUser);
         $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, ['sorting_area' => 'Area A']);
         $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AssignedToRider, ['rider' => $deliveryRider]);
+        $workflow->acceptDelivery($sellerOrder, $deliveryRider);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
     }
 }
-        $hub = LogisticsHub::create([
-            'logistics_provider_id' => $provider->id,
-            'name' => 'Step Five Barangay Hub',
-            'region' => 'Test Region',
-            'region_code' => '010000000',
-            'province' => 'Test Province',
-            'province_code' => '010000000',
-            'city' => 'Test City',
-            'city_municipality_code' => '010000000',
-            'barangay' => 'Test Barangay',
-            'barangay_code' => '010000000',
-            'is_active' => true,
-        ]);
-        $pickupRider->update(['logistics_hub_id' => $hub->id]);
-        $deliveryRider->update(['logistics_hub_id' => $hub->id]);

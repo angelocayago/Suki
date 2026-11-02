@@ -696,7 +696,11 @@ class OrderWorkflowService
                 $actor->hasRole('logistics')
                 && $sellerOrder->shipment?->provider?->user_id === $actor->id,
 
-            [OrderStatus::AssignedToRider, OrderStatus::OutForDelivery],
+            [OrderStatus::AssignedToRider, OrderStatus::OutForDelivery] =>
+                $actor->hasRole('rider')
+                && $sellerOrder->shipment?->rider?->user_id === $actor->id
+                && $sellerOrder->shipment?->delivery_accepted_at !== null,
+
             [OrderStatus::OutForDelivery, OrderStatus::Delivered] =>
                 $actor->hasRole('rider')
                 && $sellerOrder->shipment?->rider?->user_id === $actor->id,

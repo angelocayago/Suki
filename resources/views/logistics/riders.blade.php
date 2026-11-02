@@ -11,6 +11,8 @@
     */
 
     $sourceRiders = $riders ?? $applications ?? [];
+    $managedRiders = collect($managedRiders ?? []);
+    $approvedRiders = collect($approvedRiders ?? $managedRiders->filter(fn ($rider) => $rider->approved_at !== null));
 
 
     /*
@@ -79,7 +81,8 @@
 
 @endphp
 
-
+{{-- The global layouts.logistics shell provides this page's header and navigation. --}}
+{{--
 <div class="min-h-screen bg-[#F8FAF8]">
 
 
@@ -435,7 +438,8 @@
 
 
         <!-- MAIN CONTENT -->
-        <main class="min-w-0 flex-1 p-5 sm:p-8 lg:p-10">
+--}}
+        <div>
 
 
             <!-- SUCCESS MESSAGE -->
@@ -538,7 +542,7 @@
                     </p>
 
                     <p class="mt-1 text-xl font-bold text-gray-900">
-                        {{ count($riders) }}
+                        {{ $managedRiders->count() }}
                     </p>
 
                 </div>
@@ -596,7 +600,7 @@
                             </p>
 
                             <p class="mt-2 text-2xl font-bold text-gray-900">
-                                {{ collect($riders)->where('status', 'approved')->count() }}
+                                {{ $approvedRiders->where('is_active', true)->count() }}
                             </p>
 
                         </div>
@@ -649,6 +653,12 @@
                 </div>
 
             </div>
+
+
+            <section class="mb-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-200 p-5"><h2 class="font-semibold text-gray-900">Approved Riders</h2><p class="mt-1 text-sm text-gray-500">Approved riders belonging to your Logistics Provider.</p></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-xs uppercase text-gray-500"><tr><th class="px-5 py-3">Rider</th><th class="px-5 py-3">Vehicle</th><th class="px-5 py-3">Availability</th><th class="px-5 py-3">Service areas</th><th class="px-5 py-3"></th></tr></thead><tbody class="divide-y divide-gray-100">@forelse($approvedRiders as $approvedRider)<tr><td class="px-5 py-4"><p class="font-medium text-gray-900">{{ $approvedRider->user?->name ?? 'Rider' }}</p><p class="text-xs text-gray-500">{{ $approvedRider->user?->email ?? $approvedRider->user?->phone ?? '' }}</p></td><td class="px-5 py-4">{{ $approvedRider->vehicle_type }}<p class="text-xs text-gray-500">{{ $approvedRider->plate_no }}</p></td><td class="px-5 py-4">{{ $approvedRider->availability }}</td><td class="px-5 py-4">{{ $approvedRider->active_service_areas_count === 0 ? 'None assigned' : $approvedRider->active_service_areas_count.' active '.($approvedRider->active_service_areas_count === 1 ? 'area' : 'areas') }}</td><td class="px-5 py-4"><a href="{{ route('logistics.riders.service-areas', $approvedRider) }}" class="font-semibold text-[#1F6F5B]">Manage Service Areas</a></td></tr>@empty<tr><td colspan="5" class="px-5 py-8 text-center text-sm text-gray-500">No approved riders found.</td></tr>@endforelse</tbody></table></div>
+            </section>
 
 
 
@@ -949,11 +959,7 @@
 
             </section>
 
-        </main>
-
-    </div>
-
-</div>
+        </div>
 
 
 <!-- RIDER SEARCH FUNCTIONALITY -->

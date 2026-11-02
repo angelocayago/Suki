@@ -73,6 +73,54 @@ class RiderServiceAreaPsgcTest extends TestCase
         $this->actingAs($providerUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $matching->id])->assertSessionHas('success');
     }
 
+    public function test_sorting_delivery_assignment_uses_destination_eligible_riders_and_rejects_forged_riders(): void
+    {
+        [$providerUser, $provider, $matching] = $this->actors();
+        [$sellerOrder, $shipment] = $this->shipment($provider, true);
+        $this->area($matching, $provider, '010000000'); // City-wide coverage is valid delivery coverage.
+        $wrongArea = $this->rider($provider, 'wrong-delivery-area'); $this->area($wrongArea, $provider, '020000000');
+        $noArea = $this->rider($provider, 'no-delivery-area');
+        [$otherUser, $otherProvider, $otherRider] = $this->actors('delivery-other'); $this->area($otherRider, $otherProvider, '010000000');
+
+        $sellerOrder->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacySellerStatus()]);
+        $sellerOrder->order->update(['status' => OrderStatus::Sorted->value]);
+        $shipment->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacyShipmentStatus()]);
+
+        $this->actingAs($providerUser)->get(route('logistics.sorting'))
+            ->assertOk()
+            ->assertSee('Provider Rider Pool')
+            ->assertSee('Delivery eligibility is shown per parcel.')
+            ->assertSee('value="'.$matching->id.'"', false)
+            ->assertDontSee('value="'.$wrongArea->id.'"', false)
+            ->assertDontSee('value="'.$noArea->id.'"', false)
+            ->assertDontSee('value="'.$otherRider->id.'"', false);
+
+        $this->actingAs($providerUser)
+            ->post(route('logistics.database.order.status', $sellerOrder), ['status' => 'assigned_to_rider', 'rider_id' => $wrongArea->id])
+            ->assertSessionHasErrors('rider_id');
+        $this->assertSame(OrderStatus::Sorted, $sellerOrder->fresh()->workflow_status);
+
+        $this->actingAs($providerUser)
+            ->post(route('logistics.database.order.status', $sellerOrder), ['status' => 'assigned_to_rider', 'rider_id' => $matching->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(OrderStatus::AssignedToRider, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame($matching->id, $shipment->fresh()->rider_id);
+    }
+
+    public function test_sorting_delivery_assignment_reports_when_no_rider_covers_the_destination(): void
+    {
+        [$providerUser, $provider] = $this->actors();
+        [$sellerOrder, $shipment] = $this->shipment($provider, true);
+        $sellerOrder->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacySellerStatus()]);
+        $sellerOrder->order->update(['status' => OrderStatus::Sorted->value]);
+        $shipment->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacyShipmentStatus()]);
+
+        $this->actingAs($providerUser)->get(route('logistics.sorting'))
+            ->assertOk()
+            ->assertSee('No eligible riders for this delivery area')
+            ->assertSee('disabled');
+    }
+
     public function test_buyer_verified_address_edit_persists_codes_and_preserves_order_snapshot(): void
     {
         $buyer = $this->user('buyer', 'Address Buyer');
@@ -98,6 +146,30 @@ class RiderServiceAreaPsgcTest extends TestCase
         Http::fake(['https://psgc.cloud/api/v2/regions'=>Http::response(['data'=>[['code'=>'01','name'=>'Region A'],['code'=>'13','name'=>'NCR-style']]]),'https://psgc.cloud/api/v2/regions/13/provinces'=>Http::response(['data'=>[]]),'https://psgc.cloud/api/v2/regions/13/cities-municipalities'=>Http::response(['data'=>[['code'=>'130001','name'=>'NCR City']]]),'https://psgc.cloud/api/v2/cities-municipalities/130001/barangays'=>Http::response(['data'=>[['code'=>'130001001','name'=>'NCR Barangay']]])]);
         $this->actingAs($buyer)->patch(route('buyer.addresses.update',$address->id),['name'=>'Buyer','phone'=>'2','label'=>'Work','street'=>'New Street','postal_code'=>'2','region'=>'13','province'=>null,'municipality'=>'130001','barangay'=>'130001001'])->assertSessionHas('success');
         $this->assertDatabaseHas('addresses',['id'=>$address->id,'region'=>'NCR-style','region_code'=>'13','province'=>null,'province_code'=>null,'city'=>'NCR City','city_municipality_code'=>'130001','barangay'=>'NCR Barangay','barangay_code'=>'130001001']);
+    }
+
+    public function test_rider_management_lists_only_provider_owned_approved_riders_with_service_area_summaries(): void
+    {
+        [$providerUser, $provider, $first] = $this->actors();
+        $second = $this->rider($provider, 'second-rider');
+        $this->area($second, $provider, '010000000');
+        [, $otherProvider, $otherRider] = $this->actors('outside');
+
+        $this->actingAs($providerUser)->get(route('logistics.riders'))
+            ->assertOk()
+            ->assertSee('Approved Riders')
+            ->assertSee($first->user->name)
+            ->assertSee($second->user->name)
+            ->assertDontSee($otherRider->user->name)
+            ->assertSee('None assigned')
+            ->assertSee('1 active area')
+            ->assertSee(route('logistics.riders.service-areas', $first), false)
+            ->assertSee(route('logistics.riders.service-areas', $second), false)
+            ->assertSeeInOrder(['Total Riders', '2'])
+            ->assertSeeInOrder(['Active Riders', '2']);
+
+        $this->actingAs($providerUser)->get(route('logistics.riders.service-areas', $first))->assertOk();
+        $this->actingAs($providerUser)->get(route('logistics.riders.service-areas', $otherRider))->assertForbidden();
     }
 
     private function actors(string $suffix = ''): array

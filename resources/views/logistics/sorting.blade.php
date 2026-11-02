@@ -667,10 +667,15 @@
 
                                 @if(!$isDatabase || !empty($parcel['logistics_provider_id']))
                                     <input type="hidden" name="status" value="sorted">
-                                    <select name="{{ $isDatabase ? 'sorting_area' : 'area' }}" required class="mr-2 rounded-lg border border-gray-200 px-2 py-2 text-[10px]">
-                                        <option value="">Area</option>
-                                        @foreach($areas as $sortingArea)<option value="{{ $sortingArea }}">{{ $sortingArea }}</option>@endforeach
-                                    </select>
+                                    @if($isDatabase)
+                                        <input type="hidden" name="sorting_area" value="{{ $parcel['destination_sorting_area'] }}">
+                                        <span class="mr-2 text-[10px] text-[#52635B]">Destination area: {{ $parcel['destination_sorting_area'] }}</span>
+                                    @else
+                                        <select name="area" required class="mr-2 rounded-lg border border-gray-200 px-2 py-2 text-[10px]">
+                                            <option value="">Area</option>
+                                            @foreach($areas as $sortingArea)<option value="{{ $sortingArea }}">{{ $sortingArea }}</option>@endforeach
+                                        </select>
+                                    @endif
                                 @endif
                                 <button
                                     type="submit"
@@ -710,10 +715,15 @@
                                 <input type="hidden" name="status" value="assigned_to_rider">
                                 <select name="{{ $isDatabase ? 'rider_id' : 'rider_index' }}" required class="rounded-lg border border-gray-200 px-2 text-[10px]">
                                     <option value="">Rider</option>
-                                    @foreach($riders as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@endforeach
+                                    @if($isDatabase)
+                                        @forelse($parcel['delivery_eligible_riders'] ?? [] as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@empty<option value="" disabled>No eligible riders for this delivery area</option>@endforelse
+                                    @else
+                                        @foreach($riders as $rider)<option value="{{ $rider['id'] }}">{{ $rider['name'] }}</option>@endforeach
+                                    @endif
                                 </select>
                             <button
                                 type="submit"
+                                @disabled($isDatabase && empty($parcel['delivery_eligible_riders']))
                                 class="inline-flex
                                        h-9
                                        items-center
@@ -1017,7 +1027,7 @@
                        font-semibold
                        text-[#24312C]"
             >
-                Rider Area Assignment
+                Provider Rider Pool
             </h3>
 
 
@@ -1026,7 +1036,7 @@
                        text-[11px]
                        text-[#7C8983]"
             >
-                Available riders based on delivery area.
+                Active riders belonging to this provider. Delivery eligibility is shown per parcel.
             </p>
 
 
@@ -1099,8 +1109,7 @@
                                    text-[#849089]"
                         >
 
-                            Assigned Area:
-                            {{ $rider['area'] }}
+                            Provider rider
 
                         </p>
 
@@ -1122,7 +1131,7 @@
                            text-emerald-700"
                 >
 
-                    Available
+                    Active
 
                 </span>
 

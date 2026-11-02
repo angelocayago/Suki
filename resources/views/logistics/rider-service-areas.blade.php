@@ -1,5 +1,6 @@
 @extends('layouts.logistics')
 @section('content')
+<a href="{{ route('logistics.riders') }}" class="mx-auto mt-4 block max-w-4xl px-4 text-sm font-semibold text-[#1F6F5B]">← Back to Rider Management</a>
 <div class="mx-auto max-w-4xl space-y-5 p-4"><h1 class="text-2xl font-bold">Rider service areas</h1><p class="text-sm text-slate-600">{{ $rider->user->full_name }} — verified PSGC areas only.</p>
 @if(session('success'))<p class="rounded bg-green-50 p-3 text-green-800">{{ session('success') }}</p>@endif
 @if($errors->any())<p class="rounded bg-red-50 p-3 text-red-800">{{ $errors->first() }}</p>@endif

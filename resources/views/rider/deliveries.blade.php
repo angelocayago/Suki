@@ -352,7 +352,7 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
 
                     $statusLabels = [
                         'assigned_to_rider' => 'Assigned to Rider',
-                        'ready_for_pickup' => 'Pickup Accepted',
+                        'ready_for_pickup' => !empty($order['pickup_accepted_at']) ? 'Pickup Accepted' : 'Pickup Assigned',
                         'picked_up' => 'Picked Up',
                         'at_sorting_center' => 'At Sorting Center',
                         'out_for_delivery' => 'Out for Delivery',
@@ -420,7 +420,21 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
 
                         <div class="w-full lg:w-auto">
 
-                            @if ($status === 'ready_for_pickup')
+                            @if ($status === 'ready_for_pickup' && ($order['source'] ?? '') === 'database' && empty($order['pickup_accepted_at']))
+
+                                <form method="POST" action="{{ route('rider.database.pickup.accept', $orderId) }}" class="mb-2">
+                                    @csrf
+                                    <button type="submit" class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto">
+                                        Accept Pickup
+                                    </button>
+                                </form>
+
+                                <form method="POST" action="{{ route('rider.database.pickup.decline', $orderId) }}" onsubmit="return confirm('Decline this assigned pickup?');">
+                                    @csrf
+                                    <button type="submit" class="w-full rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-700">Decline Pickup</button>
+                                </form>
+
+                            @elseif ($status === 'ready_for_pickup')
 
                                 <form method="POST" action="{{ ($order['source'] ?? 'session') === 'database'
                                     ? route('rider.database.order.status', $orderId)
@@ -431,13 +445,6 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                         Confirm Parcel Collection
                                     </button>
                                 </form>
-                                @if (($order['source'] ?? '') === 'database' && empty($order['pickup_accepted_at']))
-                                    <form method="POST" action="{{ route('rider.database.pickup.decline', $orderId) }}" class="mt-2" onsubmit="return confirm('Decline this assigned pickup?');">
-                                        @csrf
-                                        <button type="submit" class="w-full rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-700">Decline Pickup</button>
-                                    </form>
-                                @endif
-
                             @elseif ($status === 'assigned_to_rider')
 
                                 @if(($order['source'] ?? '') === 'database' && empty($order['delivery_accepted_at']))
@@ -451,27 +458,29 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                     </form>
                                 @endif
 
-                                <form
-                                    method="POST"
-                                    action="{{ ($order['source'] ?? 'session') === 'database'
-                                        ? route('rider.database.order.status', $orderId)
-                                        : route('rider.order.status', $orderId) }}"
-                                >
-                                    @csrf
-
-                                    <input
-                                        type="hidden"
-                                        name="status"
-                                        value="out_for_delivery"
+                                @if(($order['source'] ?? '') !== 'database' || !empty($order['delivery_accepted_at']))
+                                    <form
+                                        method="POST"
+                                        action="{{ ($order['source'] ?? 'session') === 'database'
+                                            ? route('rider.database.order.status', $orderId)
+                                            : route('rider.order.status', $orderId) }}"
                                     >
+                                        @csrf
 
-                                    <button
-                                        type="submit"
-                                        class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
-                                    >
-                                        Mark Out for Delivery
-                                    </button>
-                                </form>
+                                        <input
+                                            type="hidden"
+                                            name="status"
+                                            value="out_for_delivery"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="w-full px-5 py-2.5 text-sm font-semibold text-white bg-[#1F6F5B] rounded-lg hover:bg-[#155244] transition lg:w-auto"
+                                        >
+                                            Mark Out for Delivery
+                                        </button>
+                                    </form>
+                                @endif
 
 
                             @elseif ($status === 'picked_up')

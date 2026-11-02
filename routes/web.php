@@ -3684,9 +3684,24 @@ Route::get('/logistics/riders', function () use ($requireLogistics) {
         })
         ->all();
 
+    $provider = \App\Models\LogisticsProvider::where('user_id', auth()->id())->first();
+
+    $approvedRiders = $provider
+        ? $provider->riders()
+            ->with('user')
+            ->withCount([
+                'serviceAreas as active_service_areas_count' => fn ($query) => $query->where('is_active', true),
+            ])
+            ->where('is_active', true)
+            ->whereNotNull('approved_at')
+            ->orderBy('id')
+            ->get()
+        : collect();
+
     return view('logistics.riders', [
         'applications' => $applications,
         'riders' => $applications,
+        'approvedRiders' => $approvedRiders,
     ]);
 })->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
     ->name('logistics.riders');

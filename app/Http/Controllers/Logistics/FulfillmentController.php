@@ -236,6 +236,7 @@ class FulfillmentController extends Controller
             ],
             'rider_index' => $shipment->rider_id,
             'rider_name' => $shipment->rider?->user?->full_name,
+            'destination_sorting_area' => implode(', ', array_filter([$order->municipality, $order->province])),
             'delivery_area' => $shipment->sorting_area,
             'area' => $shipment->sorting_area,
             'failure_reason' => $shipment->events->where('status', 'DELIVERY_ATTEMPT_FAILED')->last()?->note,
