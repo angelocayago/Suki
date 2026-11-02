@@ -3026,13 +3026,14 @@ Route::post('/my-account/addresses/{address}/delete', function (
 // SELLER AUTH CHECK
 // =====================================================
 
-$requireSeller = function () {
 Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->group(function () {
     Route::get('/logistics/hubs', [\App\Http\Controllers\Logistics\HubController::class, 'index'])->name('logistics.hubs.index');
     Route::post('/logistics/hubs', [\App\Http\Controllers\Logistics\HubController::class, 'store'])->name('logistics.hubs.store');
     Route::patch('/logistics/hubs/{hub}/toggle', [\App\Http\Controllers\Logistics\HubController::class, 'toggle'])->name('logistics.hubs.toggle');
     Route::patch('/logistics/hubs/riders/{rider}', [\App\Http\Controllers\Logistics\HubController::class, 'assignRider'])->name('logistics.hubs.riders.assign');
 });
+
+$requireSeller = function () {
 
 
     if (!auth()->check()) {
