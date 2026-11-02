@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\Admin\ProductModerationService;
+use App\Support\ProductOptions;
 
 class ProductCatalogService
 {
@@ -170,7 +171,7 @@ class ProductCatalogService
 
     public function sellerItem(Product $product): array
     {
-        $variant = $product->variants->first();
+        $variant = $product->variants->sortBy('id')->first();
         $options = $variant?->options ?? [];
 
         return [
@@ -186,13 +187,13 @@ class ProductCatalogService
             'status' => $product->is_active && ($variant?->is_active ?? false) ? 'active' : 'inactive',
             'moderation_status' => $product->moderation_status?->value ?? ProductModerationStatus::Pending->value,
             'moderation_reason' => $product->moderation_reason,
-            'weight' => $variant?->weight_grams ? $variant->weight_grams / 1000 : null,
+            'weight' => $variant?->weight_grams !== null ? $variant->weight_grams / 1000 : null,
             'length' => $variant?->length_mm ? $variant->length_mm / 10 : null,
             'width' => $variant?->width_mm ? $variant->width_mm / 10 : null,
             'height' => $variant?->height_mm ? $variant->height_mm / 10 : null,
             'variation_names' => array_keys($options),
             'variation_values' => array_values($options),
-            'variants' => $product->variants->skip(1)->map(fn (ProductVariant $additional) => [
+            'variants' => $product->variants->sortBy('id')->skip(1)->map(fn (ProductVariant $additional) => [
                 'id' => $additional->id,
                 'name' => $additional->name,
                 'sku' => $additional->sku,
@@ -200,6 +201,7 @@ class ProductCatalogService
                 'stock' => $additional->stock,
                 'status' => $additional->is_active ? 'active' : 'inactive',
                 'options' => $additional->options ?? [],
+                'weight' => $additional->weight_grams === null ? null : $additional->weight_grams / 1000,
             ])->values()->all(),
             'shipping_options' => $product->shipping_options ?? [],
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
@@ -237,7 +239,7 @@ class ProductCatalogService
 
     private function marketplaceItem(Product $product): array
     {
-        $variant = $product->variants->first();
+        $variant = $product->variants->sortBy('id')->first();
         $images = $product->images
             ->map(fn ($image) => $this->imageUrl($image->path))
             ->filter()
@@ -262,7 +264,7 @@ class ProductCatalogService
             'stock' => $variant?->stock ?? 0,
             'image' => $images[0],
             'images' => $images,
-            'variants' => $product->variants->map(fn (ProductVariant $variant) => [
+            'variants' => $product->variants->sortBy('id')->map(fn (ProductVariant $variant) => [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
                 'name' => $variant->name,
@@ -272,6 +274,8 @@ class ProductCatalogService
                 'options' => $variant->options ?? [],
             ])->values()->all(),
             'colors' => $product->variants->map(fn (ProductVariant $variant) => $variant->options['Color'] ?? null)->filter()->unique()->values()->all(),
+            'option_groups' => $product->variants->flatMap(fn (ProductVariant $variant) => array_keys($variant->options ?? []))
+                ->unique()->mapWithKeys(fn ($name) => [$name => $product->variants->map(fn ($variant) => $variant->options[$name] ?? null)->filter(fn ($value) => $value !== null && $value !== '')->unique()->values()->all()])->all(),
             'sizes' => $product->variants->map(fn (ProductVariant $variant) => $variant->options['Size'] ?? null)->filter()->unique()->values()->all(),
             'media_by_color' => $product->images->filter(fn ($image) => filled($image->color))->groupBy('color')->map(fn ($images) => $images->map(fn ($image) => $this->imageUrl($image->path))->filter()->values()->all())->all(),
             'seller' => $product->seller?->name ?? 'SUKI Seller',
@@ -299,8 +303,8 @@ class ProductCatalogService
         }
 
         return [
-            'sku' => $data['sku'] ?: ($variant?->sku ?? $this->uniqueSku($product)),
-            'name' => $variant?->name ?? 'Default',
+            'sku' => filled($data['sku'] ?? null) ? $data['sku'] : ($variant?->sku ?? $this->uniqueSku($product)),
+            'name' => $variant?->name ?? ($data['primary_variant_name'] ?? 'Default'),
             'options' => $options ?: null,
             'price_minor' => (int) round(((float) $data['price']) * 100),
             'stock' => (int) $data['stock'],
@@ -372,6 +376,9 @@ class ProductCatalogService
                 'stock' => (int) $data['stock'],
                 'is_active' => ($data['status'] ?? 'active') === 'active',
                 'options' => $this->normalisedOptions($data['options'] ?? []),
+                'weight_grams' => array_key_exists('weight', $data)
+                    ? (filled($data['weight']) ? (int) round((float) $data['weight'] * 1000) : null)
+                    : $variant->weight_grams,
             ]);
             $variant->save();
         }
@@ -428,7 +435,7 @@ class ProductCatalogService
 
     private function normalisedOptions(array $options): ?array
     {
-        $options = collect($options)->only(['Color', 'Size'])->map(fn ($value) => trim((string) $value))->filter()->all();
+        $options = ProductOptions::options($options);
         return $options ?: null;
     }
 

@@ -205,7 +205,7 @@
 
                     <div class="flex items-center gap-3 flex-wrap">
 
-                        <span class="text-3xl font-bold text-[#1F6F5B]">
+                        <span id="variantPrice" class="text-3xl font-bold text-[#1F6F5B]">
                             ₱{{ $product['price'] }}
                         </span>
 
@@ -260,67 +260,27 @@
                     @csrf
 
 
-                    {{-- COLOR --}}
-                    @if(!empty($product['colors']))
-
-                        <div class="py-5">
-
-                            <div class="flex items-start gap-4">
-
-                                <span class="text-sm text-gray-500 w-16 pt-2">
-                                    Color
-                                </span>
-
-                                <div class="flex flex-wrap gap-2">
-
-                                    @foreach($product['colors'] as $index => $color)
-
-                                        <button
-                                            type="button"
-                                            onclick="selectColor(this)"
-                                            data-color="{{ $color }}"
-                                            class="color-option px-4 py-2 rounded-lg
-                                                   text-sm font-medium
-                                                   {{ $index === 0
-                                                        ? 'border-2 border-[#1F6F5B] bg-[#F8FAF8]'
-                                                        : 'border border-gray-200 hover:border-[#1F6F5B]' }}"
-                                        >
-                                            {{ $color }}
-                                        </button>
-
-                                    @endforeach
-
-                                </div>
-
-                            </div>
-
+                    <input type="hidden" name="variant_id" id="selectedVariant" value="{{ $product['variant_id'] ?? '' }}">
+                    @php
+                        $groupNames = array_keys($product['option_groups'] ?? []);
+                        $legacyCombinations = count($product['variants'] ?? []) > 1 && (! $groupNames || collect($product['variants'])->contains(fn ($variant) => count($variant['options'] ?? []) !== count($groupNames) || array_diff($groupNames, array_keys($variant['options'] ?? []))));
+                    @endphp
+                    @if($legacyCombinations)
+                        <label for="productVariantChoice" class="mb-2 block text-sm text-gray-600">Product option</label>
+                        <select id="productVariantChoice" class="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
+                            @foreach($product['variants'] as $variant)<option value="{{ $variant['id'] }}">{{ $variant['name'] }}@if($variant['options']) — {{ implode(' / ', $variant['options']) }}@endif</option>@endforeach
+                        </select>
+                    @else
+                    @foreach($product['option_groups'] ?? [] as $optionName => $values)
+                        <div class="py-3">
+                            <label class="mb-2 block text-sm text-gray-600" for="productOption{{ $loop->index }}">{{ $optionName }}</label>
+                            <select id="productOption{{ $loop->index }}" data-product-option="{{ $optionName }}" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
+                                @foreach($values as $value)<option value="{{ $value }}" @selected(($product['variants'][0]['options'][$optionName] ?? null) === $value)>{{ $value }}</option>@endforeach
+                            </select>
                         </div>
-
-                        {{-- SELECTED COLOR --}}
-                        <input
-                            type="hidden"
-                            name="color"
-                            id="selectedColor"
-                            value="{{ $product['colors'][0] ?? '' }}"
-                        >
-                        <input type="hidden" name="variant_id" id="selectedVariant" value="{{ $product['variant_id'] ?? '' }}">
-
+                    @endforeach
                     @endif
-
-                    @if(!empty($product['sizes']))
-                        <div class="py-2">
-                            <div class="flex items-start gap-4">
-                                <span class="text-sm text-gray-500 w-16 pt-2">Size</span>
-                                <div class="flex flex-wrap gap-2">
-                                    @foreach($product['sizes'] as $index => $size)
-                                        <button type="button" onclick="selectSize(this)" data-size="{{ $size }}" class="size-option px-4 py-2 rounded-lg text-sm font-medium {{ $index === 0 ? 'border-2 border-[#1F6F5B] bg-[#F8FAF8]' : 'border border-gray-200 hover:border-[#1F6F5B]' }}">{{ $size }}</button>
-                                    @endforeach
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
-
+                    <p id="variantAvailability" class="mb-3 text-sm text-red-700" role="status" aria-live="polite"></p>
                     {{-- QUANTITY --}}
                     <div class="flex items-center gap-4">
 
@@ -357,7 +317,7 @@
 
                         </div>
 
-                        <span class="text-xs text-gray-400">
+                        <span id="variantStock" class="text-xs text-gray-400">
                             {{ $product['stock'] }} pieces available
                         </span>
 
@@ -701,20 +661,25 @@
 <script>
     const purchasableVariants = @json($product['variants'] ?? []);
     const mediaByColor = @json($product['media_by_color'] ?? []);
-    let selectedColor = document.getElementById('selectedColor')?.value || null;
-    let selectedSize = document.querySelector('.size-option.border-2')?.dataset.size || null;
-
+    let quantity = 1;
+    let maxStock = 0;
     function resolveVariant() {
-        const variant = purchasableVariants.find((item) => {
-            const options = item.options || {};
-            return (!selectedColor || options.Color === selectedColor) && (!selectedSize || options.Size === selectedSize);
-        });
-        const input = document.getElementById('selectedVariant');
+        const controls = Array.from(document.querySelectorAll('[data-product-option]'));
+        const choice = document.getElementById('productVariantChoice');
+        const variant = purchasableVariants.find(item => choice ? String(item.id) === choice.value : controls.every(control => item.options?.[control.dataset.productOption] === control.value));
+        document.getElementById('selectedVariant').value = variant?.id || '';
         const submit = document.querySelector('#addToCartForm button[type="submit"]');
-        if (input) input.value = variant?.id || '';
         if (submit) submit.disabled = !variant || variant.stock < 1;
+        maxStock = variant?.stock || 0;
+        quantity = Math.max(1, Math.min(quantity, maxStock));
+        document.getElementById('quantity').textContent = quantity;
+        document.getElementById('quantityInput').value = quantity;
+        document.getElementById('variantStock').textContent = `${maxStock} pieces available`;
+        document.getElementById('variantAvailability').textContent = !variant ? 'This option combination is unavailable.' : maxStock < 1 ? 'This option is out of stock.' : '';
+        if (variant) document.getElementById('variantPrice').textContent = `₱${Number(variant.price).toFixed(2)}`;
+        const color = controls.find(control => control.dataset.productOption === 'Color')?.value;
+        if (color && mediaByColor[color]?.length) document.getElementById('mainProductImage').src = mediaByColor[color][0];
     }
-
     // ==========================================
     // CHANGE PRODUCT IMAGE
     // ==========================================
@@ -741,60 +706,7 @@
     // SELECT COLOR
     // ==========================================
 
-    function selectColor(button) {
-
-        document.querySelectorAll('.color-option').forEach(function (option) {
-
-            option.classList.remove(
-                'border-2',
-                'border-[#1F6F5B]',
-                'bg-[#F8FAF8]'
-            );
-
-            option.classList.add(
-                'border',
-                'border-gray-200'
-            );
-
-        });
-
-        button.classList.remove(
-            'border',
-            'border-gray-200'
-        );
-
-        button.classList.add(
-            'border-2',
-            'border-[#1F6F5B]',
-            'bg-[#F8FAF8]'
-        );
-
-        document.getElementById('selectedColor').value =
-            button.dataset.color;
-        selectedColor = button.dataset.color;
-        const images = mediaByColor[selectedColor];
-        if (images?.length) document.getElementById('mainProductImage').src = images[0];
-        resolveVariant();
-    }
-
-    function selectSize(button) {
-        document.querySelectorAll('.size-option').forEach((option) => option.classList.remove('border-2', 'border-[#1F6F5B]', 'bg-[#F8FAF8]'));
-        button.classList.add('border-2', 'border-[#1F6F5B]', 'bg-[#F8FAF8]');
-        selectedSize = button.dataset.size;
-        resolveVariant();
-    }
-
     resolveVariant();
-
-
-    // ==========================================
-    // QUANTITY
-    // ==========================================
-
-    let quantity = 1;
-
-    const maxStock = {{ $product['stock'] }};
-
 
     function increaseQuantity() {
 

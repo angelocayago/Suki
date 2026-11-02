@@ -3173,6 +3173,7 @@ Route::get('/seller/products/create', [SellerProductController::class, 'create']
 // =====================================================
 
 Route::post('/seller/products', [SellerProductController::class, 'store'])
+    ->block(10, 10)
     ->middleware(['auth', 'not_suspended', 'approved', 'role:seller'])
     ->name('seller.products.store');
 

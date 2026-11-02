@@ -4,5 +4,5 @@
 @section('page-title', 'Add Product')
 
 @section('content')
-@include('seller.partials.product-form', ['editing' => false])
+@include('seller.partials.product-create-form')
 @endsection

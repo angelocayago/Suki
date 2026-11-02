@@ -34,7 +34,7 @@ class SellerProductFormsTest extends TestCase
             'seller_orders'=>'id INTEGER PRIMARY KEY, order_id INTEGER, status TEXT',
             'order_items'=>'id INTEGER PRIMARY KEY, product_id INTEGER, seller_order_id INTEGER, quantity INTEGER',
         ];
-        $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('adminsAfterCommit')->andReturnNull();
+        $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('adminsAfterCommit', 'afterCommit')->andReturnNull();
         foreach($schema as $table=>$columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
         $this->seller=User::forceCreate(['id'=>11,'name'=>'Seller Fixture','role'=>'seller','status'=>'active']);
         DB::table('users')->insert(['id'=>22,'name'=>'Other Seller','role'=>'seller','status'=>'active']);
@@ -47,6 +47,217 @@ class SellerProductFormsTest extends TestCase
             ['id'=>5,'parent_id'=>4,'name'=>'Forbidden Category','slug'=>'forbidden','is_active'=>1],
             ['id'=>6,'parent_id'=>1,'name'=>'Disabled Category','slug'=>'disabled','is_active'=>0],
         ]);
+    }
+
+    private function universal(array $groups = [], array $overrides = []): array
+    {
+        $token = $this->actingAs($this->seller)->get(route('seller.products.create'))->viewData('creationToken');
+        $combinations = [[]];
+        foreach ($groups as $group) {
+            $next = [];
+            foreach ($combinations as $combination) {
+                foreach (array_values(array_unique(array_filter(array_map('trim', explode(',', $group['values']))))) as $value) $next[] = $combination + [trim($group['name']) => $value];
+            }
+            $combinations = $next;
+        }
+        $variants = [];
+        if ($groups) foreach ($combinations as $index => $options) $variants[] = ['options'=>$options,'price'=>number_format(35 + $index * 10,2,'.',''),'stock'=>50-$index,'sku'=>'','weight'=>''];
+        return array_replace(['name'=>'Universal Product','description'=>'Suitable for any approved category.','category_id'=>2,'status'=>'active','product_mode'=>$groups?'variants':'simple','creation_token'=>$token,'price'=>'50.00','stock'=>100,'weight'=>'0.500','option_groups'=>$groups,'variants'=>$variants],$overrides);
+    }
+
+    public function test_simple_products_support_authorized_categories_and_repeat_form_submission_is_idempotent(): void
+    {
+        foreach ([2,3] as $category) {
+            $payload = $this->universal([],['category_id'=>$category,'name'=>'Simple '.$category]);
+            $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+            $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors()->assertRedirect(route('seller.products'));
+        }
+        $this->assertSame(2,Product::count());
+        foreach (Product::with('variants')->get() as $product) {
+            $variant=$product->variants->sole();
+            $this->assertNull($variant->options);
+            $this->assertSame(5000,$variant->price_minor);
+            $this->assertSame(100,$variant->stock);
+            $this->assertSame(500,$variant->weight_grams);
+            $this->assertSame('PENDING',$product->moderation_status->value);
+        }
+    }
+
+    public function test_custom_single_two_and_three_groups_persist_exact_combinations_without_an_extra_default(): void
+    {
+        foreach ([
+            [['name'=>'Scent','values'=>'Citrus, Lavender']],
+            [['name'=>'Flavor','values'=>'Chocolate, Vanilla'],['name'=>'Pack Size','values'=>'Single, Pack of 6']],
+            [['name'=>'Storage','values'=>'128 GB, 256 GB'],['name'=>'Capacity','values'=>'Standard, Extended'],['name'=>'Material','values'=>'Steel']],
+        ] as $groups) {
+            $payload=$this->universal($groups);
+            $payload['variants'][0]['weight']='0.125';
+            $payload['variants'][0]['sku']='CUSTOM-'.Product::count();
+            $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+            $product=Product::latest('id')->with('variants')->first();
+            $this->assertCount(count($payload['variants']),$product->variants);
+            foreach($product->variants as $index=>$variant) {
+                $this->assertSame($payload['variants'][$index]['options'],$variant->options);
+                $this->assertSame((int)round((float)$payload['variants'][$index]['price']*100),$variant->price_minor);
+                $this->assertSame($payload['variants'][$index]['stock'],$variant->stock);
+                $this->assertSame($index===0?125:500,$variant->weight_grams);
+            }
+            $this->assertSame(count($product->variants),$product->variants->pluck('sku')->unique()->count());
+        }
+    }
+
+    public function test_fifty_combinations_are_supported_and_inactive_products_remain_unpublished(): void
+    {
+        $payload=$this->universal([['name'=>'Model','values'=>implode(',',range(1,10))],['name'=>'Pack Quantity','values'=>'1,2,3,4,5']],['status'=>'inactive']);
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $product=Product::with('variants')->sole();
+        $this->assertCount(50,$product->variants);
+        $this->assertFalse($product->is_active);
+        $this->assertSame(0,$product->variants->where('is_active',true)->count());
+        $this->assertNull(app(ProductCatalogService::class)->marketplaceProduct($product->slug));
+    }
+
+    public function test_group_normalization_ignores_empty_and_duplicate_values_but_rejects_duplicate_names_and_mismatched_combinations(): void
+    {
+        $payload=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla']]);
+        $payload['option_groups']=[['name'=>' Flavor ','values'=>' Chocolate, ,chocolate, Vanilla, VANILLA, ']];
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $this->assertSame(2,DB::table('product_variants')->count());
+        $base=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla']]);
+        foreach ([
+            ['option_groups'=>[['name'=>'Flavor','values'=>'Chocolate'],['name'=>' flavor ','values'=>'Vanilla']]],
+            ['option_groups'=>[['name'=>'','values'=>'Chocolate']]],
+            ['option_groups'=>[['name'=>'Flavor','values'=>' , , ']]],
+            ['variants'=>[$base['variants'][0],$base['variants'][0]]],
+            ['variants'=>[$base['variants'][0]]],
+            ['variants'=>[['options'=>['Storage'=>'Unknown'],'price'=>50,'stock'=>1]]],
+            ['product_mode'=>'simple'],
+        ] as $invalid) {
+            $this->post(route('seller.products.store'),array_replace($base,$invalid))->assertSessionHasErrors();
+            $this->assertSame(1,Product::count());
+        }
+    }
+
+    public function test_server_enforces_limits_stock_money_weight_sku_ownership_and_category_even_for_forged_payloads(): void
+    {
+        $base=$this->universal([['name'=>'Storage','values'=>'128 GB, 256 GB']]);
+        foreach ([
+            ['category_id'=>5], ['category_id'=>1], ['status'=>'draft'], ['creation_token'=>str_repeat('x',40)],
+            ['option_groups'=>array_fill(0,4,['name'=>'Option','values'=>'One'])],
+            ['option_groups'=>[['name'=>'Flavor','values'=>implode(',',range(1,21))]]],
+            ['option_groups'=>[['name'=>'Flavor','values'=>implode(',',range(1,8))],['name'=>'Pack','values'=>implode(',',range(1,7))]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>-1,'stock'=>1]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>'1.001','stock'=>1]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>50,'stock'=>1.5]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>50,'stock'=>2147483648]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>50,'stock'=>1,'weight'=>-1]]],
+            ['variants'=>[['options'=>['Storage'=>'128 GB'],'price'=>50,'stock'=>1,'weight'=>'0.0001']]],
+            ['variants'=>[['id'=>999,'options'=>['Storage'=>'128 GB'],'price'=>50,'stock'=>1]]],
+        ] as $invalid) {
+            $this->post(route('seller.products.store'),array_replace($base,$invalid))->assertSessionHasErrors();
+            $this->assertSame(0,Product::count());
+        }
+        $this->product(1,202);
+        $base['variants'][0]['sku']='SKU-1';
+        $this->post(route('seller.products.store'),$base)->assertSessionHasErrors('sku');
+        $this->assertSame(1,Product::count());
+        $this->assertSame(1,DB::table('product_variants')->count());
+        $base['variants'][0]['sku']='DUPLICATE';$base['variants'][1]['sku']='DUPLICATE';
+        $this->post(route('seller.products.store'),$base)->assertSessionHasErrors();
+        $this->actingAs(User::find(22))->put(route('seller.products.update',1),$this->payload(['category_id'=>2]))->assertSessionHasErrors('category_id');
+        $this->actingAs($this->seller)->put(route('seller.products.update',1),$this->payload())->assertNotFound();
+    }
+
+    public function test_custom_options_survive_edit_and_inventory_updates_without_deleting_variant_history(): void
+    {
+        $payload=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla']]);
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $product=Product::with('variants')->sole();
+        $first=$product->variants[0];$second=$product->variants[1];
+        $this->get(route('seller.products.edit',$product))->assertOk()->assertSee('options][Flavor]',false)->assertSee('Vanilla');
+        $edit=$this->payload(['name'=>$product->name,'description'=>$product->description,'price'=>35,'stock'=>20,'sku'=>$first->sku,'weight'=>'0.500','variation_name'=>['Flavor'],'variation_value'=>['Chocolate'],'variants'=>[
+            ['id'=>$second->id,'name'=>$second->name,'sku'=>$second->sku,'price'=>45,'stock'=>15,'options'=>['Flavor'=>'Vanilla'],'weight'=>'0.750'],
+        ]]);
+        $this->put(route('seller.products.update',$product),$edit)->assertSessionHasNoErrors();
+        $this->assertSame([$first->id,$second->id],$product->variants()->orderBy('id')->pluck('id')->all());
+        $this->assertSame(['Flavor'=>'Vanilla'],$second->fresh()->options);
+        $this->assertSame(750,$second->fresh()->weight_grams);
+        app(\App\Services\SellerInventoryService::class)->setStock($product->seller,$second->id,9);
+        $this->assertSame(9,$second->fresh()->stock);
+        $this->assertSame(20,$first->fresh()->stock);
+        // Omitted saved variants remain intact, retaining all order references.
+        unset($edit['variants']);
+        $this->put(route('seller.products.update',$product),$edit)->assertSessionHasNoErrors();
+        $this->assertSame(2,$product->variants()->count());
+        $this->assertSame(9,$second->fresh()->stock);
+    }
+
+    public function test_validation_rerenders_option_groups_variant_fields_and_feedback_and_keeps_images_product_level(): void
+    {
+        $payload=$this->universal([['name'=>'Material','values'=>'Wood, Steel']]);
+        $payload['name']='';
+        $this->from(route('seller.products.create'))->post(route('seller.products.store'),$payload)->assertSessionHasErrors('name');
+        $page=$this->get(route('seller.products.create'))->assertOk()->assertSee('Material')->assertSee('Wood, Steel')->assertSee('Generate Variant Combinations')->assertDontSee('Save as Draft');
+        if($dir=getenv('SELLER_FORM_CHECK_DIR'))file_put_contents($dir.'/create-options.html',$page->getContent());
+        $payload['name']='Photos';
+        $root=sys_get_temp_dir().'/suki-universal-photos-'.bin2hex(random_bytes(6));
+        config(['filesystems.disks.public.root'=>$root]);
+        $payload['images']=[\Illuminate\Http\UploadedFile::fake()->createWithContent('product.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='))];
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $this->assertSame(1,DB::table('product_images')->count());
+        $this->assertFileExists($root.'/'.DB::table('product_images')->value('path'));
+    }
+
+    public function test_created_custom_variants_flow_through_moderation_storefront_cart_checkout_and_inventory(): void
+    {
+        // Extend this test's guarded, in-memory fixture schema. No migrations.
+        foreach ([\App\Models\Order::class,\App\Models\OrderItem::class,\App\Models\SellerOrder::class,\App\Models\Shipment::class,\App\Models\CartItem::class,\App\Models\Address::class] as $modelClass) {
+            $model=new $modelClass();$table=$model->getTable();
+            $exists=\Illuminate\Support\Facades\Schema::hasTable($table);
+            if(!$exists)DB::statement('CREATE TABLE '.$table.' (id INTEGER PRIMARY KEY)');
+            foreach(array_unique([...$model->getFillable(),'created_at','updated_at']) as $column) {
+                if(\Illuminate\Support\Facades\Schema::hasColumn($table,$column))continue;
+                $integer=str_ends_with($column,'_id')||str_ends_with($column,'_minor')||in_array($column,['quantity','selected','is_default','cod_collected','attempts'],true);
+                DB::statement('ALTER TABLE '.$table.' ADD COLUMN '.$column.' '.($integer?'INTEGER':'TEXT'));
+            }
+        }
+        DB::statement('CREATE UNIQUE INDEX cart_variant_identity ON cart_items(user_id,product_variant_id)');
+        DB::statement('CREATE TABLE buyer_store_follows (id INTEGER PRIMARY KEY,buyer_id INTEGER,seller_id INTEGER,created_at TEXT,updated_at TEXT)');
+        DB::statement('CREATE TABLE wishlist_items (id INTEGER PRIMARY KEY,user_id INTEGER,product_slug TEXT)');
+        foreach(['created_at','updated_at','body','seller_response'] as $column)DB::statement('ALTER TABLE transaction_reviews ADD COLUMN '.$column.' TEXT');
+        $payload=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla'],['name'=>'Pack Size','values'=>'Single, Pack of 6']]);
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $product=Product::with('variants')->sole();
+        $buyer=User::forceCreate(['id'=>33,'name'=>'Buyer','role'=>'buyer','status'=>'active']);
+        $admin=User::forceCreate(['id'=>44,'name'=>'Admin','role'=>'admin','status'=>'active']);
+        $this->actingAs($buyer)->get(route('buyer.product',$product->slug))->assertNotFound();
+        app(\App\Services\Admin\ProductModerationService::class)->approve($product,$admin);
+        $this->get(route('buyer.product',$product->slug))->assertOk()->assertSee('Flavor')->assertSee('Pack Size')->assertSee('Pack of 6');
+        $this->get(route('buyer.stores.show',$product->seller->slug))->assertOk()->assertSee($product->name);
+        $first=$product->variants[0];$last=$product->variants[3];
+        $this->post(route('buyer.cart.add',$product->slug),['variant_id'=>$first->id,'quantity'=>1])->assertSessionHasNoErrors();
+        $this->post(route('buyer.cart.add',$product->slug),['variant_id'=>$last->id,'quantity'=>2])->assertSessionHasNoErrors();
+        $summary=app(\App\Services\CheckoutService::class)->cartSummary($buyer);
+        $this->assertCount(2,$summary['cart']);
+        $this->assertSame(165,$summary['subtotal']);
+        $this->get(route('buyer.cart'))->assertOk()->assertSee('Flavor: Chocolate')->assertSee('Pack Size: Pack of 6');
+        $this->get(route('buyer.checkout'))->assertOk()->assertViewHas('total',215);
+        $order=app(\App\Services\CheckoutService::class)->checkout($buyer,['recipient_name'=>'Buyer','recipient_phone'=>'0912','province'=>'P','municipality'=>'C','barangay'=>'B','street_address'=>'Street'],'cod');
+        $this->assertSame(21500,$order->total_minor);
+        $this->assertSame([$first->id=>1,$last->id=>2],$order->items->pluck('quantity','product_variant_id')->all());
+        $this->assertSame(['Flavor'=>'Vanilla','Pack Size'=>'Pack of 6'],$order->items->last()->variation);
+        $this->assertSame(49,$first->fresh()->stock);
+        $this->assertSame(45,$last->fresh()->stock);
+        $this->assertSame(49,$product->variants[1]->fresh()->stock);
+        $this->assertSame(21500,$order->sellerOrders->sole()->shipment->cod_amount_minor);
+        // Omitted/linked variants survive editing with their stable IDs.
+        $linkedId=$last->id;
+        $this->actingAs($this->seller)->put(route('seller.products.update',$product),$this->payload([
+            'name'=>$product->name,'description'=>$product->description,'price'=>35,'stock'=>49,'sku'=>$first->sku,
+            'weight'=>'0.500','variation_name'=>['Flavor','Pack Size'],'variation_value'=>['Chocolate','Single'],
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame(4,$product->variants()->count());
+        $this->assertSame($linkedId,$order->items()->orderByDesc('id')->first()->product_variant_id);
     }
 
     private function product(int $id, int $seller=101, bool $active=true, string $moderation='APPROVED', int $category=2): void
