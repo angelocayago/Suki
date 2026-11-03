@@ -592,6 +592,9 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 Route::get('/cart', [CartController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.cart');
+Route::get('/my-vouchers', [\App\Http\Controllers\Buyer\VoucherController::class, 'index'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.vouchers.index');
+Route::post('/my-vouchers/{voucher}/claim', [\App\Http\Controllers\Buyer\VoucherController::class, 'claim'])->middleware(['auth','approved','not_suspended','role:buyer'])->whereNumber('voucher')->name('buyer.vouchers.claim');
+
 Route::post('/cart/vouchers', [CartController::class, 'applyVoucher'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.cart.vouchers.apply');
 Route::delete('/cart/vouchers/{code}', [CartController::class, 'removeVoucher'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.cart.vouchers.remove');
 

@@ -59,7 +59,7 @@ class StoreController extends Controller
         $following = $request->user()?->isBuyer() && BuyerStoreFollow::query()->where('buyer_id', $request->user()->id)->where('seller_id', $seller->id)->exists();
         $seller->loadCount('visibleReviews')->loadAvg('visibleReviews', 'rating');
         $reviews = $seller->visibleReviews()->latest()->orderByDesc('id')->paginate(6, ['*'], 'reviews_page')->withQueryString()->fragment('reviews');
-        return view('buyer.store', compact('seller', 'products', 'following', 'reviews', 'filters', 'visibleCount', 'categories'), ['title'=>$seller->name.' | SUKI SHOP']);
+        return view('buyer.store', compact('seller', 'products', 'following', 'reviews', 'filters', 'visibleCount', 'categories'), ['title'=>$seller->name.' | SUKI SHOP', 'shopVouchers'=>app(\App\Services\ShopVoucherService::class)->active(\App\Models\Voucher::where('scope','SELLER')->where('seller_id',$seller->id)->where('audience','PUBLIC'))->orderBy('id')->limit(6)->get()]);
     }
 
     public function follow(Request $request, Seller $seller): RedirectResponse

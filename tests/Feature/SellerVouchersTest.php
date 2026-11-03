@@ -30,6 +30,7 @@ class SellerVouchersTest extends TestCase
             'voucher_redemptions'=>'id INTEGER PRIMARY KEY, voucher_id INTEGER, code_snapshot TEXT, discount_minor INTEGER',
             'notifications'=>'id TEXT PRIMARY KEY, notifiable_type TEXT, notifiable_id INTEGER, read_at TEXT',
         ] as $table=>$columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
+        \Tests\Support\ShopVoucherSchema::create();
         $this->seller=User::forceCreate(['id'=>11,'name'=>'Seller Fixture','role'=>'seller','status'=>'active']);
         DB::table('sellers')->insert([['id'=>101,'user_id'=>11,'name'=>'Owned shop','status'=>'approved'],['id'=>202,'user_id'=>22,'name'=>'Foreign shop','status'=>'approved']]);
         $this->travelTo(CarbonImmutable::parse('2026-11-01 00:00:00','UTC'));
@@ -64,7 +65,7 @@ class SellerVouchersTest extends TestCase
         $create=$this->actingAs($this->seller)->get(route('seller.vouchers.create'))->assertOk()
             ->assertSee('Create Shop Voucher')->assertSee('Basic Information')->assertSee('Discount Settings')->assertSee('Usage &amp; Validity',false)
             ->assertSee('LEAVE EMPTY TO AUTO-GENERATE')->assertSee('Generate Code')->assertSee('name="_token"',false)->assertSee('name="creation_token"',false)
-            ->assertSee('name="minimum_spend"',false)->assertDontSee('name="min_purchase_amount"',false)->assertDontSee('name="per_buyer_limit"',false)->assertDontSee('name="description"',false)
+            ->assertSee('name="minimum_spend"',false)->assertDontSee('name="min_purchase_amount"',false)->assertSee('name="per_buyer_limit"',false)->assertSee('name="description"',false)
             ->assertDontSee('not currently supported')->assertDontSee('Codes are saved in uppercase.')->assertDontSee('voucherDiscountHelp')->assertDontSee('Dates and times are in Asia/Manila.');
         $this->actingAs($this->seller)->withSession(['seller_promotions'=>[['name'=>'POISON']]])->get(route('seller.vouchers.index'))->assertOk()->assertSee('EXISTING')->assertDontSee('FOREIGN')->assertDontSee('PLATFORM')->assertDontSee('POISON')->assertSee(route('seller.vouchers.edit',1));
         $this->assertSame(3,Voucher::count());
@@ -141,7 +142,7 @@ class SellerVouchersTest extends TestCase
 
     public function test_unsupported_restrictions_and_forged_ownership_or_usage_are_rejected(): void
     {
-        foreach(['name','description','min_purchase_amount','max_discount_cap','per_buyer_limit','scope','seller_id','used_count','archived_at','product_id'] as $field) {
+        foreach(['min_purchase_amount','max_discount_minor','followers_notified_at','scope','seller_id','used_count','archived_at','product_id'] as $field) {
             $this->actingAs($this->seller)->post(route('seller.vouchers.store'),$this->payload([$field=>'1']))->assertSessionHasErrors($field);
         }
         $this->post(route('seller.vouchers.store'),$this->payload(['creation_token'=>str_repeat('A',40)]))->assertSessionHasErrors('creation_token');
@@ -157,7 +158,10 @@ class SellerVouchersTest extends TestCase
         $this->assertSame('scheduled',SellerVouchers::status($voucher)); $this->unavailable('SHOPTEST');
         $this->get(route('seller.vouchers.edit',$voucher))->assertOk()->assertSee('2026-11-01T09:30:15')->assertSee('2026-11-01T10:45:30')->assertSee('value="PATCH"',false);
         $this->travelTo(CarbonImmutable::parse('2026-11-01 02:00:00','UTC'));
-        $resolved=app(VoucherService::class)->resolve([' shoptest '],collect([101=>2000,202=>9000]));
+        $buyer=User::forceCreate(['name'=>'Buyer','role'=>'buyer','status'=>'active']);
+        \App\Models\BuyerStoreFollow::create(['buyer_id'=>$buyer->id,'seller_id'=>101]);
+        app(\App\Services\ShopVoucherService::class)->claim($buyer,$voucher->id);
+        $resolved=app(VoucherService::class)->resolve([' shoptest '],collect([101=>2000,202=>9000]),$buyer);
         $this->assertSame(247,$resolved[0]['amount']); $this->assertSame([101=>247],$resolved[0]['allocation']);
         $this->unavailable('SHOPTEST',[202=>9000]);
         $this->travelTo(CarbonImmutable::parse('2026-11-01 03:00:00','UTC')); $this->unavailable('SHOPTEST');
@@ -166,7 +170,10 @@ class SellerVouchersTest extends TestCase
     public function test_fixed_amount_is_capped_by_actual_merchandise_and_usage_limits_remain_enforced(): void
     {
         $this->actingAs($this->seller)->post(route('seller.vouchers.store'),$this->payload(['usage_limit'=>1]))->assertSessionHasNoErrors();
-        $resolved=app(VoucherService::class)->resolve(['SHOPTEST'],collect([101=>500,202=>20000]));
+        $buyer=User::forceCreate(['name'=>'Buyer','role'=>'buyer','status'=>'active']);
+        \App\Models\BuyerStoreFollow::create(['buyer_id'=>$buyer->id,'seller_id'=>101]);
+        app(\App\Services\ShopVoucherService::class)->claim($buyer,Voucher::sole()->id);
+        $resolved=app(VoucherService::class)->resolve(['SHOPTEST'],collect([101=>500,202=>20000]),$buyer);
         $this->assertSame(500,$resolved[0]['amount']); $this->assertSame([101=>500],$resolved[0]['allocation']);
         // Fixture represents the canonical counter increment performed by checkout.
         DB::table('vouchers')->update(['used_count'=>1]);

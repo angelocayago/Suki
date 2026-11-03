@@ -51,6 +51,7 @@ class CheckoutController extends Controller
         return view('buyer.checkout', array_merge($summary, [
             'addresses' => $addresses,
             'defaultAddress' => $defaultAddress,
+            'claimedVouchers' => app(\App\Services\ShopVoucherService::class)->claimedForCheckout($request->user(), collect($summary['cart'])->filter(fn($line)=>$line['available'] && $line['seller_id'])->groupBy('seller_id')->map(fn($lines)=>$lines->sum(fn($line)=>$line['price_minor']*$line['quantity']))),
         ]));
     }
 

@@ -36,6 +36,7 @@ class SellerProductFormsTest extends TestCase
         ];
         $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('adminsAfterCommit', 'afterCommit')->andReturnNull();
         foreach($schema as $table=>$columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
+        \Tests\Support\ShopVoucherSchema::create();
         $this->seller=User::forceCreate(['id'=>11,'name'=>'Seller Fixture','role'=>'seller','status'=>'active']);
         DB::table('users')->insert(['id'=>22,'name'=>'Other Seller','role'=>'seller','status'=>'active']);
         DB::table('sellers')->insert([['id'=>101,'user_id'=>11,'category_id'=>1,'name'=>'Owned Shop','slug'=>'owned-shop','status'=>'approved'],['id'=>202,'user_id'=>22,'category_id'=>4,'name'=>'Foreign Shop','slug'=>'foreign-shop','status'=>'approved']]);
@@ -222,7 +223,7 @@ class SellerProductFormsTest extends TestCase
             }
         }
         DB::statement('CREATE UNIQUE INDEX cart_variant_identity ON cart_items(user_id,product_variant_id)');
-        DB::statement('CREATE TABLE buyer_store_follows (id INTEGER PRIMARY KEY,buyer_id INTEGER,seller_id INTEGER,created_at TEXT,updated_at TEXT)');
+        DB::statement('CREATE TABLE IF NOT EXISTS buyer_store_follows (id INTEGER PRIMARY KEY,buyer_id INTEGER,seller_id INTEGER,created_at TEXT,updated_at TEXT)');
         DB::statement('CREATE TABLE wishlist_items (id INTEGER PRIMARY KEY,user_id INTEGER,product_slug TEXT)');
         foreach(['created_at','updated_at','body','seller_response'] as $column)DB::statement('ALTER TABLE transaction_reviews ADD COLUMN '.$column.' TEXT');
         $payload=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla'],['name'=>'Pack Size','values'=>'Single, Pack of 6']]);

@@ -34,3 +34,9 @@ Schedule::command('notifications:retry')->everyMinute()->withoutOverlapping();
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('vouchers:notify-followers', function () {
+    app(\App\Services\ShopVoucherService::class)->notifyDue();
+    $this->info('Checked active follower vouchers.');
+})->purpose('Notify eligible followers once when a shop voucher becomes active');
+Schedule::command('vouchers:notify-followers')->everyMinute()->withoutOverlapping();

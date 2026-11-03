@@ -23,6 +23,14 @@
             <div class="sv-code-control"><input id="voucherCode" name="code" maxlength="64" value="{{ old('code',$voucher?->code) }}" placeholder="LEAVE EMPTY TO AUTO-GENERATE" @required($editing) aria-describedby="code-error voucherCodeStatus" aria-invalid="{{ $errors->has('code') ? 'true' : 'false' }}"><button id="generateVoucherCode" type="button" data-url="{{ route('seller.vouchers.generate') }}">Generate Code</button></div>
             <p class="sv-error" id="code-error">@error('code'){{ $message }}@enderror</p>
             <p id="voucherCodeStatus" class="sv-note" role="status" aria-live="polite"></p>
+            <label for="voucherName">Voucher Name (optional)</label><input id="voucherName" name="name" maxlength="150" value="{{ old('name',$voucher?->name) }}">
+            <label for="voucherDescription">Description (optional)</label><textarea id="voucherDescription" name="description" maxlength="2000" rows="3">{{ old('description',$voucher?->description) }}</textarea>
+            <label for="voucherAudience">Audience</label><select id="voucherAudience" name="audience">
+                @if($editing && $voucher->audience===null)<option value="">Existing code-only voucher</option>@endif
+                <option value="FOLLOWERS" @selected(old('audience',$editing ? $voucher->audience : 'FOLLOWERS')==='FOLLOWERS')>Followers Only</option>
+                <option value="PUBLIC" @selected(old('audience',$voucher?->audience)==='PUBLIC')>Public Shop Voucher</option>
+            </select>
+            <p class="sv-note">Buyers must claim new shop vouchers. A valid claim remains after unfollowing.</p>
         </section>
         <section class="sv-card" aria-labelledby="svDiscountHeading">
             <h3 id="svDiscountHeading">Discount Settings</h3>
@@ -32,10 +40,13 @@
                 <div><label for="voucherMinimumSpend">Minimum eligible merchandise (PHP) <span class="sv-muted">(optional)</span></label><input id="voucherMinimumSpend" type="number" name="minimum_spend" min="0" max="21474836.47" step="0.01" value="{{ old('minimum_spend',$minimumSpend) }}" aria-describedby="minimum_spend-error"><p class="sv-error" id="minimum_spend-error">@error('minimum_spend'){{ $message }}@enderror</p></div>
             </div>
         </section>
+        <section class="sv-card"><label for="voucherCap">Maximum percentage discount (PHP, optional)</label><input id="voucherCap" name="max_discount_cap" type="number" min="0.01" max="21474836.47" step="0.01" value="{{ old('max_discount_cap',$voucher?->max_discount_minor !== null ? \App\Support\SellerVouchers::decimal($voucher->max_discount_minor) : '') }}"><p>Applies to percentage discounts only.</p></section>
         <section class="sv-card" aria-labelledby="svUsageHeading">
             <h3 id="svUsageHeading">Usage &amp; Validity</h3>
             <label for="voucherUsageLimit">Total Quantity <span class="sv-muted">(leave empty for unlimited)</span></label><input id="voucherUsageLimit" name="usage_limit" type="number" min="1" max="2147483647" step="1" value="{{ old('usage_limit',$voucher?->usage_limit) }}"><p class="sv-error">@error('usage_limit'){{ $message }}@enderror</p>
-            @if($editing)<p class="sv-note">{{ $voucher->used_count }} used</p>@endif
+            <p class="sv-note">Limits total redemptions and distinct Buyer claims. Claiming does not redeem or reserve a discount.</p>
+            <label for="voucherBuyerLimit">Per-Buyer Usage Limit</label><input id="voucherBuyerLimit" name="per_buyer_limit" type="number" min="1" max="2147483647" value="{{ old('per_buyer_limit',$voucher ? $voucher->per_buyer_limit : 1) }}">
+            @if($editing)<p class="sv-note">{{ $voucher->used_count }} used ? {{ $voucher->claims()->count() }} claimed</p>@endif
             <div class="sv-grid">
                 <div><label for="voucherStartsAt">Start Date / Time <span class="sv-muted">(optional)</span></label><input id="voucherStartsAt" name="starts_at" type="datetime-local" step="1" value="{{ old('starts_at',$voucher?->starts_at?->setTimezone('Asia/Manila')->format('Y-m-d\TH:i:s')) }}"><p class="sv-error">@error('starts_at'){{ $message }}@enderror</p></div>
                 <div><label for="voucherExpiresAt">Expiration Date / Time <span class="sv-muted">(optional)</span></label><input id="voucherExpiresAt" name="expires_at" type="datetime-local" step="1" value="{{ old('expires_at',$voucher?->expires_at?->setTimezone('Asia/Manila')->format('Y-m-d\TH:i:s')) }}"><p class="sv-error">@error('expires_at'){{ $message }}@enderror</p></div>

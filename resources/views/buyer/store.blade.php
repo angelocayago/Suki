@@ -15,6 +15,7 @@
     $imageUrl = fn ($path) => $path ? (Str::startsWith($path, ['https://', 'http://']) ? $path : Storage::disk('public')->url($path)) : null;
 @endphp
 <div class="storefront" data-storefront>
+    @if($shopVouchers->isNotEmpty())<section class="sf-notice" aria-label="Public shop vouchers"><h2>Shop Vouchers</h2>@foreach($shopVouchers as $shopVoucher)<p><strong>{{ $shopVoucher->code }}</strong> ? {{ $shopVoucher->discount_type==='PERCENTAGE' ? \App\Support\SellerVouchers::decimal($shopVoucher->discount_bps).'%' : 'PHP '.number_format($shopVoucher->discount_minor/100,2) }} off ? Min PHP {{ number_format($shopVoucher->minimum_spend_minor/100,2) }}</p>@endforeach<a class="underline" href="{{ route('buyer.vouchers.index') }}">View and claim vouchers</a></section>@endif
     <div class="sf-breadcrumb"><a href="{{ route('buyer.shop') }}">Marketplace</a><span aria-hidden="true">/</span><span>{{ $seller->name }}</span></div>
     @if(session('success'))<p class="sf-notice" role="status">{{ session('success') }}</p>@endif
     @if($errors->any())<div class="sf-notice" role="alert">{{ $errors->first() }}</div>@endif

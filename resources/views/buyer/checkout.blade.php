@@ -74,7 +74,10 @@
         @endif
 
 
-        <form action="{{ route('buyer.checkout.place-order') }}" method="POST" onsubmit="if (this.dataset.submitting) return false; this.dataset.submitting = '1'; const button = this.querySelector('button[type=submit]'); if (button) { button.disabled = true; button.textContent = 'Placing order…'; }">
+        <form id="checkoutVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf</form>
+        <form id="checkoutClaimedVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf</form>
+        @foreach($voucher_codes ?? [] as $code)<form id="checkoutVoucherRemove{{ $loop->index }}" method="POST" action="{{ route('buyer.cart.vouchers.remove',$code) }}">@csrf @method('DELETE')</form>@endforeach
+        <form action="{{ route('buyer.checkout.place-order') }}" method="POST" onsubmit="if (this.dataset.submitting) return false; this.dataset.submitting = '1'; const button = this.querySelector('button[data-place-order]'); if (button) { button.disabled = true; button.textContent = 'Placing order…'; }">
             @csrf
 
             <div class="grid gap-6 lg:grid-cols-3">
@@ -558,6 +561,17 @@
 
                         <div class="space-y-5 px-5 py-5 sm:px-6">
 
+                            <section aria-labelledby="checkoutVoucherHeading" class="space-y-3 rounded-xl border border-gray-200 p-4">
+                                <h3 id="checkoutVoucherHeading" class="font-semibold">Shop Vouchers</h3>
+                                <p class="text-xs text-gray-500">Each shop voucher discounts only that shop's merchandise. <a class="underline" href="{{ route('buyer.vouchers.index') }}">My Vouchers</a></p>
+                                <label for="claimedVoucherSelect" class="block text-sm">Eligible claimed vouchers</label>
+                                <select id="claimedVoucherSelect" form="checkoutClaimedVoucherApply" name="voucher_code" class="w-full rounded border p-2" required><option value="">Choose a shop voucher</option>@foreach($claimedVouchers as $claimed)<option value="{{ $claimed->code }}">{{ $claimed->seller->name }} ? {{ $claimed->code }} ? Min PHP {{ number_format($claimed->minimum_spend_minor/100,2) }}</option>@endforeach</select>
+                                <button class="rounded border px-3 py-2 text-sm" form="checkoutClaimedVoucherApply" type="submit" @disabled($claimedVouchers->isEmpty())>Apply claimed voucher</button>
+                                <label for="checkoutVoucherCode" class="block text-sm">Enter a voucher code</label>
+                                <input id="checkoutVoucherCode" form="checkoutVoucherApply" name="voucher_code" maxlength="64" required class="w-full rounded border p-2" value="{{ old('voucher_code') }}">
+                                <button class="rounded border px-3 py-2 text-sm" form="checkoutVoucherApply" type="submit">Apply code</button>
+                                @foreach($voucher_codes ?? [] as $code)<p class="text-sm">{{ $code }} <button class="underline" type="submit" form="checkoutVoucherRemove{{ $loop->index }}">Remove</button></p>@endforeach
+                            </section>
                             {{-- SUBTOTAL --}}
                             <div class="flex items-center justify-between text-sm">
 
@@ -641,7 +655,7 @@
 
 
                             {{-- PLACE ORDER --}}
-                            <button
+                            <button data-place-order
                                 type="submit"
                                 @disabled($has_unavailable_items ?? false)
                                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B] focus:ring-offset-2"

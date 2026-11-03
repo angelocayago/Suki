@@ -238,7 +238,7 @@
                 </a>
 
 
-                @if(session('buyer_logged_in'))
+                @if(auth()->check() && auth()->user()->isBuyer())
 
 
                     {{-- WISHLIST --}}
@@ -325,7 +325,7 @@
                                    opacity-0
                                    transition
                                    group-hover:visible
-                                   group-hover:opacity-100"
+                                   group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
                         >
 
                             <div
@@ -398,7 +398,8 @@
                                     Messages
                                 </a>
 
-                                <x-notification-link class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]" />
+                                <a href="{{ route('buyer.vouchers.index') }}" class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]">My Vouchers</a>
+                                  <x-notification-link class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]" />
                                 <a href="{{ route('reviews.buyer-page') }}" class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]">My reviews</a>
 
 
@@ -532,7 +533,7 @@
             </a>
 
 
-            @if(session('buyer_logged_in'))
+            @if(auth()->check() && auth()->user()->isBuyer())
 
                 <a
                     href="{{ route('buyer.my-orders') }}"
@@ -557,6 +558,7 @@
             @endif
 
             @if (auth()->check() && auth()->user()->isBuyer())
+                <a href="{{ route('buyer.vouchers.index') }}" class="whitespace-nowrap text-[#6E7D76]">My Vouchers</a>
                 <x-profile-avatar :user="auth()->user()" size="h-8 w-8 shrink-0" />
                 <a href="{{ route('reviews.buyer-page') }}" class="whitespace-nowrap text-[#6E7D76]">My reviews</a>
                 <x-notification-link class="whitespace-nowrap text-[#6E7D76]" />

@@ -36,7 +36,7 @@ class SellerVouchers
             $criteria['search'] = trim($criteria['search']);
             if ($criteria['search'] === '') unset($criteria['search']);
         }
-        $query = Voucher::query()->where('scope','SELLER')->where('seller_id',$seller->id);
+        $query = Voucher::query()->withCount('claims')->where('scope','SELLER')->where('seller_id',$seller->id);
         if (isset($criteria['search'])) {
             $criteria['search'] = trim($criteria['search']);
             $term = '%'.str_replace(['!','%','_'],['!!','!%','!_'],strtoupper($criteria['search'])).'%';
@@ -62,22 +62,33 @@ class SellerVouchers
             'discount_value'=>['required','numeric','gt:0','regex:/^\d{1,8}(\.\d{1,2})?$/', $request->input('discount_type') === 'PERCENTAGE' ? 'max:100' : 'max:21474836.47'],
             'minimum_spend'=>['nullable','numeric','min:0','regex:/^\d{1,8}(\.\d{1,2})?$/','max:21474836.47'],
             'usage_limit'=>['nullable','integer','min:1','max:2147483647'],
+            'name'=>['nullable','string','max:150'],
+            'description'=>['nullable','string','max:2000'],
+            'audience'=>['nullable',Rule::in(['FOLLOWERS','PUBLIC'])],
+            'per_buyer_limit'=>['nullable','integer','min:1','max:2147483647'],
+            'max_discount_cap'=>['nullable','numeric','gt:0','regex:/^\d{1,8}(\.\d{1,2})?$/','max:21474836.47'],
             'starts_at'=>['nullable','date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'],
             'expires_at'=>['nullable','date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'],
             'is_active'=>['nullable','boolean'],
             'creation_token'=>['nullable','string','alpha_num','size:40'],
         ];
         if ($request->filled('starts_at')) $rules['expires_at'][] = 'after:starts_at';
-        // These settings have no canonical storage/redemption implementation.
-        // Reject submissions rather than silently accept ineffective restrictions.
-        foreach (['name','description','min_purchase','min_purchase_amount','minimum_purchase','min_spend','min_spend_minor','max_discount_cap','max_discount','max_discount_minor','per_buyer_limit','per_buyer_usage_limit','product_id','product_ids','scope','seller_id','used_count','archived_at'] as $field) $rules[$field] = ['prohibited'];
+        // Reject unsupported aliases and server-owned accounting fields.
+        foreach (['followers_notified_at','claims','min_purchase','min_purchase_amount','minimum_purchase','min_spend','min_spend_minor','max_discount','max_discount_minor','per_buyer_usage_limit','product_id','product_ids','scope','seller_id','used_count','archived_at'] as $field) $rules[$field] = ['prohibited'];
         $data = $request->validate($rules);
         if (filled($data['code'] ?? null) && Voucher::query()->whereRaw('UPPER(code) = ?',[$data['code']])->when($voucher,fn($q)=>$q->whereKeyNot($voucher->id))->exists()) {
             throw ValidationException::withMessages(['code'=>'This voucher code is already in use.']);
         }
+        if ($voucher && filled($data['usage_limit'] ?? null) && (int)$data['usage_limit'] < max($voucher->used_count, $voucher->claims()->count())) {
+            throw ValidationException::withMessages(['usage_limit'=>'The limit cannot be lower than existing claims or redemptions.']);
+        }
         $percentage = $data['discount_type'] === 'PERCENTAGE';
         $value = self::hundredths($data['discount_value']);
         return [
+            'name'=>$data['name'] ?? null, 'description'=>$data['description'] ?? null,
+            'audience'=>$data['audience'] ?? ($voucher ? $voucher->audience : 'FOLLOWERS'),
+            'per_buyer_limit'=>$data['per_buyer_limit'] ?? ($voucher ? $voucher->per_buyer_limit : 1),
+            'max_discount_minor'=>$percentage && filled($data['max_discount_cap'] ?? null) ? self::hundredths($data['max_discount_cap']) : null,
             'code'=>$data['code'] ?? null, 'discount_type'=>$data['discount_type'],
             'discount_minor'=>$percentage ? 0 : $value, 'discount_bps'=>$percentage ? $value : 0,
             'minimum_spend_minor'=>self::hundredths((string)($data['minimum_spend'] ?? '0')),
@@ -104,7 +115,11 @@ class SellerVouchers
             try {
                 // A transaction/savepoint leaves PostgreSQL usable after a
                 // unique-index race. Only automatically generated codes retry.
-                return DB::transaction(fn()=>Voucher::create($attributes + ['scope'=>'SELLER','seller_id'=>$seller->id]));
+                return DB::transaction(function () use ($seller, $attributes) {
+                    $voucher = Voucher::create($attributes + ['scope'=>'SELLER','seller_id'=>$seller->id]);
+                    app(\App\Services\ShopVoucherService::class)->notifyFollowers($voucher);
+                    return $voucher;
+                });
             } catch (UniqueConstraintViolationException) {
                 if (!$automatic) throw ValidationException::withMessages(['code'=>'This voucher code was just taken. Choose a different code.']);
             }

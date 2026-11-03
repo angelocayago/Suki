@@ -16,6 +16,7 @@
             <h2 class="font-semibold">{{ $notification->data['title'] ?? 'Notification' }}</h2>
             <p>{{ $notification->data['message'] ?? '' }}</p>
             <time>{{ $notification->created_at }}</time>
+            @if(isset($notification->data['context']['voucher_id']) && auth()->user()->isBuyer())<a class="block underline" href="{{ route('buyer.vouchers.index') }}">View shop vouchers</a>@endif
             @if (! $notification->read_at)
                 <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
                     @csrf

@@ -58,7 +58,11 @@ class VoucherController extends Controller
     {
         $record = $this->owned($request,$voucher);
         try {
-            $record->update($forms->attributes($request,$record));
+            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $forms, $request) {
+                $locked = Voucher::whereKey($record->id)->lockForUpdate()->firstOrFail();
+                $locked->update($forms->attributes($request,$locked));
+                app(\App\Services\ShopVoucherService::class)->notifyFollowers($locked);
+            });
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages(['code'=>'This voucher code was just taken. Choose a different code.']);
         }

@@ -17,15 +17,15 @@
             @foreach($vouchers as $voucher)
                 @php($state = \App\Support\SellerVouchers::status($voucher))
                 <tr><td><strong class="sv-code">{{ $voucher->code }}</strong><span class="sv-status sv-status-{{ $state }}">{{ \App\Support\SellerVouchers::statuses()[$state] }}</span></td>
-                    <td><strong>{{ $voucher->discount_type === 'PERCENTAGE' ? \App\Support\SellerVouchers::decimal($voucher->discount_bps).'%' : 'PHP '.\App\Support\SellerVouchers::decimal($voucher->discount_minor) }}</strong><small>{{ $voucher->discount_type === 'PERCENTAGE' ? 'Percentage ? no maximum cap' : 'Fixed amount' }}</small><small>{{ $voucher->minimum_spend_minor ? 'Min. merchandise: PHP '.\App\Support\SellerVouchers::decimal($voucher->minimum_spend_minor) : 'No minimum spend' }}</small></td>
-                    <td>{{ $voucher->used_count }} used<small>{{ $voucher->usage_limit === null ? 'Unlimited total uses' : 'Total limit: '.$voucher->usage_limit }}</small></td>
+                    <td><strong>{{ $voucher->discount_type === 'PERCENTAGE' ? \App\Support\SellerVouchers::decimal($voucher->discount_bps).'%' : 'PHP '.\App\Support\SellerVouchers::decimal($voucher->discount_minor) }}</strong><small>{{ $voucher->discount_type === 'PERCENTAGE' ? ($voucher->max_discount_minor !== null ? 'Maximum PHP '.\App\Support\SellerVouchers::decimal($voucher->max_discount_minor) : 'Percentage ? no maximum cap') : 'Fixed amount' }}</small><small>{{ $voucher->minimum_spend_minor ? 'Min. merchandise: PHP '.\App\Support\SellerVouchers::decimal($voucher->minimum_spend_minor) : 'No minimum spend' }}</small></td>
+                    <td>{{ $voucher->used_count }} used / {{ $voucher->claims_count }} claimed<small>{{ $voucher->usage_limit === null ? 'Unlimited total uses' : 'Total limit: '.$voucher->usage_limit }}</small></td>
                     <td><small>Starts: {{ $voucher->starts_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A') ?? 'Any time' }}</small><small>Expires: {{ $voucher->expires_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A') ?? 'No expiry' }}</small></td>
                     <td><div class="sv-row-actions"><a href="{{ route('seller.vouchers.edit',$voucher) }}">Edit</a>@unless($voucher->archived_at)<form method="POST" action="{{ route('seller.vouchers.archive',$voucher) }}" data-voucher-archive>@csrf @method('DELETE')<button type="submit" class="sv-archive">Archive</button></form>@endunless</div></td>
                 </tr>
             @endforeach
         </tbody></table></div><div class="sv-pagination">{{ $vouchers->links() }}</div>@endif
     </section>
-    <p class="sv-note">Shop vouchers apply only to this shop's eligible merchandise. Per-buyer usage limits, names, descriptions and percentage caps are not currently available. Archived vouchers cannot be redeemed.</p>
+    <p class="sv-note">Shop vouchers apply only to this shop's eligible merchandise. New vouchers must be claimed by eligible Buyers. Existing code-only vouchers keep their original behavior. Archived vouchers cannot be redeemed.</p>
 </div>
 @include('seller.vouchers.partials.script')
 @endsection

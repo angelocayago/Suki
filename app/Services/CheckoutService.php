@@ -76,7 +76,7 @@ class CheckoutService
             ->filter(fn (array $item) => $item['available'] && $item['seller_id'])
             ->groupBy('seller_id')
             ->map(fn (Collection $sellerItems) => $sellerItems->sum(fn (array $item) => $item['price_minor'] * $item['quantity']));
-        $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals);
+        $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals, $buyer);
         $discountMinor = collect($voucherPreview['redemptions'])->sum('amount');
 
         return [
@@ -133,7 +133,7 @@ class CheckoutService
             $sellerGroups = $lines->groupBy(fn (array $line) => $line['seller']->id);
             $subtotalMinor = $lines->sum('line_total_minor');
             $sellerSubtotals = $sellerGroups->map(fn ($group) => $group->sum('line_total_minor'));
-            $redemptions = app(VoucherService::class)->resolve($voucherCodes, $sellerSubtotals);
+            $redemptions = app(VoucherService::class)->resolve($voucherCodes, $sellerSubtotals, $buyer);
             $sellerDiscounts = $sellerSubtotals->map(fn () => 0);
             foreach ($redemptions as $redemption) foreach ($redemption['allocation'] as $sellerId => $amount) $sellerDiscounts[$sellerId] += $amount;
             $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
