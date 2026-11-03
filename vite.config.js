@@ -11,6 +11,8 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/css/landing.css',
                 'resources/js/landing.js',
+                'resources/css/registration-wizard.css',
+                'resources/js/registration-wizard.js',
             ],
             refresh: true,
         }),

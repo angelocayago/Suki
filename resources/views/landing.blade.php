@@ -227,8 +227,8 @@
                                 class="landing-login-switch"
                             >
                                 @csrf
-                                <button type="submit" class="auth-cta">
-                                    Switch Account
+                                <button type="submit" class="auth-cta" aria-label="Log in with a different account">
+                                    Log In
                                 </button>
                             </form>
                         @else

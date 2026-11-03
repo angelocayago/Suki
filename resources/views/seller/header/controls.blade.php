@@ -22,6 +22,6 @@
     <section id="sellerProfilePanel" class="seller-header-panel seller-profile-panel" role="region" aria-label="Seller profile menu" hidden>
         <header><strong>{{ $sellerHeader['name'] }}</strong></header>
         <nav aria-label="Seller account"><a href="{{ route('seller.profile') }}">My Profile</a><a href="{{ route('seller.store.profile') }}">Store Profile</a>@if($sellerHeader['store_url'])<a href="{{ $sellerHeader['store_url'] }}" target="_blank" rel="noopener noreferrer">View Store</a>@endif</nav>
-        <form action="{{ route('logout') }}" method="POST" data-seller-logout>@csrf<button type="submit" class="seller-profile-logout">Sign Out</button></form>
+        <form action="{{ route('logout') }}" method="POST" data-seller-logout data-confirm-logout>@csrf<button type="submit" class="seller-profile-logout">Sign Out</button></form>
     </section>
 </div>

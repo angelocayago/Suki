@@ -5804,7 +5804,7 @@ Route::post(
 
 
         return redirect()
-            ->route('login')
+            ->route('admin.login')
             ->with(
                 'success',
                 'Administrator logged out successfully.'
