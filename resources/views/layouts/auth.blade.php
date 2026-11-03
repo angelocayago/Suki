@@ -21,7 +21,9 @@
 
     @vite([
         'resources/css/app.css',
-        'resources/js/app.js'
+        'resources/js/app.js',
+        'resources/css/registration-wizard.css',
+        'resources/js/registration-wizard.js'
     ])
 
     <link

@@ -1009,6 +1009,10 @@ body[data-theme="dark"] .hero-search-submit {
 .product-bottom {
     margin-top: auto;
     padding-top: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .product-bottom strong {
@@ -1023,24 +1027,35 @@ body[data-theme="dark"] .hero-search-submit {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: fit-content;
-    min-height: 30px;
-    margin-top: 9px;
-    padding: 0 10px;
-    border-radius: 7px;
-    background: var(--green);
-    color: #fff;
+    gap: 4px;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--green);
     font-size: 11px;
     font-weight: 700;
     line-height: 1;
-    transition: background-color .2s ease, transform .2s ease;
+    font-family: inherit;
+    transition: color .2s ease, text-decoration-color .2s ease;
+}
+
+.product-details-link svg {
+    width: 13px;
+    height: 13px;
+    transition: transform .2s ease;
 }
 
 .product-details-link:hover,
 .product-details-link:focus-visible {
-    background: var(--green-dark);
-    color: #fff;
-    transform: translateY(-1px);
+    color: var(--green-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.product-details-link:hover svg,
+.product-details-link:focus-visible svg {
+    transform: translateX(2px);
 }
 
 .cart-btn {

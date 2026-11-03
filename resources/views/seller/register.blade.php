@@ -9,6 +9,9 @@
     method="POST"
     action="{{ route('seller.register.submit') }}"
     enctype="multipart/form-data"
+    data-registration-wizard
+    data-wizard-kind="seller"
+    data-error-fields='@json($errors->keys())'
 >
 
 @csrf

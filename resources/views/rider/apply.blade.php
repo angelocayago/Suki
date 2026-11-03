@@ -264,6 +264,9 @@
             action="{{ route('rider.apply.submit') }}"
             enctype="multipart/form-data"
             class="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]"
+            data-registration-wizard
+            data-wizard-kind="rider"
+            data-error-fields='@json($errors->keys())'
         >
 
             @csrf
