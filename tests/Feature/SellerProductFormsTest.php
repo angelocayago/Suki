@@ -732,4 +732,60 @@ class SellerProductFormsTest extends TestCase
         $this->assertNull($variant->fresh()->image_path);
         \Illuminate\Support\Facades\Storage::disk('public')->assertExists('products/foreign/keep.png');
     }
+
+    public function test_existing_variant_only_products_get_thumbnails_everywhere_without_resubmission(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $disk=\Illuminate\Support\Facades\Storage::disk('public');
+        $this->product(1);$this->product(2,202);
+        $first='products/1/variants/11/first.png';$second='products/1/variants/12/second.png';
+        $disk->put($first,'first');$disk->put($second,'second');
+        DB::table('product_variants')->where('id',11)->update(['image_path'=>$first,'options'=>json_encode(['Flavor'=>'Chicken','Pack Size'=>'Single'])]);
+        DB::table('product_variants')->insert(['id'=>12,'product_id'=>1,'sku'=>'SECOND','name'=>'Second','options'=>json_encode(['Flavor'=>'Beef','Pack Size'=>'Six']),'price_minor'=>9900,'stock'=>3,'is_active'=>1,'image_path'=>$second]);
+        $before=[DB::table('products')->get()->toJson(),DB::table('product_variants')->get()->toJson(),$disk->allFiles()];
+        $expected=$disk->url($first);$product=Product::with(['images','variants'])->findOrFail(1);$catalog=app(ProductCatalogService::class);
+        $this->assertSame($expected,$catalog->sellerItem($product)['image']);
+        $this->assertSame($expected,$catalog->marketplaceProduct('product-1')['image']);
+        $this->assertSame($expected,$catalog->marketplaceProducts()['product-1']['image']);
+        $page=$this->actingAs($this->seller)->get(route('seller.inventory',['stock'=>'low-stock']))->assertOk()->assertDontSee('FOREIGN Product');
+        $this->assertCount(1,$page->viewData('products'));
+        $this->assertSame(12,$page->viewData('products')[0]['variant_id']);
+        $this->assertSame($expected,$page->viewData('products')[0]['image']);
+        $this->get(route('seller.products'))->assertOk()->assertSee($expected,false);
+        $this->app['auth']->forgetGuards();
+        $this->get(route('landing'))->assertOk()->assertSee($expected,false);
+        $this->get(route('buyer.shop'))->assertOk()->assertSee($expected,false);
+        $this->get(route('buyer.product','product-1'))->assertOk()->assertSee($expected,false)->assertSee('Pack Size');
+        $this->assertSame(0,DB::table('product_images')->count());
+        $this->assertSame($before,[DB::table('products')->get()->toJson(),DB::table('product_variants')->get()->toJson(),$disk->allFiles()]);
+    }
+
+    public function test_thumbnail_priority_missing_files_and_variant_eligibility_are_deterministic(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');$disk=\Illuminate\Support\Facades\Storage::disk('public');
+        $this->product(1);$product=Product::findOrFail(1);$catalog=app(ProductCatalogService::class);
+        $disk->put('first.png','first');$disk->put('second.png','second');$disk->put('main.png','main');
+        DB::table('product_variants')->where('id',11)->update(['image_path'=>'missing.png']);
+        foreach ([[9,0,5,'first.png'],[10,1,0,'first.png'],[12,1,5,'second.png'],[13,1,5,'first.png']] as [$id,$active,$stock,$path])DB::table('product_variants')->insert(['id'=>$id,'product_id'=>1,'sku'=>'THUMB-'.$id,'name'=>'Variant','price_minor'=>100,'stock'=>$stock,'is_active'=>$active,'image_path'=>$path]);
+        $this->assertSame($disk->url('second.png'),$catalog->thumbnail($product->fresh(['images','variants'])));
+        DB::table('product_images')->insert([['id'=>1,'product_id'=>1,'path'=>'missing-main.png','position'=>0],['id'=>2,'product_id'=>1,'path'=>'main.png','position'=>1]]);
+        $this->assertSame($disk->url('main.png'),$catalog->thumbnail($product->fresh(['images','variants'])));
+        DB::table('product_images')->where('id',2)->update(['path'=>'also-missing.png']);
+        $this->assertSame($disk->url('second.png'),$catalog->thumbnail($product->fresh(['images','variants'])));
+        DB::table('product_variants')->whereIn('id',[12,13])->update(['deleted_at'=>now()]);
+        $this->assertNull($catalog->thumbnail($product->fresh(['images','variants'])));
+        $this->assertStringStartsWith('https://placehold.co/',$catalog->marketplaceProduct('product-1')['image']);
+        $this->assertNull($catalog->sellerItem($product->fresh(['images','variants']))['image']);
+        $product->update(['moderation_status'=>'PENDING']);$this->assertNull($catalog->marketplaceProduct('product-1'));
+    }
+
+    public function test_listing_thumbnail_resolution_uses_eager_loaded_relations_without_n_plus_one(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        foreach(range(1,8) as $id)$this->product($id);
+        DB::enableQueryLog();DB::flushQueryLog();
+        $products=app(ProductCatalogService::class)->sellerProducts(\App\Models\Seller::findOrFail(101));
+        $queries=DB::getQueryLog();DB::disableQueryLog();
+        $this->assertCount(8,$products);$this->assertLessThanOrEqual(5,count($queries));
+    }
 }

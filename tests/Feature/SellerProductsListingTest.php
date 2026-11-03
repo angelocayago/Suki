@@ -77,6 +77,8 @@ class SellerProductsListingTest extends TestCase
             ['id'=>14,'product_id'=>1,'sku'=>'INACTIVE-SKU','name'=>'Inactive','price_minor'=>1,'stock'=>900,'is_active'=>0,'deleted_at'=>null],
             ['id'=>15,'product_id'=>1,'sku'=>'DELETED-SKU','name'=>'Deleted','price_minor'=>2,'stock'=>900,'is_active'=>1,'deleted_at'=>'2026-11-01 00:00:00'],
         ]);
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/blue.webp', 'image fixture');
         DB::table('product_images')->insert(['id'=>1,'product_id'=>1,'path'=>'products/blue.webp','color'=>'Blue','position'=>0]);
         $this->actingAs($this->seller)->get('/seller/products')->assertOk()->assertSee('products/blue.webp')->assertViewHas('paginator',fn($p)=>$p[0]['stock']===105&&$p[0]['active_variant_count']===3&&$p[0]['variant_count']===4&&$p[0]['price_min']===10000&&$p[0]['price_max']===20000&&$p[0]['low_variants']===1&&$p[0]['empty_variants']===1);
         $this->get('/seller/products?stock=low_stock')->assertOk()->assertViewHas('paginator',fn($p)=>$p->total()===1);

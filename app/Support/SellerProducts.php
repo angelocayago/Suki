@@ -7,8 +7,6 @@ use App\Services\SellerCategoryService;
 use App\Models\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /** Read-only Seller listing. ProductCatalogService remains the write authority. */
@@ -79,7 +77,6 @@ class SellerProducts
     {
         $active = $product->variants->where('is_active', true);
         $stock = (int) $active->sum('stock');
-        $path = $product->images->first()?->path;
 
         return [
             'id' => $product->id, 'name' => $product->name,
@@ -90,7 +87,7 @@ class SellerProducts
             'activity' => $product->is_active ? 'Active' : 'Inactive',
             'moderation' => $product->moderation_status?->value ?? 'Not recorded',
             'moderation_reason' => $product->moderation_reason,
-            'image' => $path ? (Str::startsWith($path, ['https://', 'http://']) ? $path : Storage::disk('public')->url($path)) : null,
+            'image' => app(\App\Services\ProductCatalogService::class)->thumbnail($product),
             'stock' => $stock, 'variant_count' => $product->variants->count(), 'active_variant_count' => $active->count(),
             'price_min' => $active->min('price_minor'), 'price_max' => $active->max('price_minor'),
             'stock_status' => $active->isEmpty() ? 'No active variants' : ($stock <= 0 ? 'Out of stock' : ($stock <= self::LOW_STOCK ? 'Low stock' : 'In stock')),

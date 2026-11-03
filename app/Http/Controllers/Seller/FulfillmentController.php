@@ -206,10 +206,11 @@ class FulfillmentController extends Controller
         return $seller->products()
             ->when($criteria['category'] !== '', fn ($query) => $query->where('category_id', $criteria['category']))
             ->whereHas('variants', $variants)
-            ->with(['category', 'images', 'variants'=>$variants])
+            ->with(['category', 'images', 'variants'=>$variants, 'thumbnailVariants'])
             ->orderBy('name')
             ->get()
             ->flatMap(function ($product) use ($seller) {
+                $thumbnail = app(\App\Services\ProductCatalogService::class)->thumbnail($product);
                 return $product->variants->map(fn ($variant) => [
                     'id' => $variant->id,
                     'variant_id' => $variant->id,
@@ -224,8 +225,7 @@ class FulfillmentController extends Controller
                     'price' => $variant->price_minor / 100,
                     'stock' => $variant->stock,
                     'status' => $product->is_active && $variant->is_active ? 'active' : 'inactive',
-                    'image' => ($path = $product->images->first()?->path)
-                        ? (\Illuminate\Support\Str::startsWith($path, ['https://','http://']) ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path)) : null,
+                    'image' => $thumbnail,
                     // This is a general variant update, not a stock-only audit event.
                     'updated_at' => $variant->updated_at?->copy()->setTimezone('Asia/Manila'),
                 ]);

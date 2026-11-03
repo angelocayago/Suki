@@ -86,6 +86,12 @@ class Product extends Model
             ->orderBy('position');
     }
 
+    /** Unfiltered candidates when Inventory filters its displayed variant rows. */
+    public function thumbnailVariants(): HasMany
+    {
+        return $this->variants()->where('is_active', true)->where('stock', '>', 0)->orderBy('id');
+    }
+
     /**
      * Order items that reference this product.
      */

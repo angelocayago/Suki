@@ -214,7 +214,7 @@ class ProductCatalogService
             ])->values()->all(),
             'shipping_options' => $product->shipping_options ?? [],
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
-            'image' => $this->imageUrl($product->images->first()?->path),
+            'image' => $this->thumbnail($product),
             'images' => $product->images->map(fn ($image) => $this->imageUrl($image->path))->all(),
             'video' => $this->imageUrl($product->video_path),
             'video_mime' => $product->video_mime,
@@ -257,7 +257,7 @@ class ProductCatalogService
             ->values()
             ->all();
         $fallbackImage = 'https://placehold.co/800x800?text='.rawurlencode($product->name);
-        $images = $images ?: [$fallbackImage];
+        $images = $images ?: [$this->thumbnail($product) ?? $fallbackImage];
 
         return [
             'id' => $product->id,
@@ -504,6 +504,20 @@ class ProductCatalogService
         } while (ProductVariant::withTrashed()->where('sku', $sku)->exists());
 
         return $sku;
+    }
+
+    /** Resolve a display image without changing product or media records. */
+    public function thumbnail(Product $product): ?string
+    {
+        foreach ($product->images->sortBy(fn ($image) => [$image->position, $image->id]) as $image) {
+            if ($url = $this->marketplaceImageUrl($image->path)) return $url;
+        }
+        $variants = $product->relationLoaded('thumbnailVariants') ? $product->thumbnailVariants : $product->variants;
+        foreach ($variants->sortBy('id') as $variant) {
+            if (! $variant->is_active || $variant->stock < 1 || $variant->deleted_at !== null) continue;
+            if ($url = $this->marketplaceImageUrl($variant->image_path)) return $url;
+        }
+        return null;
     }
 
     private function imageUrl(?string $path): ?string
