@@ -199,6 +199,8 @@ class ProductController extends Controller
             'image_colors.*' => ['nullable', 'string', 'max:100'],
             'video' => ['nullable', 'file', 'mimes:mp4,webm', 'mimetypes:video/mp4,video/webm', 'max:25600'],
             'remove_video' => ['nullable', 'boolean'],
+            'variant_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'remove_variant_image' => ['nullable', 'boolean'],
             'variants' => [$generated ? 'required' : 'nullable', 'array', 'max:50'],
             'variants.*' => ['array'],
             'variants.*.id' => [$universal ? 'prohibited' : 'nullable', 'integer', 'distinct'],
@@ -208,6 +210,8 @@ class ProductController extends Controller
             'variants.*.stock' => ['required_with:variants', 'integer', 'min:0', 'max:'.SellerInventoryService::MAX_STOCK],
             'variants.*.weight' => ['nullable', 'numeric', 'min:0', 'max:2147483.647', 'decimal:0,3'],
             'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'variants.*.image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'variants.*.remove_image' => ['nullable', 'boolean'],
             'variants.*.options' => ['nullable', 'array', 'max:3'],
             'variants.*.options.*' => ['nullable', 'string', 'max:100'],
         ]);

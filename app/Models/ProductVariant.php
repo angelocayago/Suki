@@ -19,6 +19,7 @@ class ProductVariant extends Model
         'sku',
         'name',
         'options',
+        'image_path',
         'price_minor',
         'stock',
         'weight_grams',

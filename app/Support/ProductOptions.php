@@ -91,6 +91,8 @@ class ProductOptions
         $data['sku'] = $primary['sku'] ?? null;
         $data['weight'] = $primary['weight'];
         $data['primary_variant_name'] = $primary['name'];
+        $data['variant_image'] = $primary['image'] ?? null;
+        $data['remove_variant_image'] = false;
         $data['variation_name'] = array_keys($primary['options']);
         $data['variation_value'] = array_values($primary['options']);
         $data['variants'] = $rows;

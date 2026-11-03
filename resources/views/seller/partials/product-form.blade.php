@@ -67,6 +67,7 @@
                 @endforeach
             </div>
             <button type="button" id="addPrimaryOption">Add option</button>
+            <div data-variant-image-editor data-image-name="variant_image" data-remove-name="remove_variant_image" data-saved-image="{{ $item['variant_image'] ?? '' }}" data-removed="{{ old('remove_variant_image') ? '1' : '0' }}"></div>
             @include('seller.partials.additional-variants')
         </section>
         <section class="spf-card" aria-labelledby="photosHeading">
@@ -108,3 +109,4 @@
 @include('seller.partials.product-form-script')
 
 @include('seller.partials.product-video-script')
+@include('seller.partials.variant-image-script')

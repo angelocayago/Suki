@@ -7,13 +7,13 @@ const source=fs.readFileSync(path.join(__dirname,'../../resources/views/buyer/pr
 function node() {
     const classes=new Set();
     return {value:'',textContent:'',dataset:{},handlers:{},classList:{add(...names){names.forEach(name=>classes.add(name));},remove(...names){names.forEach(name=>classes.delete(name));},contains(name){return classes.has(name);}},
-        addEventListener(type,fn){this.handlers[type]=fn;},setAttribute(name,value){this[name]=value;},scrollIntoView(){},pause(){this.paused=true;},load(){this.loaded=true;}};
+        addEventListener(type,fn){this.handlers[type]=fn;},getAttribute(name){return this[name];},setAttribute(name,value){this[name]=value;},scrollIntoView(){},pause(){this.paused=true;},load(){this.loaded=true;}};
 }
 function page(variants,controls=[],choice=null,mediaByColor={},media=[]) {
     const ids=Object.fromEntries(['selectedVariant','quantity','quantityInput','variantStock','variantAvailability','variantPrice','mainProductImage','mainProductVideo','productMediaPrevious','productMediaNext'].map(id=>[id,node()]));
     ids.productVariantChoice=choice;const submit={};
     const sandbox={document:{getElementById:id=>ids[id]??null,querySelector:()=>submit,querySelectorAll:selector=>selector==='[data-product-option]'?controls:selector==='[data-product-media]'?media:[]},alert(){}};
-    vm.runInNewContext(source.replace(/const purchasableVariants = .*?;/,`const purchasableVariants = ${JSON.stringify(variants)};`).replace(/const mediaByColor = .*?;/,`const mediaByColor = ${JSON.stringify(mediaByColor)};`),sandbox);
+    vm.runInNewContext(source.replace(/const purchasableVariants = .*?;/,`const purchasableVariants = ${JSON.stringify(variants)};`).replace(/const defaultProductImage = .*?;/,`const defaultProductImage = 'default.png';`),sandbox);
     return {ids,submit,sandbox};
 }
 test('arbitrary option selections resolve the exact variant ID price stock and quantity limit',()=>{
@@ -33,7 +33,7 @@ test('arbitrary option selections resolve the exact variant ID price stock and q
 test('video carousel and color media follow exact custom variants without duplicate state',()=>{
     const controls=[{dataset:{productOption:'Color'},value:'Blue'},{dataset:{productOption:'Flavor'},value:'Vanilla'}];
     const media=['blue.png','red.png','demo.mp4'].map((src,index)=>Object.assign(node(),{dataset:{mediaType:index===2?'video':'image',mediaSrc:src}}));
-    const {ids,sandbox}=page([{id:1,options:{Color:'Blue',Flavor:'Vanilla'},price:35,stock:10},{id:2,options:{Color:'Red',Flavor:'Vanilla'},price:45,stock:3}],controls,null,{Blue:['blue.png'],Red:['red.png']},media);
+    const {ids,sandbox}=page([{id:1,options:{Color:'Blue',Flavor:'Vanilla'},price:35,stock:10,image:'blue.png'},{id:2,options:{Color:'Red',Flavor:'Vanilla'},price:45,stock:3,image:'red.png'}],controls,null,{Blue:['blue.png'],Red:['red.png']},media);
     assert.equal(ids.mainProductImage.src,'blue.png');
     media[2].handlers.click();
     assert.equal(ids.mainProductVideo.src,'demo.mp4');assert.equal(ids.mainProductImage.classList.contains('hidden'),true);
@@ -51,4 +51,16 @@ test('simple products, sold-out options and legacy named variants keep exact ide
     assert.equal(sold.submit.disabled,true);assert.match(sold.ids.variantAvailability.textContent,/out of stock/);
     const legacy=page([{id:1,options:{},price:50,stock:100},{id:2,options:{Color:'Blue'},price:60,stock:10}],[],{value:'2'});
     assert.equal(legacy.ids.selectedVariant.value,2);assert.equal(legacy.ids.variantPrice.textContent,'₱60.00');
+});
+
+test('custom variant images follow price stock and exact identity, with deterministic fallback',()=>{
+    const controls=[{dataset:{productOption:'Flavor'},value:'Chicken'}];
+    const {ids,sandbox}=page([{id:1,options:{Flavor:'Chicken'},price:89,stock:20,image:'chicken.png'},{id:2,options:{Flavor:'Beef'},price:99,stock:15,image:'beef.png'},{id:3,options:{Flavor:'Tuna'},price:99,stock:0,image:null}],controls);
+    for (const [flavor,id,image,price,stock] of [['Beef',2,'beef.png','\u20b199.00',15],['Chicken',1,'chicken.png','\u20b189.00',20],['Tuna',3,'default.png','\u20b199.00',0]]) {
+        controls[0].value=flavor;sandbox.resolveVariant();
+        assert.equal(ids.selectedVariant.value,id);assert.equal(ids.mainProductImage.src,image);
+        assert.equal(ids.variantPrice.textContent,price);assert.match(ids.variantStock.textContent,new RegExp('^'+stock+' pieces'));
+    }
+    controls[0].value='Missing';sandbox.resolveVariant();assert.equal(ids.mainProductImage.src,'default.png');
+    ids.mainProductImage.src='missing.png';ids.mainProductImage.handlers.error();assert.equal(ids.mainProductImage.src,'default.png');
 });

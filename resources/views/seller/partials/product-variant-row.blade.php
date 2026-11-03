@@ -12,5 +12,6 @@
         <label>Status<select name="variants[{{ $index }}][status]" data-variant-status><option value="active" @selected(($variant['status'] ?? 'active') === 'active')>Active</option><option value="inactive" @selected(($variant['status'] ?? 'active') === 'inactive')>Inactive</option></select></label>
     </div>
     <output data-stock-indicator aria-live="polite"></output>
+    <div data-variant-image-editor data-image-name="variants[{{ $index }}][image]" data-remove-name="variants[{{ $index }}][remove_image]" data-saved-image="{{ collect($item['variants'] ?? [])->firstWhere('id', $variant['id'] ?? null)['image'] ?? '' }}" data-removed="{{ old('variants.'.$index.'.remove_image') ? '1' : '0' }}"></div>
     @unless(filled($variant['id'] ?? null))<button type="button" class="remove-product-variant">Remove variant</button>@endunless
 </div>

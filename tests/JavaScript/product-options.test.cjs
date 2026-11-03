@@ -70,12 +70,13 @@ function harness(old={}) {
     let pageSource=script('product-create-script');
     for(const key of ['Groups','Variants','Mode','Colors']) pageSource=pageSource.replace(new RegExp(`const old${key} = .*?;`),`const old${key} = ${JSON.stringify(old[key.toLowerCase()]??(key==='Mode'?'simple':[]))};`);
     const sandbox={document:{getElementById:id=>ids[id],createElement:tag=>new Element(tag),addEventListener:(_,fn)=>fn()},window,SukiProductOptions:engine,URL:{createObjectURL:file=>'blob:'+file.name,revokeObjectURL(){}},DataTransfer:class{constructor(){this.files=[];this.items={add:file=>this.files.push(file)};}}};
+    vm.runInNewContext(script('variant-image-script').split("document.addEventListener('DOMContentLoaded'")[0],sandbox);
     vm.runInNewContext(pageSource,sandbox);
     const group = (name,values) => {
         ids.addOption.fire('click');const row=ids.optionGroups.children.at(-1);
         row.querySelector('[data-option-name]').value=name;row.querySelector('[data-option-values]').value=values;ids.optionGroups.fire('input');return row;
     };
-    return {ids,window,submit,group};
+    return {ids,window,submit,group,images:sandbox.SukiVariantImages};
 }
 
 test('page generates independent fields, preserves edited rows and safely returns to simple mode', () => {
@@ -119,4 +120,32 @@ test('pending photo removal updates FileList and cover order without uploading',
     assert.match(ids.images.validationMessage,/up to 20/);
     ids.images.files=[{name:'large.png',type:'image/png',size:4*1024*1024+1}];ids.images.fire('change');
     assert.match(ids.images.validationMessage,/no larger than 4 MB/);
+});
+
+test('variant file controls preserve actual files and price by identity through regeneration',()=>{
+    const {ids,group}=harness();const flavor=group('Flavor','Chicken,Beef');ids.generateVariants.fire('click');
+    const original=ids.generatedVariants.children[1];
+    const picker=original.imageControl.element.querySelector('input');
+    const file={name:'beef.png',type:'image/png',size:100};picker.files=[file];picker.fire('change');
+    original.querySelector('[data-field]').value='99';
+    assert.equal(original.imageControl.element.children[1].src,'blob:beef.png');
+    flavor.querySelector('[data-option-values]').value='Beef,Chicken,Tuna';ids.optionGroups.fire('input');ids.generateVariants.fire('click');
+    const beef=ids.generatedVariants.children[0];
+    assert.equal(beef.imageControl,original.imageControl);assert.equal(picker.files[0],file);
+    assert.equal(picker.name,'variants[0][image]');assert.equal(beef.querySelector('[data-field]').value,'99');
+    assert.notEqual(ids.generatedVariants.children[2].imageControl,beef.imageControl);
+    beef.imageControl.element.children[2].fire('click');assert.equal(beef.imageControl.element.children[1].hidden,true);
+    picker.files=[{name:'bad.svg',type:'image/svg+xml',size:1}];picker.fire('change');assert.match(picker.validationMessage,/4 MB/);
+    picker.files=[{name:'huge.png',type:'image/png',size:4*1024*1024+1}];picker.fire('change');assert.match(picker.validationMessage,/4 MB/);
+    picker.files=[file];picker.fire('change');assert.equal(picker.validationMessage,'');
+});
+
+test('saved variant preview supports replace, cancel replacement and intentional removal',()=>{
+    const {images}=harness();const control=images.build('variants[7][image]','saved.png','variants[7][remove_image]');
+    const root=control.element,picker=root.querySelector('input'),preview=root.children[1],clear=root.children[2],removal=root.children[3].querySelector('input');
+    assert.equal(preview.src,'saved.png');assert.equal(removal.name,'variants[7][remove_image]');
+    picker.files=[{name:'new.png',type:'image/png',size:20}];picker.fire('change');assert.equal(preview.src,'blob:new.png');
+    clear.fire('click');assert.equal(preview.src,'saved.png');assert.equal(removal.checked,false);
+    removal.checked=true;removal.fire('change');assert.equal(preview.hidden,true);
+    removal.checked=false;removal.fire('change');assert.equal(preview.hidden,false);assert.equal(preview.src,'saved.png');
 });

@@ -96,7 +96,7 @@ class ProductCatalogService
 
     public function create(Seller $seller, array $data): Product
     {
-        return DB::transaction(function () use ($seller, $data) {
+        return $this->variantImageTransaction(function (array &$uploads) use ($seller, $data) {
             $product = $seller->products()->create([
                 'category_id' => $data['category_id'],
                 'name' => $data['name'],
@@ -108,8 +108,9 @@ class ProductCatalogService
                 'moderation_status' => ProductModerationStatus::Pending->value,
             ]);
 
-            $product->variants()->create($this->variantAttributes($data, $product));
-            $this->saveAdditionalVariants($product, $data['variants'] ?? []);
+            $primary = $product->variants()->create($this->variantAttributes($data, $product));
+            $this->syncVariantImage($primary, $data['variant_image'] ?? null, false, $uploads);
+            $this->saveAdditionalVariants($product, $data['variants'] ?? [], $uploads);
             $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
             $this->syncVideo($product, $data['video'] ?? null, false);
             $this->moderation->recordInitialSubmission($product, $seller->owner);
@@ -120,7 +121,7 @@ class ProductCatalogService
 
     public function update(Product $product, array $data): Product
     {
-        return DB::transaction(function () use ($product, $data) {
+        return $this->variantImageTransaction(function (array &$uploads) use ($product, $data) {
             $variant = $product->variants()->orderBy('id')->first();
             $before = $this->materialFingerprint($product);
             $hasNewImages = collect($data['images'] ?? [])->contains(
@@ -145,11 +146,13 @@ class ProductCatalogService
 
                 $variant->update($attributes);
                 $this->inventory->setStock($product->seller, $variant->id, $stock);
+                $this->syncVariantImage($variant, $data['variant_image'] ?? null, (bool) ($data['remove_variant_image'] ?? false), $uploads);
             } else {
-                $product->variants()->create($this->variantAttributes($data, $product));
+                $primary = $product->variants()->create($this->variantAttributes($data, $product));
+                $this->syncVariantImage($primary, $data['variant_image'] ?? null, false, $uploads);
             }
 
-            $this->saveAdditionalVariants($product, $data['variants'] ?? []);
+            $this->saveAdditionalVariants($product, $data['variants'] ?? [], $uploads);
 
             $this->storeImages($product, $data['images'] ?? [], $data['image_colors'] ?? []);
             $this->syncVideo($product, $data['video'] ?? null, $removeVideo);
@@ -195,6 +198,7 @@ class ProductCatalogService
             'length' => $variant?->length_mm ? $variant->length_mm / 10 : null,
             'width' => $variant?->width_mm ? $variant->width_mm / 10 : null,
             'height' => $variant?->height_mm ? $variant->height_mm / 10 : null,
+            'variant_image' => $this->marketplaceImageUrl($variant?->image_path),
             'variation_names' => array_keys($options),
             'variation_values' => array_values($options),
             'variants' => $product->variants->sortBy('id')->skip(1)->map(fn (ProductVariant $additional) => [
@@ -206,6 +210,7 @@ class ProductCatalogService
                 'status' => $additional->is_active ? 'active' : 'inactive',
                 'options' => $additional->options ?? [],
                 'weight' => $additional->weight_grams === null ? null : $additional->weight_grams / 1000,
+                'image' => $this->marketplaceImageUrl($additional->image_path),
             ])->values()->all(),
             'shipping_options' => $product->shipping_options ?? [],
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
@@ -277,6 +282,7 @@ class ProductCatalogService
                 'sku' => $variant->sku,
                 'name' => $variant->name,
                 'price' => $variant->price_minor / 100,
+                'image' => $this->marketplaceImageUrl($variant->image_path),
                 'stock' => $variant->stock,
                 'is_active' => $variant->is_active,
                 'options' => $variant->options ?? [],
@@ -337,6 +343,7 @@ class ProductCatalogService
                 'sku' => $variant->sku,
                 'name' => $variant->name,
                 'options' => $variant->options,
+                'image_path' => $variant->image_path,
                 'price_minor' => $variant->price_minor,
                 'weight_grams' => $variant->weight_grams,
                 'length_mm' => $variant->length_mm,
@@ -347,7 +354,7 @@ class ProductCatalogService
         ];
     }
 
-    private function saveAdditionalVariants(Product $product, array $variants): void
+    private function saveAdditionalVariants(Product $product, array $variants, array &$uploads): void
     {
         $primaryVariantId = $product->variants()->orderBy('id')->value('id');
 
@@ -389,6 +396,45 @@ class ProductCatalogService
                     : $variant->weight_grams,
             ]);
             $variant->save();
+            $this->syncVariantImage($variant, $data['image'] ?? null, (bool) ($data['remove_image'] ?? false), $uploads);
+        }
+    }
+
+    /** Remove newly uploaded variant files if any later database operation fails. */
+    private function variantImageTransaction(callable $callback): Product
+    {
+        $uploads = [];
+        try {
+            return DB::transaction(function () use ($callback, &$uploads) {
+                return $callback($uploads);
+            });
+        } catch (\Throwable $error) {
+            foreach ($uploads as $path) {
+                // A failing after-commit callback must not delete committed media.
+                if (! ProductVariant::withTrashed()->where('image_path', $path)->exists()) Storage::disk('public')->delete($path);
+            }
+            throw $error;
+        }
+    }
+
+    private function syncVariantImage(ProductVariant $variant, mixed $image, bool $remove, array &$uploads): void
+    {
+        if (! $image instanceof UploadedFile && ! $remove) return;
+        $oldPath = $variant->image_path;
+        $directory = 'products/'.$variant->product_id.'/variants/'.$variant->id.'/';
+        $newPath = null;
+        if ($image instanceof UploadedFile) {
+            $newPath = $image->store(rtrim($directory, '/'), 'public');
+            if ($newPath) $uploads[] = $newPath;
+            if (! $newPath || ! Storage::disk('public')->exists($newPath)) {
+                throw new \RuntimeException('Variant image storage failed.');
+            }
+        }
+        $variant->forceFill(['image_path' => $newPath])->save();
+        // Only delete files generated inside this specific variant's directory.
+        if ($oldPath && $oldPath !== $newPath && Str::startsWith($oldPath, $directory)
+            && ! str_contains($oldPath, '..') && ! str_contains($oldPath, '\\')) {
+            DB::afterCommit(fn () => Storage::disk('public')->delete($oldPath));
         }
     }
 

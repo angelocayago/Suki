@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         holder.innerHTML = template.innerHTML.replaceAll('__INDEX__', String(nextIndex++));
         const row = holder.firstElementChild;
         rows.appendChild(row);
+        globalThis.SukiVariantImages?.mount(row);
         updateStock(row);
         syncVariantChips();
         row.querySelector('input:not([type=hidden])').focus();

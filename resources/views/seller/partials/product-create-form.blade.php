@@ -62,3 +62,4 @@
 @include('seller.partials.product-create-script')
 
 @include('seller.partials.product-video-script')
+@include('seller.partials.variant-image-script')

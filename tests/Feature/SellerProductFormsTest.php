@@ -25,7 +25,7 @@ class SellerProductFormsTest extends TestCase
             'sellers'=>'id INTEGER PRIMARY KEY, user_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, status TEXT, created_at TEXT, updated_at TEXT',
             'categories'=>'id INTEGER PRIMARY KEY, parent_id INTEGER, name TEXT, slug TEXT, is_active INTEGER, position INTEGER DEFAULT 0',
             'products'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, brand TEXT, description TEXT, shipping_options TEXT, is_active INTEGER, moderation_status TEXT, moderation_reason TEXT, moderated_by INTEGER, moderated_at TEXT, video_path TEXT, video_mime TEXT, deleted_at TEXT, created_at TEXT, updated_at TEXT',
-            'product_variants'=>'id INTEGER PRIMARY KEY, product_id INTEGER, sku TEXT UNIQUE, weight_grams INTEGER, length_mm INTEGER, width_mm INTEGER, height_mm INTEGER, name TEXT, options TEXT, price_minor INTEGER, stock INTEGER, is_active INTEGER, deleted_at TEXT, created_at TEXT, updated_at TEXT',
+            'product_variants'=>'id INTEGER PRIMARY KEY, image_path TEXT, product_id INTEGER, sku TEXT UNIQUE, weight_grams INTEGER, length_mm INTEGER, width_mm INTEGER, height_mm INTEGER, name TEXT, options TEXT, price_minor INTEGER, stock INTEGER, is_active INTEGER, deleted_at TEXT, created_at TEXT, updated_at TEXT',
             'product_images'=>'id INTEGER PRIMARY KEY, product_id INTEGER, path TEXT, position INTEGER, color TEXT, created_at TEXT, updated_at TEXT',
             'product_moderation_events'=>'id INTEGER PRIMARY KEY, product_id INTEGER, seller_id INTEGER, actor_id INTEGER, previous_status TEXT, new_status TEXT, reason TEXT, source TEXT, metadata TEXT, created_at TEXT, updated_at TEXT',
             'notifications'=>'id TEXT PRIMARY KEY, notifiable_type TEXT, notifiable_id INTEGER, read_at TEXT',
@@ -637,4 +637,99 @@ class SellerProductFormsTest extends TestCase
         $this->assertNull($item['video']);
     }
 
+
+    private function variantPhoto(string $name = 'variant.png'): \Illuminate\Http\UploadedFile
+    {
+        return \Illuminate\Http\UploadedFile::fake()->createWithContent($name, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
+    }
+
+    public function test_variant_images_follow_custom_combinations_and_saved_ids_through_editing(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $payload = $this->universal([['name'=>'Flavor','values'=>'Chicken, Beef'],['name'=>'Pack Size','values'=>'Single, Six']]);
+        $payload['variants'] = array_reverse($payload['variants']);
+        foreach ($payload['variants'] as $index => &$row) { $row['image']=$this->variantPhoto('photo-'.$index.'.png'); $row['price']=89+$index*10; }
+        unset($row);
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
+        $product=Product::with('variants')->sole();
+        foreach ($product->variants as $index=>$variant) {
+            $this->assertSame($payload['variants'][$index]['options'],$variant->options);
+            $this->assertSame((89+$index*10)*100,$variant->price_minor);
+            $this->assertStringContainsString('/variants/'.$variant->id.'/', $variant->image_path);
+            \Illuminate\Support\Facades\Storage::disk('public')->assertExists($variant->image_path);
+        }
+        $this->assertCount(4,array_unique($product->variants->pluck('image_path')->all()));
+        $product->update(['moderation_status'=>'APPROVED']);
+        $catalog=app(ProductCatalogService::class)->marketplaceProduct($product->slug);
+        $this->assertSame([89,99,109,119],array_column($catalog['variants'],'price'));
+        $this->assertNotEmpty($catalog['variants'][0]['image']);
+        $this->get(route('seller.products.edit',$product))->assertOk()->assertSee('data-saved-image=',false);
+        $primary=$product->variants[0];$additional=$product->variants[1];$omitted=$product->variants[3];
+        $oldPrimary=$primary->image_path;$oldAdditional=$additional->image_path;
+        $edit=$this->payload(['name'=>$product->name,'category_id'=>2,'sku'=>$primary->sku,'variation_name'=>array_keys($primary->options),'variation_value'=>array_values($primary->options),'variants'=>[['id'=>$additional->id,'name'=>$additional->name,'options'=>$additional->options,'sku'=>$additional->sku,'price'=>99,'stock'=>15]],'variant_image'=>$this->variantPhoto('replacement.png')]);
+        $this->put(route('seller.products.update',$product),$edit)->assertSessionHasNoErrors();
+        $this->assertNotSame($oldPrimary,$primary->fresh()->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($oldPrimary);
+        $this->assertSame($oldAdditional,$additional->fresh()->image_path);
+        $this->assertSame($omitted->image_path,$omitted->fresh()->image_path);
+        $this->assertSame('PENDING',$product->fresh()->moderation_status->value);
+        unset($edit['variant_image']);
+        $edit['variants'][0]['image']=$this->variantPhoto('additional-replacement.png');
+        $this->put(route('seller.products.update',$product),$edit)->assertSessionHasNoErrors();
+        $this->assertNotSame($oldAdditional,$additional->fresh()->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($oldAdditional);
+        $oldAdditional=$additional->fresh()->image_path;
+        unset($edit['variants'][0]['image']);
+        $edit['remove_variant_image']='1';$edit['variants'][0]['remove_image']='1';
+        $this->put(route('seller.products.update',$product),$edit)->assertSessionHasNoErrors();
+        $this->assertNull($primary->fresh()->image_path);$this->assertNull($additional->fresh()->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($oldAdditional);
+        $this->assertSame(4,$product->variants()->count());
+    }
+
+    public function test_variant_upload_validation_ownership_and_failed_transaction_cleanup(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $payload=$this->universal([['name'=>'Storage','values'=>'Small, Large']]);
+        $payload['variants'][0]['image']=\Illuminate\Http\UploadedFile::fake()->create('bad.svg',1,'image/svg+xml');
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasErrors('variants.0.image');
+        $photo=$this->variantPhoto();
+        $payload['variants'][0]['image']=\Illuminate\Http\UploadedFile::fake()->createWithContent('large.png',file_get_contents($photo->getRealPath()).str_repeat('x',4097*1024));
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasErrors('variants.0.image');
+        $payload['variants'][0]['image']=$this->variantPhoto();
+        $payload['variants'][1]['sku']='CONFLICT';
+        $this->product(90,202);
+        DB::table('product_variants')->where('id',901)->update(['sku'=>'CONFLICT']);
+        $this->post(route('seller.products.store'),$payload)->assertSessionHasErrors('variants');
+        $this->assertSame(1,Product::count());
+        $this->assertSame([],\Illuminate\Support\Facades\Storage::disk('public')->allFiles());
+        $this->put(route('seller.products.update',90),$this->payload(['variant_image'=>$this->variantPhoto()]))->assertNotFound();
+        $this->assertSame([],\Illuminate\Support\Facades\Storage::disk('public')->allFiles());
+    }
+
+    public function test_approved_image_column_migration_preserves_existing_variants_and_rolls_back_in_memory(): void
+    {
+        $this->product(7);
+        \Illuminate\Support\Facades\Schema::table('product_variants',fn($table)=>$table->dropColumn('image_path'));
+        $migration=require database_path('migrations/2026_11_03_000001_add_image_path_to_product_variants_table.php');
+        $migration->up();
+        $this->assertNull(DB::table('product_variants')->where('id',71)->value('image_path'));
+        $this->assertSame(10000,DB::table('product_variants')->where('id',71)->value('price_minor'));
+        $migration->down();
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('product_variants','image_path'));
+        $this->assertSame(71,DB::table('product_variants')->value('id'));
+    }
+
+    public function test_missing_variant_files_fall_back_and_removal_cannot_delete_other_media(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $this->product(8);
+        $product=Product::with('variants')->findOrFail(8);$variant=$product->variants->sole();
+        $variant->update(['image_path'=>'products/foreign/keep.png']);
+        $this->assertNull(app(ProductCatalogService::class)->marketplaceProduct($product->slug)['variants'][0]['image']);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/foreign/keep.png','unrelated');
+        $this->actingAs($this->seller)->put(route('seller.products.update',$product),$this->payload(['sku'=>$variant->sku,'remove_variant_image'=>'1']))->assertSessionHasNoErrors();
+        $this->assertNull($variant->fresh()->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists('products/foreign/keep.png');
+    }
 }

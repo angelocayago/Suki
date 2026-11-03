@@ -26,8 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
         generate.hidden = groups.children.length === 0;
     }
     function capture() {
+        previous.clear();
         Array.from(rows.children).forEach(row => {
-            const value = {options:row.optionValues};
+            const value = {options:row.optionValues, imageControl:row.imageControl};
             row.querySelectorAll('[data-field]').forEach(input => value[input.dataset.field] = input.value);
             previous.set(engine.identity(value.options), value);
         });
@@ -53,13 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
         remove.addEventListener('click', () => {
             if (groups.children.length === 1 && rows.children.length && !window.confirm('Return to a simple product? Generated rows will not be submitted.')) return;
             capture(); row.remove(); reindexGroups(); dirty = true;
-            if (!groups.children.length) { rows.replaceChildren(); setMode(false); dirty = false; feedback.textContent = ''; }
+            if (!groups.children.length) { Array.from(rows.children).forEach(row => row.imageControl?.dispose()); previous.clear(); rows.replaceChildren(); setMode(false); dirty = false; feedback.textContent = ''; }
             else feedback.textContent = 'Options changed. Generate again to update the combinations.';
         });
         row.append(nameLabel,valuesLabel,remove); groups.append(row); reindexGroups();
         return name;
     }
     function renderVariants(variants) {
+        const retained = new Set(variants.map(variant => engine.identity(variant.options)));
+        Array.from(rows.children).forEach(row => { if (!retained.has(engine.identity(row.optionValues))) row.imageControl?.dispose(); });
         rows.replaceChildren();
         variants.forEach((variant,index) => {
             const row = document.createElement('article'); row.optionValues = variant.options || {};
@@ -84,10 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.required = field === 'price' || field === 'stock';
                 wrapper.append(input); fields.append(wrapper);
             }
-            row.append(fields); rows.append(row);
+            const imageControl = variant.imageControl || globalThis.SukiVariantImages.build(`variants[${index}][image]`);
+            imageControl.setNames(`variants[${index}][image]`, `variants[${index}][remove_image]`);
+            row.imageControl = imageControl;
+            row.append(fields, imageControl.element); rows.append(row);
         });
         setMode(variants.length > 0);
     }
+    window.addEventListener('pagehide', () => Array.from(rows.children).forEach(row => row.imageControl?.dispose()));
     add.addEventListener('click', () => { const input = addGroup(); input?.focus(); });
     groups.addEventListener('input', () => { dirty = true; feedback.textContent = 'Options changed. Generate combinations before submitting.'; });
     generate.addEventListener('click', () => {

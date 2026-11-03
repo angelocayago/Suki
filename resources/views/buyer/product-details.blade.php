@@ -270,15 +270,7 @@
                             ₱{{ $product['price'] }}
                         </span>
 
-                        <span class="text-sm text-gray-400 line-through">
-                            ₱{{ $product['old_price'] }}
-                        </span>
-
-                        <span class="text-xs font-semibold
-                                     bg-[#F59E0B] text-white
-                                     px-2 py-1 rounded">
-                            {{ $product['discount'] }}
-                        </span>
+                        {{-- No canonical per-variant comparison price or sale discount exists. --}}
 
                     </div>
 
@@ -745,7 +737,7 @@
 {{-- PAGE SCRIPT --}}
 <script>
     const purchasableVariants = @json($product['variants'] ?? []);
-    const mediaByColor = @json($product['media_by_color'] ?? []);
+    const defaultProductImage = @json($product['image']);
     let quantity = 1;
     let maxStock = 0;
     function resolveVariant() {
@@ -762,8 +754,7 @@
         document.getElementById('variantStock').textContent = `${maxStock} pieces available`;
         document.getElementById('variantAvailability').textContent = !variant ? 'This option combination is unavailable.' : maxStock < 1 ? 'This option is out of stock.' : '';
         if (variant) document.getElementById('variantPrice').textContent = `₱${Number(variant.price).toFixed(2)}`;
-        const color = variant?.options?.Color;
-        if (color && mediaByColor[color]?.length) showColorMedia(mediaByColor[color][0]);
+        showVariantMedia(variant?.image || defaultProductImage);
     }
     // ==========================================
     // PRODUCT MEDIA CAROUSEL
@@ -820,15 +811,21 @@
 
 
     // ==========================================
-    // Keep color-associated images synchronized with the generic option selector.
+    // Keep the exact variant image synchronized with the generic option selector.
     // ==========================================
 
 
-    function showColorMedia(source) {
+    function showVariantMedia(source) {
         const matchingIndex = productMediaButtons.findIndex(media => media.dataset.mediaType === 'image' && media.dataset.mediaSrc === source);
         if (matchingIndex >= 0) {
             showProductMedia(matchingIndex);
         } else {
+            currentMediaIndex = -1;
+            productMediaButtons.forEach(thumb => {
+                thumb.classList.remove('border-[#1F6F5B]');
+                thumb.classList.add('border-transparent');
+                thumb.setAttribute('aria-current', 'false');
+            });
             mainProductVideo?.pause();
             mainProductVideo?.classList.add('hidden');
             mainProductImage.classList.remove('hidden');
@@ -836,6 +833,9 @@
         }
     }
 
+    mainProductImage.addEventListener('error', () => {
+        if (mainProductImage.getAttribute('src') !== defaultProductImage) mainProductImage.src = defaultProductImage;
+    });
     resolveVariant();
 
     function increaseQuantity() {
