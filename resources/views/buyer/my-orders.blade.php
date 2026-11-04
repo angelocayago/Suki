@@ -184,6 +184,18 @@
                                 'class' => 'bg-red-50 text-red-600',
                             ],
 
+                            'completed' => [
+                                'label' => 'Completed',
+                                'icon' => 'circle-check',
+                                'class' => 'bg-green-50 text-green-600',
+                            ],
+
+                            'returned' => [
+                                'label' => 'Returned',
+                                'icon' => 'undo-2',
+                                'class' => 'bg-orange-50 text-orange-600',
+                            ],
+
                             default => [
                                 'label' => 'Order Placed',
                                 'icon' => 'package',

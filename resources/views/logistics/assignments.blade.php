@@ -45,6 +45,9 @@
                 @elseif(($order['status'] ?? '') === 'rts_completed')
                     <span>Returned to Seller</span>
                 @elseif(($order['status'] ?? '') === 'ready_for_pickup')
+                    @if(empty($order['pickup_eligible_riders']))
+                        <p class="max-w-md rounded-xl bg-amber-50 p-3 text-xs text-amber-900" role="status">No eligible pickup riders. A rider must be approved, activated and verified, active and online, belong to your provider, and have an active hub and service area covering the Seller's verified pickup address. Review Rider Management and service-area setup before assigning.</p>
+                    @else
                     <form method="POST" action="{{ route('logistics.database.pickup-rider.assign', $order['id']) }}" class="flex flex-wrap gap-2" onsubmit="return confirm('{{ !empty($order['pickup_rider_id']) ? 'Change the assigned pickup rider?' : 'Assign this pickup rider?' }}');">
                         @csrf
                         <select name="pickup_rider_id" required class="rounded-xl border border-[#DDE6E1] px-3 py-2 text-xs">
@@ -55,6 +58,7 @@
                         </select>
                         <button class="rounded-xl bg-[#173F35] px-4 py-2 text-xs font-semibold text-white">{{ !empty($order['pickup_rider_id']) ? 'Change Pickup Rider' : 'Assign Pickup Rider' }}</button>
                     </form>
+                    @endif
                 @elseif(($order['status'] ?? '') === 'sorted')
                     <form method="POST" action="{{ route('logistics.database.order.status', $order['id']) }}" class="flex gap-2">
                         @csrf

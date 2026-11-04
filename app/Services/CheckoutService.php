@@ -55,10 +55,14 @@ class CheckoutService
                     && (int) $cartItem->quantity > 0
                     && (int) $cartItem->quantity <= (int) $variant->stock;
 
-                $image = ! $cartItem->exists && $cartItem->id === 0 ? $cartItem->image : ($product?->images->first()?->path ?? $cartItem->image);
+                $image = $variant?->image_path;
+                if ($image && ! Str::startsWith($image, ['http://', 'https://']) && ! Storage::disk('public')->exists($image)) $image = null;
                 if ($image && ! Str::startsWith($image, ['http://', 'https://'])) {
                     $image = Storage::disk('public')->url($image);
                 }
+                // thumbnail() already returns a resolved URL, including fake-disk relative URLs.
+                $image ??= $product ? app(ProductCatalogService::class)->thumbnail($product)
+                    : ($cartItem->image && ! Str::startsWith($cartItem->image, ['http://', 'https://']) ? Storage::disk('public')->url($cartItem->image) : $cartItem->image);
 
                 return [
                     $cartItem->id => [

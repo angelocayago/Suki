@@ -252,7 +252,12 @@ class FulfillmentController extends Controller
         if (! $region || ! $city || ! $barangay) return [];
         return $provider->riders()->where('is_active', true)->where(fn ($q) => $q->where('availability', 'ONLINE')->orWhereNull('availability'))->whereNotNull('approved_at')->whereHas('user', fn ($q) => $q->where('status', 'active')->where('is_suspended', false))->whereHas('serviceAreas', function ($query) use ($provider, $region, $city, $barangay) {
             $query->where('logistics_provider_id', $provider->id)->where('is_active', true)->where('region_code', $region)->where('city_municipality_code', $city)->where(fn ($q) => $q->whereNull('barangay_code')->orWhere('barangay_code', $barangay));
-        })->with(['user', 'serviceAreas'])->get()->map(fn (Rider $rider) => ['id' => $rider->id, 'name' => $rider->user->full_name, 'area' => $rider->serviceAreas->where('is_active', true)->pluck('city_municipality_code')->implode(', ')])->all();
+        })->with(['user', 'serviceAreas', 'logisticsProvider', 'logisticsHub'])->get()
+            ->filter(fn (Rider $rider) => $rider->isOperationallyAvailable()
+                && $rider->logisticsHub?->is_active
+                && (int) $rider->logisticsHub->logistics_provider_id === (int) $provider->id
+                && $rider->logisticsHub->barangay_code === $barangay)
+            ->map(fn (Rider $rider) => ['id' => $rider->id, 'name' => $rider->user->full_name, 'area' => $rider->serviceAreas->where('is_active', true)->pluck('city_municipality_code')->implode(', ')])->values()->all();
     }
 
     private function activeRiders(LogisticsProvider $provider): array

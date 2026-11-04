@@ -649,37 +649,32 @@ Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolve
         min($requestedQuantity, $maxStock)
     );
 
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->where('product_variant_id', $product['variant_id'])
-        ->first();
+    DB::transaction(function () use ($user, $slug, $product, $requestedQuantity, $maxStock) {
+        // Share the Buyer lock with Buy Again and the API's Cart writer.
+        // Reading the row under lock avoids overwriting a concurrent increment.
+        User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+        $cartItem = CartItem::where('user_id', $user->id)
+            ->where('product_slug', $slug)
+            ->where('product_variant_id', $product['variant_id'])
+            ->lockForUpdate()->first();
 
-    if ($cartItem) {
-
-        $newQuantity = $cartItem->quantity + $requestedQuantity;
-
-        $newQuantity = min(
-            $newQuantity,
-            $maxStock
-        );
-
-        $cartItem->update([
-            'quantity' => $newQuantity,
-            'product_variant_id' => $product['variant_id'] ?? $cartItem->product_variant_id,
-        ]);
-
-    } else {
-
-        CartItem::create([
-            'user_id' => $user->id,
-            'product_slug' => $slug,
-            'product_name' => $product['name'],
-            'price' => $product['price'],
-            'image' => $product['image'] ?? null,
-            'quantity' => $requestedQuantity,
-            'product_variant_id' => $product['variant_id'] ?? null,
-        ]);
-    }
+        if ($cartItem) {
+            $cartItem->update([
+                'quantity' => min($cartItem->quantity + $requestedQuantity, $maxStock),
+                'product_variant_id' => $product['variant_id'] ?? $cartItem->product_variant_id,
+            ]);
+        } else {
+            CartItem::create([
+                'user_id' => $user->id,
+                'product_slug' => $slug,
+                'product_name' => $product['name'],
+                'price' => $product['price'],
+                'image' => $product['image'] ?? null,
+                'quantity' => $requestedQuantity,
+                'product_variant_id' => $product['variant_id'] ?? null,
+            ]);
+        }
+    }, 3);
 
     return redirect()
         ->back()
@@ -2449,161 +2444,9 @@ Route::post(
 // BUY AGAIN
 // =====================================================
 
-Route::post(
-    '/my-orders/{order}/buy-again',
-    function (
-        $orderNumber
-    ) use (
-        $requireBuyer,
-        $resolveProductCatalog
-    ) {
-
-        $products = $resolveProductCatalog();
-
-        if ($redirect = $requireBuyer()) {
-            return $redirect;
-        }
-
-
-        $order =
-            Order::with('items')
-                ->where(
-                    'buyer_id',
-                    auth()->id()
-                )
-                ->where(
-                    'order_number',
-                    $orderNumber
-                )
-                ->first();
-
-
-        if (!$order) {
-
-            return redirect()
-                ->route(
-                    'buyer.my-orders'
-                )
-                ->with(
-                    'error',
-                    'Order not found.'
-                );
-        }
-
-
-        $user =
-            auth()->user();
-
-
-        foreach (
-            $order->items
-            as $item
-        ) {
-
-
-            if (
-                !isset(
-                    $products[
-                        $item->product_slug
-                    ]
-                )
-            ) {
-
-                continue;
-            }
-
-
-            $maxStock =
-                (int)
-                $products[
-                    $item->product_slug
-                ]['stock'];
-
-
-            $cartItem =
-                CartItem::where(
-                    'user_id',
-                    $user->id
-                )
-                    ->where(
-                        'product_slug',
-                        $item->product_slug
-                    )
-                    ->first();
-
-
-            if ($cartItem) {
-
-
-                $newQuantity =
-                    min(
-
-                        $cartItem->quantity
-                        +
-                        $item->quantity,
-
-                        $maxStock
-                    );
-
-
-                $cartItem->update([
-
-                    'quantity' =>
-                        $newQuantity,
-
-                    'product_variant_id' =>
-                        $products[$item->product_slug]['variant_id']
-                        ?? $cartItem->product_variant_id,
-                ]);
-
-
-            } else {
-
-
-                CartItem::create([
-
-                    'user_id' =>
-                        $user->id,
-
-                    'product_slug' =>
-                        $item->product_slug,
-
-                    'product_name' =>
-                        $item->product_name,
-
-                    'price' =>
-                        $item->unit_price,
-
-                    'image' =>
-                        $item->image,
-
-                    'quantity' =>
-                        min(
-                            $item->quantity,
-                            $maxStock
-                        ),
-
-                    'product_variant_id' =>
-                        $products[$item->product_slug]['variant_id']
-                        ?? null,
-                ]);
-            }
-        }
-
-
-        return redirect()
-            ->route(
-                'buyer.cart'
-            )
-            ->with(
-                'success',
-                'Items from your previous order have been added to your cart!'
-            );
-
-    }
-)->name(
-    'buyer.order.buy-again'
-);
+Route::post('/my-orders/{order}/buy-again', [CartController::class, 'buyAgain'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.order.buy-again');
 
 
 // =====================================================
@@ -3553,24 +3396,42 @@ $requireLogistics = function () {
 // RIDER MANAGEMENT
 // =====================================================
 
-Route::get('/logistics/riders', function () use ($requireLogistics) {
+$riderApplicationsFor = static function (\App\Models\LogisticsProvider $provider, $applicationId = null) {
+    if ($applicationId !== null) abort_unless(filter_var($applicationId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false, 404);
+    return Application::with('user')->where('application_type', 'courier')
+        ->where(function ($query) use ($provider) {
+            $query->whereHas('user.rider', fn ($riders) => $riders->where('logistics_provider_id', $provider->id))
+                ->orWhere(function ($unassigned) use ($provider) {
+                    // Registration submits to the unassigned pool. An existing
+                    // Rider association or review must never be taken over.
+                    $unassigned->whereDoesntHave('user.rider')
+                        ->where(fn ($hint) => $hint->whereNull('application_data->logistics_provider_id')->orWhere('application_data->logistics_provider_id', $provider->id))
+                        ->where(fn ($reviewer) => $reviewer->whereNull('reviewed_by')->orWhere('reviewed_by', $provider->user_id));
+                });
+        });
+};
+
+Route::get('/logistics/riders', function () use ($requireLogistics, $riderApplicationsFor) {
     if ($redirect = $requireLogistics()) {
         return $redirect;
     }
 
-    $applications = Application::with('user')
-        ->where('application_type', 'courier')
+    $provider = auth()->user()->logisticsProvider;
+    abort_unless($provider && $provider->status === 'approved', 403, 'An approved logistics provider is required.');
+
+    $applications = $riderApplicationsFor($provider)
         ->latest()
         ->get()
         ->mapWithKeys(function (Application $application) {
             $data = $application->application_data ?? [];
 
             return [$application->id => array_merge($data, [
+                'application_id' => $application->id,
                 'first_name' => $application->user->first_name,
                 'last_name' => $application->user->last_name,
                 'phone' => $application->user->phone,
                 'email' => $application->user->email,
-                'status' => $application->status,
+                'status' => $application->status === 'rejected' ? 'disapproved' : $application->status,
                 'documents' => $application->documents ?? [],
                 'created_at' => optional($application->created_at)->format('Y-m-d H:i:s'),
             ])];
@@ -3603,45 +3464,52 @@ Route::get('/logistics/riders', function () use ($requireLogistics) {
 // RIDER REVIEW
 // =====================================================
 
-Route::get('/logistics/riders/{rider}/review', function ($riderId) use ($requireLogistics) {
+Route::get('/logistics/riders/{rider}/review', function ($riderId) use ($requireLogistics, $riderApplicationsFor) {
     if ($redirect = $requireLogistics()) {
         return $redirect;
     }
 
-    $application = Application::with('user')
-        ->where('application_type', 'courier')
-        ->findOrFail($riderId);
+    $provider = auth()->user()->logisticsProvider;
+    abort_unless($provider && $provider->status === 'approved', 403, 'An approved logistics provider is required.');
+    $application = $riderApplicationsFor($provider, $riderId)->findOrFail($riderId);
     $rider = array_merge($application->application_data ?? [], [
         'first_name' => $application->user->first_name,
         'last_name' => $application->user->last_name,
         'phone' => $application->user->phone,
         'email' => $application->user->email,
-        'status' => $application->status,
+        'status' => $application->status === 'rejected' ? 'disapproved' : $application->status,
         'documents' => $application->documents ?? [],
     ]);
 
     return view('logistics.rider-review', compact('rider', 'riderId'));
 })->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->whereNumber('rider')
     ->name('logistics.riders.review');
+
+Route::get('/logistics/riders/{rider}/documents/{document}', function ($riderId, $document) use ($riderApplicationsFor) {
+    $provider = auth()->user()->logisticsProvider;
+    abort_unless($provider && $provider->status === 'approved', 403);
+    abort_unless(in_array($document, ['government_id', 'drivers_license', 'vehicle_document'], true), 404);
+    $application = $riderApplicationsFor($provider, $riderId)->findOrFail($riderId);
+    return app(ApplicationDocumentController::class)->show($application, $document);
+})->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->whereNumber('rider')->name('logistics.riders.documents.show');
 
 // =====================================================
 // APPROVE RIDER
 // =====================================================
 
-Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($requireLogistics) {
+Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($requireLogistics, $riderApplicationsFor) {
     if ($redirect = $requireLogistics()) {
         return $redirect;
     }
 
-    $application = Application::with('user')
-        ->where('application_type', 'courier')
-        ->where('status', 'pending')
-        ->findOrFail($riderId);
     $provider = auth()->user()->logisticsProvider;
 
     abort_unless($provider && $provider->status === 'approved', 403, 'An approved logistics provider is required.');
 
-    DB::transaction(function () use ($application, $provider) {
+    $application = DB::transaction(function () use ($riderId, $provider, $riderApplicationsFor) {
+        $application = $riderApplicationsFor($provider, $riderId)->where('status', 'pending')->lockForUpdate()->findOrFail($riderId);
         $data = $application->application_data ?? [];
         $documents = $application->documents ?? [];
 
@@ -3668,6 +3536,7 @@ Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($req
             'reviewed_at' => now(),
             'rejection_reason' => null,
         ]);
+        return $application;
     });
 
     app(\App\Services\RiderActivationService::class)->send($application->user->fresh(), false);
@@ -3676,6 +3545,7 @@ Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($req
 
     return redirect()->route('logistics.riders')->with('success', 'Rider approved. A single-use activation link was sent by email.');
 })->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->whereNumber('riderId')
     ->name('logistics.riders.approve');
 
 
@@ -3683,7 +3553,7 @@ Route::post('/logistics/riders/{riderId}/approve', function ($riderId) use ($req
 // DISAPPROVE RIDER
 // =====================================================
 
-Route::post('/logistics/riders/{riderId}/disapprove', function (Request $request, $riderId) use ($requireLogistics) {
+Route::post('/logistics/riders/{riderId}/disapprove', function (Request $request, $riderId) use ($requireLogistics, $riderApplicationsFor) {
     if ($redirect = $requireLogistics()) {
         return $redirect;
     }
@@ -3691,12 +3561,11 @@ Route::post('/logistics/riders/{riderId}/disapprove', function (Request $request
     $validated = $request->validate([
         'rejection_reason' => 'nullable|string|max:500',
     ]);
-    $application = Application::with('user')
-        ->where('application_type', 'courier')
-        ->where('status', 'pending')
-        ->findOrFail($riderId);
+    $provider = auth()->user()->logisticsProvider;
+    abort_unless($provider && $provider->status === 'approved', 403, 'An approved logistics provider is required.');
 
-    DB::transaction(function () use ($application, $validated) {
+    $application = DB::transaction(function () use ($riderId, $provider, $riderApplicationsFor, $validated) {
+        $application = $riderApplicationsFor($provider, $riderId)->where('status', 'pending')->lockForUpdate()->findOrFail($riderId);
         $application->user->update(['status' => 'rejected']);
         $application->update([
             'status' => 'rejected',
@@ -3704,12 +3573,14 @@ Route::post('/logistics/riders/{riderId}/disapprove', function (Request $request
             'reviewed_at' => now(),
             'rejection_reason' => $validated['rejection_reason'] ?? 'Application requirements were not approved.',
         ]);
+        return $application;
     });
 
     $application->user->notify(new \App\Notifications\ApplicationDecisionNotification($application->fresh()));
 
     return redirect()->route('logistics.riders')->with('success', 'Rider application has been rejected.');
 })->middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])
+    ->whereNumber('riderId')
     ->name('logistics.riders.disapprove');
 
 // =====================================================

@@ -46,6 +46,36 @@
     </div>
 
 
+    @if($reorder = session('reorder_result'))
+        <section class="mb-6 rounded-2xl border border-[#1F6F5B]/20 bg-[#EEF8F3] p-5" aria-labelledby="reorder-result-title" role="status">
+            <h2 id="reorder-result-title" class="font-semibold text-[#155244]">Buy Again results</h2>
+            <p class="mt-2 text-sm text-gray-700">
+                @if($reorder['added_units'] > 0)
+                    Added {{ $reorder['added_units'] }} unit(s) from {{ $reorder['added_lines'] }} order item(s) to your Cart.
+                @else
+                    No items were added to your Cart.
+                @endif
+                {{ collect($reorder['items'])->where('status', 'skipped')->count() }} skipped;
+                {{ collect($reorder['items'])->where('status', 'adjusted')->count() }} adjusted due to stock.
+                Current prices apply. Availability and vouchers are checked again at Checkout.
+            </p>
+            <ul class="mt-3 space-y-3 text-sm text-gray-700">
+                @foreach($reorder['items'] as $result)
+                    <li>
+                        <span class="font-semibold">{{ $result['name'] }}</span>
+                        @if(!empty($result['options']))
+                            <span>({{ collect($result['options'])->map(fn ($value, $name) => $name.': '.$value)->implode(' / ') }})</span>
+                        @endif
+                        <span class="block">{{ $result['message'] }}</span>
+                        @if($result['status'] !== 'added' && $result['url'])
+                            <a href="{{ $result['url'] }}" class="mt-1 inline-block font-semibold text-[#155244] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">View product and select options</a>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     {{-- =====================================================
        SUCCESS MESSAGE
     ====================================================== --}}

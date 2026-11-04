@@ -448,10 +448,10 @@
                             </div>
 
 
-                            @if(!empty($rider['government_id']))
+                            @if(!empty($rider['documents']['government_id']))
 
                                 <a
-                                    href="{{ asset('storage/' . $rider['government_id']) }}"
+                                    href="{{ route('logistics.riders.documents.show', [$riderId, 'government_id']) }}"
                                     target="_blank"
                                     class="inline-flex items-center gap-2 rounded-lg bg-[#E6F4EE] px-3 py-2 text-xs font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]"
                                 >
@@ -511,10 +511,10 @@
                             </div>
 
 
-                            @if(!empty($rider['drivers_license']))
+                            @if(!empty($rider['documents']['drivers_license']))
 
                                 <a
-                                    href="{{ asset('storage/' . $rider['drivers_license']) }}"
+                                    href="{{ route('logistics.riders.documents.show', [$riderId, 'drivers_license']) }}"
                                     target="_blank"
                                     class="inline-flex items-center gap-2 rounded-lg bg-[#E6F4EE] px-3 py-2 text-xs font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]"
                                 >
@@ -575,10 +575,10 @@
                             </div>
 
 
-                            @if(!empty($rider['vehicle_document']))
+                            @if(!empty($rider['documents']['vehicle_document']))
 
                                 <a
-                                    href="{{ asset('storage/' . $rider['vehicle_document']) }}"
+                                    href="{{ route('logistics.riders.documents.show', [$riderId, 'vehicle_document']) }}"
                                     target="_blank"
                                     class="inline-flex items-center gap-2 rounded-lg bg-[#E6F4EE] px-3 py-2 text-xs font-semibold text-[#1F6F5B] transition hover:bg-[#DDF3EC]"
                                 >
@@ -665,13 +665,18 @@
 
     </button>
 
-</form>>
+</form>
 
 
 
                             <!-- DISAPPROVE -->
+                            <form method="POST" action="{{ route('logistics.riders.disapprove', $riderId) }}" class="space-y-2">
+                            @csrf
+                            <label for="rejection_reason" class="block text-sm font-medium text-gray-700">Reason for disapproval</label>
+                            <textarea id="rejection_reason" name="rejection_reason" maxlength="500" required class="w-full rounded-lg border border-gray-300 p-3 text-sm">{{ old('rejection_reason') }}</textarea>
+                            @error('rejection_reason')<p class="text-sm text-red-700">{{ $message }}</p>@enderror
                             <button
-                                type="button"
+                                type="submit"
                                 class="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
                             >
 
@@ -683,6 +688,7 @@
                                 Disapprove Application
 
                             </button>
+                            </form>
 
 
                         </div>

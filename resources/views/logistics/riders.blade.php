@@ -67,11 +67,11 @@
         |--------------------------------------------------------------------------
         */
 
-        foreach ($sourceRiders as $rider) {
+        foreach ($sourceRiders as $applicationId => $rider) {
 
             if (is_array($rider)) {
 
-                $riders[] = $rider;
+                $riders[$applicationId] = $rider;
 
             }
 
@@ -883,7 +883,7 @@
                                             @if(($rider['status'] ?? '') === 'pending')
 
                                                 <a
-                                                    href="{{ route('logistics.riders.review', $index) }}"
+                                                    href="{{ route('logistics.riders.review', $rider['application_id'] ?? $index) }}"
                                                     class="inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#155244]"
                                                 >
                                                     Review
@@ -892,7 +892,7 @@
                                             @else
 
                                                 <a
-                                                    href="{{ route('logistics.riders.review', $index) }}"
+                                                    href="{{ route('logistics.riders.review', $rider['application_id'] ?? $index) }}"
                                                     class="inline-flex rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
                                                 >
                                                     View
