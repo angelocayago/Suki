@@ -39,6 +39,7 @@ class ProductCatalogService
     public function marketplaceProduct(string $slug): ?array
     {
         $product = $this->marketplaceQuery()
+            ->withSum($this->completedSalesRelation(), 'quantity')
             ->where('products.slug', $slug)
             ->first();
 
@@ -266,8 +267,8 @@ class ProductCatalogService
             'name' => $product->name,
             'slug' => $product->slug,
             'price' => ($variant?->price_minor ?? 0) / 100,
-            'old_price' => ($variant?->price_minor ?? 0) / 100,
-            'discount' => '0%',
+            'old_price' => null,
+            'discount' => null,
             'rating' => round((float) ($product->visible_reviews_avg_rating ?? 0), 1),
             'ratings' => $product->visible_reviews_count,
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),

@@ -326,14 +326,10 @@ class ProductController extends Controller
 
     public function home(ProductCatalogService $catalog)
     {
-        $products = $catalog->marketplaceProducts() ?: array_map(function (array $product) {
-            $product['rating'] = 0;
-            $product['ratings'] = 0;
-            $product['seller_rating'] = 'New';
-            return $product;
-        }, $this->products());
-
-        return view('buyer.home', compact('products'));
+        $products = $catalog->marketplaceProducts();
+        $bestSellers = collect($products)->filter(fn($product)=>$product['sold'] > 0)
+            ->sortBy([['sold','desc'],['id','desc']])->take(10)->values()->all();
+        return view('buyer.home', compact('products','bestSellers'));
     }
 
 

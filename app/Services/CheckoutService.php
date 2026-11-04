@@ -25,10 +25,26 @@ class CheckoutService
     public const SHIPPING_FEE_PER_SELLER_MINOR = 5000;
     public function cartSummary(User $buyer, array $voucherCodes = []): array
     {
-        $items = CartItem::query()
-            ->where('user_id', $buyer->id)
-            ->orderBy('id')
-            ->get()
+        return $this->selectionSummary($buyer, CartItem::where('user_id',$buyer->id)->orderBy('id')->get(), $voucherCodes);
+    }
+
+    public function directSummary(User $buyer, array $selection, array $voucherCodes = []): array
+    {
+        return $this->selectionSummary($buyer, collect([$this->directItem($buyer,$selection)]), $voucherCodes);
+    }
+
+    private function directItem(User $buyer, array $selection): CartItem
+    {
+        $variant = ProductVariant::with(['product.seller'])->find($selection['variant_id']);
+        if (! $variant?->product) throw ValidationException::withMessages(['buy_now'=>'This product option is no longer available. Return to the product to choose another.']);
+        $image = $variant->image_path;
+        if ($image && !Str::startsWith($image,['http://','https://']) && !Storage::disk('public')->exists($image)) $image = null;
+        return (new CartItem())->forceFill(['id'=>0,'user_id'=>$buyer->id,'product_variant_id'=>$variant->id,'product_slug'=>$variant->product->slug,'product_name'=>$variant->product->name,'quantity'=>$selection['quantity'],'image'=>$image ?? app(ProductCatalogService::class)->thumbnail($variant->product)]);
+    }
+
+    private function selectionSummary(User $buyer, Collection $selection, array $voucherCodes): array
+    {
+        $items = $selection
             ->mapWithKeys(function (CartItem $cartItem) {
                 $variant = $this->displayVariant($cartItem);
                 $product = $variant?->product;
@@ -39,7 +55,7 @@ class CheckoutService
                     && (int) $cartItem->quantity > 0
                     && (int) $cartItem->quantity <= (int) $variant->stock;
 
-                $image = $product?->images->first()?->path ?? $cartItem->image;
+                $image = ! $cartItem->exists && $cartItem->id === 0 ? $cartItem->image : ($product?->images->first()?->path ?? $cartItem->image);
                 if ($image && ! Str::startsWith($image, ['http://', 'https://'])) {
                     $image = Storage::disk('public')->url($image);
                 }
@@ -47,6 +63,7 @@ class CheckoutService
                 return [
                     $cartItem->id => [
                         'id' => $cartItem->id,
+                        'variant_id' => $variant?->id,
                         'slug' => $cartItem->product_slug,
                         'name' => $product?->name ?? $cartItem->product_name,
                         'price' => $variant ? $variant->price_minor / 100 : (float) $cartItem->price,
@@ -56,6 +73,7 @@ class CheckoutService
                         'variant' => $variant?->name,
                         'variation' => $variant?->options,
                         'seller_id' => $product?->seller_id,
+                        'seller_name' => $product?->seller?->name,
                         'stock' => (int) ($variant?->stock ?? 0),
                         'available' => (bool) $available,
                     ],
@@ -100,10 +118,13 @@ class CheckoutService
         User $buyer,
         array $address,
         string $paymentMethod,
-        array $voucherCodes = []
+        array $voucherCodes = [],
+        ?array $directSelection = null,
+        ?string $reference = null
     ): Order {
-        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes) {
-            $cartItems = CartItem::query()
+        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference) {
+            if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
+            $cartItems = $directSelection ? collect([$this->directItem($buyer,$directSelection)]) : CartItem::query()
                 ->where('user_id', $buyer->id)
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -118,6 +139,8 @@ class CheckoutService
             $lines = $cartItems->map(
                 fn (CartItem $cartItem) => $this->resolveLine($cartItem)
             );
+
+            if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
 
             foreach ($lines->groupBy(fn (array $line) => $line['variant']->id) as $variantLines) {
                 $variant = $variantLines->first()['variant'];
@@ -144,7 +167,7 @@ class CheckoutService
                 || $sellerDiscounts->sum() !== $discountMinor) {
                 throw ValidationException::withMessages(['voucher' => 'Discount allocations could not be reconciled.']);
             }
-            $orderNumber = $this->orderNumber();
+            $orderNumber = $reference ?? $this->orderNumber();
             $now = now();
 
             $order = Order::create([
@@ -233,7 +256,7 @@ class CheckoutService
                         'product_variant_id' => $variant->id,
                         'product_slug' => $product->slug,
                         'product_name' => $product->name,
-                        'image' => $product->images->first()?->path ?? $cartItem->image,
+                        'image' => $directSelection ? $cartItem->image : ($product->images->first()?->path ?? $cartItem->image),
                         'variation' => $variant->options,
                         'variant_name' => $variant->name,
                         'unit_price' => $this->decimal($variant->price_minor),
@@ -272,7 +295,7 @@ class CheckoutService
             }
             foreach ($redemptions as $redemption) $redemption['voucher']->increment('used_count');
 
-            CartItem::query()
+            if (! $directSelection) CartItem::query()
                 ->whereIn('id', $cartItems->pluck('id'))
                 ->delete();
 

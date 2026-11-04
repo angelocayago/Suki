@@ -60,69 +60,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $legacyProducts = [
-
-        [
-            'name' => 'Minimalist Shoulder Bag',
-            'slug' => 'shoulder-bag',
-            'price' => '399',
-            'old_price' => '599',
-            'discount' => '33%',
-            'sold' => '1.2k',
-            'rating' => '4.9',
-            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80'
-        ],
-
-        [
-            'name' => 'Wireless Headphones',
-            'slug' => 'wireless-headphones',
-            'price' => '899',
-            'old_price' => '1,299',
-            'discount' => '31%',
-            'sold' => '856',
-            'rating' => '4.8',
-            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80'
-        ],
-
-        [
-            'name' => 'Ceramic Home Set',
-            'slug' => 'ceramic-home-set',
-            'price' => '549',
-            'old_price' => '799',
-            'discount' => '31%',
-            'sold' => '642',
-            'rating' => '4.9',
-            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80'
-        ],
-
-        [
-            'name' => 'Everyday Sneakers',
-            'slug' => 'everyday-sneakers',
-            'price' => '799',
-            'old_price' => '1,099',
-            'discount' => '27%',
-            'sold' => '2.1k',
-            'rating' => '4.8',
-            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80'
-        ],
-
-        [
-            'name' => 'Skincare Essentials Set',
-            'slug' => 'skincare-essentials',
-            'price' => '459',
-            'old_price' => '699',
-            'discount' => '34%',
-            'sold' => '934',
-            'rating' => '4.9',
-            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=600&q=80'
-        ],
-
-    ];
-
-    $products = !empty($products)
-        ? array_values($products)
-        : $legacyProducts;
-
+    $products = array_values($products ?? []);
 @endphp
 
 
@@ -235,7 +173,7 @@
 
                     <img
                         src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=85"
-                        alt="SUKI SHOP Flash Deals"
+                        alt="SUKI SHOP product discovery"
                         class="absolute inset-0 h-full w-full object-cover"
                     >
 
@@ -253,7 +191,7 @@
                                 ></i>
 
                                 <span class="text-[10px] sm:text-xs font-bold tracking-wide">
-                                    FLASH DEALS
+                                    DISCOVER PRODUCTS
                                 </span>
 
                             </div>
@@ -261,7 +199,7 @@
 
                             <h2 class="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
 
-                                Deals You
+                                Products You
                                 <span class="text-[#FFF3D6]">
                                     Don't Want to Miss.
                                 </span>
@@ -271,15 +209,15 @@
 
                             <p class="mt-3 max-w-md text-xs sm:text-sm md:text-base leading-relaxed text-white/85">
 
-                                Grab selected products at special prices
-                                while stocks last.
+                                Explore products from approved shops
+                                and choose your preferred options.
 
                             </p>
 
 
                             <div class="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#1F6F5B]">
 
-                                View Deals
+                                Browse Products
 
                                 <i
                                     data-lucide="arrow-right"
@@ -925,157 +863,21 @@
 
 
 {{-- =========================================================
-   FLASH DEALS
+   DISCOVER PRODUCTS
 ========================================================= --}}
 
-<section
-    id="flash-deals"
-    class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14"
->
-
+<section id="featured-products" class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-14">
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-
-
-        {{-- HEADER --}}
-
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4">
-
-            <div class="flex items-center gap-3">
-
-                <div>
-
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[#F59E0B]">
-                        Limited Time
-                    </p>
-
-                    <h2 class="text-xl font-bold text-gray-900">
-                        Flash Deals
-                    </h2>
-
-                </div>
-
-
-                <div class="hidden items-center gap-2 sm:flex">
-
-                    <span class="text-xs text-gray-400">
-                        Ends soon
-                    </span>
-
-                    <span class="rounded-md bg-[#FFF3D6] px-2.5 py-1 text-xs font-semibold text-[#B76E00]">
-                        TODAY
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <a
-                href="{{ route('buyer.shop') }}"
-                class="inline-flex items-center gap-1 text-sm font-semibold text-[#1F6F5B]"
-            >
-
-                See All
-
-                <i
-                    data-lucide="arrow-right"
-                    class="h-4 w-4"
-                ></i>
-
-            </a>
-
-        </div>
-
-
-        {{-- PRODUCTS --}}
-
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4"><h2 class="text-xl font-bold">Featured Products</h2><a class="text-sm font-semibold text-[#1F6F5B]" href="{{ route('buyer.shop') }}">See All</a></div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-
-            @foreach($products as $product)
-
-                <a
-                    href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
-                    class="group border-b border-r border-gray-100 transition duration-200 hover:shadow-lg"
-                >
-
-                    <div class="relative aspect-square overflow-hidden bg-gray-100">
-
-                        <img
-                            src="{{ $product['image'] }}"
-                            alt="{{ $product['name'] }}"
-                            class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        >
-
-
-                        <span class="absolute left-3 top-3 rounded-md bg-[#F59E0B] px-2 py-1 text-[10px] font-bold text-white">
-
-                            -{{ $product['discount'] }}
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="p-3.5 sm:p-4">
-
-                        <h3 class="min-h-[40px] line-clamp-2 text-sm text-gray-800 group-hover:text-[#1F6F5B]">
-
-                            {{ $product['name'] }}
-
-                        </h3>
-
-
-                        <div class="mt-3">
-
-                            <p class="text-lg font-bold text-[#1F6F5B]">
-
-                                ₱{{ $product['price'] }}
-
-                            </p>
-
-
-                            <div class="mt-1 flex items-center gap-2">
-
-                                <span class="text-xs text-gray-400 line-through">
-
-                                    ₱{{ $product['old_price'] }}
-
-                                </span>
-
-                                <span class="text-[11px] text-gray-400">
-
-                                    {{ $product['sold'] }} sold
-
-                                </span>
-
-                            </div>
-
-
-                            <div class="mt-2 flex items-center gap-1">
-
-                                <i
-                                    data-lucide="star"
-                                    class="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B]"
-                                ></i>
-
-                                <span class="text-xs text-gray-500">
-                                    {{ $product['rating'] }}
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
+            @forelse($products as $product)
+                <a href="{{ route('buyer.product',$product['slug']) }}" class="border-b border-r border-gray-100">
+                    <img src="{{ $product['image'] }}" alt="{{ $product['name'] }}" class="aspect-square w-full object-cover">
+                    <div class="p-4"><h3 class="text-sm">{{ $product['name'] }}</h3><p class="mt-3 font-bold text-[#1F6F5B]">&#8369;{{ number_format($product['price'],2) }}</p><p class="text-xs text-gray-500">{{ $product['sold'] }} sold</p></div>
                 </a>
-
-            @endforeach
-
+            @empty<p class="p-6 text-sm text-gray-500">No products are available yet.</p>@endforelse
         </div>
-
     </div>
-
 </section>
 
 
@@ -1098,14 +900,14 @@
             </h2>
 
             <p class="mt-1 text-sm text-gray-500">
-                Popular products shoppers love.
+                Popular products ranked by non-cancelled orders.
             </p>
 
         </div>
 
 
         <a
-            href="{{ route('buyer.shop') }}"
+            href="{{ route('buyer.shop',['sort'=>'best_selling']) }}"
             class="hidden items-center gap-1 text-sm font-semibold text-[#1F6F5B] sm:inline-flex"
         >
 
@@ -1123,7 +925,7 @@
 
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
 
-        @foreach($products as $product)
+        @forelse($bestSellers as $product)
 
             <a
                 href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
@@ -1155,7 +957,7 @@
 
 
                     <p class="mt-2 text-lg font-bold text-[#1F6F5B]">
-                        ₱{{ $product['price'] }}
+                        ₱{{ number_format($product['price'],2) }}
                     </p>
 
 
@@ -1180,7 +982,7 @@
 
             </a>
 
-        @endforeach
+        @empty<p class="p-6 text-sm text-gray-500">No ordered products to rank yet.</p>@endforelse
 
     </div>
 
@@ -1260,7 +1062,7 @@
                         </h3>
 
                         <p class="mt-2 text-base font-bold text-[#1F6F5B]">
-                            ₱{{ $product['price'] }}
+                            ₱{{ number_format($product['price'],2) }}
                         </p>
 
                         <p class="mt-1 text-xs text-gray-400">

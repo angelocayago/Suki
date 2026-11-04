@@ -267,7 +267,7 @@
                     <div class="flex items-center gap-3 flex-wrap">
 
                         <span id="variantPrice" class="text-3xl font-bold text-[#1F6F5B]">
-                            ₱{{ $product['price'] }}
+                            ₱{{ number_format($product['price'],2) }}
                         </span>
 
                         {{-- No canonical per-variant comparison price or sale discount exists. --}}
@@ -426,8 +426,9 @@
 
                         {{-- BUY NOW --}}
                         <button
-                            type="button"
-                            onclick="buyNow()"
+                            type="submit"
+                            id="buyNowButton"
+                            formaction="{{ route('buyer.buy-now',$slug) }}"
                             class="h-12 rounded-lg
                                    bg-[#1F6F5B] text-white
                                    font-semibold
@@ -747,6 +748,8 @@
         document.getElementById('selectedVariant').value = variant?.id || '';
         const submit = document.querySelector('#addToCartForm button[type="submit"]');
         if (submit) submit.disabled = !variant || variant.stock < 1;
+        const buyButton=document.getElementById('buyNowButton');
+        if(buyButton)buyButton.disabled = !variant || variant.stock < 1;
         maxStock = variant?.stock || 0;
         quantity = Math.max(1, Math.min(quantity, maxStock));
         document.getElementById('quantity').textContent = quantity;
@@ -872,14 +875,7 @@
     // BUY NOW
     // ==========================================
 
-    function buyNow() {
 
-        alert(
-            "Proceeding to checkout for {{ $product['name'] }} x" +
-            quantity
-        );
-
-    }
 
 </script>
 

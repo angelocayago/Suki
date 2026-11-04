@@ -523,7 +523,7 @@
 
 
             <a
-                href="{{ route('buyer.shop') }}?sort=best-selling"
+                href="{{ route('buyer.shop') }}?sort=best_selling"
                 class="whitespace-nowrap
                        text-[#6E7D76]
                        transition

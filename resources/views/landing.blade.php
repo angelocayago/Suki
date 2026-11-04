@@ -812,7 +812,7 @@
                 <a href="#categories">All Categories</a>
                 <a href="{{ route('buyer.shop') }}">Deals</a>
                 <a href="{{ route('buyer.shop') }}">New Arrivals</a>
-                <a href="{{ route('buyer.shop') }}">Best Sellers</a>
+                <a href="{{ route('buyer.shop',['sort'=>'best_selling']) }}">Best Sellers</a>
             </div>
 
             <div>

@@ -3,96 +3,13 @@
 @section('content')
 
 @php
-    $legacyProducts = [
-        [
-            'name' => 'Minimalist Shoulder Bag',
-            'slug' => 'shoulder-bag',
-            'price' => '399',
-            'old_price' => '599',
-            'rating' => '4.9',
-            'sold' => '1.2k',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Wireless Headphones',
-            'slug' => 'wireless-headphones',
-            'price' => '899',
-            'old_price' => '1,299',
-            'rating' => '4.8',
-            'sold' => '856',
-            'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Ceramic Home Set',
-            'slug' => 'ceramic-home-set',
-            'price' => '549',
-            'old_price' => '799',
-            'rating' => '4.7',
-            'sold' => '642',
-            'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Everyday Sneakers',
-            'slug' => 'everyday-sneakers',
-            'price' => '799',
-            'old_price' => '1,099',
-            'rating' => '4.9',
-            'sold' => '2.1k',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Skincare Essentials Set',
-            'slug' => 'skincare-essentials',
-            'price' => '459',
-            'old_price' => '699',
-            'rating' => '4.8',
-            'sold' => '934',
-            'category' => 'Beauty',
-            'image' => 'https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Classic Analog Watch',
-            'slug' => 'analog-watch',
-            'price' => '699',
-            'old_price' => '999',
-            'rating' => '4.8',
-            'sold' => '721',
-            'category' => 'Fashion',
-            'image' => 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Portable Bluetooth Speaker',
-            'slug' => 'bluetooth-speaker',
-            'price' => '649',
-            'old_price' => '899',
-            'rating' => '4.7',
-            'sold' => '534',
-            'category' => 'Electronics',
-            'image' => 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80',
-        ],
-        [
-            'name' => 'Modern Table Lamp',
-            'slug' => 'table-lamp',
-            'price' => '499',
-            'old_price' => '799',
-            'rating' => '4.6',
-            'sold' => '438',
-            'category' => 'Home',
-            'image' => 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=700&q=80',
-        ],
-    ];
-
     $catalogPaginator = $products instanceof \Illuminate\Contracts\Pagination\Paginator
         ? $products
         : null;
 
     $products = $catalogPaginator
         ? $catalogPaginator->items()
-        : (!empty($products) ? array_values($products) : $legacyProducts);
+        : array_values($products ?? []);
 
     $categories = [
         'All Products',
@@ -645,11 +562,7 @@
                             <div class="flex items-center gap-2 mt-3">
 
                                 <span class="text-lg font-bold text-[#1F6F5B]">
-                                    ₱{{ $product['price'] }}
-                                </span>
-
-                                <span class="text-xs text-gray-400 line-through">
-                                    ₱{{ $product['old_price'] }}
+                                    ₱{{ number_format($product['price'],2) }}
                                 </span>
 
                             </div>

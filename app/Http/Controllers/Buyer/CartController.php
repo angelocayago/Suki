@@ -56,13 +56,14 @@ class CartController extends Controller
     public function applyVoucher(Request $request, CheckoutService $checkout): RedirectResponse
     {
         $code = strtoupper(trim((string) $request->validate(['voucher_code'=>['required','string','max:64']])['voucher_code']));
-        $codes = $request->session()->get('checkout_voucher_codes', []);
+        $direct=app(\App\Support\DirectCheckout::class);$token=$direct->token($request);
+        $codes = $direct->codes($request,$token);
         $codes = array_values(array_unique([...$codes, $code]));
-        $summary = $checkout->cartSummary($request->user(), $codes);
+        $summary = $token ? $checkout->directSummary($request->user(),$direct->selection($request,$token),$codes) : $checkout->cartSummary($request->user(), $codes);
         if ($summary['voucher_error']) {
             return back()->withErrors(['voucher_code' => $summary['voucher_error']])->withInput();
         }
-        $request->session()->put('checkout_voucher_codes', $codes);
+        $direct->putCodes($request,$token,$codes);
         $addsDiscount = collect($summary['applied_vouchers'])->contains('code', $code);
         return back()->with('success', $addsDiscount
             ? 'Voucher applied. It will be revalidated when you place the order.'
@@ -71,7 +72,8 @@ class CartController extends Controller
 
     public function removeVoucher(Request $request, string $code): RedirectResponse
     {
-        $request->session()->put('checkout_voucher_codes', array_values(array_filter($request->session()->get('checkout_voucher_codes', []), fn($item) => $item !== strtoupper($code))));
+        $direct=app(\App\Support\DirectCheckout::class);$token=$direct->token($request);
+        $direct->putCodes($request,$token,array_values(array_filter($direct->codes($request,$token),fn($item)=>$item !== strtoupper($code))));
         return back()->with('success', 'Voucher removed.');
     }
 }

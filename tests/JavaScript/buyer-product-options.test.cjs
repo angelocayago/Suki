@@ -10,7 +10,7 @@ function node() {
         addEventListener(type,fn){this.handlers[type]=fn;},getAttribute(name){return this[name];},setAttribute(name,value){this[name]=value;},scrollIntoView(){},pause(){this.paused=true;},load(){this.loaded=true;}};
 }
 function page(variants,controls=[],choice=null,mediaByColor={},media=[]) {
-    const ids=Object.fromEntries(['selectedVariant','quantity','quantityInput','variantStock','variantAvailability','variantPrice','mainProductImage','mainProductVideo','productMediaPrevious','productMediaNext'].map(id=>[id,node()]));
+    const ids=Object.fromEntries(['buyNowButton','selectedVariant','quantity','quantityInput','variantStock','variantAvailability','variantPrice','mainProductImage','mainProductVideo','productMediaPrevious','productMediaNext'].map(id=>[id,node()]));
     ids.productVariantChoice=choice;const submit={};
     const sandbox={document:{getElementById:id=>ids[id]??null,querySelector:()=>submit,querySelectorAll:selector=>selector==='[data-product-option]'?controls:selector==='[data-product-media]'?media:[]},alert(){}};
     vm.runInNewContext(source.replace(/const purchasableVariants = .*?;/,`const purchasableVariants = ${JSON.stringify(variants)};`).replace(/const defaultProductImage = .*?;/,`const defaultProductImage = 'default.png';`),sandbox);
@@ -24,10 +24,10 @@ test('arbitrary option selections resolve the exact variant ID price stock and q
     for(let i=0;i<6;i++)sandbox.increaseQuantity();
     controls[0].value='Vanilla';controls[1].value='Pack of 6';sandbox.resolveVariant();
     assert.equal(ids.selectedVariant.value,22);assert.equal(ids.variantPrice.textContent,'₱190.00');
-    assert.equal(ids.quantityInput.value,2);assert.equal(submit.disabled,false);
+    assert.equal(ids.quantityInput.value,2);assert.equal(submit.disabled,false);assert.equal(ids.buyNowButton.disabled,false);
     sandbox.increaseQuantity();assert.equal(ids.quantityInput.value,2);
     controls[0].value='Unknown';sandbox.resolveVariant();
-    assert.equal(ids.selectedVariant.value,'');assert.equal(submit.disabled,true);
+    assert.equal(ids.selectedVariant.value,'');assert.equal(submit.disabled,true);assert.equal(ids.buyNowButton.disabled,true);
     assert.match(ids.variantAvailability.textContent,/unavailable/);
 });
 test('video carousel and color media follow exact custom variants without duplicate state',()=>{
