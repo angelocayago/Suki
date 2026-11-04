@@ -6,17 +6,18 @@ class RiderEarningsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Rider Earnings", style: RiderStyle.appTitle),
+        title: Text("Rider Earnings", style: RiderStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -41,19 +42,19 @@ class RiderEarningsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    const Text(
+                    Text(
                       "Total Earnings Today",
 
                       style: RiderStyle.normalText,
                     ),
 
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
 
-                    const Text("₱850.00", style: RiderStyle.amount),
+                    Text("₱850.00", style: RiderStyle.amount),
 
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
 
-                    const Text(
+                    Text(
                       "12 completed deliveries",
 
                       style: RiderStyle.normalText,
@@ -62,20 +63,20 @@ class RiderEarningsPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // SUMMARY
               // =========================
-              const Text("Income Summary", style: RiderStyle.sectionTitle),
+              Text("Income Summary", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Row(
                 children: [
                   _earningCard("₱850", "Today", Icons.today_outlined),
 
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
 
                   _earningCard(
                     "₱5,600",
@@ -87,7 +88,7 @@ class RiderEarningsPage extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               Row(
                 children: [
@@ -99,7 +100,7 @@ class RiderEarningsPage extends StatelessWidget {
                     Icons.calendar_month_outlined,
                   ),
 
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
 
                   _earningCard(
                     "125",
@@ -111,14 +112,14 @@ class RiderEarningsPage extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // DELIVERY HISTORY
               // =========================
-              const Text("Recent Deliveries", style: RiderStyle.sectionTitle),
+              Text("Recent Deliveries", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _deliveryHistory(
                 "MS-10021",
@@ -134,14 +135,14 @@ class RiderEarningsPage extends StatelessWidget {
 
               _deliveryHistory("MS-10019", "Pedro Reyes", "₱200", "Completed"),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // PAYOUT
               // =========================
-              const Text("Withdrawal", style: RiderStyle.sectionTitle),
+              Text("Withdrawal", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(16),
@@ -152,17 +153,17 @@ class RiderEarningsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    const Text(
+                    Text(
                       "Available Balance",
 
                       style: RiderStyle.normalText,
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text("₱8,450.00", style: RiderStyle.amount),
+                    Text("₱8,450.00", style: RiderStyle.amount),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: 15),
 
                     SizedBox(
                       width: double.infinity,
@@ -174,13 +175,13 @@ class RiderEarningsPage extends StatelessWidget {
 
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text("Payout request submitted."),
                             ),
                           );
                         },
 
-                        child: const Text("REQUEST PAYOUT"),
+                        child: Text("REQUEST PAYOUT"),
                       ),
                     ),
                   ],
@@ -208,12 +209,12 @@ class RiderEarningsPage extends StatelessWidget {
           children: [
             Icon(icon, size: 22, color: RiderStyle.primary),
 
-            const Spacer(),
+            Spacer(),
 
             Text(
               value,
 
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
 
                 fontWeight: FontWeight.w800,
@@ -255,7 +256,7 @@ class RiderEarningsPage extends StatelessWidget {
             children: [
               Text(order, style: RiderStyle.cardTitle),
 
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
 
               Text(customer, style: RiderStyle.normalText),
             ],
@@ -268,7 +269,7 @@ class RiderEarningsPage extends StatelessWidget {
               Text(
                 amount,
 
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
 
                   fontWeight: FontWeight.w800,
@@ -280,7 +281,7 @@ class RiderEarningsPage extends StatelessWidget {
               Text(
                 status,
 
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
 
                   color: RiderStyle.success,

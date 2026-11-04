@@ -1,84 +1,86 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class LoginStyle {
   // =========================================================
   // COLORS
   // =========================================================
 
-  static const Color primary = Color(0xFF167561);
-  static const Color primaryDark = Color(0xFF064E43);
+  static const Color primary = AppTheme.forestGreen;
+  static Color get primaryDark =>
+      AppTheme.isDark ? AppTheme.accentGreen : AppTheme.forestGreenDark;
 
-  static const Color leftBackground = Color(0xFFF0FAF6);
-  static const Color rightBackground = Colors.white;
+  static Color get leftBackground => AppTheme.softGreen;
+  static Color get rightBackground => AppTheme.surface;
 
-  static const Color titleColor = Color(0xFF08142B);
-  static const Color textColor = Color(0xFF596579);
-  static const Color mutedText = Color(0xFF8D99AC);
+  static Color get titleColor => AppTheme.text;
+  static Color get textColor => AppTheme.mutedText;
+  static Color get mutedText => AppTheme.mutedText;
 
-  static const Color borderColor = Color(0xFFD7DEE5);
-  static const Color iconColor = Color(0xFFA4AFBF);
+  static Color get borderColor => AppTheme.border;
+  static Color get iconColor => AppTheme.mutedText;
 
-  static const Color lightGreenBorder = Color(0xFFD5ECE5);
-  static const Color lightGreenBackground = Color(0xFFFAFFFD);
+  static Color get lightGreenBorder => AppTheme.border;
+  static Color get lightGreenBackground => AppTheme.surface;
 
   // =========================================================
   // TEXT STYLES
   // =========================================================
 
-  static const TextStyle welcomeText = TextStyle(
+  static TextStyle get welcomeText => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w700,
-    color: primary,
+    color: AppTheme.brandText,
     letterSpacing: 0.5,
   );
 
-  static const TextStyle loginTitle = TextStyle(
+  static TextStyle get loginTitle => TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.w800,
     color: titleColor,
     height: 1.2,
   );
 
-  static const TextStyle subtitle = TextStyle(
+  static TextStyle get subtitle => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: textColor,
     height: 1.4,
   );
 
-  static const TextStyle label = TextStyle(
+  static TextStyle get label => TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w600,
     color: titleColor,
   );
 
-  static const TextStyle hint = TextStyle(
+  static TextStyle get hint => TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w400,
     color: mutedText,
   );
 
-  static const TextStyle forgotPassword = TextStyle(
+  static TextStyle get forgotPassword => TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w600,
-    color: primary,
+    color: AppTheme.brandText,
   );
 
-  static const TextStyle buttonText = TextStyle(
+  static TextStyle get buttonText => TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w700,
     color: Colors.white,
     letterSpacing: 0.2,
   );
 
-  static const TextStyle heroTitle = TextStyle(
+  static TextStyle get heroTitle => TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.w800,
     color: primaryDark,
     height: 1.2,
   );
 
-  static const TextStyle heroDescription = TextStyle(
+  static TextStyle get heroDescription => TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w400,
     color: textColor,
@@ -103,7 +105,7 @@ class LoginStyle {
       suffixIcon: suffixIcon,
 
       filled: true,
-      fillColor: Colors.white,
+      fillColor: rightBackground,
 
       isDense: true,
 
@@ -111,12 +113,12 @@ class LoginStyle {
 
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: borderColor, width: 1),
+        borderSide: BorderSide(color: borderColor, width: 1),
       ),
 
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: primary, width: 1.4),
+        borderSide: BorderSide(color: AppTheme.brandText, width: 1.4),
       ),
 
       errorBorder: OutlineInputBorder(
@@ -156,11 +158,11 @@ class LoginStyle {
 
   static BoxDecoration get logoBox {
     return BoxDecoration(
-      color: Colors.white,
+      color: rightBackground,
 
       borderRadius: BorderRadius.circular(24),
 
-      border: Border.all(color: const Color(0xFFE1E9E5), width: 1),
+      border: Border.all(color: borderColor, width: 1),
 
       boxShadow: [
         BoxShadow(
@@ -193,11 +195,11 @@ class LoginStyle {
 
   static BoxDecoration get smallBadge {
     return BoxDecoration(
-      color: Colors.white,
+      color: rightBackground,
 
       borderRadius: BorderRadius.circular(25),
 
-      border: Border.all(color: const Color(0xFFDDE8E4), width: 1),
+      border: Border.all(color: borderColor, width: 1),
     );
   }
 }

@@ -58,15 +58,16 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
-        title: const Text("My Deliveries", style: RiderStyle.appTitle),
+        title: Text("My Deliveries", style: RiderStyle.appTitle),
 
         centerTitle: true,
       ),
@@ -106,7 +107,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     ],
                   ),
 
-                  const SizedBox(height: 15),
+                  SizedBox(height: 15),
 
                   _deliveryInfo(
                     Icons.person_outline,
@@ -116,7 +117,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     delivery["customer"]!,
                   ),
 
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
 
                   _deliveryInfo(
                     Icons.store_outlined,
@@ -126,7 +127,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     delivery["pickup"]!,
                   ),
 
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
 
                   _deliveryInfo(
                     Icons.location_on_outlined,
@@ -136,7 +137,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     delivery["destination"]!,
                   ),
 
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
 
                   _deliveryInfo(
                     Icons.payments_outlined,
@@ -146,7 +147,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                     delivery["payment"]!,
                   ),
 
-                  const SizedBox(height: 18),
+                  SizedBox(height: 18),
 
                   // BUTTONS
                   if (delivery["status"] == "Available")
@@ -157,7 +158,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: RiderStyle.danger,
 
-                              side: const BorderSide(color: RiderStyle.danger),
+                              side: BorderSide(color: RiderStyle.danger),
 
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -168,11 +169,11 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                               rejectDelivery(index);
                             },
 
-                            child: const Text("Reject"),
+                            child: Text("Reject"),
                           ),
                         ),
 
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
 
                         Expanded(
                           child: ElevatedButton(
@@ -182,7 +183,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                               acceptDelivery(index);
                             },
 
-                            child: const Text("Accept"),
+                            child: Text("Accept"),
                           ),
                         ),
                       ],
@@ -206,7 +207,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
                           );
                         },
 
-                        child: const Text("View Parcel"),
+                        child: Text("View Parcel"),
                       ),
                     ),
                 ],
@@ -225,7 +226,7 @@ class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
       children: [
         Icon(icon, size: 18, color: RiderStyle.primary),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Expanded(
           child: Column(

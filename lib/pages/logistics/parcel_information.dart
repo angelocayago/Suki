@@ -22,23 +22,24 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Rider assigned successfully.")),
+      SnackBar(content: Text("Rider assigned successfully.")),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: LogisticsStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Parcel Information", style: LogisticsStyle.appTitle),
+        title: Text("Parcel Information", style: LogisticsStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -63,15 +64,15 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    const Text(
+                    Text(
                       "Tracking Number",
 
                       style: LogisticsStyle.normalText,
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text(
+                    Text(
                       "MS-10021",
 
                       style: TextStyle(
@@ -83,7 +84,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -93,12 +94,12 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                       ),
 
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFFAF5),
+                        color: LogisticsStyle.successBackground,
 
                         borderRadius: BorderRadius.circular(20),
                       ),
 
-                      child: const Text(
+                      child: Text(
                         "Arrived at Logistics",
 
                         style: TextStyle(
@@ -114,18 +115,18 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // CUSTOMER DETAILS
               // =========================
-              const Text(
+              Text(
                 "Customer Information",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _informationCard([
                 _infoRow(Icons.person_outline, "Customer", "Juan Dela Cruz"),
@@ -141,18 +142,18 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                 ),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // PARCEL DETAILS
               // =========================
-              const Text(
+              Text(
                 "Shipment Details",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _informationCard([
                 _infoRow(
@@ -176,18 +177,18 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                 _infoRow(Icons.money_outlined, "Amount", "₱850.00"),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // RIDER ASSIGNMENT
               // =========================
-              const Text(
+              Text(
                 "Rider Assignment",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(15),
@@ -200,13 +201,13 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.delivery_dining,
 
                           color: LogisticsStyle.primary,
                         ),
 
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
 
                         Expanded(
                           child: Text(
@@ -218,7 +219,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: 15),
 
                     SizedBox(
                       width: double.infinity,
@@ -239,18 +240,18 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // SHIPMENT TIMELINE
               // =========================
-              const Text(
+              Text(
                 "Shipment History",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(15),
@@ -272,7 +273,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               SizedBox(
                 width: double.infinity,
@@ -286,7 +287,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
                     Navigator.pushNamed(context, '/shipment-management');
                   },
 
-                  child: const Text("MANAGE SHIPMENT"),
+                  child: Text("MANAGE SHIPMENT"),
                 ),
               ),
             ],
@@ -316,7 +317,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
         children: [
           Icon(icon, size: 18, color: LogisticsStyle.primary),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Expanded(
             child: Column(
@@ -346,7 +347,7 @@ class _ParcelInformationPageState extends State<ParcelInformationPage> {
             color: completed ? LogisticsStyle.success : LogisticsStyle.textGray,
           ),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Text(
             title,

@@ -21,14 +21,14 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Delivery completed successfully.")),
+      SnackBar(content: Text("Delivery completed successfully.")),
     );
   }
 
   void openNavigation() {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("Opening navigation...")));
+    ).showSnackBar(SnackBar(content: Text("Opening navigation...")));
 
     // Future:
     // Google Maps integration here
@@ -36,17 +36,18 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Delivery Details", style: RiderStyle.appTitle),
+        title: Text("Delivery Details", style: RiderStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -75,13 +76,13 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
 
                       children: [
-                        const Text(
+                        Text(
                           "Delivery Status",
 
                           style: RiderStyle.normalText,
                         ),
 
-                        const SizedBox(height: 5),
+                        SizedBox(height: 5),
 
                         Text(
                           deliveryStatus,
@@ -110,14 +111,14 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // ROUTE INFORMATION
               // =========================
-              const Text("Delivery Route", style: RiderStyle.sectionTitle),
+              Text("Delivery Route", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(15),
@@ -134,11 +135,11 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                       "Mobile Suki Warehouse",
                     ),
 
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
 
-                    const Divider(),
+                    Divider(),
 
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
 
                     _locationItem(
                       Icons.location_on_outlined,
@@ -151,18 +152,18 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // CUSTOMER INFORMATION
               // =========================
-              const Text(
+              Text(
                 "Customer Information",
 
                 style: RiderStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(15),
@@ -179,11 +180,11 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                       "Juan Dela Cruz",
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     _infoRow(Icons.phone_outlined, "Contact", "0912-345-6789"),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     _infoRow(
                       Icons.payments_outlined,
@@ -196,14 +197,14 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // MAP PLACEHOLDER
               // =========================
-              const Text("Navigation", style: RiderStyle.sectionTitle),
+              Text("Navigation", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 height: 160,
@@ -211,31 +212,35 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                 width: double.infinity,
 
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: RiderStyle.border,
 
                   borderRadius: BorderRadius.circular(15),
                 ),
 
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
 
                     children: [
-                      Icon(Icons.map_outlined, size: 45, color: Colors.grey),
+                      Icon(
+                        Icons.map_outlined,
+                        size: 45,
+                        color: RiderStyle.textGray,
+                      ),
 
                       SizedBox(height: 8),
 
                       Text(
                         "Map Navigation",
 
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: RiderStyle.textGray),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               SizedBox(
                 width: double.infinity,
@@ -247,7 +252,7 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
 
                   onPressed: openNavigation,
 
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
 
                     children: [
@@ -261,18 +266,18 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // DELIVERY PROOF
               // =========================
-              const Text(
+              Text(
                 "Delivery Confirmation",
 
                 style: RiderStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(15),
@@ -281,7 +286,7 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
 
                 child: Column(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.camera_alt_outlined,
 
                       size: 45,
@@ -289,32 +294,32 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
                       color: RiderStyle.primary,
                     ),
 
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
 
-                    const Text(
+                    Text(
                       "Upload proof of delivery",
 
                       style: RiderStyle.cardTitle,
                     ),
 
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
 
                     OutlinedButton(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text("Camera will open here."),
                           ),
                         );
                       },
 
-                      child: const Text("TAKE PHOTO"),
+                      child: Text("TAKE PHOTO"),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // COMPLETE DELIVERY
@@ -346,7 +351,7 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
       children: [
         Icon(icon, color: RiderStyle.primary, size: 22),
 
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
 
         Expanded(
           child: Column(
@@ -368,7 +373,7 @@ class _DeliveryDetailsPageState extends State<DeliveryDetailsPage> {
       children: [
         Icon(icon, size: 18, color: RiderStyle.primary),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Expanded(
           child: Column(

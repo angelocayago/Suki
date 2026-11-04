@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../../styles/logistics_style.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class LogisticsProfilePage extends StatelessWidget {
   const LogisticsProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: LogisticsStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Logistics Profile", style: LogisticsStyle.appTitle),
+        title: Text("Logistics Profile", style: LogisticsStyle.appTitle),
+        actions: const [ThemeToggleButton()],
       ),
 
       body: SafeArea(
@@ -39,7 +42,7 @@ class LogisticsProfilePage extends StatelessWidget {
 
                       backgroundColor: LogisticsStyle.primary,
 
-                      child: const Icon(
+                      child: Icon(
                         Icons.business,
 
                         size: 45,
@@ -48,9 +51,9 @@ class LogisticsProfilePage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
-                    const Text(
+                    Text(
                       "Mobile Suki Logistics",
 
                       style: TextStyle(
@@ -62,9 +65,9 @@ class LogisticsProfilePage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text(
+                    Text(
                       "Logistics Staff ID: LOG-0001",
 
                       style: LogisticsStyle.normalText,
@@ -73,18 +76,18 @@ class LogisticsProfilePage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // STAFF INFORMATION
               // =========================
-              const Text(
+              Text(
                 "Staff Information",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _profileCard([
                 _infoRow(Icons.person_outline, "Staff Name", "Admin User"),
@@ -94,18 +97,18 @@ class LogisticsProfilePage extends StatelessWidget {
                 _infoRow(Icons.phone_outlined, "Contact", "0912-345-6789"),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // WAREHOUSE INFORMATION
               // =========================
-              const Text(
+              Text(
                 "Warehouse Information",
 
                 style: LogisticsStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _profileCard([
                 _infoRow(
@@ -127,14 +130,14 @@ class LogisticsProfilePage extends StatelessWidget {
                 ),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // ACCOUNT STATUS
               // =========================
-              const Text("Account Status", style: LogisticsStyle.sectionTitle),
+              Text("Account Status", style: LogisticsStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _statusCard("Account Verification", "Verified", true),
 
@@ -142,14 +145,14 @@ class LogisticsProfilePage extends StatelessWidget {
 
               _statusCard("System Permission", "Administrator", true),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // SETTINGS
               // =========================
-              const Text("Settings", style: LogisticsStyle.sectionTitle),
+              Text("Settings", style: LogisticsStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _settingsTile(
                 Icons.notifications_outlined,
@@ -163,7 +166,7 @@ class LogisticsProfilePage extends StatelessWidget {
 
               _settingsTile(Icons.help_outline, "Help Center", () {}),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // LOGOUT
@@ -177,7 +180,7 @@ class LogisticsProfilePage extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: LogisticsStyle.danger,
 
-                    side: const BorderSide(color: LogisticsStyle.danger),
+                    side: BorderSide(color: LogisticsStyle.danger),
 
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -188,7 +191,7 @@ class LogisticsProfilePage extends StatelessWidget {
                     Navigator.pushReplacementNamed(context, '/login');
                   },
 
-                  child: const Text("LOGOUT"),
+                  child: Text("LOGOUT"),
                 ),
               ),
             ],
@@ -218,7 +221,7 @@ class LogisticsProfilePage extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: LogisticsStyle.primary),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Expanded(
             child: Column(
@@ -262,7 +265,7 @@ class LogisticsProfilePage extends StatelessWidget {
                     : LogisticsStyle.warning,
               ),
 
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
 
               Text(
                 status,
@@ -297,7 +300,7 @@ class LogisticsProfilePage extends StatelessWidget {
 
         title: Text(title, style: LogisticsStyle.cardTitle),
 
-        trailing: const Icon(Icons.arrow_forward_ios, size: 15),
+        trailing: Icon(Icons.arrow_forward_ios, size: 15),
       ),
     );
   }

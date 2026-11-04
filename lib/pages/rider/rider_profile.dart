@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../styles/rider_style.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class RiderProfilePage extends StatelessWidget {
   const RiderProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Rider Profile", style: RiderStyle.appTitle),
+        title: Text("Rider Profile", style: RiderStyle.appTitle),
+        actions: const [ThemeToggleButton()],
       ),
 
       body: SafeArea(
@@ -38,7 +41,7 @@ class RiderProfilePage extends StatelessWidget {
 
                       backgroundColor: RiderStyle.primary,
 
-                      child: const Icon(
+                      child: Icon(
                         Icons.person,
 
                         size: 50,
@@ -47,9 +50,9 @@ class RiderProfilePage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
-                    const Text(
+                    Text(
                       "Juan Dela Cruz",
 
                       style: TextStyle(
@@ -61,9 +64,9 @@ class RiderProfilePage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text(
+                    Text(
                       "Rider ID: RDR-0001",
 
                       style: RiderStyle.normalText,
@@ -72,18 +75,18 @@ class RiderProfilePage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // PERSONAL INFORMATION
               // =========================
-              const Text(
+              Text(
                 "Personal Information",
 
                 style: RiderStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _profileCard([
                 _info(Icons.phone_outlined, "Phone Number", "0912-345-6789"),
@@ -99,14 +102,14 @@ class RiderProfilePage extends StatelessWidget {
                 ),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // VEHICLE INFORMATION
               // =========================
-              const Text("Vehicle Information", style: RiderStyle.sectionTitle),
+              Text("Vehicle Information", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _profileCard([
                 _info(Icons.motorcycle_outlined, "Vehicle Type", "Motorcycle"),
@@ -122,18 +125,18 @@ class RiderProfilePage extends StatelessWidget {
                 _info(Icons.badge_outlined, "License Status", "Verified"),
               ]),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // VERIFICATION
               // =========================
-              const Text(
+              Text(
                 "Account Verification",
 
                 style: RiderStyle.sectionTitle,
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _verificationTile("Driver License", "Approved", true),
 
@@ -141,14 +144,14 @@ class RiderProfilePage extends StatelessWidget {
 
               _verificationTile("Rider Documents", "Pending Review", false),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // SETTINGS
               // =========================
-              const Text("Settings", style: RiderStyle.sectionTitle),
+              Text("Settings", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _settingsButton(
                 Icons.notifications_outlined,
@@ -160,9 +163,13 @@ class RiderProfilePage extends StatelessWidget {
 
               _settingsButton(Icons.lock_outline, "Change Password", () {}),
 
-              _settingsButton(Icons.help_outline, "Help Center", () {}),
+              _settingsButton(
+                Icons.help_outline,
+                "Help Center",
+                () => Navigator.pushNamed(context, '/buyer/help'),
+              ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // LOGOUT
@@ -176,7 +183,7 @@ class RiderProfilePage extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: RiderStyle.danger,
 
-                    side: const BorderSide(color: RiderStyle.danger),
+                    side: BorderSide(color: RiderStyle.danger),
 
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -187,7 +194,7 @@ class RiderProfilePage extends StatelessWidget {
                     Navigator.pushReplacementNamed(context, '/login');
                   },
 
-                  child: const Text("LOGOUT"),
+                  child: Text("LOGOUT"),
                 ),
               ),
             ],
@@ -217,7 +224,7 @@ class RiderProfilePage extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: RiderStyle.primary),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Expanded(
             child: Column(
@@ -259,7 +266,7 @@ class RiderProfilePage extends StatelessWidget {
                 color: approved ? RiderStyle.success : RiderStyle.warning,
               ),
 
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
 
               Text(
                 status,
@@ -292,7 +299,7 @@ class RiderProfilePage extends StatelessWidget {
 
         title: Text(title, style: RiderStyle.cardTitle),
 
-        trailing: const Icon(Icons.arrow_forward_ios, size: 15),
+        trailing: Icon(Icons.arrow_forward_ios, size: 15),
       ),
     );
   }

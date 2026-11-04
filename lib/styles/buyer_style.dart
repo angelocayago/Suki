@@ -1,52 +1,54 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class BuyerStyle {
   // =========================
   // COLORS
   // =========================
 
-  static const Color primary = Color(0xFF167561);
+  static const Color primary = AppTheme.forestGreen;
 
-  static const Color primaryDark = Color(0xFF064E43);
+  static Color get primaryDark =>
+      AppTheme.isDark ? AppTheme.accentGreen : AppTheme.forestGreenDark;
 
-  static const Color background = Color(0xFFF8FAF9);
+  static Color get background => AppTheme.background;
 
-  static const Color textDark = Color(0xFF08142B);
+  static Color get textDark => AppTheme.text;
 
-  static const Color textGray = Color(0xFF64748B);
+  static Color get textGray => AppTheme.mutedText;
 
-  static const Color border = Color(0xFFE2E8F0);
+  static Color get border => AppTheme.border;
 
-  static const Color card = Colors.white;
+  static Color get card => AppTheme.surface;
 
   // =========================
   // TEXT STYLE
   // =========================
 
-  static const TextStyle appTitle = TextStyle(
+  static TextStyle get appTitle => TextStyle(
     fontSize: 20,
     fontWeight: FontWeight.w800,
     color: primaryDark,
   );
 
-  static const TextStyle greeting = TextStyle(fontSize: 13, color: textGray);
+  static TextStyle get greeting => TextStyle(fontSize: 13, color: textGray);
 
-  static const TextStyle sectionTitle = TextStyle(
+  static TextStyle get sectionTitle => TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w700,
     color: textDark,
   );
 
-  static const TextStyle productName = TextStyle(
+  static TextStyle get productName => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     color: textDark,
   );
 
-  static const TextStyle price = TextStyle(
+  static TextStyle get price => TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w800,
-    color: primary,
+    color: AppTheme.brandText,
   );
 
   // =========================
@@ -57,13 +59,13 @@ class BuyerStyle {
     return InputDecoration(
       hintText: "Search products...",
 
-      hintStyle: const TextStyle(fontSize: 12, color: textGray),
+      hintStyle: TextStyle(fontSize: 12, color: textGray),
 
-      prefixIcon: const Icon(Icons.search, color: textGray, size: 20),
+      prefixIcon: Icon(Icons.search, color: textGray, size: 20),
 
       filled: true,
 
-      fillColor: Colors.white,
+      fillColor: card,
 
       contentPadding: const EdgeInsets.symmetric(vertical: 12),
 
@@ -105,7 +107,7 @@ class BuyerStyle {
 
   static BoxDecoration categoryCard() {
     return BoxDecoration(
-      color: Colors.white,
+      color: card,
 
       borderRadius: BorderRadius.circular(12),
 

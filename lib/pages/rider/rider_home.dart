@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../styles/rider_style.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class RiderHomePage extends StatefulWidget {
   const RiderHomePage({super.key});
@@ -16,6 +17,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
@@ -38,27 +40,29 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-                      const Text("Hello Rider 👋", style: RiderStyle.greeting),
+                      Text("Hello Rider 👋", style: RiderStyle.greeting),
 
-                      const Text("Rider Dashboard", style: RiderStyle.appTitle),
+                      Text("Rider Dashboard", style: RiderStyle.appTitle),
                     ],
                   ),
 
-                  CircleAvatar(
-                    radius: 22,
-
-                    backgroundColor: RiderStyle.primary,
-
-                    child: const Icon(
-                      Icons.delivery_dining,
-
-                      color: Colors.white,
-                    ),
+                  Row(
+                    children: [
+                      const ThemeToggleButton(),
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: RiderStyle.primary,
+                        child: const Icon(
+                          Icons.delivery_dining,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // ONLINE STATUS
@@ -76,13 +80,13 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
 
                       children: [
-                        const Text(
+                        Text(
                           "Delivery Status",
 
                           style: RiderStyle.cardTitle,
                         ),
 
-                        const SizedBox(height: 5),
+                        SizedBox(height: 5),
 
                         Text(
                           isOnline ? "You are Online" : "You are Offline",
@@ -115,14 +119,14 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // CURRENT DELIVERY
               // =========================
-              const Text("Current Delivery", style: RiderStyle.sectionTitle),
+              Text("Current Delivery", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(16),
@@ -137,7 +141,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
                       children: [
-                        const Text(
+                        Text(
                           "Order #MS10234",
 
                           style: RiderStyle.cardTitle,
@@ -156,7 +160,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
 
-                          child: const Text(
+                          child: Text(
                             "On Delivery",
 
                             style: TextStyle(
@@ -171,31 +175,31 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       ],
                     ),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: 15),
 
-                    const Text("Pickup Location", style: RiderStyle.normalText),
+                    Text("Pickup Location", style: RiderStyle.normalText),
 
-                    const Text(
+                    Text(
                       "Mobile Suki Warehouse",
 
                       style: RiderStyle.cardTitle,
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
-                    const Text(
+                    Text(
                       "Customer Address",
 
                       style: RiderStyle.normalText,
                     ),
 
-                    const Text(
+                    Text(
                       "Barangay San Isidro",
 
                       style: RiderStyle.cardTitle,
                     ),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: 15),
 
                     SizedBox(
                       width: double.infinity,
@@ -209,21 +213,21 @@ class _RiderHomePageState extends State<RiderHomePage> {
                           Navigator.pushNamed(context, '/delivery-details');
                         },
 
-                        child: const Text("View Delivery"),
+                        child: Text("View Delivery"),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
 
               // =========================
               // QUICK ACTIONS
               // =========================
-              const Text("Quick Actions", style: RiderStyle.sectionTitle),
+              Text("Quick Actions", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Row(
                 children: [
@@ -235,7 +239,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     '/rider-deliveries',
                   ),
 
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
 
                   _actionCard(
                     Icons.qr_code_scanner,
@@ -247,7 +251,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 ],
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
 
               Row(
                 children: [
@@ -259,7 +263,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     '/rider-earnings',
                   ),
 
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
 
                   _actionCard(
                     Icons.person_outline,
@@ -267,6 +271,42 @@ class _RiderHomePageState extends State<RiderHomePage> {
                     "Profile",
 
                     '/rider-profile',
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 12),
+
+              Row(
+                children: [
+                  _actionCard(
+                    Icons.history,
+                    'History',
+                    '/rider/history',
+                  ),
+                  SizedBox(width: 10),
+                  _actionCard(
+                    Icons.bar_chart_outlined,
+                    'Reports',
+                    '/rider/reports',
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 12),
+
+              Row(
+                children: [
+                  _actionCard(
+                    Icons.payments_outlined,
+                    'COD Remittance',
+                    '/rider/cod-remittances',
+                  ),
+                  SizedBox(width: 10),
+                  _actionCard(
+                    Icons.account_balance_wallet_outlined,
+                    'Money Report',
+                    '/rider/money',
                   ),
                 ],
               ),
@@ -281,9 +321,17 @@ class _RiderHomePageState extends State<RiderHomePage> {
         selectedItemColor: RiderStyle.primary,
 
         onTap: (value) {
-          setState(() {
-            selectedIndex = value;
-          });
+          const routes = [
+            '/rider/dashboard',
+            '/rider/deliveries',
+            '/rider/earnings',
+            '/rider-profile',
+          ];
+          if (value == 0) {
+            setState(() => selectedIndex = value);
+            return;
+          }
+          Navigator.pushReplacementNamed(context, routes[value]);
         },
 
         items: const [
@@ -333,7 +381,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
             children: [
               Icon(icon, color: RiderStyle.primary),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               Text(title, style: RiderStyle.cardTitle),
             ],

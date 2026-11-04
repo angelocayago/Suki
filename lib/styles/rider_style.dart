@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class RiderStyle {
   // =========================
   // COLORS
   // =========================
 
-  static const Color primary = Color(0xFF167561);
+  static const Color primary = AppTheme.forestGreen;
 
-  static const Color primaryDark = Color(0xFF064E43);
+  static Color get primaryDark =>
+      AppTheme.isDark ? AppTheme.accentGreen : AppTheme.forestGreenDark;
 
-  static const Color background = Color(0xFFF7FAF8);
+  static Color get background => AppTheme.background;
 
-  static const Color card = Colors.white;
+  static Color get card => AppTheme.surface;
 
-  static const Color textDark = Color(0xFF08142B);
+  static Color get textDark => AppTheme.text;
 
-  static const Color textGray = Color(0xFF64748B);
+  static Color get textGray => AppTheme.mutedText;
 
-  static const Color border = Color(0xFFE2E8F0);
+  static Color get border => AppTheme.border;
+  static Color get successBackground => AppTheme.softGreen;
 
-  static const Color success = Color(0xFF16A34A);
+  static Color get success => AppTheme.isDark
+      ? AppTheme.accentGreen
+      : const Color(0xFF16A34A);
 
   static const Color warning = Color(0xFFF59E0B);
 
@@ -29,7 +34,7 @@ class RiderStyle {
   // TEXT STYLE
   // =========================
 
-  static const TextStyle appTitle = TextStyle(
+  static TextStyle get appTitle => TextStyle(
     fontSize: 20,
 
     fontWeight: FontWeight.w800,
@@ -37,9 +42,9 @@ class RiderStyle {
     color: primaryDark,
   );
 
-  static const TextStyle greeting = TextStyle(fontSize: 12, color: textGray);
+  static TextStyle get greeting => TextStyle(fontSize: 12, color: textGray);
 
-  static const TextStyle sectionTitle = TextStyle(
+  static TextStyle get sectionTitle => TextStyle(
     fontSize: 16,
 
     fontWeight: FontWeight.w700,
@@ -47,7 +52,7 @@ class RiderStyle {
     color: textDark,
   );
 
-  static const TextStyle cardTitle = TextStyle(
+  static TextStyle get cardTitle => TextStyle(
     fontSize: 13,
 
     fontWeight: FontWeight.w700,
@@ -55,14 +60,14 @@ class RiderStyle {
     color: textDark,
   );
 
-  static const TextStyle normalText = TextStyle(fontSize: 12, color: textGray);
+  static TextStyle get normalText => TextStyle(fontSize: 12, color: textGray);
 
-  static const TextStyle amount = TextStyle(
+  static TextStyle get amount => TextStyle(
     fontSize: 22,
 
     fontWeight: FontWeight.w800,
 
-    color: primary,
+    color: AppTheme.brandText,
   );
 
   // =========================
@@ -95,11 +100,11 @@ class RiderStyle {
 
   static BoxDecoration statusCard() {
     return BoxDecoration(
-      color: const Color(0xFFEFFAF5),
+      color: AppTheme.softGreen,
 
       borderRadius: BorderRadius.circular(14),
 
-      border: Border.all(color: const Color(0xFFD2EFE4)),
+      border: Border.all(color: AppTheme.border),
     );
   }
 

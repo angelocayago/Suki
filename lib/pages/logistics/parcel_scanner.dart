@@ -20,13 +20,13 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Parcel verified successfully.")),
+      SnackBar(content: Text("Parcel verified successfully.")),
     );
   }
 
   void confirmReceived() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Parcel received and recorded.")),
+      SnackBar(content: Text("Parcel received and recorded.")),
     );
 
     Navigator.pushNamed(context, '/logistics-parcel-information');
@@ -34,17 +34,18 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: LogisticsStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Parcel Scanner", style: LogisticsStyle.appTitle),
+        title: Text("Parcel Scanner", style: LogisticsStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -53,7 +54,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
 
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // SCANNER AREA
@@ -73,7 +74,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
 
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.qr_code_scanner,
 
                       size: 90,
@@ -81,17 +82,17 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                       color: Colors.white,
                     ),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: 15),
 
-                    const Text(
+                    Text(
                       "Scan Parcel QR / Barcode",
 
                       style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text(
+                    Text(
                       "Verify incoming shipment",
 
                       style: TextStyle(color: Colors.white70, fontSize: 11),
@@ -100,7 +101,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // SCAN BUTTON
@@ -115,11 +116,11 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
 
                   onPressed: scanParcel,
 
-                  child: const Text("SCAN PARCEL"),
+                  child: Text("SCAN PARCEL"),
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // RESULT
@@ -136,13 +137,13 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-                      const Text(
+                      Text(
                         "Shipment Found",
 
                         style: LogisticsStyle.sectionTitle,
                       ),
 
-                      const SizedBox(height: 15),
+                      SizedBox(height: 15),
 
                       _infoRow(
                         Icons.qr_code,
@@ -152,7 +153,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                         trackingNumber,
                       ),
 
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
 
                       _infoRow(
                         Icons.inventory_2_outlined,
@@ -162,7 +163,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                         "Arrived at Logistics",
                       ),
 
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
 
                       _infoRow(
                         Icons.location_on_outlined,
@@ -172,7 +173,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
                         "Customer Area",
                       ),
 
-                      const SizedBox(height: 18),
+                      SizedBox(height: 18),
 
                       SizedBox(
                         width: double.infinity,
@@ -184,7 +185,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
 
                           onPressed: confirmReceived,
 
-                          child: const Text("CONFIRM RECEIVED"),
+                          child: Text("CONFIRM RECEIVED"),
                         ),
                       ),
                     ],
@@ -202,7 +203,7 @@ class _ParcelScannerPageState extends State<ParcelScannerPage> {
       children: [
         Icon(icon, size: 18, color: LogisticsStyle.primary),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Expanded(
           child: Column(

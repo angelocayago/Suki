@@ -6,17 +6,18 @@ class ParcelInformationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Parcel Information", style: RiderStyle.appTitle),
+        title: Text("Parcel Information", style: RiderStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -41,13 +42,13 @@ class ParcelInformationPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    const Text("Tracking Number", style: RiderStyle.normalText),
+                    Text("Tracking Number", style: RiderStyle.normalText),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-                    const Text("MS-10021", style: RiderStyle.amount),
+                    Text("MS-10021", style: RiderStyle.amount),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -57,12 +58,12 @@ class ParcelInformationPage extends StatelessWidget {
                       ),
 
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFFAF5),
+                        color: RiderStyle.successBackground,
 
                         borderRadius: BorderRadius.circular(20),
                       ),
 
-                      child: const Text(
+                      child: Text(
                         "Ready for Delivery",
 
                         style: TextStyle(
@@ -78,14 +79,14 @@ class ParcelInformationPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // CUSTOMER DETAILS
               // =========================
-              const Text("Customer Details", style: RiderStyle.sectionTitle),
+              Text("Customer Details", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _informationCard([
                 _item(Icons.person_outline, "Customer Name", "Juan Dela Cruz"),
@@ -101,14 +102,14 @@ class ParcelInformationPage extends StatelessWidget {
                 ),
               ]),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // PARCEL DETAILS
               // =========================
-              const Text("Parcel Details", style: RiderStyle.sectionTitle),
+              Text("Parcel Details", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _informationCard([
                 _item(Icons.inventory_2_outlined, "Package", "Coffee Products"),
@@ -126,18 +127,18 @@ class ParcelInformationPage extends StatelessWidget {
                 _item(Icons.money_outlined, "Amount", "₱850.00"),
               ]),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // =========================
               // DELIVERY TIMELINE
               // =========================
-              const Text("Delivery Status", style: RiderStyle.sectionTitle),
+              Text("Delivery Status", style: RiderStyle.sectionTitle),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               _statusTimeline(),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // BUTTON
@@ -154,7 +155,7 @@ class ParcelInformationPage extends StatelessWidget {
                     Navigator.pushNamed(context, '/delivery-details');
                   },
 
-                  child: const Text("START DELIVERY"),
+                  child: Text("START DELIVERY"),
                 ),
               ),
             ],
@@ -186,7 +187,7 @@ class ParcelInformationPage extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: RiderStyle.primary),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Expanded(
             child: Column(
@@ -235,7 +236,7 @@ class ParcelInformationPage extends StatelessWidget {
           color: completed ? RiderStyle.success : RiderStyle.textGray,
         ),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Text(
           title,

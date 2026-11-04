@@ -64,17 +64,18 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: LogisticsStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text(
+        title: Text(
           "Shipment Management",
 
           style: LogisticsStyle.appTitle,
@@ -119,7 +120,9 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
                       ),
 
                       decoration: BoxDecoration(
-                        color: selected ? LogisticsStyle.primary : Colors.white,
+                        color: selected
+                            ? LogisticsStyle.primary
+                            : LogisticsStyle.card,
 
                         borderRadius: BorderRadius.circular(20),
 
@@ -145,7 +148,7 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
               ),
             ),
 
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
 
             Expanded(
               child: ListView.builder(
@@ -189,19 +192,19 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
             ],
           ),
 
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
 
           _infoRow(Icons.person_outline, "Customer", shipment["customer"]!),
 
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
           _infoRow(Icons.delivery_dining, "Assigned Rider", shipment["rider"]!),
 
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
           _infoRow(Icons.payments_outlined, "Payment", shipment["payment"]!),
 
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
 
           Row(
             children: [
@@ -211,11 +214,11 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
                     _updateStatus(shipment);
                   },
 
-                  child: const Text("Update"),
+                  child: Text("Update"),
                 ),
               ),
 
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
 
               Expanded(
                 child: ElevatedButton(
@@ -225,7 +228,7 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
                     _viewShipment(shipment);
                   },
 
-                  child: const Text("View"),
+                  child: Text("View"),
                 ),
               ),
             ],
@@ -306,7 +309,7 @@ class _ShipmentManagementPageState extends State<ShipmentManagementPage> {
       children: [
         Icon(icon, size: 18, color: LogisticsStyle.primary),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Expanded(
           child: Column(

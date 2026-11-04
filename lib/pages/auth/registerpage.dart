@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../../styles/register_style.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -9,476 +11,426 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _formKey = GlobalKey<FormState>();
+  // =========================================================
+  // CAROUSEL CONTROLLER
+  // =========================================================
 
-  final firstNameController = TextEditingController();
-  final lastNameController = TextEditingController();
-  final middleInitialController = TextEditingController();
-  final birthdayController = TextEditingController();
-  final phoneController = TextEditingController();
-  final emailController = TextEditingController();
+  final PageController _pageController = PageController(
+    viewportFraction: 0.88,
+  );
 
-  final municipalityController = TextEditingController();
-  final barangayController = TextEditingController();
-  final streetController = TextEditingController();
+  int currentIndex = 0;
 
-  final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
+  bool get isFirstPage => currentIndex == 0;
 
-  String selectedRole = 'Buyer';
-  String? selectedSex;
-  String? selectedProvince;
+  bool get isLastPage =>
+      currentIndex == accountTypes.length - 1;
 
-  bool obscurePassword = true;
-  bool obscureConfirmPassword = true;
-  bool agreeTerms = false;
+  // =========================================================
+  // ACCOUNT TYPES
+  // =========================================================
 
-  final List<String> roles = ['Buyer', 'Rider', 'Logistics'];
-
-  final List<String> sexOptions = ['Male', 'Female', 'Prefer not to say'];
-
-  final List<String> provinces = [
-    'Batangas',
-    'Cavite',
-    'Laguna',
-    'Quezon',
-    'Rizal',
-    'Occidental Mindoro',
-    'Oriental Mindoro',
+  final List<Map<String, dynamic>> accountTypes = [
+    {
+      'title': 'Buyer',
+      'badge': 'SHOP',
+      'icon': Icons.shopping_cart_outlined,
+      'description':
+          'Create an account to browse products, place orders, '
+          'track deliveries, and interact with sellers.',
+      'features': [
+        'Browse and purchase products',
+        'Place and track orders',
+        'Rate and provide feedback',
+      ],
+      'button': 'Register as Buyer',
+      'route': '/buyer-registration',
+    },
+    {
+      'title': 'Rider',
+      'badge': 'RIDE',
+      'icon': Icons.delivery_dining_outlined,
+      'description':
+          'Register as a delivery rider to accept assignments '
+          'and deliver customer orders.',
+      'features': [
+        'Accept delivery assignments',
+        'Pick up and deliver orders',
+        'Track delivery history',
+      ],
+      'button': 'Register as Rider',
+      'route': '/rider-registration',
+    },
+    {
+      'title': 'Logistics',
+      'badge': 'LOGISTICS',
+      'icon': Icons.business_outlined,
+      'description':
+          'Register your logistics company to manage hubs, '
+          'shipment operations, and delivery services.',
+      'features': [
+        'Manage logistics company operations',
+        'Manage hubs and service coverage',
+        'Monitor shipments and deliveries',
+      ],
+      'button': 'Register as Logistics',
+      'route': '/logistics-registration',
+    },
   ];
+
+  // =========================================================
+  // DISPOSE
+  // =========================================================
 
   @override
   void dispose() {
-    firstNameController.dispose();
-    lastNameController.dispose();
-    middleInitialController.dispose();
-    birthdayController.dispose();
-    phoneController.dispose();
-    emailController.dispose();
-    municipalityController.dispose();
-    barangayController.dispose();
-    streetController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> selectBirthday() async {
-    final DateTime? selectedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
-    );
+  // =========================================================
+  // NEXT PAGE
+  // =========================================================
 
-    if (selectedDate != null) {
-      setState(() {
-        birthdayController.text =
-            '${selectedDate.month.toString().padLeft(2, '0')}/'
-            '${selectedDate.day.toString().padLeft(2, '0')}/'
-            '${selectedDate.year}';
-      });
-    }
-  }
+  void _nextPage() {
+    if (isLastPage) return;
 
-  void registerAccount() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (!agreeTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please agree to the Terms of Service and Privacy Policy.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
-      return;
-    }
-
-    debugPrint('Account Type: $selectedRole');
-    debugPrint('Email: ${emailController.text}');
-    debugPrint('Phone: ${phoneController.text}');
-
-    // TODO:
-    // Connect to AuthService / Firebase / API.
-    //
-    // Save:
-    // role: buyer / rider / logistics
-    //
-    // Example:
-    // await AuthService.register(
-    //   role: selectedRole,
-    //   email: emailController.text,
-    //   password: passwordController.text,
-    // );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$selectedRole account created successfully.')),
+    _pageController.nextPage(
+      duration: Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
     );
   }
+
+  // =========================================================
+  // PREVIOUS PAGE
+  // =========================================================
+
+  void _previousPage() {
+    if (isFirstPage) return;
+
+    _pageController.previousPage(
+      duration: Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  // =========================================================
+  // PAGE CHANGE
+  // =========================================================
+
+  void _onPageChanged(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+  }
+
+  // =========================================================
+  // NAVIGATE TO REGISTRATION
+  // =========================================================
+
+  void _goToRegistration() {
+    final String route =
+        accountTypes[currentIndex]['route'] as String;
+
+    Navigator.pushNamed(context, route);
+  }
+
+  // =========================================================
+  // LOGIN
+  // =========================================================
+
+  void _goToLogin() {
+    Navigator.pushReplacementNamed(
+      context,
+      '/login',
+    );
+  }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RegisterStyle.backgroundColor,
-      resizeToAvoidBottomInset: true,
+
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              physics: BouncingScrollPhysics(),
+
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 22,
+              ),
+
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 44,
+                ),
+
+                child: Column(
+                  children: [
+                    SizedBox(height: 15),
+
+                    // =========================================
+                    // LOGO
+                    // =========================================
+
+                    Container(
+                      width: 65,
+                      height: 65,
+                      decoration: RegisterStyle.logoContainer,
+
+                      child: Icon(
+                        Icons.shopping_bag_rounded,
+                        size: 38,
+                        color: RegisterStyle.primary,
+                      ),
+                    ),
+
+                    SizedBox(height: 13),
+
+                    // BRAND NAME
+
+                    Text(
+                      'MOBILE SUKI',
+                      style: RegisterStyle.brandText,
+                    ),
+
+                    SizedBox(height: 30),
+
+                    // =========================================
+                    // HEADER
+                    // =========================================
+
+                    Text(
+                      'CREATE YOUR ACCOUNT',
+                      style: RegisterStyle.smallHeading,
+                    ),
+
+                    SizedBox(height: 8),
+
+                    Text(
+                      'Choose Your Account Type',
+                      textAlign: TextAlign.center,
+                      style: RegisterStyle.pageTitle,
+                    ),
+
+                    SizedBox(height: 9),
+
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 15,
+                      ),
+
+                      child: Text(
+                        'Select the account you want to register. '
+                        'Swipe to explore the available platforms.',
+                        textAlign: TextAlign.center,
+                        style: RegisterStyle.subtitle,
+                      ),
+                    ),
+
+                    SizedBox(height: 30),
+
+                    // =========================================
+                    // CAROUSEL
+                    // =========================================
+
+                    SizedBox(
+                      height: 365,
+
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: accountTypes.length,
+
+                        physics: BouncingScrollPhysics(),
+
+                        onPageChanged: _onPageChanged,
+
+                        itemBuilder: (context, index) {
+                          final account = accountTypes[index];
+
+                          return _buildAccountCard(account);
+                        },
+                      ),
+                    ),
+
+                    SizedBox(height: 18),
+
+                    // =========================================
+                    // PAGE INDICATORS
+                    // =========================================
+
+                    Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+
+                      children: List.generate(
+                        accountTypes.length,
+                        (index) {
+                          final bool isSelected =
+                              currentIndex == index;
+
+                          return AnimatedContainer(
+                            duration:
+                                Duration(milliseconds: 250),
+
+                            margin:
+                                const EdgeInsets.symmetric(
+                              horizontal: 4,
+                            ),
+
+                            width: isSelected ? 25 : 8,
+                            height: 8,
+
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? RegisterStyle.primary
+                                  : RegisterStyle.borderColor,
+
+                              borderRadius:
+                                  BorderRadius.circular(20),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    SizedBox(height: 15),
+
+                    // =========================================
+                    // PREVIOUS / NEXT BUTTONS
+                    // =========================================
+
+                    Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+
                       children: [
-                        // =========================
-                        // HEADER
-                        // =========================
-                        Center(
-                          child: Container(
-                            width: 64,
-                            height: 64,
-                            decoration: RegisterStyle.logoContainer,
-                            child: const Icon(
-                              Icons.shopping_bag_rounded,
-                              size: 38,
-                              color: RegisterStyle.primary,
-                            ),
+                        IconButton(
+                          onPressed: isFirstPage
+                              ? null
+                              : _previousPage,
+
+                          icon: Icon(
+                            Icons.arrow_back_ios_rounded,
+                            size: 18,
+                          ),
+
+                          color: RegisterStyle.primary,
+                        ),
+
+                        Text(
+                          '${currentIndex + 1} / ${accountTypes.length}',
+
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: RegisterStyle.textColor,
                           ),
                         ),
 
-                        const SizedBox(height: 15),
+                        IconButton(
+                          onPressed: isLastPage
+                              ? null
+                              : _nextPage,
 
-                        const Center(
-                          child: Text(
-                            'MOBILE SUKI',
-                            style: RegisterStyle.brandText,
+                          icon: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 18,
                           ),
+
+                          color: RegisterStyle.primary,
                         ),
-
-                        const SizedBox(height: 22),
-
-                        const Text(
-                          'CREATE YOUR ACCOUNT',
-                          style: RegisterStyle.smallHeading,
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        const Text(
-                          'Create your account',
-                          style: RegisterStyle.pageTitle,
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        const Text(
-                          'Choose your account type and fill in your information.',
-                          style: RegisterStyle.subtitle,
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // =========================
-                        // ACCOUNT TYPE
-                        // =========================
-                        const Text(
-                          'Account Type',
-                          style: RegisterStyle.sectionTitle,
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        _buildRoleSelector(),
-
-                        const SizedBox(height: 24),
-
-                        // =========================
-                        // PERSONAL INFORMATION
-                        // =========================
-                        const Text(
-                          'Personal Information',
-                          style: RegisterStyle.sectionTitle,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'First Name',
-                          controller: firstNameController,
-                          hint: 'Enter first name',
-                          icon: Icons.person_outline,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'Last Name',
-                          controller: lastNameController,
-                          hint: 'Enter last name',
-                          icon: Icons.person_outline,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                label: 'Middle Initial',
-                                controller: middleInitialController,
-                                hint: 'M.I.',
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: _buildSexField()),
-                          ],
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildBirthdayField()),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildTextField(
-                                label: 'Phone Number',
-                                controller: phoneController,
-                                hint: '09XXXXXXXXX',
-                                keyboardType: TextInputType.phone,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'Email Address',
-                          controller: emailController,
-                          hint: 'you@example.com',
-                          icon: Icons.mail_outline,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // =========================
-                        // ADDRESS INFORMATION
-                        // =========================
-                        const Text(
-                          'Address Information',
-                          style: RegisterStyle.sectionTitle,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildProvinceField(),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'Municipality / City',
-                          controller: municipalityController,
-                          hint: 'Enter municipality or city',
-                          icon: Icons.location_city_outlined,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'Barangay',
-                          controller: barangayController,
-                          hint: 'Enter barangay',
-                          icon: Icons.place_outlined,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildTextField(
-                          label: 'Street / House Number',
-                          controller: streetController,
-                          hint: 'Street, house number, etc.',
-                          icon: Icons.home_outlined,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // =========================
-                        // SECURITY
-                        // =========================
-                        const Text(
-                          'Account Security',
-                          style: RegisterStyle.sectionTitle,
-                        ),
-
-                        const SizedBox(height: 13),
-
-                        _buildPasswordField(),
-
-                        const SizedBox(height: 13),
-
-                        _buildConfirmPasswordField(),
-
-                        const SizedBox(height: 18),
-
-                        // =========================
-                        // TERMS
-                        // =========================
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: Checkbox(
-                                value: agreeTerms,
-                                activeColor: RegisterStyle.primary,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                visualDensity: VisualDensity.compact,
-                                onChanged: (value) {
-                                  setState(() {
-                                    agreeTerms = value ?? false;
-                                  });
-                                },
-                              ),
-                            ),
-
-                            const SizedBox(width: 9),
-
-                            const Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  style: RegisterStyle.termsText,
-                                  children: [
-                                    TextSpan(
-                                      text: 'I agree to Mobile Suki\'s ',
-                                    ),
-                                    TextSpan(
-                                      text: 'Terms of Service',
-                                      style: RegisterStyle.linkText,
-                                    ),
-                                    TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Privacy Policy.',
-                                      style: RegisterStyle.linkText,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // =========================
-                        // CREATE ACCOUNT
-                        // =========================
-                        SizedBox(
-                          width: double.infinity,
-                          height: 49,
-                          child: ElevatedButton(
-                            style: RegisterStyle.primaryButton,
-                            onPressed: registerAccount,
-                            child: const Text(
-                              'CREATE ACCOUNT',
-                              style: RegisterStyle.buttonText,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // =========================
-                        // OR
-                        // =========================
-                        const Row(
-                          children: [
-                            Expanded(
-                              child: Divider(color: RegisterStyle.dividerColor),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 13),
-                              child: Text('OR', style: RegisterStyle.orText),
-                            ),
-                            Expanded(
-                              child: Divider(color: RegisterStyle.dividerColor),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // =========================
-                        // LOGIN
-                        // =========================
-                        Center(
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            children: [
-                              const Text(
-                                'Already have an account? ',
-                                style: RegisterStyle.bottomText,
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.pushReplacementNamed(
-                                    context,
-                                    '/login',
-                                  );
-                                },
-                                child: const Text(
-                                  'Log In',
-                                  style: RegisterStyle.bottomLink,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              size: 15,
-                              color: RegisterStyle.mutedText,
-                            ),
-                            label: const Text(
-                              'Back to Mobile Suki',
-                              style: RegisterStyle.backText,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
                       ],
                     ),
-                  ),
+
+                    SizedBox(height: 15),
+
+                    // =========================================
+                    // REGISTER BUTTON
+                    // =========================================
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                      ),
+
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+
+                        child: ElevatedButton(
+                          style: RegisterStyle.primaryButton,
+
+                          onPressed: _goToRegistration,
+
+                          child: Text(
+                            accountTypes[currentIndex]['button']
+                                as String,
+
+                            style: RegisterStyle.buttonText,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 25),
+
+                    // =========================================
+                    // LOGIN
+                    // =========================================
+
+                    Wrap(
+                      alignment: WrapAlignment.center,
+
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: RegisterStyle.bottomText,
+                        ),
+
+                        GestureDetector(
+                          onTap: _goToLogin,
+
+                          child: Text(
+                            'Log In',
+                            style: RegisterStyle.bottomLink,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 20),
+
+                    // =========================================
+                    // BACK BUTTON
+                    // =========================================
+
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+
+                      icon: Icon(
+                        Icons.arrow_back,
+                        size: 15,
+                        color: RegisterStyle.mutedText,
+                      ),
+
+                      label: Text(
+                        'Back to Mobile Suki',
+                        style: RegisterStyle.backText,
+                      ),
+                    ),
+
+                    SizedBox(height: 18),
+                  ],
                 ),
               ),
             );
@@ -489,341 +441,180 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // =========================================================
-  // ROLE SELECTOR
+  // ACCOUNT CARD
   // =========================================================
 
-  Widget _buildRoleSelector() {
-    return Row(
-      children: roles.map((role) {
-        final bool selected = selectedRole == role;
+  Widget _buildAccountCard(
+    Map<String, dynamic> account,
+  ) {
+    final Color accent = AppTheme.isDark
+        ? AppTheme.accentGreen
+        : AppTheme.forestGreen;
 
-        IconData icon;
+    final Color background = AppTheme.softGreen;
 
-        switch (role) {
-          case 'Rider':
-            icon = Icons.delivery_dining_outlined;
-            break;
+    final List<String> features =
+        account['features'] as List<String>;
 
-          case 'Logistics':
-            icon = Icons.inventory_2_outlined;
-            break;
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 7,
+      ),
 
-          default:
-            icon = Icons.shopping_bag_outlined;
-        }
+      padding: const EdgeInsets.all(22),
 
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: role != roles.last ? 8 : 0),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedRole = role;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                height: 72,
-                decoration: RegisterStyle.roleCard(selected),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+
+        borderRadius: BorderRadius.circular(20),
+
+        border: Border.all(
+          color: RegisterStyle.borderColor,
+          width: 1,
+        ),
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          // =========================================
+          // ICON AND BADGE
+          // =========================================
+
+          Row(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+
+                child: Icon(
+                  account['icon'] as IconData,
+                  size: 31,
+                  color: accent,
+                ),
+              ),
+
+              Spacer(),
+
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 6,
+                ),
+
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+
+                child: Text(
+                  account['badge'] as String,
+
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 20),
+
+          // =========================================
+          // ACCOUNT TITLE
+          // =========================================
+
+          Text(
+            account['title'] as String,
+
+            style: TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.w800,
+              color: RegisterStyle.titleColor,
+            ),
+          ),
+
+          SizedBox(height: 10),
+
+          // =========================================
+          // DESCRIPTION
+          // =========================================
+
+          Text(
+            account['description'] as String,
+
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.5,
+              color: RegisterStyle.textColor,
+            ),
+          ),
+
+          SizedBox(height: 20),
+
+          Divider(
+            color: RegisterStyle.dividerColor,
+          ),
+
+          SizedBox(height: 12),
+
+          // =========================================
+          // FEATURES
+          // =========================================
+
+          ...features.map(
+            (feature) {
+              return Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 12,
+                ),
+
+                child: Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
                   children: [
                     Icon(
-                      icon,
-                      size: 22,
-                      color: selected
-                          ? RegisterStyle.primary
-                          : RegisterStyle.mutedText,
+                      Icons.check_circle_outline,
+                      size: 17,
+                      color: accent,
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      role,
-                      style: selected
-                          ? RegisterStyle.selectedRoleText
-                          : RegisterStyle.roleText,
+
+                    SizedBox(width: 9),
+
+                    Expanded(
+                      child: Text(
+                        feature,
+
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: RegisterStyle.titleColor,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // =========================================================
-  // NORMAL TEXT FIELD
-  // =========================================================
-
-  Widget _buildTextField({
-    required String label,
-    required TextEditingController controller,
-    required String hint,
-    IconData? icon,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            style: RegisterStyle.inputText,
-            decoration: RegisterStyle.inputDecoration(hint: hint, icon: icon),
-            validator: (value) {
-              if (label == 'Middle Initial') {
-                return null;
-              }
-
-              if (value == null || value.trim().isEmpty) {
-                return 'Required';
-              }
-
-              return null;
+              );
             },
           ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // SEX
-  // =========================================================
-
-  Widget _buildSexField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Sex', style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: DropdownButtonFormField<String>(
-            value: selectedSex,
-            isExpanded: true,
-            decoration: RegisterStyle.dropdownDecoration(),
-            hint: const Text('Select sex', style: RegisterStyle.hint),
-            items: sexOptions
-                .map(
-                  (sex) => DropdownMenuItem(
-                    value: sex,
-                    child: Text(sex, style: RegisterStyle.inputText),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                selectedSex = value;
-              });
-            },
-            validator: (value) {
-              if (value == null) {
-                return 'Required';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // BIRTHDAY
-  // =========================================================
-
-  Widget _buildBirthdayField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Birthday', style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: TextFormField(
-            controller: birthdayController,
-            readOnly: true,
-            onTap: selectBirthday,
-            style: RegisterStyle.inputText,
-            decoration: RegisterStyle.inputDecoration(
-              hint: 'mm/dd/yyyy',
-              suffixIcon: const Icon(
-                Icons.calendar_today_outlined,
-                size: 17,
-                color: RegisterStyle.iconColor,
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Required';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // PROVINCE
-  // =========================================================
-
-  Widget _buildProvinceField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Province', style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: DropdownButtonFormField<String>(
-            value: selectedProvince,
-            isExpanded: true,
-            decoration: RegisterStyle.dropdownDecoration(),
-            hint: const Text('Select Province', style: RegisterStyle.hint),
-            items: provinces
-                .map(
-                  (province) => DropdownMenuItem(
-                    value: province,
-                    child: Text(province, style: RegisterStyle.inputText),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                selectedProvince = value;
-              });
-            },
-            validator: (value) {
-              if (value == null) {
-                return 'Required';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // PASSWORD
-  // =========================================================
-
-  Widget _buildPasswordField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Password', style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: TextFormField(
-            controller: passwordController,
-            obscureText: obscurePassword,
-            style: RegisterStyle.inputText,
-            decoration: RegisterStyle.inputDecoration(
-              hint: 'Minimum 8 characters',
-              icon: Icons.lock_outline,
-              suffixIcon: IconButton(
-                onPressed: () {
-                  setState(() {
-                    obscurePassword = !obscurePassword;
-                  });
-                },
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 18,
-                  color: RegisterStyle.iconColor,
-                ),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Required';
-              }
-
-              if (value.length < 8) {
-                return 'Minimum 8 characters';
-              }
-
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // CONFIRM PASSWORD
-  // =========================================================
-
-  Widget _buildConfirmPasswordField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Confirm Password', style: RegisterStyle.label),
-
-        const SizedBox(height: 6),
-
-        SizedBox(
-          height: 49,
-          child: TextFormField(
-            controller: confirmPasswordController,
-            obscureText: obscureConfirmPassword,
-            style: RegisterStyle.inputText,
-            decoration: RegisterStyle.inputDecoration(
-              hint: 'Re-enter password',
-              icon: Icons.lock_outline,
-              suffixIcon: IconButton(
-                onPressed: () {
-                  setState(() {
-                    obscureConfirmPassword = !obscureConfirmPassword;
-                  });
-                },
-                icon: Icon(
-                  obscureConfirmPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 18,
-                  color: RegisterStyle.iconColor,
-                ),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Required';
-              }
-
-              if (value != passwordController.text) {
-                return 'Passwords do not match';
-              }
-
-              return null;
-            },
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

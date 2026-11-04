@@ -19,31 +19,32 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Parcel successfully scanned.")),
+      SnackBar(content: Text("Parcel successfully scanned.")),
     );
   }
 
   void confirmPickup() {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("Parcel pickup confirmed.")));
+    ).showSnackBar(SnackBar(content: Text("Parcel pickup confirmed.")));
 
     Navigator.pushNamed(context, '/delivery-details');
   }
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
 
         elevation: 0,
 
         centerTitle: true,
 
-        title: const Text("Scan Parcel", style: RiderStyle.appTitle),
+        title: Text("Scan Parcel", style: RiderStyle.appTitle),
       ),
 
       body: SafeArea(
@@ -54,7 +55,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
 
             children: [
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // SCANNER BOX
@@ -83,9 +84,9 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                         color: Colors.white,
                       ),
 
-                      const SizedBox(height: 15),
+                      SizedBox(height: 15),
 
-                      const Text(
+                      Text(
                         "Align QR / Barcode\ninside the frame",
 
                         textAlign: TextAlign.center,
@@ -97,7 +98,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                 ),
               ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // SCAN BUTTON
@@ -112,11 +113,11 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
 
                   onPressed: scanParcel,
 
-                  child: const Text("SCAN PARCEL"),
+                  child: Text("SCAN PARCEL"),
                 ),
               ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: 25),
 
               // =========================
               // RESULT
@@ -133,13 +134,13 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-                      const Text(
+                      Text(
                         "Parcel Information Found",
 
                         style: RiderStyle.sectionTitle,
                       ),
 
-                      const SizedBox(height: 15),
+                      SizedBox(height: 15),
 
                       _infoRow(
                         Icons.qr_code,
@@ -149,7 +150,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                         trackingNumber,
                       ),
 
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
 
                       _infoRow(
                         Icons.inventory_2_outlined,
@@ -159,7 +160,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                         "Ready for Pickup",
                       ),
 
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
 
                       _infoRow(
                         Icons.location_on_outlined,
@@ -169,7 +170,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
                         "Brgy. San Isidro",
                       ),
 
-                      const SizedBox(height: 18),
+                      SizedBox(height: 18),
 
                       SizedBox(
                         width: double.infinity,
@@ -181,7 +182,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
 
                           onPressed: confirmPickup,
 
-                          child: const Text("CONFIRM PICKUP"),
+                          child: Text("CONFIRM PICKUP"),
                         ),
                       ),
                     ],
@@ -199,7 +200,7 @@ class _RiderScannerPageState extends State<RiderScannerPage> {
       children: [
         Icon(icon, size: 18, color: RiderStyle.primary),
 
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
 
         Expanded(
           child: Column(

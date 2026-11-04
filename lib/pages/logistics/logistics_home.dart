@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../styles/logistics_style.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 class LogisticsHomePage extends StatefulWidget {
   const LogisticsHomePage({super.key});
@@ -14,6 +15,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       resizeToAvoidBottomInset: true,
 
@@ -23,7 +25,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: BouncingScrollPhysics(),
 
               padding: const EdgeInsets.all(18),
 
@@ -45,15 +47,15 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
 
                           children: [
-                            const Text(
+                            Text(
                               "Hello Logistics 👋",
 
                               style: LogisticsStyle.greeting,
                             ),
 
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
 
-                            const Text(
+                            Text(
                               "Shipment Dashboard",
 
                               style: LogisticsStyle.appTitle,
@@ -61,32 +63,34 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                           ],
                         ),
 
-                        CircleAvatar(
-                          radius: 22,
-
-                          backgroundColor: LogisticsStyle.primary,
-
-                          child: const Icon(
-                            Icons.inventory_2_outlined,
-
-                            color: Colors.white,
-                          ),
+                        Row(
+                          children: [
+                            const ThemeToggleButton(),
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: LogisticsStyle.primary,
+                              child: const Icon(
+                                Icons.inventory_2_outlined,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 22),
+                    SizedBox(height: 22),
 
                     // =========================
                     // SUMMARY
                     // =========================
-                    const Text(
+                    Text(
                       "Shipment Summary",
 
                       style: LogisticsStyle.sectionTitle,
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     Row(
                       children: [
@@ -100,7 +104,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                           ),
                         ),
 
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
 
                         Expanded(
                           child: _buildStat(
@@ -114,7 +118,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     Row(
                       children: [
@@ -128,7 +132,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                           ),
                         ),
 
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
 
                         Expanded(
                           child: _buildStat(
@@ -142,18 +146,18 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                       ],
                     ),
 
-                    const SizedBox(height: 22),
+                    SizedBox(height: 22),
 
                     // =========================
                     // QUICK ACTIONS
                     // =========================
-                    const Text(
+                    Text(
                       "Quick Actions",
 
                       style: LogisticsStyle.sectionTitle,
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     _actionCard(
                       Icons.qr_code_scanner,
@@ -179,7 +183,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
                       '/logistics-profile',
                     ),
 
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -229,7 +233,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
 
   Widget _buildStat(String number, String title, IconData icon) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 90),
+      constraints: BoxConstraints(minHeight: 90),
 
       padding: const EdgeInsets.all(12),
 
@@ -241,12 +245,12 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
         children: [
           Icon(icon, color: LogisticsStyle.primary, size: 22),
 
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
 
           Text(
             number,
 
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
 
               fontWeight: FontWeight.w800,
@@ -280,7 +284,7 @@ class _LogisticsHomePageState extends State<LogisticsHomePage> {
 
         title: Text(title, style: LogisticsStyle.cardTitle),
 
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+        trailing: Icon(Icons.arrow_forward_ios, size: 14),
       ),
     );
   }
