@@ -1,15 +1,36 @@
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/auth_service.dart';
 import '../../styles/register_style.dart';
+
+// =========================================================
+// SUKISHOP MOBILE - BUYER REGISTRATION
+// =========================================================
+//
+// Features:
+// - Personal information
+// - Contact information
+// - Complete address
+// - Birthday selection
+// - Input validation
+// - Strong password requirements
+// - Laravel API registration
+// - Loading and error handling
+// - Success confirmation
+//
+// Uses AuthService.registerBuyer()
+// API endpoint: POST /api/register
+//
+// =========================================================
 
 class BuyerRegistration extends StatefulWidget {
   const BuyerRegistration({super.key});
 
   @override
-  State<BuyerRegistration> createState() =>
-      _BuyerRegistrationState();
+  State<BuyerRegistration> createState() => _BuyerRegistrationState();
 }
 
 class _BuyerRegistrationState extends State<BuyerRegistration> {
@@ -55,11 +76,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   bool agreeTerms = false;
   bool isSubmitting = false;
 
-  final List<String> sexOptions = [
-    'Male',
-    'Female',
-    'Prefer not to say',
-  ];
+  final List<String> sexOptions = ['Male', 'Female', 'Prefer not to say'];
 
   // =========================================================
   // INITIALIZATION
@@ -109,10 +126,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   // SNACKBAR
   // =========================================================
 
-  void _showMessage(
-    String message, {
-    bool success = false,
-  }) {
+  void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -120,40 +134,87 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: success
-              ? RegisterStyle.primary
-              : Colors.redAccent,
+          backgroundColor: success ? RegisterStyle.primary : Colors.redAccent,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
         ),
       );
   }
 
   // =========================================================
-  // BIRTHDAY VALIDATION
-  // MINIMUM AGE: 18 YEARS OLD
-  // YEAR 2008 AND EARLIER (BASED ON CURRENT DATE)
+  // DATE HELPERS
   // =========================================================
 
   DateTime get _latestAllowedBirthday {
     final now = DateTime.now();
 
-    return DateTime(
-      now.year - 18,
-      now.month,
-      now.day,
-    );
+    return DateTime(now.year - 18, now.month, now.day);
   }
 
+  String _formatDisplayDate(DateTime date) {
+    return '${date.month.toString().padLeft(2, '0')}/'
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  String _formatApiDate(DateTime date) {
+    return '${date.year}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  DateTime? _parseBirthday(String value) {
+    try {
+      final parts = value.trim().split('/');
+
+      if (parts.length != 3) {
+        return null;
+      }
+
+      final month = int.parse(parts[0]);
+      final day = int.parse(parts[1]);
+      final year = int.parse(parts[2]);
+
+      final birthday = DateTime(year, month, day);
+
+      if (birthday.year != year ||
+          birthday.month != month ||
+          birthday.day != day) {
+        return null;
+      }
+
+      return birthday;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // =========================================================
+  // BIRTHDAY PICKER
+  // =========================================================
+
   Future<void> selectBirthday() async {
+    if (isSubmitting) return;
+
     final latestDate = _latestAllowedBirthday;
 
-    final initialDate = DateTime(2000);
+    final existingBirthday = _parseBirthday(birthdayController.text);
+
+    final defaultDate = DateTime(2000);
+
+    DateTime initialDate = defaultDate;
+
+    if (existingBirthday != null &&
+        !existingBirthday.isAfter(latestDate) &&
+        !existingBirthday.isBefore(DateTime(1950))) {
+      initialDate = existingBirthday;
+    } else if (defaultDate.isAfter(latestDate)) {
+      initialDate = latestDate;
+    }
 
     final DateTime? selectedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate.isAfter(latestDate)
-          ? latestDate
-          : initialDate,
+      initialDate: initialDate,
       firstDate: DateTime(1950),
       lastDate: latestDate,
       initialDatePickerMode: DatePickerMode.year,
@@ -162,40 +223,17 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
 
     if (selectedDate != null && mounted) {
       setState(() {
-        birthdayController.text =
-            '${selectedDate.month.toString().padLeft(2, '0')}/'
-            '${selectedDate.day.toString().padLeft(2, '0')}/'
-            '${selectedDate.year}';
+        birthdayController.text = _formatDisplayDate(selectedDate);
       });
     }
   }
 
-  DateTime? _parseBirthday(String value) {
-    try {
-      final parts = value.split('/');
-
-      if (parts.length != 3) return null;
-
-      final month = int.parse(parts[0]);
-      final day = int.parse(parts[1]);
-      final year = int.parse(parts[2]);
-
-      final date = DateTime(year, month, day);
-
-      if (date.year != year ||
-          date.month != month ||
-          date.day != day) {
-        return null;
-      }
-
-      return date;
-    } catch (_) {
-      return null;
-    }
-  }
+  // =========================================================
+  // BIRTHDAY VALIDATION
+  // =========================================================
 
   String? _validateBirthday(String? value) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return 'Birthday is required';
     }
 
@@ -217,37 +255,54 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   }
 
   // =========================================================
-  // NAME VALIDATION
+  // REQUIRED FIELD VALIDATION
   // =========================================================
 
-  String? _validateName(String? value) {
+  String? _validateRequired(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'This field is required';
-    }
-
-    if (value.trim().length < 2) {
-      return 'Enter at least 2 characters';
-    }
-
-    if (!RegExp(r"^[a-zA-Z\s'-]+$").hasMatch(value.trim())) {
-      return 'Letters only are allowed';
     }
 
     return null;
   }
 
   // =========================================================
-  // MIDDLE INITIAL
-  // ONE UPPERCASE LETTER ONLY
+  // NAME VALIDATION
+  // =========================================================
+
+  String? _validateName(String? value) {
+    final name = value?.trim() ?? '';
+
+    if (name.isEmpty) {
+      return 'This field is required';
+    }
+
+    if (name.length < 2) {
+      return 'Enter at least 2 characters';
+    }
+
+    // Allow Filipino names including Ñ/ñ.
+    // Also supports spaces, hyphens and apostrophes.
+    if (!RegExp(r"^[A-Za-zÀ-ÿÑñ\s.'-]+$").hasMatch(name)) {
+      return 'Letters and valid name punctuation only';
+    }
+
+    return null;
+  }
+
+  // =========================================================
+  // MIDDLE INITIAL VALIDATION
   // =========================================================
 
   String? _validateMiddleInitial(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final initial = value?.trim() ?? '';
+
+    if (initial.isEmpty) {
       return null;
     }
 
-    if (!RegExp(r'^[A-Z]$').hasMatch(value.trim())) {
-      return 'Enter one uppercase letter only';
+    if (!RegExp(r'^[A-ZÑ]$').hasMatch(initial.toUpperCase())) {
+      return 'Enter one letter only';
     }
 
     return null;
@@ -255,23 +310,20 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
 
   List<TextInputFormatter> get _middleInitialFormatters {
     return [
-      FilteringTextInputFormatter.allow(
-        RegExp(r'[a-zA-Z]'),
-      ),
       LengthLimitingTextInputFormatter(1),
-      TextInputFormatter.withFunction(
-        (oldValue, newValue) {
-          final uppercaseText =
-              newValue.text.toUpperCase();
+      TextInputFormatter.withFunction((oldValue, newValue) {
+        final uppercase = newValue.text.toUpperCase();
 
-          return TextEditingValue(
-            text: uppercaseText,
-            selection: TextSelection.collapsed(
-              offset: uppercaseText.length,
-            ),
-          );
-        },
-      ),
+        if (uppercase.isNotEmpty && !RegExp(r'^[A-ZÑ]$').hasMatch(uppercase)) {
+          return oldValue;
+        }
+
+        return newValue.copyWith(
+          text: uppercase,
+          selection: TextSelection.collapsed(offset: uppercase.length),
+          composing: TextRange.empty,
+        );
+      }),
     ];
   }
 
@@ -280,28 +332,18 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   // =========================================================
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final email = value?.trim() ?? '';
+
+    if (email.isEmpty) {
       return 'Email address is required';
-    }
-
-    final email = value.trim();
-
-    if (email.contains(' ')) {
-      return 'Spaces are not allowed in email';
-    }
-
-    final emailRegex = RegExp(
-      r'^[A-Za-z0-9]+(?:[._%+-][A-Za-z0-9]+)*@'
-      r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+'
-      r'[A-Za-z]{2,}$',
-    );
-
-    if (!emailRegex.hasMatch(email)) {
-      return 'Enter a valid email address (example@gmail.com)';
     }
 
     if (email.length > 254) {
       return 'Email address is too long';
+    }
+
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      return 'Enter a valid email address';
     }
 
     return null;
@@ -309,21 +351,13 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
 
   // =========================================================
   // MOBILE NUMBER VALIDATION
-  //
-  // 09XXXXXXXXX = 11 DIGITS
-  // 639XXXXXXXXX = 12 DIGITS
-  // NUMBERS ONLY
   // =========================================================
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final phone = value?.trim() ?? '';
+
+    if (phone.isEmpty) {
       return 'Mobile number is required';
-    }
-
-    final phone = value.trim();
-
-    if (!RegExp(r'^\d+$').hasMatch(phone)) {
-      return 'Numbers only are allowed';
     }
 
     if (RegExp(r'^09\d{9}$').hasMatch(phone)) {
@@ -338,43 +372,111 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   }
 
   // =========================================================
-  // STRONG PASSWORD VALIDATION
+  // NORMALIZE MOBILE NUMBER
+  // =========================================================
+
+  String _normalizePhone(String value) {
+    final phone = value.trim();
+
+    if (phone.startsWith('639')) {
+      return '0${phone.substring(2)}';
+    }
+
+    return phone;
+  }
+
+  // =========================================================
+  // PASSWORD VALIDATION
   // =========================================================
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
+    final password = value ?? '';
+
+    if (password.isEmpty) {
       return 'Password is required';
     }
 
-    if (value.length < 8) {
+    if (password.length < 8) {
       return 'Password must be at least 8 characters';
     }
 
-    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
       return 'Add at least one uppercase letter';
     }
 
-    if (!RegExp(r'[a-z]').hasMatch(value)) {
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
       return 'Add at least one lowercase letter';
     }
 
-    if (!RegExp(r'[0-9]').hasMatch(value)) {
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
       return 'Add at least one number';
     }
 
-    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
       return 'Add at least one special character';
     }
 
     return null;
   }
 
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+
+    if (value != passwordController.text) {
+      return 'Passwords do not match';
+    }
+
+    return null;
+  }
+
   // =========================================================
-  // LOCAL BUYER REGISTRATION
-  //
-  // TEMPORARY ONLY
-  // NO LARAVEL API REQUEST
-  // NO DATABASE SAVING
+  // BUILD BUYER REGISTRATION PAYLOAD
+  // =========================================================
+
+  Map<String, dynamic> _buildBuyerData(DateTime birthday) {
+    String field(TextEditingController controller) {
+      return controller.text.trim();
+    }
+
+    return {
+      'role': 'buyer',
+
+      // Personal information
+      'first_name': field(firstNameController),
+
+      'middle_initial': field(middleInitialController).isEmpty
+          ? null
+          : field(middleInitialController).toUpperCase(),
+
+      'last_name': field(lastNameController),
+
+      'birthday': _formatApiDate(birthday),
+
+      'sex': selectedSex,
+
+      // Contact information
+      'email': field(emailController).toLowerCase(),
+
+      'phone': _normalizePhone(phoneController.text),
+
+      // Address information
+      'region': field(regionController),
+      'province': field(provinceController),
+      'city': field(cityController),
+      'barangay': field(barangayController),
+      'street': field(streetController),
+
+      // Account security
+      'password': passwordController.text,
+
+      'password_confirmation': confirmPasswordController.text,
+    };
+  }
+
+  // =========================================================
+  // REGISTER BUYER USING LARAVEL API
   // =========================================================
 
   Future<void> registerBuyer() async {
@@ -382,30 +484,29 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
 
     FocusScope.of(context).unfocus();
 
-    // Validate all form fields.
-    if (!_formKey.currentState!.validate()) {
+    // Validate all form inputs.
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      _showMessage('Please complete all required fields correctly.');
       return;
     }
 
-    // Validate Terms and Conditions.
+    // Validate Terms and Privacy Policy.
     if (!agreeTerms) {
       _showMessage(
-        'Please agree to the Terms of Service and Privacy Policy.',
+        'Please agree to the Terms of Service '
+        'and Privacy Policy.',
       );
       return;
     }
 
-    // Validate Confirm Password.
-    if (passwordController.text !=
-        confirmPasswordController.text) {
+    // Additional password check.
+    if (passwordController.text != confirmPasswordController.text) {
       _showMessage('Passwords do not match.');
       return;
     }
 
     // Validate birthday.
-    final birthday = _parseBirthday(
-      birthdayController.text,
-    );
+    final birthday = _parseBirthday(birthdayController.text);
 
     if (birthday == null) {
       _showMessage('Please enter a valid birthday.');
@@ -417,24 +518,67 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
     });
 
     try {
-      // Temporary local validation.
-      // No AuthService or Laravel API call.
+      // Prepare registration data.
+      final buyerData = _buildBuyerData(birthday);
 
-      await Future.delayed(
-        Duration(milliseconds: 500),
+      // Submit to Laravel via AuthService.
+      final Map<String, dynamic> response = await AuthService.registerBuyer(
+        buyerData: buyerData,
+      ).timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+
+      // The AuthService validates success: true.
+      final message =
+          response['message']?.toString() ??
+          'Your buyer account has been registered.';
+
+      // Show confirmation before navigating.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Registration Submitted'),
+            content: Text(
+              '$message\n\n'
+              'Please sign in after completing '
+              'any verification required by SUKI.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Continue'),
+              ),
+            ],
+          );
+        },
       );
 
       if (!mounted) return;
 
+      // Do not automatically grant buyer access.
+      // Authentication and approval are controlled
+      // by the Laravel backend.
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } on TimeoutException {
+      if (!mounted) return;
+
       _showMessage(
-        'Registration form validated successfully! '
-        'Account saving will be enabled when API is connected.',
-        success: true,
+        'Registration request timed out. '
+        'Please check whether your account '
+        'was created before trying again.',
       );
     } catch (error) {
       if (!mounted) return;
 
-      _showMessage('Something went wrong: $error');
+      final message = error.toString().replaceFirst('Exception: ', '').trim();
+
+      _showMessage(
+        message.isEmpty ? 'Unable to register. Please try again.' : message,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -450,37 +594,25 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
     return Scaffold(
       backgroundColor: RegisterStyle.backgroundColor,
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
         child: SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
-
+          physics: const BouncingScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 460,
-              ),
-
+              constraints: const BoxConstraints(maxWidth: 460),
               child: Form(
                 key: _formKey,
-
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
+                    // =====================================
                     // HEADER
-
+                    // =====================================
                     Center(
                       child: Container(
                         width: 64,
@@ -494,7 +626,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
 
                     Center(
                       child: Text(
@@ -503,35 +635,36 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
                     Text(
                       'BUYER REGISTRATION',
                       style: RegisterStyle.smallHeading,
                     ),
 
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
 
                     Text(
                       'Create Buyer Account',
                       style: RegisterStyle.pageTitle,
                     ),
 
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
 
                     Text(
-                      'Fill in your personal information to start '
-                      'shopping with Mobile Suki.',
+                      'Fill in your personal information '
+                      'to start shopping with Mobile Suki.',
                       style: RegisterStyle.subtitle,
                     ),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // PERSONAL INFORMATION
-
+                    // =====================================
                     _sectionTitle('Personal Information'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'First Name',
@@ -542,7 +675,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       validator: _validateName,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,15 +685,13 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                             label: 'Middle Initial',
                             controller: middleInitialController,
                             hint: 'M.I. (Optional)',
-                            capitalization:
-                                TextCapitalization.characters,
+                            capitalization: TextCapitalization.characters,
                             validator: _validateMiddleInitial,
-                            inputFormatters:
-                                _middleInitialFormatters,
+                            inputFormatters: _middleInitialFormatters,
                           ),
                         ),
 
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
 
                         Expanded(
                           child: _buildTextField(
@@ -574,30 +705,27 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ],
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _buildBirthdayField(),
-                        ),
+                        Expanded(child: _buildBirthdayField()),
 
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
 
-                        Expanded(
-                          child: _buildSexField(),
-                        ),
+                        Expanded(child: _buildSexField()),
                       ],
                     ),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // CONTACT INFORMATION
-
+                    // =====================================
                     _sectionTitle('Contact Information'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Email Address',
@@ -608,13 +736,11 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       capitalization: TextCapitalization.none,
                       validator: _validateEmail,
                       inputFormatters: [
-                        FilteringTextInputFormatter.deny(
-                          RegExp(r'\s'),
-                        ),
+                        FilteringTextInputFormatter.deny(RegExp(r'\s')),
                       ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
 
                     Text(
                       'Enter a valid email address, '
@@ -625,14 +751,14 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Mobile Number',
                       controller: phoneController,
                       hint: '09171234567 or 639171234567',
                       icon: Icons.phone_outlined,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.phone,
                       capitalization: TextCapitalization.none,
                       validator: _validatePhone,
                       inputFormatters: [
@@ -641,7 +767,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
 
                     Text(
                       'Enter 11 digits starting with 09 or '
@@ -652,84 +778,82 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // ADDRESS INFORMATION
-
+                    // =====================================
                     _sectionTitle('Address Information'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Region',
                       controller: regionController,
                       hint: 'Enter region',
                       icon: Icons.map_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Province',
                       controller: provinceController,
                       hint: 'Enter province',
                       icon: Icons.location_city_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'City / Municipality',
                       controller: cityController,
                       hint: 'Enter city or municipality',
                       icon: Icons.location_city_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Barangay',
                       controller: barangayController,
                       hint: 'Enter barangay',
                       icon: Icons.place_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Street / House Number',
                       controller: streetController,
                       hint: 'House number, street, building',
                       icon: Icons.home_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // ACCOUNT SECURITY
-
+                    // =====================================
                     _sectionTitle('Account Security'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildPasswordField(),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildConfirmPasswordField(),
 
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
                     _buildPasswordRequirements(),
 
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
+                    // =====================================
                     // TERMS AND CONDITIONS
-
+                    // =====================================
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -741,7 +865,6 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                             activeColor: RegisterStyle.primary,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
                             onChanged: isSubmitting
                                 ? null
                                 : (value) {
@@ -752,21 +875,21 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                           ),
                         ),
 
-                        SizedBox(width: 9),
+                        const SizedBox(width: 9),
 
                         Expanded(
                           child: Text.rich(
                             TextSpan(
                               style: RegisterStyle.termsText,
                               children: [
-                                TextSpan(
-                                  text: 'I agree to Mobile Suki\'s ',
+                                const TextSpan(
+                                  text: "I agree to Mobile Suki's ",
                                 ),
                                 TextSpan(
                                   text: 'Terms of Service',
                                   style: RegisterStyle.linkText,
                                 ),
-                                TextSpan(text: ' and '),
+                                const TextSpan(text: ' and '),
                                 TextSpan(
                                   text: 'Privacy Policy.',
                                   style: RegisterStyle.linkText,
@@ -778,21 +901,19 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ],
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
+                    // =====================================
                     // CREATE ACCOUNT BUTTON
-
+                    // =====================================
                     SizedBox(
                       width: double.infinity,
                       height: 49,
-
                       child: ElevatedButton(
                         style: RegisterStyle.primaryButton,
-                        onPressed:
-                            isSubmitting ? null : registerBuyer,
-
+                        onPressed: isSubmitting ? null : registerBuyer,
                         child: isSubmitting
-                            ? SizedBox(
+                            ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -807,19 +928,20 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
+                    // =====================================
                     // LOGIN LINK
-
+                    // =====================================
                     Center(
                       child: Wrap(
                         alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             'Already have an account? ',
                             style: RegisterStyle.bottomText,
                           ),
-
                           GestureDetector(
                             onTap: isSubmitting
                                 ? null
@@ -829,7 +951,6 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                                       '/login',
                                     );
                                   },
-
                             child: Text(
                               'Log In',
                               style: RegisterStyle.bottomLink,
@@ -839,24 +960,21 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 18),
+                    const SizedBox(height: 18),
 
+                    // =====================================
                     // BACK BUTTON
-
+                    // =====================================
                     Center(
                       child: TextButton.icon(
                         onPressed: isSubmitting
                             ? null
-                            : () {
-                                Navigator.pop(context);
-                              },
-
+                            : () => Navigator.pop(context),
                         icon: Icon(
                           Icons.arrow_back,
                           size: 15,
                           color: RegisterStyle.mutedText,
                         ),
-
                         label: Text(
                           'Back to Account Selection',
                           style: RegisterStyle.backText,
@@ -864,7 +982,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                       ),
                     ),
 
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -880,14 +998,11 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   // =========================================================
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: RegisterStyle.sectionTitle,
-    );
+    return Text(title, style: RegisterStyle.sectionTitle);
   }
 
   // =========================================================
-  // NORMAL TEXT FIELD
+  // REUSABLE TEXT FIELD
   // =========================================================
 
   Widget _buildTextField({
@@ -896,20 +1011,16 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
     required String hint,
     IconData? icon,
     TextInputType? keyboardType,
-    TextCapitalization capitalization =
-        TextCapitalization.sentences,
+    TextCapitalization capitalization = TextCapitalization.words,
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: RegisterStyle.label,
-        ),
+        Text(label, style: RegisterStyle.label),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         TextFormField(
           controller: controller,
@@ -919,20 +1030,8 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
           enabled: !isSubmitting,
           inputFormatters: inputFormatters,
           style: RegisterStyle.inputText,
-
-          decoration: RegisterStyle.inputDecoration(
-            hint: hint,
-            icon: icon,
-          ),
-
-          validator: validator ??
-              (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'This field is required';
-                }
-
-                return null;
-              },
+          decoration: RegisterStyle.inputDecoration(hint: hint, icon: icon),
+          validator: validator ?? _validateRequired,
         ),
       ],
     );
@@ -946,20 +1045,16 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Birthday',
-          style: RegisterStyle.label,
-        ),
+        Text('Birthday', style: RegisterStyle.label),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         TextFormField(
           controller: birthdayController,
           readOnly: true,
           enabled: !isSubmitting,
-          onTap: isSubmitting ? null : selectBirthday,
+          onTap: selectBirthday,
           style: RegisterStyle.inputText,
-
           decoration: RegisterStyle.inputDecoration(
             hint: 'mm/dd/yyyy',
             suffixIcon: Icon(
@@ -968,7 +1063,6 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
               color: RegisterStyle.iconColor,
             ),
           ),
-
           validator: _validateBirthday,
         ),
       ],
@@ -976,40 +1070,32 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   }
 
   // =========================================================
-  // SEX FIELD
+  // SEX DROPDOWN
   // =========================================================
 
   Widget _buildSexField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Sex',
-          style: RegisterStyle.label,
-        ),
+        Text('Sex', style: RegisterStyle.label),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         DropdownButtonFormField<String>(
           value: selectedSex,
           isExpanded: true,
           decoration: RegisterStyle.dropdownDecoration(),
-
-          hint: Text(
-            'Select sex',
-            style: RegisterStyle.hint,
-          ),
-
+          hint: Text('Select sex', style: RegisterStyle.hint),
           items: sexOptions.map((sex) {
-            return DropdownMenuItem(
+            return DropdownMenuItem<String>(
               value: sex,
               child: Text(
                 sex,
                 style: RegisterStyle.inputText,
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
-
           onChanged: isSubmitting
               ? null
               : (value) {
@@ -1017,12 +1103,10 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                     selectedSex = value;
                   });
                 },
-
           validator: (value) {
-            if (value == null) {
+            if (value == null || value.isEmpty) {
               return 'Required';
             }
-
             return null;
           },
         ),
@@ -1038,12 +1122,9 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Password',
-          style: RegisterStyle.label,
-        ),
+        Text('Password', style: RegisterStyle.label),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         TextFormField(
           controller: passwordController,
@@ -1052,11 +1133,9 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
           autocorrect: false,
           enableSuggestions: false,
           style: RegisterStyle.inputText,
-
           decoration: RegisterStyle.inputDecoration(
             hint: 'Enter password',
             icon: Icons.lock_outline,
-
             suffixIcon: IconButton(
               onPressed: isSubmitting
                   ? null
@@ -1065,7 +1144,6 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
                         obscurePassword = !obscurePassword;
                       });
                     },
-
               icon: Icon(
                 obscurePassword
                     ? Icons.visibility_outlined
@@ -1075,7 +1153,6 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
               ),
             ),
           ),
-
           validator: _validatePassword,
         ),
       ],
@@ -1083,38 +1160,28 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   }
 
   // =========================================================
-  // PASSWORD CHECKLIST ITEM
+  // PASSWORD REQUIREMENT ITEM
   // =========================================================
 
-  Widget _passwordRule(
-    String label,
-    bool passed,
-  ) {
+  Widget _passwordRule(String label, bool passed) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
-
       child: Row(
         children: [
           Icon(
-            passed
-                ? Icons.check_circle
-                : Icons.circle_outlined,
+            passed ? Icons.check_circle : Icons.circle_outlined,
             size: 14,
-            color: passed
-                ? RegisterStyle.primary
-                : RegisterStyle.mutedText,
+            color: passed ? RegisterStyle.primary : RegisterStyle.mutedText,
           ),
 
-          SizedBox(width: 7),
+          const SizedBox(width: 7),
 
           Expanded(
             child: Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: passed
-                    ? RegisterStyle.primary
-                    : RegisterStyle.textColor,
+                color: passed ? RegisterStyle.primary : RegisterStyle.textColor,
               ),
             ),
           ),
@@ -1130,24 +1197,14 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
   Widget _buildPasswordRequirements() {
     final password = passwordController.text;
 
-    final hasMinimumLength = password.length >= 8;
-    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
-    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
-    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
-    final hasSpecial = RegExp(r'[^A-Za-z0-9]').hasMatch(password);
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-
       decoration: BoxDecoration(
         color: RegisterStyle.selectedBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: RegisterStyle.borderColor,
-        ),
+        border: Border.all(color: RegisterStyle.borderColor),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1160,31 +1217,28 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
             ),
           ),
 
-          SizedBox(height: 9),
+          const SizedBox(height: 9),
 
-          _passwordRule(
-            'At least 8 characters',
-            hasMinimumLength,
-          ),
+          _passwordRule('At least 8 characters', password.length >= 8),
 
           _passwordRule(
             'One uppercase letter (A-Z)',
-            hasUppercase,
+            RegExp(r'[A-Z]').hasMatch(password),
           ),
 
           _passwordRule(
             'One lowercase letter (a-z)',
-            hasLowercase,
+            RegExp(r'[a-z]').hasMatch(password),
           ),
 
           _passwordRule(
             'One number (0-9)',
-            hasNumber,
+            RegExp(r'[0-9]').hasMatch(password),
           ),
 
           _passwordRule(
-            'One special character (!@#\$%)',
-            hasSpecial,
+            'One special character',
+            RegExp(r'[^A-Za-z0-9]').hasMatch(password),
           ),
         ],
       ),
@@ -1199,12 +1253,9 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Confirm Password',
-          style: RegisterStyle.label,
-        ),
+        Text('Confirm Password', style: RegisterStyle.label),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         TextFormField(
           controller: confirmPasswordController,
@@ -1213,21 +1264,17 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
           autocorrect: false,
           enableSuggestions: false,
           style: RegisterStyle.inputText,
-
           decoration: RegisterStyle.inputDecoration(
             hint: 'Re-enter password',
             icon: Icons.lock_outline,
-
             suffixIcon: IconButton(
               onPressed: isSubmitting
                   ? null
                   : () {
                       setState(() {
-                        obscureConfirmPassword =
-                            !obscureConfirmPassword;
+                        obscureConfirmPassword = !obscureConfirmPassword;
                       });
                     },
-
               icon: Icon(
                 obscureConfirmPassword
                     ? Icons.visibility_outlined
@@ -1237,18 +1284,7 @@ class _BuyerRegistrationState extends State<BuyerRegistration> {
               ),
             ),
           ),
-
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please confirm your password';
-            }
-
-            if (value != passwordController.text) {
-              return 'Passwords do not match';
-            }
-
-            return null;
-          },
+          validator: _validateConfirmPassword,
         ),
       ],
     );

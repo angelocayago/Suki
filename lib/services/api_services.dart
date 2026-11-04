@@ -1,20 +1,53 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+// =========================================================
+// SUKISHOP MOBILE - API SERVICES
+// =========================================================
+//
+// Laravel REST API integration.
+//
+// Existing features preserved:
+// - API base URL configuration
+// - Product image URL resolution
+// - GET requests
+// - POST requests
+// - PUT requests
+// - PATCH requests
+// - DELETE requests
+// - Bearer token authentication
+// - Laravel validation errors
+// - API connection checking
+//
+// Improvements:
+// - Safer API URL construction
+// - Improved error handling
+// - Better network timeout handling
+// - HTTP response validation
+// - UTF-8 response decoding
+// - Protection against malformed server responses
+//
+// =========================================================
+
 class ApiServices {
   // =========================================================
   // API CONFIGURATION
   // =========================================================
 
-  // Configure through --dart-define.
+  // Production:
+  // https://sukishop.site/api
   //
-  // Production: the deployed Laravel API behind Cloudflare.
-  // For local Android emulator development, override with:
-  // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+  // Android Emulator:
+  // flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+  //
+  // Physical Android device:
+  // Use your computer's LAN IP for local Laravel.
+  //
+  // Example:
+  // flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -23,49 +56,85 @@ class ApiServices {
 
   static const Duration timeout = Duration(seconds: 20);
 
-  /// Turns a Laravel photo path or URL into a URL the app can load.
+  // =========================================================
+  // RESOLVE LARAVEL MEDIA URL
+  // =========================================================
+
+  /// Converts Laravel image paths or URLs into URLs
+  /// that Flutter can access.
   ///
-  /// Localhost URLs are common when Laravel's APP_URL was set for local
-  /// development. On a phone those URLs point back to the phone itself, so
-  /// use the configured API host while keeping the photo's path.
+  /// Examples:
+  ///
+  /// products/photo.jpg
+  /// storage/products/photo.jpg
+  /// /storage/products/photo.jpg
+  /// http://localhost:8000/storage/products/photo.jpg
+  ///
+  /// Existing product image behavior is preserved:
+  ///
+  /// /api/media/products/{filename}
+
   static String resolveMediaUrl(String? value) {
-    final raw = value?.trim() ?? '';
-    if (raw.isEmpty) return '';
+    final String raw = value?.trim() ?? '';
 
-    final apiUri = Uri.tryParse(baseUrl);
-    if (apiUri == null || !apiUri.hasAuthority) return raw;
+    if (raw.isEmpty) {
+      return '';
+    }
 
-    final origin = Uri(
+    final Uri? apiUri = Uri.tryParse(baseUrl);
+
+    if (apiUri == null ||
+        !apiUri.hasAuthority ||
+        (apiUri.scheme != 'http' && apiUri.scheme != 'https')) {
+      return raw;
+    }
+
+    final Uri origin = Uri(
       scheme: apiUri.scheme,
       host: apiUri.host,
       port: apiUri.hasPort ? apiUri.port : null,
     );
 
-    final candidate = raw.startsWith('//')
+    final Uri? candidate = raw.startsWith('//')
         ? Uri.tryParse('${apiUri.scheme}:$raw')
         : Uri.tryParse(raw);
-    if (candidate == null) return raw;
-    if (candidate.hasScheme && !candidate.hasAuthority) return raw;
+
+    if (candidate == null) {
+      return raw;
+    }
+
+    if (candidate.hasScheme && !candidate.hasAuthority) {
+      return raw;
+    }
+
+    // =====================================================
+    // ABSOLUTE IMAGE URL
+    // =====================================================
 
     if (candidate.hasScheme && candidate.hasAuthority) {
-      final isApiHost = candidate.host.toLowerCase() ==
-          apiUri.host.toLowerCase();
+      final bool isApiHost =
+          candidate.host.toLowerCase() == apiUri.host.toLowerCase();
+
+      // Preserve external image/CDN URLs.
       if (!_isLocalHost(candidate.host) && !isApiHost) {
         return candidate.toString();
       }
 
-      final productPath = _productMediaPath(candidate.path);
+      // Product images from Laravel storage.
+      final String? productPath = _productMediaPath(candidate.path);
+
       if (productPath != null) {
-        return _apiProductMediaUrl(
-          origin,
-          apiUri,
-          productPath,
-          candidate,
-        );
+        return _apiProductMediaUrl(origin, apiUri, productPath, candidate);
       }
 
-      if (!_isLocalHost(candidate.host)) return candidate.toString();
+      // Preserve valid image URLs from the
+      // configured production API server.
+      if (!_isLocalHost(candidate.host)) {
+        return candidate.toString();
+      }
 
+      // Rewrite localhost URLs using the configured
+      // API host so images can load on Android.
       return origin
           .replace(
             path: candidate.path,
@@ -75,18 +144,19 @@ class ApiServices {
           .toString();
     }
 
-    final productPath = _productMediaPath(candidate.path);
+    // =====================================================
+    // RELATIVE IMAGE URL
+    // =====================================================
+
+    final String? productPath = _productMediaPath(candidate.path);
+
     if (productPath != null) {
-      return _apiProductMediaUrl(
-        origin,
-        apiUri,
-        productPath,
-        candidate,
-      );
+      return _apiProductMediaUrl(origin, apiUri, productPath, candidate);
     }
 
-    // Keep other Laravel public-disk paths on the conventional storage URL.
-    var path = candidate.path;
+    // Preserve other Laravel public storage paths.
+    String path = candidate.path;
+
     if (!path.startsWith('/')) {
       path = path.startsWith('storage/') ? '/$path' : '/storage/$path';
     }
@@ -100,15 +170,27 @@ class ApiServices {
         .toString();
   }
 
+  // =========================================================
+  // EXTRACT PRODUCT MEDIA PATH
+  // =========================================================
+
   static String? _productMediaPath(String path) {
-    var normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    String normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+
     if (normalizedPath.startsWith('storage/')) {
       normalizedPath = normalizedPath.substring('storage/'.length);
     }
-    if (!normalizedPath.startsWith('products/')) return null;
+
+    if (!normalizedPath.startsWith('products/')) {
+      return null;
+    }
 
     return normalizedPath.substring('products/'.length);
   }
+
+  // =========================================================
+  // PRODUCT MEDIA API URL
+  // =========================================================
 
   static String _apiProductMediaUrl(
     Uri origin,
@@ -116,7 +198,8 @@ class ApiServices {
     String path,
     Uri source,
   ) {
-    final apiPath = apiUri.path.replaceFirst(RegExp(r'/+$'), '');
+    final String apiPath = apiUri.path.replaceFirst(RegExp(r'/+$'), '');
+
     return origin
         .replace(
           path: '$apiPath/media/products/$path',
@@ -126,8 +209,13 @@ class ApiServices {
         .toString();
   }
 
+  // =========================================================
+  // CHECK LOCAL HOSTNAME
+  // =========================================================
+
   static bool _isLocalHost(String host) {
-    final normalizedHost = host.toLowerCase();
+    final String normalizedHost = host.toLowerCase();
+
     return normalizedHost == 'localhost' ||
         normalizedHost == '127.0.0.1' ||
         normalizedHost == '0.0.0.0' ||
@@ -138,15 +226,15 @@ class ApiServices {
   // REQUEST HEADERS
   // =========================================================
 
-  static Map<String, String> _headers({
-    String? token,
-  }) {
+  static Map<String, String> _headers({String? token}) {
+    final String? cleanToken = token?.trim();
+
     return {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
 
-      if (token != null && token.isNotEmpty)
-        'Authorization': 'Bearer $token',
+      if (cleanToken != null && cleanToken.isNotEmpty)
+        'Authorization': 'Bearer $cleanToken',
     };
   }
 
@@ -155,164 +243,259 @@ class ApiServices {
   // =========================================================
 
   static Uri _uri(String endpoint) {
-    final normalizedBaseUrl = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
+    final String normalizedBaseUrl = baseUrl.trim().replaceFirst(
+      RegExp(r'/+$'),
+      '',
+    );
 
-    final normalizedEndpoint = endpoint.startsWith('/')
-        ? endpoint
-        : '/$endpoint';
+    if (normalizedBaseUrl.isEmpty) {
+      throw Exception('Laravel API base URL is not configured.');
+    }
 
-    return Uri.parse(
-      '$normalizedBaseUrl$normalizedEndpoint',
+    final Uri? apiUri = Uri.tryParse(normalizedBaseUrl);
+
+    if (apiUri == null ||
+        !apiUri.hasAuthority ||
+        (apiUri.scheme != 'http' && apiUri.scheme != 'https')) {
+      throw Exception('Invalid Laravel API base URL.');
+    }
+
+    final String normalizedEndpoint = endpoint.trim().replaceFirst(
+      RegExp(r'^/+'),
+      '',
+    );
+
+    if (normalizedEndpoint.isEmpty) {
+      return apiUri;
+    }
+
+    final Uri? endpointUri = Uri.tryParse(normalizedEndpoint);
+
+    if (endpointUri == null ||
+        endpointUri.hasScheme ||
+        endpointUri.hasAuthority) {
+      throw Exception('Invalid Laravel API endpoint.');
+    }
+
+    final String basePath = apiUri.path.replaceFirst(RegExp(r'/+$'), '');
+
+    return apiUri.replace(
+      path: '$basePath/${endpointUri.path}',
+      query: endpointUri.hasQuery ? endpointUri.query : null,
+      fragment: null,
     );
   }
 
   // =========================================================
-  // HANDLE LARAVEL RESPONSE
+  // HANDLE LARAVEL API RESPONSE
   // =========================================================
 
-  static dynamic _handleResponse(
-    http.Response response,
-  ) {
-    final body = response.body.trim();
+  static dynamic _handleResponse(http.Response response) {
+    final int statusCode = response.statusCode;
 
-    // Handle empty response.
+    final bool isSuccess = statusCode >= 200 && statusCode < 300;
+
+    final String body = utf8
+        .decode(response.bodyBytes, allowMalformed: true)
+        .trim();
+
+    // =====================================================
+    // EMPTY RESPONSE
+    // =====================================================
+
     if (body.isEmpty) {
-      if (response.statusCode >= 200 &&
-          response.statusCode < 300) {
+      if (isSuccess) {
         return <String, dynamic>{};
       }
 
-      throw Exception(
-        'Request failed. HTTP ${response.statusCode}',
-      );
+      throw Exception(_defaultHttpMessage(statusCode));
     }
 
     dynamic data;
 
+    // =====================================================
+    // JSON DECODING
+    // =====================================================
+
     try {
       data = jsonDecode(body);
     } on FormatException {
-      throw Exception(
-        'Invalid server response. '
-        'HTTP ${response.statusCode}. '
-        'Please check your Laravel API.',
-      );
+      if (isSuccess) {
+        throw Exception('Invalid JSON response from Laravel server.');
+      }
+
+      throw Exception(_defaultHttpMessage(statusCode));
     }
 
+    // =====================================================
     // SUCCESS RESPONSE
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300) {
+    // =====================================================
+
+    if (isSuccess) {
       return data;
     }
 
+    // =====================================================
     // ERROR RESPONSE
-    String message =
-        'Request failed (${response.statusCode}).';
+    // =====================================================
+
+    String message = _defaultHttpMessage(statusCode);
 
     if (data is Map) {
-      if (data['message'] != null) {
-        message = data['message'].toString();
+      final dynamic serverMessage = data['message'];
+
+      if (serverMessage is String && serverMessage.trim().isNotEmpty) {
+        message = serverMessage.trim();
       }
 
+      // ===================================================
       // LARAVEL VALIDATION ERRORS
+      // ===================================================
+
       if (data['errors'] is Map) {
-        final errors = data['errors'] as Map;
+        final Map<dynamic, dynamic> errors = data['errors'] as Map;
 
-        if (errors.isNotEmpty) {
-          final List<String> errorMessages = [];
+        final List<String> errorMessages = [];
 
-          errors.forEach((field, messages) {
-            if (messages is List) {
-              for (final item in messages) {
-                errorMessages.add(
-                  item.toString(),
-                );
+        for (final dynamic value in errors.values) {
+          if (value is List) {
+            for (final dynamic item in value) {
+              final String errorText = item.toString().trim();
+
+              if (errorText.isNotEmpty) {
+                errorMessages.add(errorText);
               }
-            } else {
-              errorMessages.add(
-                messages.toString(),
-              );
             }
-          });
+          } else if (value != null) {
+            final String errorText = value.toString().trim();
 
-          if (errorMessages.isNotEmpty) {
-            message = errorMessages.join('\n');
+            if (errorText.isNotEmpty) {
+              errorMessages.add(errorText);
+            }
           }
+        }
+
+        if (errorMessages.isNotEmpty) {
+          message = errorMessages.join('\n');
         }
       }
     }
 
-    // COMMON HTTP STATUS MESSAGES
-    switch (response.statusCode) {
-      case 401:
-        if (message == 'Unauthenticated.') {
-          message = 'Your session has expired. Please log in again.';
-        }
-        break;
+    // =====================================================
+    // AUTHENTICATION ERROR
+    // =====================================================
 
-      case 403:
-        if (message.startsWith('Request failed')) {
-          message = 'You are not authorized to perform this action.';
-        }
-        break;
-
-      case 404:
-        if (message.startsWith('Request failed')) {
-          message = 'API endpoint not found. Check your Laravel routes.';
-        }
-        break;
-
-      case 422:
-        if (message.startsWith('Request failed')) {
-          message = 'Please check the information you submitted.';
-        }
-        break;
-
-      case 500:
-        if (message.startsWith('Request failed')) {
-          message = 'Laravel server error. Check your backend logs.';
-        }
-        break;
+    if (statusCode == 401) {
+      if (message.toLowerCase() == 'unauthenticated.' ||
+          message.toLowerCase() == 'unauthenticated') {
+        message =
+            'Unauthenticated. Your session has expired. '
+            'Please log in again.';
+      }
     }
 
     throw Exception(message);
   }
 
   // =========================================================
+  // DEFAULT HTTP ERROR MESSAGES
+  // =========================================================
+
+  static String _defaultHttpMessage(int statusCode) {
+    switch (statusCode) {
+      case 400:
+        return 'Invalid request. '
+            'Please check your information.';
+
+      case 401:
+        return 'Unauthenticated. '
+            'Please log in again.';
+
+      case 403:
+        return 'You are not authorized to perform '
+            'this action.';
+
+      case 404:
+        return 'API endpoint not found. '
+            'Check your Laravel routes.';
+
+      case 405:
+        return 'Request method not allowed.';
+
+      case 408:
+        return 'Request timed out. '
+            'Please try again.';
+
+      case 409:
+        return 'This request conflicts with '
+            'existing information.';
+
+      case 413:
+        return 'The uploaded file is too large.';
+
+      case 419:
+        return 'Session expired. '
+            'Please try again.';
+
+      case 422:
+        return 'Please check the information '
+            'you submitted.';
+
+      case 429:
+        return 'Too many requests. '
+            'Please try again later.';
+
+      case 500:
+        return 'Laravel server error. '
+            'Please try again later.';
+
+      case 502:
+        return 'The server is temporarily '
+            'unavailable.';
+
+      case 503:
+        return 'The SUKI service is temporarily '
+            'unavailable.';
+
+      case 504:
+        return 'The server took too long '
+            'to respond.';
+
+      default:
+        return 'Request failed. '
+            'HTTP $statusCode.';
+    }
+  }
+
+  // =========================================================
   // HANDLE NETWORK ERRORS
   // =========================================================
 
-  static Future<dynamic> _send(
-    Future<http.Response> request,
-  ) async {
+  static Future<dynamic> _send(Future<http.Response> Function() request) async {
     try {
-      final response = await request.timeout(timeout);
+      final http.Response response = await request().timeout(timeout);
 
       return _handleResponse(response);
-
     } on TimeoutException {
       throw Exception(
         'Connection timed out. '
-        'Please check your Laravel server.',
+        'Please check your internet connection '
+        'and Laravel server.',
       );
-
     } on SocketException {
       throw Exception(
-        'Cannot connect to Laravel server. '
-        'Check your API URL, IP address, and network.',
+        'Cannot connect to SUKI server. '
+        'Check your network and API URL.',
       );
-
-    } on http.ClientException catch (e) {
+    } on HandshakeException {
       throw Exception(
-        'Network error: ${e.message}',
+        'Secure connection failed. '
+        'Please check the server certificate.',
       );
-
+    } on http.ClientException catch (error) {
+      throw Exception('Network error: ${error.message}');
     } on FormatException {
-      throw Exception(
-        'Invalid API response format.',
-      );
+      throw Exception('Invalid API response format.');
     }
   }
 
@@ -320,15 +503,9 @@ class ApiServices {
   // GET REQUEST
   // =========================================================
 
-  static Future<dynamic> get(
-    String endpoint, {
-    String? token,
-  }) async {
+  static Future<dynamic> get(String endpoint, {String? token}) async {
     return _send(
-      http.get(
-        _uri(endpoint),
-        headers: _headers(token: token),
-      ),
+      () => http.get(_uri(endpoint), headers: _headers(token: token)),
     );
   }
 
@@ -342,7 +519,7 @@ class ApiServices {
     String? token,
   }) async {
     return _send(
-      http.post(
+      () => http.post(
         _uri(endpoint),
         headers: _headers(token: token),
         body: jsonEncode(body),
@@ -360,7 +537,7 @@ class ApiServices {
     String? token,
   }) async {
     return _send(
-      http.put(
+      () => http.put(
         _uri(endpoint),
         headers: _headers(token: token),
         body: jsonEncode(body),
@@ -378,7 +555,7 @@ class ApiServices {
     String? token,
   }) async {
     return _send(
-      http.patch(
+      () => http.patch(
         _uri(endpoint),
         headers: _headers(token: token),
         body: jsonEncode(body),
@@ -390,45 +567,35 @@ class ApiServices {
   // DELETE REQUEST
   // =========================================================
 
-  static Future<dynamic> delete(
-    String endpoint, {
-    String? token,
-  }) async {
+  static Future<dynamic> delete(String endpoint, {String? token}) async {
     return _send(
-      http.delete(
-        _uri(endpoint),
-        headers: _headers(token: token),
-      ),
+      () => http.delete(_uri(endpoint), headers: _headers(token: token)),
     );
   }
 
   // =========================================================
-  // TEST LARAVEL API CONNECTION
+  // TEST LARAVEL CONNECTION
   // =========================================================
 
   static Future<bool> testConnection() async {
     try {
-      final apiUri = Uri.parse(baseUrl);
+      final Uri apiUri = Uri.parse(baseUrl);
 
-      // Test Laravel root URL instead of using
-      // a separate hardcoded IP address.
-      final serverUri = Uri(
+      // Keep existing behavior:
+      // Test Laravel website root instead
+      // of assuming an API health endpoint exists.
+      final Uri serverUri = Uri(
         scheme: apiUri.scheme,
         host: apiUri.host,
-        port: apiUri.port,
+        port: apiUri.hasPort ? apiUri.port : null,
         path: '/',
       );
 
-      final response = await http.get(
-        serverUri,
-        headers: {
-          'Accept': '*/*',
-        },
-      ).timeout(timeout);
+      final http.Response response = await http
+          .get(serverUri, headers: {'Accept': '*/*'})
+          .timeout(timeout);
 
-      return response.statusCode >= 200 &&
-          response.statusCode < 400;
-
+      return response.statusCode >= 200 && response.statusCode < 400;
     } catch (_) {
       return false;
     }

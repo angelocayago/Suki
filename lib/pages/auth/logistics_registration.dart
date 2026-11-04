@@ -1,19 +1,34 @@
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/api_services.dart';
 import '../../styles/register_style.dart';
 
 class LogisticsRegistration extends StatefulWidget {
   const LogisticsRegistration({super.key});
 
   @override
-  State<LogisticsRegistration> createState() =>
-      _LogisticsRegistrationState();
+  State<LogisticsRegistration> createState() => _LogisticsRegistrationState();
 }
 
-class _LogisticsRegistrationState
-    extends State<LogisticsRegistration> {
+class _LogisticsRegistrationState extends State<LogisticsRegistration> {
+  // =========================================================
+  // CONFIGURATION
+  // =========================================================
+
+  // Configure this only after checking Laravel routes/api.php.
+  //
+  // Example launch argument:
+  // --dart-define=LOGISTICS_REGISTER_ENDPOINT=/logistics/register
+  //
+  // The example is NOT a confirmed backend route.
+  static const String _registrationEndpoint = String.fromEnvironment(
+    'LOGISTICS_REGISTER_ENDPOINT',
+    defaultValue: '',
+  );
+
   final _formKey = GlobalKey<FormState>();
 
   // =========================================================
@@ -28,23 +43,12 @@ class _LogisticsRegistrationState
   // AUTHORIZED REPRESENTATIVE
   // =========================================================
 
-  final representativeFirstNameController =
-      TextEditingController();
-
-  final representativeMiddleInitialController =
-      TextEditingController();
-
-  final representativeLastNameController =
-      TextEditingController();
-
-  final representativePositionController =
-      TextEditingController();
-
-  final representativePhoneController =
-      TextEditingController();
-
-  final representativeEmailController =
-      TextEditingController();
+  final representativeFirstNameController = TextEditingController();
+  final representativeMiddleInitialController = TextEditingController();
+  final representativeLastNameController = TextEditingController();
+  final representativePositionController = TextEditingController();
+  final representativePhoneController = TextEditingController();
+  final representativeEmailController = TextEditingController();
 
   // =========================================================
   // COMPANY ADDRESS
@@ -79,11 +83,9 @@ class _LogisticsRegistrationState
   bool agreeTerms = false;
   bool isSubmitting = false;
 
-  final List<String> serviceAreaOptions = [
-    'NCR',
-    'CALABARZON',
-    'Davao',
-  ];
+  // Existing sample coverage choices.
+  // Replace or extend based on confirmed backend rules.
+  final List<String> serviceAreaOptions = ['NCR', 'CALABARZON', 'Davao'];
 
   final List<String> selectedServiceAreas = [];
 
@@ -145,10 +147,7 @@ class _LogisticsRegistrationState
   // SNACKBAR
   // =========================================================
 
-  void _showMessage(
-    String message, {
-    bool success = false,
-  }) {
+  void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -156,32 +155,32 @@ class _LogisticsRegistrationState
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: success
-              ? RegisterStyle.primary
-              : Colors.redAccent,
+          backgroundColor: success ? RegisterStyle.primary : Colors.redAccent,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
         ),
       );
   }
 
   // =========================================================
-  // GENERAL VALIDATION
+  // VALIDATION
   // =========================================================
 
   String? _validateRequired(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'This field is required';
     }
-
     return null;
   }
 
   String? _validateCompanyName(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final name = value?.trim() ?? '';
+
+    if (name.isEmpty) {
       return 'Company name is required';
     }
 
-    if (value.trim().length < 3) {
+    if (name.length < 3) {
       return 'Enter at least 3 characters';
     }
 
@@ -189,33 +188,33 @@ class _LogisticsRegistrationState
   }
 
   String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final name = value?.trim() ?? '';
+
+    if (name.isEmpty) {
       return 'This field is required';
     }
 
-    if (value.trim().length < 2) {
+    if (name.length < 2) {
       return 'Enter at least 2 characters';
     }
 
-    if (RegExp(r'\d').hasMatch(value)) {
-      return 'Numbers are not allowed';
+    // Support ordinary Filipino names, including Ñ.
+    if (!RegExp(r"^[A-Za-zÀ-ÿÑñ\s.'-]+$").hasMatch(name)) {
+      return 'Enter a valid name';
     }
 
     return null;
   }
 
-  // =========================================================
-  // MIDDLE INITIAL VALIDATION
-  // ONE LETTER ONLY - UPPERCASE
-  // =========================================================
-
   String? _validateMiddleInitial(String? value) {
-    if (value == null || value.isEmpty) {
+    final initial = value?.trim() ?? '';
+
+    if (initial.isEmpty) {
       return null;
     }
 
-    if (!RegExp(r'^[A-Z]$').hasMatch(value)) {
-      return 'Enter one uppercase letter only';
+    if (!RegExp(r'^[A-ZÑ]$').hasMatch(initial.toUpperCase())) {
+      return 'Enter one letter only';
     }
 
     return null;
@@ -223,121 +222,58 @@ class _LogisticsRegistrationState
 
   List<TextInputFormatter> get _middleInitialFormatters {
     return [
-      FilteringTextInputFormatter.allow(
-        RegExp(r'[a-zA-Z]'),
-      ),
-
       LengthLimitingTextInputFormatter(1),
+      TextInputFormatter.withFunction((oldValue, newValue) {
+        final uppercase = newValue.text.toUpperCase();
 
-      TextInputFormatter.withFunction(
-        (oldValue, newValue) {
-          final uppercaseText =
-              newValue.text.toUpperCase();
+        if (uppercase.isNotEmpty && !RegExp(r'^[A-ZÑ]$').hasMatch(uppercase)) {
+          return oldValue;
+        }
 
-          return newValue.copyWith(
-            text: uppercaseText,
-            selection: newValue.selection,
-            composing: TextRange.empty,
-          );
-        },
-      ),
+        return newValue.copyWith(
+          text: uppercase,
+          selection: TextSelection.collapsed(offset: uppercase.length),
+          composing: TextRange.empty,
+        );
+      }),
     ];
   }
 
-  // =========================================================
-  // STRICT EMAIL VALIDATION
-  //
-  // VALID:
-  // juan@gmail.com
-  // juan123@yahoo.com
-  // juan.delacruz@gmail.com
-  //
-  // INVALID:
-  // @123gmail.com
-  // @.com
-  // gmail.com
-  // .com
-  // juan@.com
-  // =========================================================
-
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final email = value?.trim() ?? '';
+
+    if (email.isEmpty) {
       return 'Email address is required';
-    }
-
-    final email = value.trim();
-
-    if (email.contains(' ')) {
-      return 'Spaces are not allowed in email';
-    }
-
-    final emailRegex = RegExp(
-      r'^[A-Za-z0-9]+(?:[._%+-][A-Za-z0-9]+)*@'
-      r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+'
-      r'[A-Za-z]{2,}$',
-    );
-
-    if (!emailRegex.hasMatch(email)) {
-      return 'Enter a valid email address (example@gmail.com)';
     }
 
     if (email.length > 254) {
       return 'Email address is too long';
     }
 
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      return 'Enter a valid email address';
+    }
+
     return null;
   }
 
-  // =========================================================
-  // CONTACT NUMBER VALIDATION
-  //
-  // 09 = 11 DIGITS
-  // 63 = 12 DIGITS
-  // NUMBERS ONLY
-  // =========================================================
-
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
+    final phone = value?.trim() ?? '';
+
+    if (phone.isEmpty) {
       return 'Contact number is required';
     }
 
-    final phone = value.trim();
-
-    if (!RegExp(r'^\d+$').hasMatch(phone)) {
-      return 'Numbers only are allowed';
-    }
-
-    if (phone.startsWith('09')) {
-      if (phone.length != 11) {
-        return '09 number must contain 11 digits';
-      }
-
-      if (!RegExp(r'^09\d{9}$').hasMatch(phone)) {
-        return 'Invalid 09 mobile number';
-      }
-
+    if (RegExp(r'^09\d{9}$').hasMatch(phone)) {
       return null;
     }
 
-    if (phone.startsWith('63')) {
-      if (phone.length != 12) {
-        return '63 number must contain 12 digits';
-      }
-
-      if (!RegExp(r'^639\d{9}$').hasMatch(phone)) {
-        return 'Use 639XXXXXXXXX format';
-      }
-
+    if (RegExp(r'^639\d{9}$').hasMatch(phone)) {
       return null;
     }
 
-    return 'Contact number must start with 09 or 63';
+    return 'Use 09XXXXXXXXX or 639XXXXXXXXX';
   }
-
-  // =========================================================
-  // NORMALIZE PHONE NUMBER FOR API
-  // 639171234567 -> 09171234567
-  // =========================================================
 
   String _normalizePhone(String value) {
     final phone = value.trim();
@@ -349,96 +285,274 @@ class _LogisticsRegistrationState
     return phone;
   }
 
-  // =========================================================
-  // STRONG PASSWORD VALIDATION
-  // SAME AS RIDER REGISTRATION
-  // =========================================================
-
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
+    final password = value ?? '';
+
+    if (password.isEmpty) {
       return 'Password is required';
     }
 
-    if (value.length < 8) {
+    if (password.length < 8) {
       return 'Password must be at least 8 characters';
     }
 
-    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
       return 'Add at least one uppercase letter';
     }
 
-    if (!RegExp(r'[a-z]').hasMatch(value)) {
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
       return 'Add at least one lowercase letter';
     }
 
-    if (!RegExp(r'[0-9]').hasMatch(value)) {
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
       return 'Add at least one number';
     }
 
-    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
       return 'Add at least one special character';
     }
 
     return null;
   }
 
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+
+    if (value != passwordController.text) {
+      return 'Passwords do not match';
+    }
+
+    return null;
+  }
+
   // =========================================================
-  // SERVICE COVERAGE SELECTION
+  // BUILD REGISTRATION PAYLOAD
+  // =========================================================
+
+  Map<String, dynamic> _buildRegistrationPayload() {
+    String value(TextEditingController controller) => controller.text.trim();
+
+    return {
+      'role': 'logistics',
+
+      'company': {
+        'company_name': value(companyNameController),
+        'email': value(companyEmailController),
+        'phone': _normalizePhone(companyPhoneController.text),
+      },
+
+      'authorized_representative': {
+        'first_name': value(representativeFirstNameController),
+        'middle_initial': value(representativeMiddleInitialController).isEmpty
+            ? null
+            : value(representativeMiddleInitialController).toUpperCase(),
+        'last_name': value(representativeLastNameController),
+        'position': value(representativePositionController),
+        'phone': _normalizePhone(representativePhoneController.text),
+        'email': value(representativeEmailController),
+      },
+
+      'company_address': {
+        'region': value(regionController),
+        'province': value(provinceController),
+        'city': value(cityController),
+        'barangay': value(barangayController),
+        'street': value(streetController),
+      },
+
+      'service_areas': List<String>.from(selectedServiceAreas),
+
+      'primary_hub': {
+        'hub_name': value(hubNameController),
+        'region': value(hubRegionController),
+        'province': value(hubProvinceController),
+        'city': value(hubCityController),
+        'barangay': value(hubBarangayController),
+        'street': value(hubStreetController),
+      },
+
+      'password': passwordController.text,
+      'password_confirmation': confirmPasswordController.text,
+    };
+  }
+
+  // =========================================================
+  // REGISTER LOGISTICS
+  // =========================================================
+
+  Future<void> registerLogistics() async {
+    if (isSubmitting) return;
+
+    FocusScope.of(context).unfocus();
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      _showMessage('Please complete all required fields.');
+      return;
+    }
+
+    if (selectedServiceAreas.isEmpty) {
+      _showMessage('Please select at least one service area.');
+      return;
+    }
+
+    if (!agreeTerms) {
+      _showMessage(
+        'Please agree to the Terms of Service '
+        'and Privacy Policy.',
+      );
+      return;
+    }
+
+    // Do not assume an unverified backend endpoint.
+    final endpoint = _registrationEndpoint.trim();
+
+    if (endpoint.isEmpty) {
+      _showMessage(
+        'Logistics registration API is not configured. '
+        'Confirm the Laravel endpoint first.',
+      );
+      return;
+    }
+
+    // Restrict the configurable endpoint to a relative
+    // path under the existing Laravel API base URL.
+    final parsedEndpoint = Uri.tryParse(endpoint);
+
+    if (parsedEndpoint == null ||
+        parsedEndpoint.hasScheme ||
+        parsedEndpoint.hasAuthority ||
+        parsedEndpoint.hasQuery ||
+        parsedEndpoint.hasFragment ||
+        endpoint.contains('\\') ||
+        parsedEndpoint.pathSegments.contains('..') ||
+        parsedEndpoint.pathSegments.isEmpty ||
+        parsedEndpoint.pathSegments.last.isEmpty) {
+      _showMessage('Invalid logistics registration API endpoint.');
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+    });
+
+    try {
+      final payload = _buildRegistrationPayload();
+
+      final dynamic response = await ApiServices.post(
+        endpoint,
+        payload,
+      ).timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+
+      if (response is! Map) {
+        throw Exception('Invalid response from the Laravel server.');
+      }
+
+      // Use the same success contract as the
+      // current AuthService and Laravel registration.
+      if (response['success'] != true) {
+        throw Exception(
+          response['message']?.toString() ?? 'Registration was not confirmed.',
+        );
+      }
+
+      final message =
+          response['message']?.toString() ??
+          'Company registration submitted successfully.';
+
+      // Show a dialog so confirmation is visible
+      // before navigating away from the form.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Registration Submitted'),
+            content: Text(
+              '$message\n\n'
+              'Your account may require approval '
+              'before you can access logistics operations.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Continue'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } on TimeoutException {
+      _showMessage(
+        'The request timed out. Check whether your '
+        'registration was received before trying again.',
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      final message = error.toString().replaceFirst('Exception: ', '');
+
+      _showMessage(
+        message.isEmpty ? 'Unable to submit company registration.' : message,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  // =========================================================
+  // SERVICE COVERAGE
   // =========================================================
 
   Widget _buildServiceAreaSelection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Service Coverage',
-          style: RegisterStyle.label,
-        ),
-
-        SizedBox(height: 6),
-
+        Text('Service Coverage', style: RegisterStyle.label),
+        const SizedBox(height: 6),
         Text(
           'Select the regions where your logistics company '
           'provides delivery and shipment services.',
           style: RegisterStyle.subtitle,
         ),
-
-        SizedBox(height: 10),
-
+        const SizedBox(height: 10),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: RegisterStyle.backgroundColor,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: RegisterStyle.borderColor,
-            ),
+            border: Border.all(color: RegisterStyle.borderColor),
           ),
           child: Column(
             children: serviceAreaOptions.map((area) {
-              final selected =
-                  selectedServiceAreas.contains(area);
+              final selected = selectedServiceAreas.contains(area);
 
               return CheckboxListTile(
                 value: selected,
                 activeColor: RegisterStyle.primary,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title: Text(
-                  area,
-                  style: RegisterStyle.inputText,
-                ),
-                controlAffinity:
-                    ListTileControlAffinity.leading,
+                title: Text(area, style: RegisterStyle.inputText),
+                controlAffinity: ListTileControlAffinity.leading,
                 onChanged: isSubmitting
                     ? null
-                    : (value) {
+                    : (checked) {
                         setState(() {
-                          if (value == true) {
+                          if (checked == true) {
                             if (!selectedServiceAreas.contains(area)) {
                               selectedServiceAreas.add(area);
                             }
@@ -456,145 +570,28 @@ class _LogisticsRegistrationState
   }
 
   // =========================================================
-  // LOGISTICS REGISTRATION
-  // =========================================================
-
-  void registerLogistics() {
-    if (isSubmitting) return;
-
-    FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (selectedServiceAreas.isEmpty) {
-      _showMessage(
-        'Please select at least one service area.',
-      );
-      return;
-    }
-
-    if (!agreeTerms) {
-      _showMessage(
-        'Please agree to the Terms of Service and Privacy Policy.',
-      );
-      return;
-    }
-
-    if (passwordController.text !=
-        confirmPasswordController.text) {
-      _showMessage('Passwords do not match.');
-      return;
-    }
-
-    final logisticsData = <String, dynamic>{
-      'role': 'logistics',
-
-      'company': {
-        'company_name': companyNameController.text.trim(),
-        'email': companyEmailController.text.trim(),
-        'phone': _normalizePhone(
-          companyPhoneController.text,
-        ),
-      },
-
-      'authorized_representative': {
-        'first_name':
-            representativeFirstNameController.text.trim(),
-
-        'middle_initial':
-            representativeMiddleInitialController.text.trim().isEmpty
-                ? null
-                : representativeMiddleInitialController
-                    .text.trim().toUpperCase(),
-
-        'last_name':
-            representativeLastNameController.text.trim(),
-
-        'position':
-            representativePositionController.text.trim(),
-
-        'phone': _normalizePhone(
-          representativePhoneController.text,
-        ),
-
-        'email':
-            representativeEmailController.text.trim(),
-      },
-
-      'company_address': {
-        'region': regionController.text.trim(),
-        'province': provinceController.text.trim(),
-        'city': cityController.text.trim(),
-        'barangay': barangayController.text.trim(),
-        'street': streetController.text.trim(),
-      },
-
-      'service_areas': List<String>.from(
-        selectedServiceAreas,
-      ),
-
-      'primary_hub': {
-        'hub_name': hubNameController.text.trim(),
-        'region': hubRegionController.text.trim(),
-        'province': hubProvinceController.text.trim(),
-        'city': hubCityController.text.trim(),
-        'barangay': hubBarangayController.text.trim(),
-        'street': hubStreetController.text.trim(),
-      },
-
-      'password': passwordController.text,
-      'password_confirmation':
-          confirmPasswordController.text,
-    };
-
-    // TODO:
-    // Connect logisticsData to the Laravel registration API.
-    // Do not log passwords or sensitive account information.
-
-    _showMessage(
-      'Logistics form validated. Laravel API registration '
-      'is not yet connected.',
-    );
-  }
-
-  // =========================================================
   // MAIN BUILD
   // =========================================================
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
     return Scaffold(
       backgroundColor: RegisterStyle.backgroundColor,
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
         child: SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
-
+          physics: const BouncingScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 460,
-              ),
-
+              constraints: const BoxConstraints(maxWidth: 460),
               child: Form(
                 key: _formKey,
-
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // HEADER
-
                     Center(
                       child: Container(
                         width: 64,
@@ -608,7 +605,7 @@ class _LogisticsRegistrationState
                       ),
                     ),
 
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
 
                     Center(
                       child: Text(
@@ -617,21 +614,21 @@ class _LogisticsRegistrationState
                       ),
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
                     Text(
                       'LOGISTICS REGISTRATION',
                       style: RegisterStyle.smallHeading,
                     ),
 
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
 
                     Text(
                       'Register Your Company',
                       style: RegisterStyle.pageTitle,
                     ),
 
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
 
                     Text(
                       'Create a logistics company account '
@@ -640,75 +637,46 @@ class _LogisticsRegistrationState
                       style: RegisterStyle.subtitle,
                     ),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // COMPANY INFORMATION
-
+                    // =====================================
                     _sectionTitle('Company Information'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Company Name',
                       controller: companyNameController,
                       hint: 'Enter registered company name',
                       icon: Icons.business_outlined,
-                      capitalization: TextCapitalization.words,
                       validator: _validateCompanyName,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
-                    // COMPANY EMAIL ADDRESS
-
-                    _buildTextField(
+                    _buildEmailField(
                       label: 'Company Email Address',
                       controller: companyEmailController,
                       hint: 'company@example.com',
-                      icon: Icons.mail_outline,
-                      keyboardType: TextInputType.emailAddress,
-                      capitalization: TextCapitalization.none,
-                      validator: _validateEmail,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.deny(
-                          RegExp(r'\s'),
-                        ),
-                      ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 13),
 
-                    _emailInstruction(),
-
-                    SizedBox(height: 13),
-
-                    // COMPANY CONTACT NUMBER
-
-                    _buildTextField(
+                    _buildPhoneField(
                       label: 'Company Contact Number',
                       controller: companyPhoneController,
-                      hint: '09171234567 or 639171234567',
-                      icon: Icons.phone_outlined,
-                      keyboardType: TextInputType.number,
-                      capitalization: TextCapitalization.none,
-                      validator: _validatePhone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(12),
-                      ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 25),
 
-                    _buildPhoneInstruction(),
-
-                    SizedBox(height: 25),
-
+                    // =====================================
                     // AUTHORIZED REPRESENTATIVE
-
+                    // =====================================
                     _sectionTitle('Authorized Representative'),
 
-                    SizedBox(height: 7),
+                    const SizedBox(height: 7),
 
                     Text(
                       'Person responsible for managing '
@@ -716,256 +684,148 @@ class _LogisticsRegistrationState
                       style: RegisterStyle.subtitle,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'First Name',
                       controller: representativeFirstNameController,
                       hint: 'Enter first name',
                       icon: Icons.person_outline,
-                      capitalization: TextCapitalization.words,
                       validator: _validateName,
                     ),
 
-                    SizedBox(height: 13),
-
-                    // MIDDLE INITIAL
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Middle Initial',
-                      controller:
-                          representativeMiddleInitialController,
+                      controller: representativeMiddleInitialController,
                       hint: 'M.I. (Optional)',
-                      capitalization:
-                          TextCapitalization.characters,
+                      capitalization: TextCapitalization.characters,
                       validator: _validateMiddleInitial,
                       inputFormatters: _middleInitialFormatters,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Last Name',
                       controller: representativeLastNameController,
                       hint: 'Enter last name',
                       icon: Icons.person_outline,
-                      capitalization: TextCapitalization.words,
                       validator: _validateName,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Position / Designation',
                       controller: representativePositionController,
                       hint: 'Example: Operations Manager',
                       icon: Icons.work_outline,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
-                    // REPRESENTATIVE CONTACT NUMBER
-
-                    _buildTextField(
+                    _buildPhoneField(
                       label: 'Representative Contact Number',
                       controller: representativePhoneController,
-                      hint: '09171234567 or 639171234567',
-                      icon: Icons.phone_outlined,
-                      keyboardType: TextInputType.number,
-                      capitalization: TextCapitalization.none,
-                      validator: _validatePhone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(12),
-                      ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 13),
 
-                    _buildPhoneInstruction(),
-
-                    SizedBox(height: 13),
-
-                    // REPRESENTATIVE EMAIL ADDRESS
-
-                    _buildTextField(
+                    _buildEmailField(
                       label: 'Representative Email',
                       controller: representativeEmailController,
                       hint: 'representative@example.com',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      capitalization: TextCapitalization.none,
-                      validator: _validateEmail,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.deny(
-                          RegExp(r'\s'),
-                        ),
-                      ],
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 25),
 
-                    _emailInstruction(),
-
-                    SizedBox(height: 25),
-
+                    // =====================================
                     // COMPANY ADDRESS
-
+                    // =====================================
                     _sectionTitle('Company Address'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
-                    _buildTextField(
-                      label: 'Region',
-                      controller: regionController,
-                      hint: 'Enter region',
-                      icon: Icons.map_outlined,
-                      capitalization: TextCapitalization.words,
+                    _buildAddressFields(
+                      region: regionController,
+                      province: provinceController,
+                      city: cityController,
+                      barangay: barangayController,
+                      street: streetController,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 25),
 
-                    _buildTextField(
-                      label: 'Province',
-                      controller: provinceController,
-                      hint: 'Enter province',
-                      icon: Icons.location_city_outlined,
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'City / Municipality',
-                      controller: cityController,
-                      hint: 'Enter city or municipality',
-                      icon: Icons.location_city_outlined,
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'Barangay',
-                      controller: barangayController,
-                      hint: 'Enter barangay',
-                      icon: Icons.place_outlined,
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'Street / Building / House Number',
-                      controller: streetController,
-                      hint: 'Enter complete address',
-                      icon: Icons.home_outlined,
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 25),
-
+                    // =====================================
                     // SERVICE COVERAGE
-
+                    // =====================================
                     _sectionTitle('Service Coverage'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildServiceAreaSelection(),
 
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // =====================================
                     // PRIMARY HUB
-
+                    // =====================================
                     _sectionTitle('Primary Hub Information'),
 
-                    SizedBox(height: 7),
+                    const SizedBox(height: 7),
 
                     Text(
-                      'Enter the details of your company\'s '
+                      "Enter the details of your company's "
                       'main operating hub.',
                       style: RegisterStyle.subtitle,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildTextField(
                       label: 'Hub Name',
                       controller: hubNameController,
                       hint: 'Example: Company Main Hub',
                       icon: Icons.warehouse_outlined,
-                      capitalization: TextCapitalization.words,
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
-                    _buildTextField(
-                      label: 'Hub Region',
-                      controller: hubRegionController,
-                      hint: 'Enter hub region',
-                      capitalization: TextCapitalization.words,
+                    _buildAddressFields(
+                      region: hubRegionController,
+                      province: hubProvinceController,
+                      city: hubCityController,
+                      barangay: hubBarangayController,
+                      street: hubStreetController,
+                      prefix: 'Hub ',
                     ),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 25),
 
-                    _buildTextField(
-                      label: 'Hub Province',
-                      controller: hubProvinceController,
-                      hint: 'Enter hub province',
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'Hub City / Municipality',
-                      controller: hubCityController,
-                      hint: 'Enter hub city',
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'Hub Barangay',
-                      controller: hubBarangayController,
-                      hint: 'Enter hub barangay',
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 13),
-
-                    _buildTextField(
-                      label: 'Hub Street / Building Address',
-                      controller: hubStreetController,
-                      hint: 'Enter complete hub address',
-                      icon: Icons.location_on_outlined,
-                      capitalization: TextCapitalization.words,
-                    ),
-
-                    SizedBox(height: 25),
-
+                    // =====================================
                     // ACCOUNT SECURITY
-
+                    // =====================================
                     _sectionTitle('Account Security'),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildPasswordField(),
 
-                    SizedBox(height: 13),
+                    const SizedBox(height: 13),
 
                     _buildConfirmPasswordField(),
 
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
                     _buildPasswordRequirements(),
 
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                    // TERMS AND CONDITIONS
-
+                    // =====================================
+                    // TERMS
+                    // =====================================
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -977,7 +837,6 @@ class _LogisticsRegistrationState
                             activeColor: RegisterStyle.primary,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
                             onChanged: isSubmitting
                                 ? null
                                 : (value) {
@@ -987,22 +846,20 @@ class _LogisticsRegistrationState
                                   },
                           ),
                         ),
-
-                        SizedBox(width: 9),
-
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Text.rich(
                             TextSpan(
                               style: RegisterStyle.termsText,
                               children: [
-                                TextSpan(
-                                  text: 'I agree to Mobile Suki\'s ',
+                                const TextSpan(
+                                  text: "I agree to Mobile Suki's ",
                                 ),
                                 TextSpan(
                                   text: 'Terms of Service',
                                   style: RegisterStyle.linkText,
                                 ),
-                                TextSpan(text: ' and '),
+                                const TextSpan(text: ' and '),
                                 TextSpan(
                                   text: 'Privacy Policy.',
                                   style: RegisterStyle.linkText,
@@ -1014,19 +871,19 @@ class _LogisticsRegistrationState
                       ],
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
+                    // =====================================
                     // SUBMIT BUTTON
-
+                    // =====================================
                     SizedBox(
                       width: double.infinity,
                       height: 49,
                       child: ElevatedButton(
                         style: RegisterStyle.primaryButton,
-                        onPressed:
-                            isSubmitting ? null : registerLogistics,
+                        onPressed: isSubmitting ? null : registerLogistics,
                         child: isSubmitting
-                            ? SizedBox(
+                            ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -1041,21 +898,20 @@ class _LogisticsRegistrationState
                       ),
                     ),
 
-                    SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
                     // LOGIN LINK
-
                     Center(
                       child: Wrap(
                         alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             'Already have an account? ',
                             style: RegisterStyle.bottomText,
                           ),
-
-                          GestureDetector(
-                            onTap: isSubmitting
+                          TextButton(
+                            onPressed: isSubmitting
                                 ? null
                                 : () {
                                     Navigator.pushReplacementNamed(
@@ -1072,17 +928,13 @@ class _LogisticsRegistrationState
                       ),
                     ),
 
-                    SizedBox(height: 15),
-
-                    // BACK BUTTON
+                    const SizedBox(height: 15),
 
                     Center(
                       child: TextButton.icon(
                         onPressed: isSubmitting
                             ? null
-                            : () {
-                                Navigator.pop(context);
-                              },
+                            : () => Navigator.pop(context),
                         icon: Icon(
                           Icons.arrow_back,
                           size: 15,
@@ -1095,7 +947,7 @@ class _LogisticsRegistrationState
                       ),
                     ),
 
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -1107,50 +959,12 @@ class _LogisticsRegistrationState
   }
 
   // =========================================================
-  // SECTION TITLE
+  // REUSABLE UI HELPERS
   // =========================================================
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: RegisterStyle.sectionTitle,
-    );
+    return Text(title, style: RegisterStyle.sectionTitle);
   }
-
-  // =========================================================
-  // EMAIL INSTRUCTION
-  // =========================================================
-
-  Widget _emailInstruction() {
-    return Text(
-      'Enter a valid email address, example: juan@gmail.com',
-      style: TextStyle(
-        fontSize: 10,
-        height: 1.5,
-        color: RegisterStyle.textColor,
-      ),
-    );
-  }
-
-  // =========================================================
-  // PHONE INSTRUCTION
-  // =========================================================
-
-  Widget _buildPhoneInstruction() {
-    return Text(
-      'Enter 11 digits starting with 09 or '
-      '12 digits starting with 63. Numbers only.',
-      style: TextStyle(
-        fontSize: 10,
-        height: 1.5,
-        color: RegisterStyle.textColor,
-      ),
-    );
-  }
-
-  // =========================================================
-  // REUSABLE TEXT FIELD
-  // =========================================================
 
   Widget _buildTextField({
     required String label,
@@ -1158,35 +972,138 @@ class _LogisticsRegistrationState
     required String hint,
     IconData? icon,
     TextInputType? keyboardType,
-    TextCapitalization capitalization =
-        TextCapitalization.sentences,
+    TextCapitalization capitalization = TextCapitalization.words,
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: RegisterStyle.label,
-        ),
-
-        SizedBox(height: 6),
-
+        Text(label, style: RegisterStyle.label),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           enabled: !isSubmitting,
           keyboardType: keyboardType ?? TextInputType.text,
           textCapitalization: capitalization,
           inputFormatters: inputFormatters,
-          autocorrect:
-              keyboardType != TextInputType.emailAddress,
+          autocorrect: keyboardType != TextInputType.emailAddress,
           style: RegisterStyle.inputText,
-          decoration: RegisterStyle.inputDecoration(
-            hint: hint,
-            icon: icon,
-          ),
+          decoration: RegisterStyle.inputDecoration(hint: hint, icon: icon),
           validator: validator ?? _validateRequired,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmailField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTextField(
+          label: label,
+          controller: controller,
+          hint: hint,
+          icon: Icons.mail_outline,
+          keyboardType: TextInputType.emailAddress,
+          capitalization: TextCapitalization.none,
+          validator: _validateEmail,
+          inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Enter a valid email address, example: juan@gmail.com',
+          style: TextStyle(
+            fontSize: 10,
+            height: 1.5,
+            color: RegisterStyle.textColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneField({
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTextField(
+          label: label,
+          controller: controller,
+          hint: '09171234567 or 639171234567',
+          icon: Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+          capitalization: TextCapitalization.none,
+          validator: _validatePhone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(12),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Enter 11 digits starting with 09 or '
+          '12 digits starting with 63. Numbers only.',
+          style: TextStyle(
+            fontSize: 10,
+            height: 1.5,
+            color: RegisterStyle.textColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddressFields({
+    required TextEditingController region,
+    required TextEditingController province,
+    required TextEditingController city,
+    required TextEditingController barangay,
+    required TextEditingController street,
+    String prefix = '',
+  }) {
+    return Column(
+      children: [
+        _buildTextField(
+          label: '${prefix}Region',
+          controller: region,
+          hint: 'Enter region',
+          icon: Icons.map_outlined,
+        ),
+        const SizedBox(height: 13),
+        _buildTextField(
+          label: '${prefix}Province',
+          controller: province,
+          hint: 'Enter province',
+          icon: Icons.location_city_outlined,
+        ),
+        const SizedBox(height: 13),
+        _buildTextField(
+          label: '${prefix}City / Municipality',
+          controller: city,
+          hint: 'Enter city or municipality',
+          icon: Icons.location_city_outlined,
+        ),
+        const SizedBox(height: 13),
+        _buildTextField(
+          label: '${prefix}Barangay',
+          controller: barangay,
+          hint: 'Enter barangay',
+          icon: Icons.place_outlined,
+        ),
+        const SizedBox(height: 13),
+        _buildTextField(
+          label: '${prefix}Street / Building / House Number',
+          controller: street,
+          hint: 'Enter complete address',
+          icon: Icons.home_outlined,
         ),
       ],
     );
@@ -1200,13 +1117,8 @@ class _LogisticsRegistrationState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Password',
-          style: RegisterStyle.label,
-        ),
-
-        SizedBox(height: 6),
-
+        Text('Password', style: RegisterStyle.label),
+        const SizedBox(height: 6),
         TextFormField(
           controller: passwordController,
           enabled: !isSubmitting,
@@ -1240,38 +1152,23 @@ class _LogisticsRegistrationState
     );
   }
 
-  // =========================================================
-  // LIVE PASSWORD CHECKLIST ITEM
-  // =========================================================
-
-  Widget _passwordRule(
-    String label,
-    bool passed,
-  ) {
+  Widget _passwordRule(String label, bool passed) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Icon(
-            passed
-                ? Icons.check_circle
-                : Icons.circle_outlined,
-            color: passed
-                ? RegisterStyle.primary
-                : RegisterStyle.mutedText,
+            passed ? Icons.check_circle : Icons.circle_outlined,
+            color: passed ? RegisterStyle.primary : RegisterStyle.mutedText,
             size: 15,
           ),
-
-          SizedBox(width: 8),
-
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: passed
-                    ? RegisterStyle.primary
-                    : RegisterStyle.textColor,
+                color: passed ? RegisterStyle.primary : RegisterStyle.textColor,
               ),
             ),
           ),
@@ -1280,22 +1177,8 @@ class _LogisticsRegistrationState
     );
   }
 
-  // =========================================================
-  // LIVE PASSWORD REQUIREMENTS
-  // =========================================================
-
   Widget _buildPasswordRequirements() {
     final password = passwordController.text;
-
-    final hasMinimumLength = password.length >= 8;
-    final hasUppercase =
-        RegExp(r'[A-Z]').hasMatch(password);
-    final hasLowercase =
-        RegExp(r'[a-z]').hasMatch(password);
-    final hasNumber =
-        RegExp(r'[0-9]').hasMatch(password);
-    final hasSpecial =
-        RegExp(r'[^A-Za-z0-9]').hasMatch(password);
 
     return Container(
       width: double.infinity,
@@ -1303,9 +1186,7 @@ class _LogisticsRegistrationState
       decoration: BoxDecoration(
         color: RegisterStyle.selectedBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: RegisterStyle.borderColor,
-        ),
+        border: Border.all(color: RegisterStyle.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1318,32 +1199,23 @@ class _LogisticsRegistrationState
               color: RegisterStyle.titleColor,
             ),
           ),
-
-          SizedBox(height: 10),
-
-          _passwordRule(
-            'At least 8 characters',
-            hasMinimumLength,
-          ),
-
+          const SizedBox(height: 10),
+          _passwordRule('At least 8 characters', password.length >= 8),
           _passwordRule(
             'One uppercase letter (A-Z)',
-            hasUppercase,
+            RegExp(r'[A-Z]').hasMatch(password),
           ),
-
           _passwordRule(
             'One lowercase letter (a-z)',
-            hasLowercase,
+            RegExp(r'[a-z]').hasMatch(password),
           ),
-
           _passwordRule(
             'One number (0-9)',
-            hasNumber,
+            RegExp(r'[0-9]').hasMatch(password),
           ),
-
           _passwordRule(
-            'One special character (!@#\$%)',
-            hasSpecial,
+            'One special character',
+            RegExp(r'[^A-Za-z0-9]').hasMatch(password),
           ),
         ],
       ),
@@ -1358,13 +1230,8 @@ class _LogisticsRegistrationState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Confirm Password',
-          style: RegisterStyle.label,
-        ),
-
-        SizedBox(height: 6),
-
+        Text('Confirm Password', style: RegisterStyle.label),
+        const SizedBox(height: 6),
         TextFormField(
           controller: confirmPasswordController,
           enabled: !isSubmitting,
@@ -1380,8 +1247,7 @@ class _LogisticsRegistrationState
                   ? null
                   : () {
                       setState(() {
-                        obscureConfirmPassword =
-                            !obscureConfirmPassword;
+                        obscureConfirmPassword = !obscureConfirmPassword;
                       });
                     },
               icon: Icon(
@@ -1393,17 +1259,7 @@ class _LogisticsRegistrationState
               ),
             ),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please confirm your password';
-            }
-
-            if (value != passwordController.text) {
-              return 'Passwords do not match';
-            }
-
-            return null;
-          },
+          validator: _validateConfirmPassword,
         ),
       ],
     );

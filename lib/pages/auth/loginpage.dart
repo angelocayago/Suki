@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../styles/login_style.dart';
@@ -18,11 +17,11 @@ class _LoginPageState extends State<LoginPage> {
   // CONTROLLERS
   // =========================================================
 
-  final TextEditingController emailController =
-      TextEditingController();
+  final TextEditingController emailController = TextEditingController();
 
-  final TextEditingController passwordController =
-      TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // =========================================================
   // STATES
@@ -32,7 +31,12 @@ class _LoginPageState extends State<LoginPage> {
   bool obscurePassword = true;
   bool isLoggingIn = false;
   bool _rememberMeTouched = false;
+
   late final Future<void> _rememberedLoginLoad;
+
+  // =========================================================
+  // INITIALIZATION
+  // =========================================================
 
   @override
   void initState() {
@@ -43,31 +47,39 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _loadRememberedLogin() async {
     try {
       final shouldRemember = await AuthService.isRememberMeEnabled();
+
       final savedLogin = shouldRemember
           ? await AuthService.getRememberedLogin()
           : null;
+
       if (!mounted) return;
 
       setState(() {
-        if (!_rememberMeTouched) rememberMe = shouldRemember;
-        if (emailController.text.trim().isEmpty) {
-          emailController.text = savedLogin ?? '';
+        if (!_rememberMeTouched) {
+          rememberMe = shouldRemember;
+        }
+
+        if (emailController.text.trim().isEmpty && savedLogin != null) {
+          emailController.text = savedLogin;
         }
       });
     } catch (_) {
-      // Leave the login form usable if secure storage is unavailable.
+      // Continue even when secure storage is unavailable.
     }
   }
 
   Future<void> _setRememberMe(bool value) async {
+    if (!mounted) return;
+
     setState(() {
       _rememberMeTouched = true;
       rememberMe = value;
     });
+
     try {
       await AuthService.setRememberMe(value);
     } catch (_) {
-      // The current login form still reflects the user's selection.
+      _showMessage('Unable to save the Remember Me setting.');
     }
   }
 
@@ -83,23 +95,45 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // =========================================================
-  // LOCAL DEMO LOGIN
-  //
+  // FORM VALIDATION
+  // =========================================================
+
+  String? _validateLogin(String? value) {
+    final loginValue = value?.trim() ?? '';
+
+    if (loginValue.isEmpty) {
+      return 'Please enter your email or phone number.';
+    }
+
+    if (loginValue.contains('@')) {
+      final emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
+      if (!emailPattern.hasMatch(loginValue)) {
+        return 'Please enter a valid email address.';
+      }
+    }
+
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your password.';
+    }
+
+    return null;
+  }
+
+  // =========================================================
+  // LARAVEL API LOGIN
+  // =========================================================
+
   Future<void> login() async {
     if (isLoggingIn) return;
 
-    await _rememberedLoginLoad;
-    if (!mounted || isLoggingIn) return;
-
     FocusScope.of(context).unfocus();
 
-    final String loginValue = emailController.text.trim();
-    final String password = passwordController.text;
-
-    if (loginValue.isEmpty || password.isEmpty) {
-      _showMessage(
-        'Please enter your email/phone and password.',
-      );
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -108,6 +142,15 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      await _rememberedLoginLoad;
+
+      if (!mounted) return;
+
+      final String loginValue = emailController.text.trim();
+
+      final String password = passwordController.text;
+
+      // Connect to existing Laravel authentication API.
       final response = await AuthService.login(
         login: loginValue,
         password: password,
@@ -116,23 +159,19 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      _showMessage(
-        'Signed in to your SUKI account.',
-        backgroundColor: LoginStyle.primary,
-      );
+      // Resolve dashboard based on authenticated role.
+      final String homeRoute = AuthService.homeRouteForUser(response);
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AuthService.homeRouteForUser(response),
-        (route) => false,
-      );
+      if (homeRoute.isEmpty) {
+        throw Exception('No dashboard is configured for this account.');
+      }
+
+      // Remove login screen from navigation history.
+      Navigator.pushNamedAndRemoveUntil(context, homeRoute, (route) => false);
     } catch (error) {
       if (!mounted) return;
 
-      _showMessage(
-        error.toString().replaceFirst('Exception: ', ''),
-        backgroundColor: Colors.redAccent,
-      );
+      _showMessage(_friendlyError(error), backgroundColor: Colors.redAccent);
     } finally {
       if (mounted) {
         setState(() {
@@ -140,6 +179,55 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+
+  // =========================================================
+  // ERROR HANDLING
+  // =========================================================
+
+  String _friendlyError(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+
+    final lower = raw.toLowerCase();
+
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('network is unreachable') ||
+        lower.contains('connection error')) {
+      return 'Cannot connect to SUKI. '
+          'Check your internet connection and server.';
+    }
+
+    if (lower.contains('timeout') || lower.contains('timed out')) {
+      return 'The server took too long to respond. '
+          'Please try again.';
+    }
+
+    if (lower.contains('401') ||
+        lower.contains('invalid credentials') ||
+        lower.contains('incorrect password') ||
+        lower.contains('invalid login')) {
+      return 'Incorrect email/phone or password.';
+    }
+
+    if (lower.contains('403') ||
+        lower.contains('suspended') ||
+        lower.contains('banned')) {
+      return 'Your account cannot sign in at this time. '
+          'Please contact SUKI support.';
+    }
+
+    if (lower.contains('500') || lower.contains('internal server error')) {
+      return 'SUKI is experiencing a server problem. '
+          'Please try again later.';
+    }
+
+    if (raw.isEmpty) {
+      return 'Unable to log in. Please try again.';
+    }
+
+    return raw;
   }
 
   // =========================================================
@@ -159,39 +247,62 @@ class _LoginPageState extends State<LoginPage> {
           content: Text(message),
           backgroundColor: backgroundColor,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
   }
 
   // =========================================================
-  // ROUTES
+  // NAVIGATION
   // =========================================================
 
   void goToRegister() {
     if (isLoggingIn) return;
 
-    Navigator.pushNamed(
-      context,
-      '/register',
-    );
+    Navigator.pushNamed(context, '/register');
   }
 
   void goToForgotPassword() {
     if (isLoggingIn) return;
 
-    Navigator.pushNamed(
-      context,
-      '/forgot-password',
+    // Temporary dialog until the password reset route
+    // and Laravel API endpoint are implemented.
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Forgot Password'),
+          content: const Text(
+            'Password reset is not available yet. '
+            'Please contact SUKI support for assistance.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void continueAsGuest() {
     if (isLoggingIn) return;
 
-    Navigator.pushReplacementNamed(
-      context,
-      '/buyer-home',
-    );
+    Navigator.pushReplacementNamed(context, '/buyer-home');
+  }
+
+  // =========================================================
+  // PASSWORD VISIBILITY
+  // =========================================================
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      obscurePassword = !obscurePassword;
+    });
   }
 
   // =========================================================
@@ -200,20 +311,15 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
-    final double screenWidth =
-        MediaQuery.of(context).size.width;
+    final double screenWidth = MediaQuery.of(context).size.width;
 
     final bool isMobile = screenWidth < 700;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
-        child: isMobile
-            ? _buildMobileLayout(context)
-            : _buildDesktopLayout(context),
+        child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
       ),
     );
   }
@@ -222,477 +328,469 @@ class _LoginPageState extends State<LoginPage> {
   // MOBILE LAYOUT
   // =========================================================
 
-  Widget _buildMobileLayout(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: BouncingScrollPhysics(),
-
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-
-          padding: const EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: 16,
-          ),
-
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 460,
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Theme toggle
+              const Align(
+                alignment: Alignment.centerRight,
+                child: ThemeToggleButton(),
               ),
 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 12),
 
-                children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: const ThemeToggleButton(),
-                  ),
+              // Logo
+              _buildMobileLogo(),
 
-                  // =========================================
-                  // LOGO
-                  // =========================================
+              const SizedBox(height: 25),
 
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 82,
-                          height: 82,
-                          padding: const EdgeInsets.all(10),
+              // Form
+              _buildLoginForm(isMobile: true),
 
-                          decoration: BoxDecoration(
-                            color: AppTheme.softGreen,
-                            borderRadius:
-                                BorderRadius.circular(20),
-                          ),
+              const SizedBox(height: 16),
 
-                          child: Image.asset(
-                            'assets/images/suki_logo.png',
-                            fit: BoxFit.contain,
+              Center(
+                child: Text(
+                  'Your everyday marketplace.',
+                  style: TextStyle(fontSize: 10, color: LoginStyle.mutedText),
+                ),
+              ),
 
-                            errorBuilder: (_, __, ___) {
-                              return Icon(
-                                Icons.shopping_bag_rounded,
-                                size: 50,
-                                color: LoginStyle.primaryDark,
-                              );
-                            },
-                          ),
-                        ),
+              const SizedBox(height: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                        SizedBox(height: 7),
+  // =========================================================
+  // MOBILE LOGO
+  // =========================================================
 
-                        Text(
-                          'MOBILE SUKI',
+  Widget _buildMobileLogo() {
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 82,
+            height: 82,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.softGreen,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Image.asset(
+              'assets/images/suki_logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) {
+                return Icon(
+                  Icons.shopping_bag_rounded,
+                  size: 50,
+                  color: LoginStyle.primaryDark,
+                );
+              },
+            ),
+          ),
 
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
+          const SizedBox(height: 7),
+
+          Text(
+            'MOBILE SUKI',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: LoginStyle.primaryDark,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // DESKTOP / TABLET LAYOUT
+  // =========================================================
+
+  Widget _buildDesktopLayout() {
+    return Row(
+      children: [
+        // LEFT SIDE
+        Expanded(
+          child: Container(
+            color: LoginStyle.leftBackground,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 220,
+                      height: 220,
+                      padding: const EdgeInsets.all(30),
+                      decoration: LoginStyle.logoBox,
+                      child: Image.asset(
+                        'assets/images/suki_logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) {
+                          return Icon(
+                            Icons.shopping_bag,
+                            size: 100,
                             color: LoginStyle.primaryDark,
-                            letterSpacing: .6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 22),
-
-                  // =========================================
-                  // HEADER
-                  // =========================================
-
-                  Text(
-                    'WELCOME BACK',
-
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: LoginStyle.primary,
-                      letterSpacing: .6,
-                    ),
-                  ),
-
-                  SizedBox(height: 5),
-
-                  Text(
-                    'Log in to Mobile Suki',
-
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      color: LoginStyle.titleColor,
-                    ),
-                  ),
-
-                  SizedBox(height: 5),
-
-                  Text(
-                    'Sign in to continue shopping with us.',
-
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: LoginStyle.textColor,
-                    ),
-                  ),
-
-                  SizedBox(height: 21),
-
-                  // =========================================
-                  // EMAIL OR PHONE
-                  // =========================================
-
-                  Text(
-                    'Phone Number or Gmail',
-
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: LoginStyle.titleColor,
-                    ),
-                  ),
-
-                  SizedBox(height: 7),
-
-                  SizedBox(
-                    height: 50,
-
-                    child: TextField(
-                      controller: emailController,
-                      keyboardType:
-                          TextInputType.emailAddress,
-                      textInputAction:
-                          TextInputAction.next,
-                      enabled: !isLoggingIn,
-
-                      decoration:
-                          LoginStyle.inputDecoration(
-                        hint: 'Enter phone number or Gmail',
-                        icon: Icons.person_outline,
+                          );
+                        },
                       ),
                     ),
-                  ),
 
-                  SizedBox(height: 15),
+                    const SizedBox(height: 30),
 
-                  // =========================================
-                  // PASSWORD LABEL
-                  // =========================================
-
-                  Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-
-                    children: [
-                      Text(
-                        'Password',
-                        style: LoginStyle.label,
-                      ),
-
-                      GestureDetector(
-                        onTap: goToForgotPassword,
-
-                        child: Text(
-                          'Forgot Password?',
-                          style: LoginStyle.forgotPassword,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 7),
-
-                  // =========================================
-                  // PASSWORD INPUT
-                  // =========================================
-
-                  SizedBox(
-                    height: 50,
-
-                    child: TextField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      enabled: !isLoggingIn,
-                      textInputAction: TextInputAction.done,
-
-                      onSubmitted: (_) {
-                        if (!isLoggingIn) login();
-                      },
-
-                      decoration:
-                          LoginStyle.inputDecoration(
-                        hint: 'Enter your password',
-                        icon: Icons.lock_outline,
-
-                        suffixIcon: IconButton(
-                          onPressed: isLoggingIn
-                              ? null
-                              : () {
-                                  setState(() {
-                                    obscurePassword =
-                                        !obscurePassword;
-                                  });
-                                },
-
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-
-                            color: LoginStyle.iconColor,
-                          ),
-                        ),
-                      ),
+                    Text(
+                      'Your everyday\nmarketplace.',
+                      textAlign: TextAlign.center,
+                      style: LoginStyle.heroTitle,
                     ),
-                  ),
-
-                  SizedBox(height: 13),
-
-                  // =========================================
-                  // REMEMBER ME
-                  // =========================================
-
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-
-                        child: Checkbox(
-                          value: rememberMe,
-                          activeColor: LoginStyle.primary,
-
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-
-                          visualDensity:
-                              VisualDensity.compact,
-
-                          onChanged: isLoggingIn
-                              ? null
-                              : (value) =>
-                                  _setRememberMe(value ?? false),
-                        ),
-                      ),
-
-                      SizedBox(width: 8),
-
-                      Text(
-                        'Remember me',
-
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: LoginStyle.textColor,
-                        ),
-                      ),
-
-                      Spacer(),
-
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 14,
-                            color: LoginStyle.iconColor,
-                          ),
-
-                          SizedBox(width: 5),
-
-                          Text(
-                            'Secure SUKI sign in',
-
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              color: LoginStyle.mutedText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 18),
-
-                  // =========================================
-                  // LOGIN BUTTON
-                  // =========================================
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-
-                    child: ElevatedButton(
-                      style: LoginStyle.loginButton,
-
-                      onPressed:
-                          isLoggingIn ? null : login,
-
-                      child: isLoggingIn
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              'LOG IN',
-
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  SizedBox(height: 19),
-
-                  // =========================================
-                  // DIVIDER
-                  // =========================================
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: LoginStyle.borderColor,
-                        ),
-                      ),
-
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-
-                        child: Text(
-                          'OR',
-
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            color: LoginStyle.mutedText,
-                          ),
-                        ),
-                      ),
-
-                      Expanded(
-                        child: Divider(
-                          color: LoginStyle.borderColor,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 17),
-
-                  // =========================================
-                  // SIGN UP
-                  // =========================================
-
-                  Center(
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-
-                      children: [
-                        Text(
-                          "Don't have an account? ",
-
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: LoginStyle.textColor,
-                          ),
-                        ),
-
-                        GestureDetector(
-                          onTap: goToRegister,
-
-                          child: Text(
-                            'Sign Up',
-
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: LoginStyle.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 18),
-
-                  // =========================================
-                  // CREATE ACCOUNT CARD
-                  // =========================================
-
-                  _buildAccountRegistrationCard(),
-
-                  SizedBox(height: 14),
-
-                  // =========================================
-                  // CONTINUE AS GUEST
-                  // =========================================
-
-                  Center(
-                    child: TextButton(
-                      onPressed: continueAsGuest,
-
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-
-                        children: [
-                          Icon(
-                            Icons.arrow_back,
-                            size: 14,
-                            color: LoginStyle.mutedText,
-                          ),
-
-                          SizedBox(width: 5),
-
-                          Text(
-                            'Continue as Guest',
-
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: LoginStyle.mutedText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  // FOOTER
-
-                  Center(
-                    child: Text(
-                      'Your everyday marketplace.',
-
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: LoginStyle.mutedText,
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 15),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        );
-      },
+        ),
+
+        // RIGHT SIDE
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(35),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const ThemeToggleButton(),
+
+                    const SizedBox(height: 18),
+
+                    _buildLoginForm(isMobile: false),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
+  // SHARED LOGIN FORM
+  // =========================================================
+
+  Widget _buildLoginForm({required bool isMobile}) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // WELCOME HEADER
+          Text(
+            'WELCOME BACK',
+            style: isMobile
+                ? TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: LoginStyle.primary,
+                    letterSpacing: 0.6,
+                  )
+                : LoginStyle.welcomeText,
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Log in to Mobile Suki',
+            style: isMobile
+                ? TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                    color: LoginStyle.titleColor,
+                  )
+                : LoginStyle.loginTitle,
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Sign in to continue shopping with us.',
+            style: isMobile
+                ? TextStyle(fontSize: 12.5, color: LoginStyle.textColor)
+                : LoginStyle.subtitle,
+          ),
+
+          const SizedBox(height: 25),
+
+          // EMAIL OR PHONE INPUT
+          _buildLoginInput(),
+
+          const SizedBox(height: 18),
+
+          // PASSWORD INPUT
+          _buildPasswordInput(),
+
+          const SizedBox(height: 12),
+
+          // REMEMBER ME
+          _buildRememberMe(),
+
+          const SizedBox(height: 20),
+
+          // LOGIN BUTTON
+          _buildLoginButton(),
+
+          const SizedBox(height: 20),
+
+          // OR DIVIDER
+          _buildDivider(),
+
+          const SizedBox(height: 17),
+
+          // SIGN UP LINK
+          _buildSignUpLink(),
+
+          const SizedBox(height: 20),
+
+          // CREATE ACCOUNT CARD
+          _buildAccountRegistrationCard(),
+
+          const SizedBox(height: 15),
+
+          // GUEST BUTTON
+          _buildGuestButton(),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // EMAIL OR PHONE INPUT
+  // =========================================================
+
+  Widget _buildLoginInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Phone Number or Gmail', style: LoginStyle.label),
+
+        const SizedBox(height: 8),
+
+        TextFormField(
+          controller: emailController,
+          enabled: !isLoggingIn,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autocorrect: false,
+          enableSuggestions: false,
+          validator: _validateLogin,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: LoginStyle.inputDecoration(
+            hint: 'Enter phone number or Gmail',
+            icon: Icons.person_outline,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
+  // PASSWORD INPUT
+  // =========================================================
+
+  Widget _buildPasswordInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Password', style: LoginStyle.label),
+
+            TextButton(
+              onPressed: isLoggingIn ? null : goToForgotPassword,
+              child: Text('Forgot Password?', style: LoginStyle.forgotPassword),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 5),
+
+        TextFormField(
+          controller: passwordController,
+          obscureText: obscurePassword,
+          enabled: !isLoggingIn,
+          textInputAction: TextInputAction.done,
+          validator: _validatePassword,
+          onFieldSubmitted: (_) {
+            if (!isLoggingIn) {
+              login();
+            }
+          },
+          decoration: LoginStyle.inputDecoration(
+            hint: 'Enter your password',
+            icon: Icons.lock_outline,
+            suffixIcon: IconButton(
+              onPressed: isLoggingIn ? null : _togglePasswordVisibility,
+              icon: Icon(
+                obscurePassword
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: LoginStyle.iconColor,
+              ),
+              tooltip: obscurePassword ? 'Show password' : 'Hide password',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
+  // REMEMBER ME
+  // =========================================================
+
+  Widget _buildRememberMe() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: rememberMe,
+            activeColor: LoginStyle.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: isLoggingIn
+                ? null
+                : (value) {
+                    _setRememberMe(value ?? false);
+                  },
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        Text(
+          'Remember me',
+          style: TextStyle(fontSize: 12, color: LoginStyle.textColor),
+        ),
+
+        const Spacer(),
+
+        Icon(Icons.shield_outlined, size: 14, color: LoginStyle.iconColor),
+
+        const SizedBox(width: 5),
+
+        Flexible(
+          child: Text(
+            'Secure SUKI sign in',
+            style: TextStyle(fontSize: 10, color: LoginStyle.mutedText),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
+  // LOGIN BUTTON
+  // =========================================================
+
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        style: LoginStyle.loginButton,
+        onPressed: isLoggingIn ? null : login,
+        child: isLoggingIn
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'LOG IN',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+      ),
+    );
+  }
+
+  // =========================================================
+  // DIVIDER
+  // =========================================================
+
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: LoginStyle.borderColor)),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'OR',
+            style: TextStyle(fontSize: 10, color: LoginStyle.mutedText),
+          ),
+        ),
+
+        Expanded(child: Divider(color: LoginStyle.borderColor)),
+      ],
+    );
+  }
+
+  // =========================================================
+  // SIGN UP LINK
+  // =========================================================
+
+  Widget _buildSignUpLink() {
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            "Don't have an account? ",
+            style: TextStyle(fontSize: 12, color: LoginStyle.textColor),
+          ),
+
+          TextButton(
+            onPressed: isLoggingIn ? null : goToRegister,
+            child: Text(
+              'Sign Up',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: LoginStyle.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -704,24 +802,17 @@ class _LoginPageState extends State<LoginPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-
       decoration: LoginStyle.riderBox,
-
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
-
             decoration: BoxDecoration(
               color: LoginStyle.rightBackground,
               borderRadius: BorderRadius.circular(10),
-
-              border: Border.all(
-                color: LoginStyle.lightGreenBorder,
-              ),
+              border: Border.all(color: LoginStyle.lightGreenBorder),
             ),
-
             child: Icon(
               Icons.person_add_alt_1_outlined,
               size: 21,
@@ -729,17 +820,14 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          SizedBox(width: 11),
+          const SizedBox(width: 11),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Create your Mobile Suki account',
-
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -747,25 +835,24 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                SizedBox(height: 3),
+                const SizedBox(height: 4),
 
                 Text(
                   'Register as Buyer, Rider, or Logistics.',
-
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    color: LoginStyle.textColor,
-                  ),
+                  style: TextStyle(fontSize: 10, color: LoginStyle.textColor),
                 ),
 
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
 
-                GestureDetector(
-                  onTap: goToRegister,
-
+                TextButton(
+                  onPressed: isLoggingIn ? null : goToRegister,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   child: Text(
                     'Create Account →',
-
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -782,317 +869,19 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // =========================================================
-  // DESKTOP LAYOUT
+  // GUEST BUTTON
   // =========================================================
 
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Row(
-      children: [
-        // LEFT SIDE
-
-        Expanded(
-          child: Container(
-            color: LoginStyle.leftBackground,
-
-            child: Center(
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-
-                children: [
-                  Container(
-                    width: 220,
-                    height: 220,
-                    padding: const EdgeInsets.all(30),
-
-                    decoration: LoginStyle.logoBox,
-
-                    child: Image.asset(
-                      'assets/images/suki_logo.png',
-                      fit: BoxFit.contain,
-
-                      errorBuilder: (_, __, ___) {
-                        return Icon(
-                          Icons.shopping_bag,
-                          size: 100,
-                          color: LoginStyle.primaryDark,
-                        );
-                      },
-                    ),
-                  ),
-
-                  SizedBox(height: 30),
-
-                  Text(
-                    'Your everyday\nmarketplace.',
-                    textAlign: TextAlign.center,
-                    style: LoginStyle.heroTitle,
-                  ),
-                ],
-              ),
-            ),
-          ),
+  Widget _buildGuestButton() {
+    return Center(
+      child: TextButton.icon(
+        onPressed: isLoggingIn ? null : continueAsGuest,
+        icon: Icon(Icons.arrow_back, size: 14, color: LoginStyle.mutedText),
+        label: Text(
+          'Continue as Guest',
+          style: TextStyle(fontSize: 11, color: LoginStyle.mutedText),
         ),
-
-        // RIGHT SIDE
-
-        Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-
-              padding: const EdgeInsets.all(40),
-
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 430,
-                ),
-
-                child: _buildDesktopForm(),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // DESKTOP FORM
-  // =========================================================
-
-  Widget _buildDesktopForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        Text(
-          'WELCOME BACK',
-          style: LoginStyle.welcomeText,
-        ),
-
-        SizedBox(height: 8),
-
-        Text(
-          'Log in to Mobile Suki',
-          style: LoginStyle.loginTitle,
-        ),
-
-        SizedBox(height: 6),
-
-        Text(
-          'Sign in to continue shopping with us.',
-          style: LoginStyle.subtitle,
-        ),
-
-        SizedBox(height: 30),
-
-        // EMAIL
-
-        Text(
-          'Phone Number or Gmail',
-          style: LoginStyle.label,
-        ),
-
-        SizedBox(height: 8),
-
-        TextField(
-          controller: emailController,
-          enabled: !isLoggingIn,
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-
-          decoration: LoginStyle.inputDecoration(
-            hint: 'Enter phone number or Gmail',
-            icon: Icons.person_outline,
-          ),
-        ),
-
-        SizedBox(height: 18),
-
-        // PASSWORD LABEL
-
-        Row(
-          mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
-
-          children: [
-            Text(
-              'Password',
-              style: LoginStyle.label,
-            ),
-
-            GestureDetector(
-              onTap: goToForgotPassword,
-
-              child: Text(
-                'Forgot Password?',
-                style: LoginStyle.forgotPassword,
-              ),
-            ),
-          ],
-        ),
-
-        SizedBox(height: 8),
-
-        // PASSWORD
-
-        TextField(
-          controller: passwordController,
-          obscureText: obscurePassword,
-          enabled: !isLoggingIn,
-
-          textInputAction: TextInputAction.done,
-
-          onSubmitted: (_) {
-            if (!isLoggingIn) login();
-          },
-
-          decoration: LoginStyle.inputDecoration(
-            hint: 'Enter your password',
-            icon: Icons.lock_outline,
-
-            suffixIcon: IconButton(
-              onPressed: isLoggingIn
-                  ? null
-                  : () {
-                      setState(() {
-                        obscurePassword = !obscurePassword;
-                      });
-                    },
-
-              icon: Icon(
-                obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-
-                color: LoginStyle.iconColor,
-              ),
-            ),
-          ),
-        ),
-
-        SizedBox(height: 10),
-
-        // REMEMBER ME
-
-        Row(
-          children: [
-            Checkbox(
-              value: rememberMe,
-              activeColor: LoginStyle.primary,
-
-              onChanged: isLoggingIn
-                  ? null
-                  : (value) => _setRememberMe(value ?? false),
-            ),
-
-            Text(
-              'Remember me',
-
-              style: TextStyle(
-                fontSize: 12,
-                color: LoginStyle.textColor,
-              ),
-            ),
-
-            Spacer(),
-
-            Text(
-              'Uses your SUKI account',
-              style: TextStyle(
-                fontSize: 10,
-                color: LoginStyle.mutedText,
-              ),
-            ),
-          ],
-        ),
-
-        SizedBox(height: 20),
-
-        // LOGIN BUTTON
-
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-
-          child: ElevatedButton(
-            style: LoginStyle.loginButton,
-
-            onPressed: isLoggingIn ? null : login,
-
-            child: isLoggingIn
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    'LOG IN',
-                    style: LoginStyle.buttonText,
-                  ),
-          ),
-        ),
-
-        SizedBox(height: 20),
-
-        // SIGN UP
-
-        Center(
-          child: Wrap(
-            alignment: WrapAlignment.center,
-
-            children: [
-              Text(
-                "Don't have an account? ",
-                style: LoginStyle.subtitle,
-              ),
-
-              GestureDetector(
-                onTap: goToRegister,
-
-                child: Text(
-                  'Sign Up',
-
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: LoginStyle.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 20),
-
-        // ACCOUNT REGISTRATION
-
-        _buildAccountRegistrationCard(),
-
-        SizedBox(height: 15),
-
-        // GUEST
-
-        Center(
-          child: TextButton(
-            onPressed: continueAsGuest,
-
-            child: Text(
-              'Continue as Guest',
-              style: TextStyle(
-                fontSize: 11,
-                color: LoginStyle.mutedText,
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

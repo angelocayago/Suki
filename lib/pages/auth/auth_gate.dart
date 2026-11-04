@@ -35,8 +35,8 @@ class _AuthGateState extends State<AuthGate> {
         // Restore from secure storage immediately. Requiring a network call
         // here can send a valid saved session back to login when the API is
         // temporarily unavailable during app startup.
-        destination = await AuthService.getRememberedHomeRoute() ??
-            '/buyer-home';
+        destination =
+            await AuthService.getRememberedHomeRoute() ?? '/buyer-home';
       }
     } catch (_) {
       destination = '/login';
