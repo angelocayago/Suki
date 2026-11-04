@@ -105,6 +105,10 @@ class SellerInventoryFunctionsTest extends TestCase
 
     public function test_valid_image_urls_missing_image_placeholder_and_no_session_data_leaks_into_canonical_inventory(): void
     {
+        $disk=\Illuminate\Support\Facades\Storage::fake('public');
+        $this->assertStringStartsWith(strtolower(str_replace('\\','/',sys_get_temp_dir())).'/',strtolower(str_replace('\\','/',$disk->path(''))));
+        // A persisted image path is valid only when the file also exists.
+        $disk->put('products/saved.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII='));
         $variant=$this->variant();$variant->product->images()->create(['path'=>'products/saved.png','position'=>0]);
         $this->page()->assertSee(\Illuminate\Support\Facades\Storage::disk('public')->url('products/saved.png'),false)->assertSee('data-inventory-placeholder',false)->assertSee('data-inventory-image',false);
         $variant->product->delete();
