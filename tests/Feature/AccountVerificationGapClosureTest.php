@@ -172,7 +172,7 @@ class AccountVerificationGapClosureTest extends TestCase
         $this->post(route('verification.contact.verify'), ['code' => '123456'])->assertForbidden();
     }
 
-    public function test_rider_activation_is_single_use_and_requires_mobile_verification_before_access(): void
+    public function test_rider_activation_is_single_use_and_does_not_mark_email_verified_before_otp(): void
     {
         $user = $this->verificationUser('rider');
         $provider = LogisticsProvider::query()->create(['user_id' => User::factory()->create(['status' => 'active'])->id, 'name' => 'Activation Logistics', 'slug' => 'activation-logistics', 'status' => 'approved']);
@@ -182,7 +182,8 @@ class AccountVerificationGapClosureTest extends TestCase
         $token = $this->lastActivationToken();
         $activated = $activation->activate($token, 'new-password');
         $this->assertSame('pending', $activated->status);
-        $this->assertNotNull($activated->email_verified_at);
+        $this->assertNull($activated->email_verified_at);
+        $this->assertFalse($activated->hasVerifiedContacts());
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $activation->activate($token, 'other-password');
     }

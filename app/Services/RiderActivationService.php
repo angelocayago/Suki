@@ -31,8 +31,13 @@ class RiderActivationService
         return DB::transaction(function () use ($token, $password): User {
             $record = RiderActivationToken::query()->where('token_hash', hash('sha256', $token))->lockForUpdate()->first();
             abort_unless($record && ! $record->used_at && $record->expires_at->isFuture(), 403, 'This activation link is invalid, expired, or already used.');
+            $user = $record->user;
+            abort_unless($user->hasRole('rider') && ! $user->is_suspended && in_array($user->status, ['pending', 'active'], true)
+                && $user->rider?->approved_at && $user->rider->logisticsProvider?->status === 'approved', 403);
             $record->update(['used_at' => now()]);
-            $record->user->update(['password' => $password, 'email_verified_at' => now(), 'verification_required_at' => now(), 'status' => 'pending']);
+            $user->accountVerifications()->whereIn('channel', ['email', 'sms'])->delete();
+            $user->rider->update(['is_active' => false]);
+            $user->update(['password' => $password, 'verification_required_at' => now(), 'status' => 'pending']);
             return $record->user->fresh();
         }, 3);
     }

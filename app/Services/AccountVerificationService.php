@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 class AccountVerificationService
@@ -26,6 +27,7 @@ class AccountVerificationService
      */
     public function sendUnified(User $user, bool $enforceCooldown = true): void
     {
+        abort_if($user->hasRole('rider'), 403);
         $code = (string) random_int(100000, 999999);
 
         DB::transaction(function () use ($user, $enforceCooldown): void {
@@ -67,6 +69,7 @@ class AccountVerificationService
     /** Atomically verifies both contact fields for public registrations. */
     public function verifyUnified(User $user, string $code): bool
     {
+        abort_if($user->hasRole('rider'), 403);
         $result = DB::transaction(function () use ($user, $code): string {
             $verification = $this->challenge($user, 'unified', true);
             if (! $verification || $verification->verified_at) return 'invalid';
@@ -93,6 +96,10 @@ class AccountVerificationService
     public function send(User $user, string $channel, bool $enforceCooldown = true): void
     {
         $this->assertChannel($channel);
+        if ($user->hasRole('rider')) {
+            $this->sendRider($user, $channel);
+            return;
+        }
         $code = (string) random_int(100000, 999999);
 
         // Check cooldown before transport. A failed delivery deliberately leaves
@@ -144,6 +151,10 @@ class AccountVerificationService
         $this->assertChannel($channel);
 
         $result = DB::transaction(function () use ($user, $channel, $code): string {
+            if ($user->hasRole('rider')) {
+                $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $this->assertRiderReady($user);
+            }
             $verification = $this->challenge($user, $channel, true);
 
             if (! $verification || $verification->verified_at) {
@@ -182,6 +193,78 @@ class AccountVerificationService
         return $result === 'complete';
     }
 
+    public function smsAvailable(): bool
+    {
+        $url = config('services.sms.endpoint');
+        return config('services.sms.driver') === 'http'
+            && is_string($url) && filter_var($url, FILTER_VALIDATE_URL)
+            && in_array(parse_url($url, PHP_URL_SCHEME), ['https', 'http'], true)
+            && is_string(config('services.sms.token')) && trim(config('services.sms.token')) !== '';
+    }
+
+    public function emailAvailable(?string $mailer = null, array $seen = []): bool
+    {
+        $mailer ??= config('mail.default');
+        if (! $mailer || in_array($mailer, $seen, true)) return false;
+        $config = config('mail.mailers.'.$mailer, []);
+        $transport = $config['transport'] ?? '';
+        if ($transport === 'array') return app()->environment('testing') && Mail::isFake();
+        if (! $transport || $transport === 'log') return false;
+        if (in_array($transport, ['failover', 'roundrobin'], true)) {
+            if (empty($config['mailers'])) return false;
+            foreach ($config['mailers'] as $child) if (! $this->emailAvailable($child, [...$seen, $mailer])) return false;
+        }
+        return true;
+    }
+
+    public function assertRiderReady(User $user): void
+    {
+        $rider = $user->rider;
+        $usedAt = $user->riderActivationToken?->used_at;
+        abort_unless($user->hasRole('rider') && ! $user->is_suspended
+            && in_array($user->status, ['pending', 'active'], true)
+            && $rider?->approved_at && $rider->logisticsProvider?->status === 'approved'
+            && $usedAt && $user->verification_required_at && $usedAt->gte($rider->approved_at),
+            403, 'Approved Rider activation and password setup are required before verification.');
+    }
+
+    private function sendRider(User $user, string $channel): void
+    {
+        $sent = DB::transaction(function () use ($user, $channel): bool {
+            // Serialize both channels, including the first challenge, per Rider.
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $this->assertRiderReady($user);
+            abort_if($user->hasVerifiedContacts(), 403, 'Contact verification is already complete.');
+            if (($channel === 'sms' && (! $this->smsAvailable() || ! preg_match('/^09\d{9}$/', $user->phone ?? '')))
+                || ($channel === 'email' && (! $this->emailAvailable() || ! filter_var($user->email, FILTER_VALIDATE_EMAIL)))) {
+                throw ValidationException::withMessages(['channel' => $channel === 'sms' ? 'SMS verification is unavailable. Please use Email OTP.' : 'Email delivery is unavailable. Please contact support.']);
+            }
+            $key = 'rider-otp-send:'.$user->id;
+            $last = $user->accountVerifications()->whereIn('channel', ['email', 'sms'])->max('last_sent_at');
+            if (RateLimiter::tooManyAttempts($key, 1) || ($last && \Illuminate\Support\Carbon::parse($last)->gt(now()->subSeconds(self::RESEND_COOLDOWN_SECONDS)))) {
+                throw ValidationException::withMessages(['code' => 'Please wait 60 seconds between code requests, including when switching channels.']);
+            }
+            // Commit throttling even when transport fails, including DB-backed caches.
+            RateLimiter::hit($key, self::RESEND_COOLDOWN_SECONDS);
+            $code = (string) random_int(100000, 999999);
+            try {
+                if ($channel === 'email') Mail::to($user->email)->send(new AccountVerificationOtpMail($code));
+                else $this->sms->send($user->phone, "Your SUKI SHOP verification code is {$code}. It expires in 5 minutes.");
+            } catch (\Throwable $exception) {
+                Log::warning('Rider verification delivery failed.', ['user_id' => $user->id, 'channel' => $channel, 'exception' => $exception::class]);
+                return false;
+            }
+            // Invalidate the previous channel only after successful delivery.
+            $user->accountVerifications()->whereIn('channel', ['email', 'sms'])->where('channel', '!=', $channel)->whereNull('verified_at')->delete();
+            AccountVerification::updateOrCreate(['user_id' => $user->id, 'channel' => $channel], [
+                'code_hash' => $this->hash($user, $channel, $code), 'attempts' => 0, 'max_attempts' => self::MAX_ATTEMPTS,
+                'expires_at' => now()->addMinutes(self::EXPIRES_MINUTES), 'last_sent_at' => now(), 'verified_at' => null,
+            ]);
+            return true;
+        });
+        if (! $sent) throw new VerificationDeliveryException($channel);
+    }
+
     private function throwForResult(string $result): void
     {
         $messages = [
@@ -203,7 +286,8 @@ class AccountVerificationService
 
     private function hash(User $user, string $channel, string $code): string
     {
-        return hash_hmac('sha256', $user->id.'|'.$channel.'|'.$code, (string) config('app.key'));
+        $destination = $user->hasRole('rider') ? '|'.($channel === 'email' ? $user->email : $user->phone) : '';
+        return hash_hmac('sha256', $user->id.'|'.$channel.'|'.$code.$destination, (string) config('app.key'));
     }
 
     private function assertChannel(string $channel): void

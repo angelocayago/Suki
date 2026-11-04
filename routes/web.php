@@ -3614,13 +3614,22 @@ Route::post('/rider/login', function (Request $request) {
         $loginField => $validated['login'],
         'password' => $validated['password'],
         'role' => 'rider',
-        'status' => 'active',
     ]);
 
-    if (! $authenticated || auth()->user()->is_suspended || ! auth()->user()->hasVerifiedContacts() || ! auth()->user()->rider?->is_active) {
+    if ($authenticated && ! auth()->user()->hasVerifiedContacts() && ! auth()->user()->is_suspended) {
+        $pendingRider = auth()->user();
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        app(\App\Services\AccountVerificationService::class)->assertRiderReady($pendingRider);
+        AccountVerificationController::beginRiderSession($request, $pendingRider);
+        return redirect()->route('verification.contact.show')->with('success', 'Choose Email OTP or SMS OTP to finish Rider verification.');
+    }
+
+    if (! $authenticated || auth()->user()->is_suspended || auth()->user()->status !== 'active' || ! auth()->user()->hasVerifiedContacts() || ! auth()->user()->rider?->is_active) {
         auth()->logout();
 
-        return back()->withInput()->with('error', 'Invalid credentials or the rider account is not approved and active.');
+        return back()->onlyInput('login')->with('error', 'Invalid credentials or the rider account is not approved and active.');
     }
 
     $request->session()->regenerate();
@@ -3642,7 +3651,7 @@ Route::post('/rider/login', function (Request $request) {
         'Welcome back, '.(auth()->user()->first_name ?? 'Rider').'!'
     );
 
-})->name('rider.login.submit');
+})->middleware('throttle:10,1,rider-login:')->name('rider.login.submit');
 
 // =====================================================
 // RIDER DASHBOARD
@@ -5819,8 +5828,13 @@ Route::post('/login', function (Request $request) {
         $request->session()->regenerateToken();
         $request->session()->put('verification_user_id', $verificationUserId);
 
+        if ($user->hasRole('rider')) {
+            app(\App\Services\AccountVerificationService::class)->assertRiderReady($user);
+            AccountVerificationController::beginRiderSession($request, $user);
+        }
+
         return redirect()->route('verification.contact.show')
-            ->with('error', 'Complete email verification before signing in.');
+            ->with('error', $user->hasRole('rider') ? 'Complete Rider contact verification before signing in.' : 'Complete email verification before signing in.');
     }
 
 
@@ -6032,10 +6046,12 @@ Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\GoogleOAuthContr
 Route::get('/verify-contact', [AccountVerificationController::class, 'show'])
     ->name('verification.contact.show');
 Route::post('/verify-contact', [AccountVerificationController::class, 'verify'])
-    ->middleware('throttle:10,1')
+    ->middleware('throttle:10,1,contact-verify:')
+    ->block(10, 10)
     ->name('verification.contact.verify');
 Route::post('/verify-contact/resend', [AccountVerificationController::class, 'resend'])
-    ->middleware('throttle:3,5')
+    ->middleware('throttle:3,5,contact-resend:')
+    ->block(10, 10)
     ->name('verification.contact.resend');
 
 

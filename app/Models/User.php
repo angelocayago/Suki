@@ -88,11 +88,16 @@ class User extends Authenticatable
             return true;
         }
 
-        // Public accounts are currently email-first. Rider activation is a
-        // separate, logistics-created flow and retains its SMS requirement.
-        return $this->hasRole('rider')
-            ? $this->phone_verified_at !== null
-            : $this->email_verified_at !== null;
+        if (! $this->hasRole('rider')) return $this->email_verified_at !== null;
+
+        // An activation link used to set email_verified_at without an OTP.
+        // Require a consumed challenge from the current verification period.
+        foreach (['email' => $this->email_verified_at, 'sms' => $this->phone_verified_at] as $channel => $verifiedAt) {
+            if ($verifiedAt && $verifiedAt->gte($this->verification_required_at)
+                && $this->accountVerifications()->where('channel', $channel)
+                    ->where('verified_at', '>=', $this->verification_required_at)->exists()) return true;
+        }
+        return false;
     }
 
     /**

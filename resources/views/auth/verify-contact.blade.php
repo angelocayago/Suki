@@ -11,15 +11,16 @@
     <a href="{{ route('buyer.home') }}"><img src="{{ asset('images/suki-logo.png') }}" alt="SUKI SHOP" class="mx-auto h-16 w-auto"></a>
     <div class="mt-7 text-center">
         <p class="text-xs font-semibold uppercase tracking-wider text-[#1F6F5B]">Contact verification</p>
-        <h1 class="mt-2 text-2xl font-bold">{{ $riderOnly ? 'Verify your mobile number' : 'Verify your email address' }}</h1>
+        <h1 class="mt-2 text-2xl font-bold">{{ $riderOnly ? 'Verify your Rider contact' : 'Verify your email address' }}</h1>
         @if($riderOnly)
-            <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $phone }}</strong>. Codes expire after 5 minutes.</p>
+            <p class="mt-2 text-sm text-gray-600">{{ $hasChallenge ? 'Enter the latest code for' : 'Request a code for' }} <strong>{{ $channel === 'sms' ? $phone : $email }}</strong> ({{ $channel === 'sms' ? 'SMS' : 'Email' }}). Codes expire after 5 minutes.</p>
         @else
             <p class="mt-2 text-sm text-gray-600">Enter the 6-digit code sent to <strong>{{ $email }}</strong>. Codes expire after 5 minutes.</p>
         @endif
     </div>
 
     @if(session('success')) <div class="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-800">{{ session('success') }}</div> @endif
+    @if(session('error')) <div role="alert" class="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{{ session('error') }}</div> @endif
     @if($errors->any()) <div class="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</div> @endif
 
     <form method="POST" action="{{ route('verification.contact.verify') }}" class="mt-6 space-y-4">
@@ -31,8 +32,18 @@
     </form>
     <form method="POST" action="{{ route('verification.contact.resend') }}" class="mt-3 text-center">
         @csrf
-        <button data-submit-button class="text-sm font-semibold text-[#1F6F5B] hover:underline">Resend code</button>
+        @if($riderOnly)
+            <fieldset class="mb-4 space-y-2 text-left">
+                <legend class="mb-2 font-semibold">Delivery method</legend>
+                <label class="block"><input type="radio" name="channel" value="email" @checked($channel === 'email') @disabled(!$emailAvailable)> Email OTP (recommended) — {{ $email }}</label>
+                <label class="block"><input type="radio" name="channel" value="sms" @checked($channel === 'sms') @disabled(!$smsAvailable)> SMS OTP — {{ $phone }}</label>
+                @unless($smsAvailable)<p class="text-xs text-gray-600">SMS verification is unavailable because a usable SMS provider or registered mobile number is not configured. Please use Email OTP.</p>@endunless
+                @unless($emailAvailable)<p role="alert" class="text-xs text-red-700">Email delivery is unavailable. Please contact support.</p>@endunless
+            </fieldset>
+        @endif
+        <button data-submit-button class="text-sm font-semibold text-[#1F6F5B] hover:underline">{{ $riderOnly ? 'Send / resend code using selected method' : 'Resend code' }}</button>
         <p class="mt-1 text-xs text-gray-500">A 60-second resend cooldown applies. {{ $riderOnly ? '' : 'A new code is sent to your email address.' }}</p>
+        @if($riderOnly)<p class="mt-1 text-xs text-gray-500">Switching methods requests a new code and invalidates the previous method's pending code after successful delivery. This session expires after 30 minutes.</p>@endif
     </form>
 </main>
 <script>
