@@ -227,7 +227,7 @@
             @endforeach
         </nav>
         <div class="seller-sidebar-footer">
-            <form action="{{ route('logout') }}" method="POST" data-seller-logout>
+            <form action="{{ route('logout') }}" method="POST" data-seller-logout data-confirm-logout>
                 @csrf
                 <button type="submit" class="seller-sidebar-link seller-sidebar-signout" title="Sign Out" aria-label="Sign Out">
                     <i data-lucide="log-out" aria-hidden="true"></i>

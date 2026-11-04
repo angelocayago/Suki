@@ -82,13 +82,14 @@ test('confirmation submits original POST form and CSRF exactly once, guarding re
     h.cancel.handlers.click(); assert.equal(h.dialog.open, true);
 });
 
-test('global confirmation remains unchanged for other roles and Seller forms opt out', () => {
+test('global confirmation respects the dedicated Seller dialog and retains other roles', () => {
     const base = path.join(__dirname, '../../resources');
     const global = fs.readFileSync(path.join(base, 'js/app.js'), 'utf8');
     assert.match(global, /form\[data-confirm-logout\]/);
+    assert.match(global, /if \(event\.defaultPrevented\) return;/);
     for (const file of ['views/layouts/seller.blade.php', 'views/seller/header/controls.blade.php']) {
         const markup = fs.readFileSync(path.join(base, file), 'utf8');
-        assert.match(markup, /method="POST" data-seller-logout/); assert.doesNotMatch(markup, /data-confirm-logout/);
+        assert.match(markup, /method="POST" data-seller-logout/);
     }
     assert.doesNotMatch(source, /window\.(confirm|alert)\(/);
 });

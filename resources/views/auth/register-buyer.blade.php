@@ -6,7 +6,7 @@
 
     <title>Sign Up - SUKI SHOP</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/css/registration-wizard.css', 'resources/js/registration-wizard.js'])
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -191,6 +191,9 @@
                     method="POST"
                     enctype="multipart/form-data"
                     class="space-y-4"
+                    data-registration-wizard
+                    data-wizard-kind="buyer"
+                    data-error-fields='@json($errors->keys())'
                 >
 
                     @csrf

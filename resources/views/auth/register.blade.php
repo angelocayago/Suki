@@ -14,7 +14,8 @@ Register - SUKI SHOP
 
 @vite([
     'resources/css/app.css',
-    'resources/js/app.js'
+    'resources/js/app.js',
+    'resources/css/registration-wizard.css'
 ])
 
 
@@ -32,7 +33,7 @@ rel="stylesheet"
 </head>
 
 
-<body class="min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
+<body class="registration-role-selector min-h-screen bg-[#F8FAF8] font-[Poppins] text-[#1F2937]">
 
 
 <div class="min-h-screen">
@@ -197,9 +198,7 @@ SHOP
 
 <p class="mt-3 min-h-[72px] text-sm text-gray-500">
 
-Create an account to browse products,
-place orders, track deliveries,
-and interact with sellers.
+Shop and discover products on SUKI.
 
 </p>
 
@@ -284,9 +283,7 @@ SELL
 
 <p class="mt-3 min-h-[72px] text-sm text-gray-500">
 
-Register your business,
-list products, manage inventory,
-and monitor sales.
+Open your store and reach more customers.
 
 </p>
 
@@ -367,9 +364,7 @@ DELIVER
 
 <p class="mt-3 min-h-[72px] text-sm text-gray-500">
 
-Register your logistics company
-to handle pickups, deliveries,
-and shipments.
+Help manage and deliver marketplace orders.
 
 </p>
 
@@ -401,7 +396,7 @@ and shipments.
 
 
 <a
-href="/logistics/register"
+href="{{ route('logistics.register') }}"
 class="flex h-11 w-full items-center justify-center rounded-xl border-2 border-green-600 bg-white px-5 text-sm font-bold text-green-600 transition-all duration-300 group-hover:bg-green-600 group-hover:text-white"
 >
 

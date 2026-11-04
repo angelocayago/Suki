@@ -369,6 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let dragging = false;
         let moved = false;
+        let suppressClickUntil = 0;
         let startX = 0;
         let startScroll = 0;
 
@@ -379,6 +380,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     event.pointerType !== "mouse" ||
                     event.button !== 0
                 ) {
+                    return;
+                }
+
+                if (
+                    event.target.closest(
+                        "a, button, input, select, textarea, label"
+                    )
+                ) {
+                    suppressClickUntil = 0;
                     return;
                 }
 
@@ -411,6 +421,10 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         const stopDragging = () => {
+            if (dragging && moved) {
+                suppressClickUntil = performance.now() + 250;
+            }
+
             dragging = false;
         };
 
@@ -424,19 +438,24 @@ document.addEventListener("DOMContentLoaded", () => {
             stopDragging
         );
 
-        slider
-            .querySelectorAll("a")
-            .forEach((link) => {
-                link.addEventListener(
-                    "click",
-                    (event) => {
-                        if (!moved) return;
+        slider.addEventListener("click", (event) => {
+            const link = event.target.closest("a");
 
-                        event.preventDefault();
-                        moved = false;
-                    }
-                );
-            });
+            if (
+                !link ||
+                !slider.contains(link)
+            ) {
+                return;
+            }
+
+            if (performance.now() > suppressClickUntil) {
+                suppressClickUntil = 0;
+                return;
+            }
+
+            event.preventDefault();
+            suppressClickUntil = 0;
+        });
     }
 
 

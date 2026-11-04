@@ -227,8 +227,8 @@
                                 class="landing-login-switch"
                             >
                                 @csrf
-                                <button type="submit" class="auth-cta">
-                                    Switch Account
+                                <button type="submit" class="auth-cta" aria-label="Log in with a different account">
+                                    Log In
                                 </button>
                             </form>
                         @else
@@ -574,10 +574,6 @@
                                 </a>
                             </h3>
 
-                            <a href="{{ route('buyer.product', ['slug' => $product['slug']]) }}" class="product-details-link">
-                                View Details
-                            </a>
-
                             <div class="rating">
                                 <span class="rating-stars">★</span>
                                 <span>
@@ -592,6 +588,9 @@
                                 <strong>
                                     ₱{{ number_format((float) ($product['price'] ?? 0), 2) }}
                                 </strong>
+                                <a href="{{ route('buyer.product', ['slug' => $product['slug']]) }}" class="product-details-link">
+                                    View Details <i data-lucide="arrow-right"></i>
+                                </a>
                             </div>
 
                         </div>

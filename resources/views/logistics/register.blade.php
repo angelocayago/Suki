@@ -91,6 +91,10 @@
             action="{{ route('logistics.register.submit') }}"
             enctype="multipart/form-data"
             class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
+            data-registration-wizard
+            data-wizard-kind="logistics"
+            data-rider-url="{{ route('rider.apply') }}"
+            data-error-fields='@json($errors->keys())'
         >
 
             @csrf
