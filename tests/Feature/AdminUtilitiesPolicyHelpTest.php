@@ -17,16 +17,21 @@ class AdminUtilitiesPolicyHelpTest extends TestCase
         $admin = $this->activeUser('admin');
         $buyer = $this->activeUser('buyer');
         Setting::create(['key' => 'default_commission_rate', 'value' => '10', 'type' => 'text']);
+        Setting::create(['key' => 'platform_name', 'value' => 'SUKI Marketplace', 'type' => 'text']);
 
         $this->actingAs($buyer)->patch(route('admin.settings.platform'), [
             'platform_name' => 'Unsafe', 'support_email' => 'support@example.test',
         ])->assertForbidden();
 
         $this->actingAs($admin)->patch(route('admin.settings.platform'), [
-            'platform_name' => 'SUKI Support',
+            'platform_name' => 'Renamed Marketplace',
             'support_email' => 'support@example.test',
             'contact_number' => '09123456789',
         ])->assertRedirect();
+
+        $this->get(route('admin.settings'))->assertOk()
+            ->assertDontSee('name="platform_name"', false)
+            ->assertDontSee('Platform Name');
 
         $this->actingAs($admin)->patch(route('admin.settings.policies'), [
             'terms_of_service' => '<script>alert(1)</script> Terms',
@@ -36,7 +41,9 @@ class AdminUtilitiesPolicyHelpTest extends TestCase
             'default_commission_rate' => '99',
         ])->assertRedirect();
 
-        $this->assertSame('SUKI Support', Setting::where('key', 'platform_name')->value('value'));
+        $this->assertSame('SUKI Marketplace', Setting::where('key', 'platform_name')->value('value'));
+        $this->assertSame('support@example.test', Setting::where('key', 'support_email')->value('value'));
+        $this->assertSame('09123456789', Setting::where('key', 'contact_number')->value('value'));
         $this->assertSame('10', Setting::where('key', 'default_commission_rate')->value('value'));
         $this->assertSame('Returns content', Setting::where('key', 'returns_refund_policy')->value('value'));
         $this->get(route('policies.show', 'terms-of-service'))->assertOk()

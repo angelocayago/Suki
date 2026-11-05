@@ -43,13 +43,6 @@ class SettingController extends Controller
     public function updatePlatform(Request $request)
     {
         $validated = $request->validate([
-
-            'platform_name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
             'support_email' => [
                 'required',
                 'email',
