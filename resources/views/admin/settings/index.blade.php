@@ -119,48 +119,6 @@ Settings
                         text-gray-600
                         mb-2
                     ">
-                        Platform Name
-                    </label>
-
-
-                    <input
-
-                        type="text"
-
-                        name="platform_name"
-
-                        value="{{ $settings['platform_name'] ?? 'SUKI Marketplace' }}"
-
-                        class="
-                            w-full
-                            border
-                            border-[#D6DFDA]
-                            rounded-xl
-                            px-4
-                            py-3
-                            text-sm
-                            focus:outline-none
-                            focus:border-[#1F6F5B]
-                        "
-
-                    >
-
-                </div>
-
-
-
-
-
-
-                <div>
-
-                    <label class="
-                        block
-                        text-sm
-                        font-medium
-                        text-gray-600
-                        mb-2
-                    ">
                         Support Email
                     </label>
 
