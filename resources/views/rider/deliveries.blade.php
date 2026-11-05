@@ -520,7 +520,11 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                 <form
                                     method="POST"
                                     enctype="multipart/form-data"
-                                    onsubmit="return confirm('Confirm delivery and COD collection?');"
+                                    data-delivery-completion
+                                    data-order="{{ $order['order_number'] ?? $orderId }}"
+                                    data-buyer="{{ $order['customer_name'] ?? $order['shipping_address']['name'] ?? 'Not recorded' }}"
+                                    data-cod-required="{{ ($order['payment_method'] ?? '') === 'cod' ? 'true' : 'false' }}"
+                                    data-cod-amount="{{ isset($order['cod_amount_minor']) ? '₱'.number_format($order['cod_amount_minor'] / 100, 2) : 'Not recorded' }}"
                                     action="{{ ($order['source'] ?? 'session') === 'database'
                                         ? route('rider.database.order.status', $orderId)
                                         : route('rider.order.status', $orderId) }}"
@@ -534,9 +538,7 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                     >
 
                                     @if(($order['source'] ?? '') === 'database')
-                                        <label class="mb-2 block text-xs font-semibold text-gray-600">Delivery proof (JPG, PNG or WebP, up to 5 MB)
-                                            <input type="file" name="proof_photo" accept="image/jpeg,image/png,image/webp" required class="mt-1 block w-full text-xs">
-                                        </label>
+                                        @include('rider.delivery-proof-upload', ['proofId' => 'delivery-proof-'.$orderId])
                                         <input name="received_by" required maxlength="150" placeholder="Received by" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                                         <input name="delivery_note" maxlength="1000" placeholder="Delivery note (optional)" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                                         @if(($order['payment_method'] ?? '') === 'cod')
@@ -621,4 +623,6 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
 
 </div>
 
+@include('rider.delivery-proof-upload-script')
+@include('rider.delivery-completion-dialog')
 @endsection

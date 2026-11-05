@@ -58,13 +58,46 @@ class RiderCodPresentationTest extends TestCase
         [$rider, , , $first] = $this->fixture([10000]);
         $first->update(['workflow_status' => OrderStatus::OutForDelivery]);
         $first->shipment->update(['workflow_status' => OrderStatus::OutForDelivery, 'rider_id' => $rider->id]);
-        $this->actingAs($rider->user)->get(route('rider.deliveries'))->assertOk()->assertSee('COD collected: ₱950.00');
+        $this->actingAs($rider->user)->get(route('rider.deliveries'))->assertOk()->assertSee('COD collected: ₱950.00')
+            ->assertSee('Add Delivery Photo')->assertSee('Replace Photo')->assertSee('Remove Photo')
+            ->assertSee('enctype="multipart/form-data"', false)->assertSee('name="proof_photo"', false)
+            ->assertSee('id="delivery-proof-'.$first->id.'"', false)->assertSee('role="alert"', false)
+            ->assertSee('Confirm Delivery Completion')->assertSee('Confirm Delivery')
+            ->assertSee('data-cod-amount="₱950.00"', false)->assertSee('data-cod-required="true"', false)
+            ->assertSee('data-delivery-completion', false)->assertSee('aria-modal', false)
+            ->assertDontSee("confirm('Confirm delivery and COD collection?')", false)
+            ->assertSee(route('rider.database.order.status', $first), false)->assertSee('name="_token"', false);
         $this->post(route('rider.database.order.status', $first), [
             'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
             'received_by' => 'Test Recipient', 'cod_collected' => '1', 'amount' => 105000,
         ])->assertSessionHasNoErrors();
         $this->assertSame(95000, $first->shipment->fresh()->cod_collected_minor);
+        Storage::disk('delivery_proofs')->assertExists($first->shipment->fresh()->proof_path);
         $this->assertDatabaseHas('rider_cod_remittances', ['shipment_id' => $first->shipment->id, 'expected_minor' => 95000]);
+    }
+
+    public function test_html_disguised_as_photo_is_rejected_without_proof_or_cod_writes(): void
+    {
+        [$rider, , , $first] = $this->fixture([10000]);
+        $first->update(['workflow_status' => OrderStatus::OutForDelivery]);
+        $first->shipment->update(['workflow_status' => OrderStatus::OutForDelivery, 'rider_id' => $rider->id]);
+        // Use a real temporary upload: UploadedFile::fake() reports MIME from the
+        // filename, which would hide the content mismatch this regression checks.
+        $path = tempnam(storage_path(), 'invalid-proof-');
+        file_put_contents($path, '<html><script>alert(1)</script></html>');
+        try {
+            $photo = new \Illuminate\Http\UploadedFile($path, 'photo.jpg', 'image/jpeg', null, true);
+            $this->actingAs($rider->user)->from(route('rider.deliveries'))->post(route('rider.database.order.status', $first), [
+                'status' => 'delivered', 'proof_photo' => $photo,
+                'received_by' => 'Test Recipient', 'cod_collected' => '1',
+            ])->assertSessionHasErrors('proof_photo');
+        } finally {
+            if (is_file($path)) unlink($path);
+        }
+        $this->get(route('rider.deliveries'))->assertOk()->assertSee('aria-invalid="true"', false);
+        $this->assertNull($first->shipment->fresh()->proof_path);
+        $this->assertFalse($first->shipment->fresh()->cod_collected);
+        $this->assertEmpty(Storage::disk('delivery_proofs')->allFiles());
     }
 
     public function test_non_cod_collection_screen_does_not_request_cash_confirmation(): void
