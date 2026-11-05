@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import 'buyer_home_api.dart';
@@ -83,14 +82,17 @@ class ProductDetailsData {
     final images = item.images.isNotEmpty
         ? item.images
         : item.image.isNotEmpty
-            ? [item.image]
-            : const <String>[];
+        ? [item.image]
+        : const <String>[];
 
     return ProductDetailsData(
       id: item.id,
       slug: item.slug,
-      defaultVariantId:
-          item.variants.isNotEmpty ? item.variants.first.id : '',
+      defaultVariantId: item.variants.isNotEmpty
+          ? (item.variants.where((variant) => variant.stock > 0).isNotEmpty
+                ? item.variants.firstWhere((variant) => variant.stock > 0).id
+                : item.variants.first.id)
+          : '',
       name: item.name,
       category: item.category,
       price: item.price,
@@ -133,9 +135,7 @@ class ProductDetailsData {
 class ProductFeature {
   final String name;
 
-  ProductFeature({
-    required this.name,
-  });
+  ProductFeature({required this.name});
 }
 
 class ProductReview {
@@ -187,23 +187,16 @@ class ProductVariant {
 class ProductDetailsPage extends StatefulWidget {
   final ProductDetailsData product;
 
-  ProductDetailsPage({
-    super.key,
-    required this.product,
-  });
+  ProductDetailsPage({super.key, required this.product});
 
   @override
-  State<ProductDetailsPage> createState() =>
-      _ProductDetailsPageState();
+  State<ProductDetailsPage> createState() => _ProductDetailsPageState();
 }
 
 class BuyerProductRoutePage extends StatefulWidget {
   final String slug;
 
-  BuyerProductRoutePage({
-    super.key,
-    required this.slug,
-  });
+  BuyerProductRoutePage({super.key, required this.slug});
 
   @override
   State<BuyerProductRoutePage> createState() => _BuyerProductRoutePageState();
@@ -243,16 +236,13 @@ class _BuyerProductRoutePageState extends State<BuyerProductRoutePage> {
             ),
           );
         }
-        return Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }
 }
 
-class _ProductDetailsPageState
-    extends State<ProductDetailsPage> {
+class _ProductDetailsPageState extends State<ProductDetailsPage> {
   int currentMediaIndex = 0;
   int quantity = 1;
 
@@ -276,11 +266,19 @@ class _ProductDetailsPageState
   void initState() {
     super.initState();
 
-    selectedColor =
-        product.colors.isNotEmpty ? product.colors.first : null;
-
-    selectedSize =
-        product.sizes.isNotEmpty ? product.sizes.first : null;
+    // Start with a real, available combination rather than picking
+    // independently from color and size lists.
+    if (product.variants.isNotEmpty) {
+      final available = product.variants.where((v) => v.stock > 0);
+      final initial = available.isNotEmpty
+          ? available.first
+          : product.variants.first;
+      selectedColor = initial.color.isEmpty ? null : initial.color;
+      selectedSize = initial.size.isEmpty ? null : initial.size;
+    } else {
+      selectedColor = product.colors.isNotEmpty ? product.colors.first : null;
+      selectedSize = product.sizes.isNotEmpty ? product.sizes.first : null;
+    }
 
     _resolveVariant();
     _loadWishlistState();
@@ -304,27 +302,24 @@ class _ProductDetailsPageState
 
   int get mediaCount {
     return product.images.length +
-        (product.videoUrl != null &&
-                product.videoUrl!.isNotEmpty
-            ? 1
-            : 0);
+        (product.videoUrl != null && product.videoUrl!.isNotEmpty ? 1 : 0);
   }
 
   bool get hasVideo {
-    return product.videoUrl != null &&
-        product.videoUrl!.isNotEmpty;
+    return product.videoUrl != null && product.videoUrl!.isNotEmpty;
   }
 
   bool get isVideoSelected {
-    return hasVideo &&
-        currentMediaIndex == product.images.length;
+    return hasVideo && currentMediaIndex == product.images.length;
   }
 
   String get currentImage {
     if (product.images.isEmpty) return '';
 
-    return product.images[
-        currentMediaIndex.clamp(0, product.images.length - 1)];
+    return product.images[currentMediaIndex.clamp(
+      0,
+      product.images.length - 1,
+    )];
   }
 
   void _changeMedia(int index) {
@@ -339,8 +334,7 @@ class _ProductDetailsPageState
     if (mediaCount <= 1) return;
 
     setState(() {
-      currentMediaIndex =
-          (currentMediaIndex + 1) % mediaCount;
+      currentMediaIndex = (currentMediaIndex + 1) % mediaCount;
     });
   }
 
@@ -348,8 +342,7 @@ class _ProductDetailsPageState
     if (mediaCount <= 1) return;
 
     setState(() {
-      currentMediaIndex =
-          (currentMediaIndex - 1 + mediaCount) % mediaCount;
+      currentMediaIndex = (currentMediaIndex - 1 + mediaCount) % mediaCount;
     });
   }
 
@@ -357,10 +350,7 @@ class _ProductDetailsPageState
   // IMAGE WIDGET
   // =========================================================
 
-  Widget _productImage(
-    String url, {
-    BoxFit fit = BoxFit.contain,
-  }) {
+  Widget _productImage(String url, {BoxFit fit = BoxFit.contain}) {
     if (url.isEmpty) {
       return _imagePlaceholder();
     }
@@ -391,48 +381,23 @@ class _ProductDetailsPageState
   // VARIANT SELECTION
   // =========================================================
 
-  void _resolveVariant() {
-    if (product.variants.isEmpty) {
-      selectedVariantId = null;
-      return;
-    }
-
-    ProductVariant? matchingVariant;
-
+  ProductVariant? get _matchingVariant {
     for (final variant in product.variants) {
-      final colorMatches = selectedColor == null ||
-          variant.color == selectedColor;
-
-      final sizeMatches = selectedSize == null ||
-          variant.size == selectedSize;
-
-      if (colorMatches && sizeMatches) {
-        matchingVariant = variant;
-        break;
-      }
+      final colorMatches =
+          selectedColor == null || variant.color == selectedColor;
+      final sizeMatches = selectedSize == null || variant.size == selectedSize;
+      if (colorMatches && sizeMatches) return variant;
     }
+    return null;
+  }
 
-    selectedVariantId = matchingVariant?.id;
+  void _resolveVariant() {
+    selectedVariantId = _matchingVariant?.id;
   }
 
   int get availableStock {
-    if (product.variants.isEmpty) {
-      return product.stock;
-    }
-
-    for (final variant in product.variants) {
-      final colorMatches = selectedColor == null ||
-          variant.color == selectedColor;
-
-      final sizeMatches = selectedSize == null ||
-          variant.size == selectedSize;
-
-      if (colorMatches && sizeMatches) {
-        return variant.stock;
-      }
-    }
-
-    return 0;
+    if (product.variants.isEmpty) return product.stock;
+    return _matchingVariant?.stock ?? 0;
   }
 
   void _selectColor(String color) {
@@ -440,16 +405,20 @@ class _ProductDetailsPageState
       selectedColor = color;
       quantity = 1;
 
-      final images = product.mediaByColor[color];
-
-      if (images != null && images.isNotEmpty) {
-        final index = product.images.indexOf(images.first);
-
-        if (index >= 0) {
-          currentMediaIndex = index;
-        }
+      // If the previous size doesn't exist for the new color,
+      // select a real available size within that color.
+      final matches = product.variants.where((v) => v.color == color).toList();
+      if (matches.isNotEmpty && !matches.any((v) => v.size == selectedSize)) {
+        final stocked = matches.where((v) => v.stock > 0);
+        final selected = stocked.isNotEmpty ? stocked.first : matches.first;
+        selectedSize = selected.size.isEmpty ? null : selected.size;
       }
 
+      final images = product.mediaByColor[color];
+      if (images != null && images.isNotEmpty) {
+        final index = product.images.indexOf(images.first);
+        if (index >= 0) currentMediaIndex = index;
+      }
       _resolveVariant();
     });
   }
@@ -458,6 +427,13 @@ class _ProductDetailsPageState
     setState(() {
       selectedSize = size;
       quantity = 1;
+      // Likewise, avoid choosing an impossible color/size pair.
+      final matches = product.variants.where((v) => v.size == size).toList();
+      if (matches.isNotEmpty && !matches.any((v) => v.color == selectedColor)) {
+        final stocked = matches.where((v) => v.stock > 0);
+        final selected = stocked.isNotEmpty ? stocked.first : matches.first;
+        selectedColor = selected.color.isEmpty ? null : selected.color;
+      }
       _resolveVariant();
     });
   }
@@ -501,7 +477,11 @@ class _ProductDetailsPageState
       final saved = await WishlistService.toggle(product.slug);
       if (!mounted) return;
       setState(() => isWishlisted = saved);
-      _showMessage(saved ? 'Added to your SUKI wishlist.' : 'Removed from your SUKI wishlist.');
+      _showMessage(
+        saved
+            ? 'Added to your SUKI wishlist.'
+            : 'Removed from your SUKI wishlist.',
+      );
     } catch (error) {
       if (mounted) {
         _showMessage(error.toString().replaceFirst('Exception: ', ''));
@@ -516,41 +496,43 @@ class _ProductDetailsPageState
   // =========================================================
 
   Future<void> _addToCart({bool continueToCheckout = false}) async {
+    if (isSavingCart) return;
+
     if (availableStock <= 0) {
       _showMessage('This product is currently unavailable.');
       return;
     }
-
-    if (quantity > availableStock) {
-      _showMessage('Not enough stock available.');
+    if (quantity < 1 || quantity > availableStock) {
+      _showMessage('Please choose a quantity within available stock.');
       return;
     }
 
-    final variantId = selectedVariantId ?? product.defaultVariantId;
+    // If variants exist, the selected ID must match the selected
+    // combination. Never fall back to another variant silently.
+    final variantId = product.variants.isNotEmpty
+        ? (selectedVariantId ?? '')
+        : product.defaultVariantId;
     if (variantId.isEmpty) {
-      _showMessage('Please select an available variant.');
-      return;
-    }
-
-    final token = await AuthService.getToken();
-    if (!mounted) return;
-    if (token == null || token.isEmpty) {
-      Navigator.pushNamed(context, '/login');
+      _showMessage('An available product variant is required for checkout.');
       return;
     }
 
     setState(() => isSavingCart = true);
     try {
-      await CartService.addItem(
-        variantId: variantId,
-        quantity: quantity,
-      );
+      final token = await AuthService.getToken();
+      if (!mounted) return;
+      if (token == null || token.isEmpty) {
+        Navigator.pushNamed(context, '/login');
+        return;
+      }
+
+      await CartService.addItem(variantId: variantId, quantity: quantity);
       if (!mounted) return;
 
       if (continueToCheckout) {
         Navigator.pushNamed(context, '/buyer-checkout');
       } else {
-        _showMessage('${product.name} was added to your Laravel cart.');
+        _showMessage('${product.name} was added to your cart.');
       }
     } catch (error) {
       if (!mounted) return;
@@ -565,23 +547,25 @@ class _ProductDetailsPageState
   // =========================================================
 
   void _openShop() {
-    Navigator.pop(context);
+    Navigator.pushNamed(context, '/products');
   }
 
   void _openSellerShop() {
-    if (product.sellerSlug.isEmpty) {
+    final slug = product.sellerSlug.trim();
+    if (slug.isEmpty) {
       _showMessage('Seller shop is not available.');
       return;
     }
-
-    _showMessage('Seller shop will be connected later.');
+    Navigator.pushNamed(context, '/stores/${Uri.encodeComponent(slug)}');
   }
 
   void _openRelatedProduct(RelatedProduct related) {
-    _showMessage(
-      'Product: ${related.name}. '
-      'Product navigation will be connected later.',
-    );
+    final slug = related.slug.trim();
+    if (slug.isEmpty) {
+      _showMessage('This product is currently unavailable.');
+      return;
+    }
+    Navigator.pushNamed(context, '/product/${Uri.encodeComponent(slug)}');
   }
 
   // =========================================================
@@ -594,10 +578,7 @@ class _ProductDetailsPageState
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
@@ -618,16 +599,10 @@ class _ProductDetailsPageState
 
         leading: IconButton(
           onPressed: _openShop,
-          icon: Icon(
-            Icons.arrow_back,
-            color: ProductDetailsStyle.textPrimary,
-          ),
+          icon: Icon(Icons.arrow_back, color: ProductDetailsStyle.textPrimary),
         ),
 
-        title: Text(
-          'Product Details',
-          style: ProductDetailsStyle.sectionTitle,
-        ),
+        title: Text('Product Details', style: ProductDetailsStyle.sectionTitle),
 
         actions: [
           IconButton(
@@ -640,9 +615,7 @@ class _ProductDetailsPageState
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(
-                    isWishlisted
-                        ? Icons.favorite
-                        : Icons.favorite_border,
+                    isWishlisted ? Icons.favorite : Icons.favorite_border,
                     color: isWishlisted
                         ? Colors.red
                         : ProductDetailsStyle.textPrimary,
@@ -693,10 +666,7 @@ class _ProductDetailsPageState
         children: [
           GestureDetector(
             onTap: _openShop,
-            child: Text(
-              'Home',
-              style: ProductDetailsStyle.label,
-            ),
+            child: Text('Home', style: ProductDetailsStyle.label),
           ),
 
           Icon(
@@ -707,10 +677,7 @@ class _ProductDetailsPageState
 
           GestureDetector(
             onTap: _openShop,
-            child: Text(
-              'Shop',
-              style: ProductDetailsStyle.label,
-            ),
+            child: Text('Shop', style: ProductDetailsStyle.label),
           ),
 
           Icon(
@@ -819,26 +786,17 @@ class _ProductDetailsPageState
                         SizedBox(height: 8),
                         Text(
                           'Product video preview',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 12),
                         ),
                         Text(
                           'Video playback will be enabled later.',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
-                          ),
+                          style: TextStyle(color: Colors.white70, fontSize: 10),
                         ),
                       ],
                     ),
                   )
                 else
-                  _productImage(
-                    currentImage,
-                    fit: BoxFit.contain,
-                  ),
+                  _productImage(currentImage, fit: BoxFit.contain),
 
                 if (mediaCount > 1) ...[
                   Positioned(
@@ -847,10 +805,7 @@ class _ProductDetailsPageState
                     bottom: 0,
 
                     child: Center(
-                      child: _mediaArrow(
-                        Icons.chevron_left,
-                        _previousMedia,
-                      ),
+                      child: _mediaArrow(Icons.chevron_left, _previousMedia),
                     ),
                   ),
 
@@ -860,10 +815,7 @@ class _ProductDetailsPageState
                     bottom: 0,
 
                     child: Center(
-                      child: _mediaArrow(
-                        Icons.chevron_right,
-                        _nextMedia,
-                      ),
+                      child: _mediaArrow(Icons.chevron_right, _nextMedia),
                     ),
                   ),
                 ],
@@ -884,11 +836,10 @@ class _ProductDetailsPageState
                     ),
 
                     child: Text(
-                      '${currentMediaIndex + 1}/$mediaCount',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                      ),
+                      mediaCount == 0
+                          ? '0/0'
+                          : '${currentMediaIndex + 1}/$mediaCount',
+                      style: TextStyle(color: Colors.white, fontSize: 10),
                     ),
                   ),
                 ),
@@ -907,13 +858,11 @@ class _ProductDetailsPageState
               scrollDirection: Axis.horizontal,
               itemCount: mediaCount,
 
-              separatorBuilder: (_, _) =>
-                  SizedBox(width: 9),
+              separatorBuilder: (_, _) => SizedBox(width: 9),
 
               itemBuilder: (context, index) {
                 final isSelected = currentMediaIndex == index;
-                final isVideo =
-                    hasVideo && index == product.images.length;
+                final isVideo = hasVideo && index == product.images.length;
 
                 return GestureDetector(
                   onTap: () => _changeMedia(index),
@@ -957,10 +906,7 @@ class _ProductDetailsPageState
     );
   }
 
-  Widget _mediaArrow(
-    IconData icon,
-    VoidCallback onTap,
-  ) {
+  Widget _mediaArrow(IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.white.withValues(alpha: 0.9),
       shape: CircleBorder(),
@@ -972,11 +918,7 @@ class _ProductDetailsPageState
         child: Padding(
           padding: const EdgeInsets.all(7),
 
-          child: Icon(
-            icon,
-            size: 22,
-            color: ProductDetailsStyle.textPrimary,
-          ),
+          child: Icon(icon, size: 22, color: ProductDetailsStyle.textPrimary),
         ),
       ),
     );
@@ -1002,10 +944,7 @@ class _ProductDetailsPageState
 
         SizedBox(height: 7),
 
-        Text(
-          product.name,
-          style: ProductDetailsStyle.productName,
-        ),
+        Text(product.name, style: ProductDetailsStyle.productName),
 
         SizedBox(height: 12),
 
@@ -1028,10 +967,7 @@ class _ProductDetailsPageState
 
                 Text(
                   product.rating,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
               ],
             ),
@@ -1045,10 +981,7 @@ class _ProductDetailsPageState
               ),
             ),
 
-            Text(
-              '${product.sold} Sold',
-              style: ProductDetailsStyle.label,
-            ),
+            Text('${product.sold} Sold', style: ProductDetailsStyle.label),
           ],
         ),
       ],
@@ -1071,10 +1004,7 @@ class _ProductDetailsPageState
         runSpacing: 7,
 
         children: [
-          Text(
-            '₱${product.price}',
-            style: ProductDetailsStyle.price,
-          ),
+          Text('₱${product.price}', style: ProductDetailsStyle.price),
 
           if (product.oldPrice.isNotEmpty)
             Text(
@@ -1088,10 +1018,7 @@ class _ProductDetailsPageState
 
           if (product.discount.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
 
               decoration: BoxDecoration(
                 color: ProductDetailsStyle.accent,
@@ -1121,11 +1048,7 @@ class _ProductDetailsPageState
       padding: const EdgeInsets.symmetric(vertical: 15),
 
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: ProductDetailsStyle.border,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: ProductDetailsStyle.border)),
       ),
 
       child: Row(
@@ -1145,10 +1068,7 @@ class _ProductDetailsPageState
               children: [
                 Text(
                   'Shipping',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
 
                 SizedBox(height: 5),
@@ -1205,10 +1125,7 @@ class _ProductDetailsPageState
           width: 58,
           child: Padding(
             padding: const EdgeInsets.only(top: 9),
-            child: Text(
-              label,
-              style: ProductDetailsStyle.label,
-            ),
+            child: Text(label, style: ProductDetailsStyle.label),
           ),
         ),
 
@@ -1270,43 +1187,29 @@ class _ProductDetailsPageState
       children: [
         SizedBox(
           width: 58,
-          child: Text(
-            'Quantity',
-            style: ProductDetailsStyle.label,
-          ),
+          child: Text('Quantity', style: ProductDetailsStyle.label),
         ),
 
         Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: ProductDetailsStyle.border,
-            ),
+            border: Border.all(color: ProductDetailsStyle.border),
             borderRadius: BorderRadius.circular(9),
           ),
 
           child: Row(
             children: [
-              _quantityButton(
-                Icons.remove,
-                _decreaseQuantity,
-              ),
+              _quantityButton(Icons.remove, _decreaseQuantity),
 
               SizedBox(
                 width: 35,
                 child: Text(
                   '$quantity',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
 
-              _quantityButton(
-                Icons.add,
-                _increaseQuantity,
-              ),
+              _quantityButton(Icons.add, _increaseQuantity),
             ],
           ),
         ),
@@ -1328,22 +1231,11 @@ class _ProductDetailsPageState
     );
   }
 
-  Widget _quantityButton(
-    IconData icon,
-    VoidCallback onTap,
-  ) {
+  Widget _quantityButton(IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
 
-      child: SizedBox(
-        width: 36,
-        height: 37,
-
-        child: Icon(
-          icon,
-          size: 17,
-        ),
-      ),
+      child: SizedBox(width: 36, height: 37, child: Icon(icon, size: 17)),
     );
   }
 
@@ -1376,11 +1268,7 @@ class _ProductDetailsPageState
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         decoration: BoxDecoration(
           color: ProductDetailsStyle.white,
-          border: Border(
-            top: BorderSide(
-              color: ProductDetailsStyle.border,
-            ),
-          ),
+          border: Border(top: BorderSide(color: ProductDetailsStyle.border)),
         ),
 
         child: Row(
@@ -1395,14 +1283,8 @@ class _ProductDetailsPageState
                         height: 15,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(
-                        Icons.shopping_cart_outlined,
-                        size: 17,
-                      ),
-                label: Text(
-                  'Add to Cart',
-                  style: TextStyle(fontSize: 11),
-                ),
+                    : Icon(Icons.shopping_cart_outlined, size: 17),
+                label: Text('Add to Cart', style: TextStyle(fontSize: 11)),
               ),
             ),
 
@@ -1459,10 +1341,7 @@ class _ProductDetailsPageState
                   height: 53,
 
                   child: product.sellerLogo.isNotEmpty
-                      ? _productImage(
-                          product.sellerLogo,
-                          fit: BoxFit.cover,
-                        )
+                      ? _productImage(product.sellerLogo, fit: BoxFit.cover)
                       : Container(
                           color: ProductDetailsStyle.lightGreen,
                           child: Icon(
@@ -1495,10 +1374,7 @@ class _ProductDetailsPageState
 
                     SizedBox(height: 5),
 
-                    Text(
-                      'Seller information',
-                      style: ProductDetailsStyle.body,
-                    ),
+                    Text('Seller information', style: ProductDetailsStyle.body),
 
                     SizedBox(height: 6),
 
@@ -1547,14 +1423,9 @@ class _ProductDetailsPageState
             child: ElevatedButton.icon(
               style: ProductDetailsStyle.primaryButton,
               onPressed: () {
-                _showMessage(
-                  'Seller chat will be connected later.',
-                );
+                _showMessage('Seller chat will be connected later.');
               },
-              icon: Icon(
-                Icons.chat_outlined,
-                size: 17,
-              ),
+              icon: Icon(Icons.chat_outlined, size: 17),
               label: Text('Chat with Seller'),
             ),
           ),
@@ -1578,15 +1449,11 @@ class _ProductDetailsPageState
           Row(
             children: [
               Expanded(
-                child: _tabButton(
-                  'Product Description',
-                  !showReviews,
-                  () {
-                    setState(() {
-                      showReviews = false;
-                    });
-                  },
-                ),
+                child: _tabButton('Product Description', !showReviews, () {
+                  setState(() {
+                    showReviews = false;
+                  });
+                }),
               ),
 
               Expanded(
@@ -1606,36 +1473,25 @@ class _ProductDetailsPageState
           Padding(
             padding: const EdgeInsets.all(16),
 
-            child: showReviews
-                ? _buildReviews()
-                : _buildDescription(),
+            child: showReviews ? _buildReviews() : _buildDescription(),
           ),
         ],
       ),
     );
   }
 
-  Widget _tabButton(
-    String title,
-    bool active,
-    VoidCallback onTap,
-  ) {
+  Widget _tabButton(String title, bool active, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
 
       child: Container(
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(
-          vertical: 15,
-          horizontal: 5,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 5),
 
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: active
-                  ? ProductDetailsStyle.primary
-                  : Colors.transparent,
+              color: active ? ProductDetailsStyle.primary : Colors.transparent,
               width: 2,
             ),
           ),
@@ -1646,8 +1502,7 @@ class _ProductDetailsPageState
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 10,
-            fontWeight:
-                active ? FontWeight.bold : FontWeight.w500,
+            fontWeight: active ? FontWeight.bold : FontWeight.w500,
             color: active
                 ? ProductDetailsStyle.primary
                 : ProductDetailsStyle.textSecondary,
@@ -1662,10 +1517,7 @@ class _ProductDetailsPageState
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-        Text(
-          'About this product',
-          style: ProductDetailsStyle.sectionTitle,
-        ),
+        Text('About this product', style: ProductDetailsStyle.sectionTitle),
 
         SizedBox(height: 12),
 
@@ -1679,34 +1531,29 @@ class _ProductDetailsPageState
         if (product.features.isNotEmpty) ...[
           SizedBox(height: 17),
 
-          ...product.features.map(
-            (feature) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+          ...product.features.map((feature) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
 
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: ProductDetailsStyle.primary,
-                      size: 15,
-                    ),
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: ProductDetailsStyle.primary,
+                    size: 15,
+                  ),
 
-                    SizedBox(width: 9),
+                  SizedBox(width: 9),
 
-                    Expanded(
-                      child: Text(
-                        feature.name,
-                        style: ProductDetailsStyle.body,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  Expanded(
+                    child: Text(feature.name, style: ProductDetailsStyle.body),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ],
     );
@@ -1718,10 +1565,7 @@ class _ProductDetailsPageState
         padding: EdgeInsets.symmetric(vertical: 25),
 
         child: Center(
-          child: Text(
-            'No reviews yet.',
-            style: ProductDetailsStyle.body,
-          ),
+          child: Text('No reviews yet.', style: ProductDetailsStyle.body),
         ),
       );
     }
@@ -1730,86 +1574,75 @@ class _ProductDetailsPageState
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-        ...product.reviews.map(
-          (review) {
-            return Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13),
+        ...product.reviews.map((review) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 13),
 
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: ProductDetailsStyle.border,
-                  ),
-                ),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: ProductDetailsStyle.border),
               ),
+            ),
 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.star_rounded,
-                        color: ProductDetailsStyle.accent,
-                        size: 17,
-                      ),
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.star_rounded,
+                      color: ProductDetailsStyle.accent,
+                      size: 17,
+                    ),
 
-                      SizedBox(width: 4),
+                    SizedBox(width: 4),
 
-                      Text(
-                        '${review.rating}/5',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 8),
-
-                  Text(
-                    review.body,
-                    style: ProductDetailsStyle.body,
-                  ),
-
-                  if (review.sellerResponse.isNotEmpty) ...[
-                    SizedBox(height: 10),
-
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-
-                      decoration: BoxDecoration(
-                        color: ProductDetailsStyle.background,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Seller response: ',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text: review.sellerResponse,
-                            ),
-                          ],
-                        ),
-                        style: ProductDetailsStyle.body,
+                    Text(
+                      '${review.rating}/5',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
+                ),
+
+                SizedBox(height: 8),
+
+                Text(review.body, style: ProductDetailsStyle.body),
+
+                if (review.sellerResponse.isNotEmpty) ...[
+                  SizedBox(height: 10),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+
+                    decoration: BoxDecoration(
+                      color: ProductDetailsStyle.background,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Seller response: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: review.sellerResponse),
+                        ],
+                      ),
+                      style: ProductDetailsStyle.body,
+                    ),
+                  ),
                 ],
-              ),
-            );
-          },
-        ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
@@ -1834,10 +1667,7 @@ class _ProductDetailsPageState
         crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-          Text(
-            'You May Also Like',
-            style: ProductDetailsStyle.sectionTitle,
-          ),
+          Text('You May Also Like', style: ProductDetailsStyle.sectionTitle),
 
           SizedBox(height: 15),
 
@@ -1847,8 +1677,7 @@ class _ProductDetailsPageState
             padding: EdgeInsets.zero,
             itemCount: related.length > 4 ? 4 : related.length,
 
-            gridDelegate:
-                SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 11,
               mainAxisSpacing: 12,
@@ -1872,10 +1701,7 @@ class _ProductDetailsPageState
                       AspectRatio(
                         aspectRatio: 1,
 
-                        child: _productImage(
-                          item.image,
-                          fit: BoxFit.cover,
-                        ),
+                        child: _productImage(item.image, fit: BoxFit.cover),
                       ),
 
                       Expanded(
@@ -1883,8 +1709,7 @@ class _ProductDetailsPageState
                           padding: const EdgeInsets.all(9),
 
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
 
                             children: [
                               Text(
@@ -1934,4 +1759,3 @@ class _ProductDetailsPageState
     );
   }
 }
-

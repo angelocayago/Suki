@@ -1,7 +1,89 @@
-
 import 'auth_service.dart';
 import 'api_services.dart';
 import 'cart_service.dart';
+
+// =========================================================
+// SUKISHOP MOBILE - BUYER ORDER SERVICE
+// =========================================================
+//
+// Handles:
+// - Checkout data
+// - Saved delivery addresses
+// - Cash on Delivery order submission
+// - Order history
+// - Individual order details
+//
+// Uses centralized ApiServices and AuthService.
+// Existing public methods and models are preserved.
+// =========================================================
+
+// =========================================================
+// SHARED ORDER PARSING HELPERS
+// =========================================================
+
+class _OrderParser {
+  _OrderParser._();
+
+  static String text(dynamic value) {
+    return value?.toString().trim() ?? '';
+  }
+
+  static bool boolean(dynamic value) {
+    if (value is bool) return value;
+
+    if (value is num) return value != 0;
+
+    final normalized = text(value).toLowerCase();
+
+    return normalized == 'true' || normalized == '1' || normalized == 'yes';
+  }
+
+  static Map<String, dynamic> object(dynamic value) {
+    if (value is! Map) {
+      throw const FormatException(
+        'Expected an object in the Laravel API response.',
+      );
+    }
+
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+
+  static Map<String, dynamic> unwrap(dynamic response) {
+    final root = object(response);
+
+    if (root['success'] == false) {
+      final message = text(root['message']);
+
+      throw Exception(message.isEmpty ? 'The order request failed.' : message);
+    }
+
+    final payload = root['data'];
+
+    if (payload == null) {
+      return root;
+    }
+
+    if (payload is! Map) {
+      throw const FormatException('Invalid order API data format.');
+    }
+
+    return object(payload);
+  }
+
+  static List<Map<String, dynamic>> objectList(dynamic value) {
+    if (value is! List) {
+      throw const FormatException(
+        'Expected a list in the Laravel API response.',
+      );
+    }
+
+    return value.map((item) => object(item)).toList();
+  }
+}
+
+// =========================================================
+// BUYER DELIVERY ADDRESS MODEL
+// =========================================================
 
 class BuyerAddress {
   final String id;
@@ -29,28 +111,36 @@ class BuyerAddress {
   });
 
   factory BuyerAddress.fromJson(Map<String, dynamic> json) {
+    final label = _OrderParser.text(json['label']);
+
     return BuyerAddress(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? '',
-      label: json['label']?.toString() ?? 'Address',
-      street: json['street']?.toString() ?? '',
-      barangay: json['barangay']?.toString() ?? '',
-      municipality: json['municipality']?.toString() ?? '',
-      province: json['province']?.toString() ?? '',
-      postalCode: json['postal_code']?.toString() ?? '',
-      isDefault: json['is_default'] == true,
+      id: _OrderParser.text(json['id']),
+      name: _OrderParser.text(json['name']),
+      phone: _OrderParser.text(json['phone']),
+      label: label.isEmpty ? 'Address' : label,
+      street: _OrderParser.text(json['street']),
+      barangay: _OrderParser.text(json['barangay']),
+      municipality: _OrderParser.text(json['municipality']),
+      province: _OrderParser.text(json['province']),
+      postalCode: _OrderParser.text(json['postal_code']),
+      isDefault: _OrderParser.boolean(json['is_default']),
     );
   }
 
-  String get formattedAddress => [
-        street,
-        barangay,
-        municipality,
-        province,
-        postalCode,
-      ].where((part) => part.trim().isNotEmpty).join(', ');
+  String get formattedAddress {
+    return [
+      street,
+      barangay,
+      municipality,
+      province,
+      postalCode,
+    ].where((part) => part.trim().isNotEmpty).join(', ');
+  }
 }
+
+// =========================================================
+// BUYER CHECKOUT DATA MODEL
+// =========================================================
 
 class BuyerCheckoutData {
   final BuyerCartSummary cart;
@@ -60,83 +150,257 @@ class BuyerCheckoutData {
 
   factory BuyerCheckoutData.fromJson(Map<String, dynamic> json) {
     final rawAddresses = json['addresses'];
+
+    if (rawAddresses is! List) {
+      throw const FormatException(
+        'Delivery addresses are missing '
+        'or invalid in the checkout response.',
+      );
+    }
+
+    final addresses = rawAddresses
+        .map((item) => BuyerAddress.fromJson(_OrderParser.object(item)))
+        .toList();
+
+    // Supported formats:
+    //
+    // {
+    //   "cart": [...],
+    //   "subtotal": 100,
+    //   "shipping": 30,
+    //   "total": 130,
+    //   "addresses": [...]
+    // }
+    //
+    // or:
+    //
+    // {
+    //   "cart": {
+    //     "items": [...],
+    //     "subtotal": 100,
+    //     "shipping": 30,
+    //     "total": 130
+    //   },
+    //   "addresses": [...]
+    // }
+
+    Map<String, dynamic> cartData = json;
+
+    final rawCart = json['cart'];
+
+    if (rawCart is Map) {
+      cartData = _OrderParser.object(rawCart);
+    } else if (rawCart is! List && json['items'] is! List) {
+      throw const FormatException(
+        'Cart information is missing '
+        'from the checkout response.',
+      );
+    }
+
+    final cartItems = cartData['cart'] ?? cartData['items'];
+
+    if (cartItems is! List) {
+      throw const FormatException('Invalid checkout cart items.');
+    }
+
     return BuyerCheckoutData(
-      cart: BuyerCartSummary.fromJson(json),
-      addresses: rawAddresses is List
-          ? rawAddresses
-              .whereType<Map>()
-              .map(
-                (item) => BuyerAddress.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
-              )
-              .toList()
-          : <BuyerAddress>[],
+      cart: BuyerCartSummary.fromJson(cartData),
+      addresses: addresses,
     );
   }
 }
 
+// =========================================================
+// SUKISHOP ORDER SERVICE
+// =========================================================
+
 class OrderService {
   OrderService._();
 
-  static Future<List<Map<String, dynamic>>> getOrders() async {
-    final response = await ApiServices.get(
-      '/buyer/orders',
-      token: await _requiredToken(),
-    );
-    final data = _dataMap(response);
-    final rawOrders = data['orders'];
-    if (rawOrders is! List) return const [];
+  // =======================================================
+  // REQUIRE AUTHENTICATION
+  // =======================================================
 
-    return rawOrders
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
+  static Future<String> _requiredToken() async {
+    final token = await AuthService.getToken();
+
+    if (token == null || token.trim().isEmpty) {
+      throw Exception('Please log in before checkout.');
+    }
+
+    return token.trim();
   }
+
+  // =======================================================
+  // GET ORDER HISTORY
+  // =======================================================
+
+  static Future<List<Map<String, dynamic>>> getOrders() async {
+    final token = await _requiredToken();
+
+    final response = await ApiServices.get('/buyer/orders', token: token);
+
+    // Laravel may return:
+    //
+    // { "orders": [...] }
+    // { "data": { "orders": [...] } }
+    // { "data": [...] }
+    // { "data": { "orders": { "data": [...] } } }
+    //
+    // The last shape represents a paginator.
+
+    if (response is List) {
+      return _OrderParser.objectList(response);
+    }
+
+    final root = _OrderParser.object(response);
+
+    if (root['success'] == false) {
+      throw Exception(
+        _OrderParser.text(root['message']).isEmpty
+            ? 'Unable to load orders.'
+            : _OrderParser.text(root['message']),
+      );
+    }
+
+    dynamic orders = root['data'] ?? root;
+
+    if (orders is Map) {
+      orders = orders['orders'] ?? orders['data'];
+    }
+
+    if (orders is Map) {
+      orders = orders['data'] ?? orders['orders'];
+    }
+
+    return _OrderParser.objectList(orders);
+  }
+
+  // =======================================================
+  // GET INDIVIDUAL ORDER
+  // =======================================================
 
   static Future<Map<String, dynamic>> getOrder(String orderId) async {
+    final cleanId = orderId.trim();
+
+    if (cleanId.isEmpty) {
+      throw ArgumentError('Order ID cannot be empty.');
+    }
+
+    final token = await _requiredToken();
+
     final response = await ApiServices.get(
-      '/buyer/orders/${Uri.encodeComponent(orderId)}',
-      token: await _requiredToken(),
+      '/buyer/orders/'
+      '${Uri.encodeComponent(cleanId)}',
+      token: token,
     );
-    return _dataMap(response);
+
+    final data = _OrderParser.unwrap(response);
+
+    // Support:
+    // { "data": { "order": {...} } }
+    // { "data": {...} }
+    // { "order": {...} }
+
+    final nestedOrder = data['order'];
+
+    if (nestedOrder is Map) {
+      return _OrderParser.object(nestedOrder);
+    }
+
+    if (data.isEmpty) {
+      throw const FormatException('Order details were not found.');
+    }
+
+    return data;
   }
 
+  // =======================================================
+  // GET CHECKOUT DATA
+  // =======================================================
+
   static Future<BuyerCheckoutData> getCheckoutData() async {
-    final response = await ApiServices.get(
-      '/buyer/checkout',
-      token: await _requiredToken(),
-    );
-    return BuyerCheckoutData.fromJson(_dataMap(response));
+    final token = await _requiredToken();
+
+    final response = await ApiServices.get('/buyer/checkout', token: token);
+
+    final data = _OrderParser.unwrap(response);
+
+    return BuyerCheckoutData.fromJson(data);
   }
+
+  // =======================================================
+  // PLACE ORDER
+  // =======================================================
 
   static Future<Map<String, dynamic>> placeOrder({
     required String addressId,
   }) async {
-    final response = await ApiServices.post(
-      '/buyer/checkout',
-      {
-        'address_id': int.tryParse(addressId) ?? addressId,
-        'payment_method': 'cod',
-      },
-      token: await _requiredToken(),
-    );
-    return _dataMap(response);
-  }
+    final cleanAddressId = addressId.trim();
 
-  static Future<String> _requiredToken() async {
-    final token = await AuthService.getToken();
-    if (token == null || token.isEmpty) {
-      throw Exception('Please log in before checkout.');
+    if (cleanAddressId.isEmpty) {
+      throw ArgumentError('Please select a delivery address.');
     }
-    return token;
-  }
 
-  static Map<String, dynamic> _dataMap(dynamic response) {
-    if (response is! Map) {
-      throw const FormatException('Invalid checkout API response.');
+    final token = await _requiredToken();
+
+    // Existing backend contract:
+    //
+    // POST /api/buyer/checkout
+    //
+    // {
+    //   "address_id": 1,
+    //   "payment_method": "cod"
+    // }
+    //
+    // The Laravel backend must independently
+    // validate stock, price, address ownership,
+    // and final order total.
+
+    final response = await ApiServices.post('/buyer/checkout', {
+      'address_id': int.tryParse(cleanAddressId) ?? cleanAddressId,
+      'payment_method': 'cod',
+    }, token: token);
+
+    final data = _OrderParser.unwrap(response);
+
+    // Laravel may wrap the created order:
+    //
+    // {
+    //   "data": {
+    //     "order": {
+    //       "id": 123,
+    //       "order_number": "SUKI-123"
+    //     }
+    //   }
+    // }
+    //
+    // Normalize it so checkout.dart can read:
+    //
+    // order['id']
+    // order['order_number']
+
+    final nestedOrder = data['order'];
+
+    final order = nestedOrder is Map ? _OrderParser.object(nestedOrder) : data;
+
+    final orderId = _OrderParser.text(order['id']);
+
+    final orderNumber = _OrderParser.text(order['order_number']);
+
+    // An order reference is required before
+    // the checkout page can confirm success.
+    //
+    // If neither value exists, return the
+    // response to checkout.dart, which will
+    // mark the submission as uncertain.
+    //
+    // Do not automatically retry this POST.
+
+    if (orderId.isEmpty && orderNumber.isEmpty) {
+      return order;
     }
-    final rawData = response['data'];
-    return Map<String, dynamic>.from(rawData is Map ? rawData : response);
+
+    return order;
   }
 }

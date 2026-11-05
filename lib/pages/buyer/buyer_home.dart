@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'buyer_home_style.dart';
@@ -26,6 +27,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Timer? _carouselTimer;
 
   int currentSlide = 0;
+  int _loadRequestId = 0;
 
   // =========================================================
   // INITIALIZATION
@@ -38,11 +40,15 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }
 
   // =========================================================
-  // LOAD HOMEPAGE DATA FROM LARAVEL
+  // LOAD HOMEPAGE DATA
   // =========================================================
 
   Future<void> loadHomeData() async {
     if (!mounted) return;
+
+    final requestId = ++_loadRequestId;
+
+    _carouselTimer?.cancel();
 
     setState(() {
       isLoading = true;
@@ -50,30 +56,54 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     });
 
     try {
-      final result = await BuyerHomeRepository.getHomeData();
+      final result = await BuyerHomeRepository.getHomeData().timeout(
+        const Duration(seconds: 25),
+      );
 
-      if (!mounted) return;
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
 
       setState(() {
         homeData = result;
         isLoading = false;
+        errorMessage = null;
         currentSlide = 0;
       });
 
-      if (_heroController.hasClients) {
-        _heroController.jumpToPage(0);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || requestId != _loadRequestId) {
+          return;
+        }
 
-      _startCarousel();
-    } catch (error) {
-      if (!mounted) return;
+        if (_heroController.hasClients) {
+          _heroController.jumpToPage(0);
+        }
+
+        _startCarousel();
+      });
+    } on TimeoutException {
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
 
       setState(() {
         isLoading = false;
-        errorMessage = error.toString();
+        errorMessage =
+            'The server took too long to respond. '
+            'Please try again.';
       });
+    } catch (error) {
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
 
-      _carouselTimer?.cancel();
+      final message = error.toString().replaceFirst('Exception: ', '').trim();
+
+      setState(() {
+        isLoading = false;
+        errorMessage = message.isEmpty ? 'Unable to load homepage.' : message;
+      });
     }
   }
 
@@ -88,19 +118,34 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   void _startCarousel() {
     _carouselTimer?.cancel();
 
-    if (homeData == null || homeData!.heroSlides.length <= 1) {
+    final slides = homeData?.heroSlides ?? [];
+
+    if (!mounted || slides.length <= 1) {
       return;
     }
 
-    _carouselTimer = Timer.periodic(Duration(seconds: 5), (timer) {
-      if (!mounted || !_heroController.hasClients) return;
+    _carouselTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
 
-      final slides = homeData!.heroSlides;
-      final nextIndex = (currentSlide + 1) % slides.length;
+      final currentSlides = homeData?.heroSlides ?? [];
+
+      if (currentSlides.length <= 1) {
+        timer.cancel();
+        return;
+      }
+
+      if (!_heroController.hasClients) {
+        return;
+      }
+
+      final nextIndex = (currentSlide + 1) % currentSlides.length;
 
       _heroController.animateToPage(
         nextIndex,
-        duration: Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
     });
@@ -109,11 +154,13 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   void _changeSlide(int index) {
     final slides = homeData?.heroSlides ?? [];
 
-    if (index < 0 || index >= slides.length) return;
+    if (index < 0 || index >= slides.length || !_heroController.hasClients) {
+      return;
+    }
 
     _heroController.animateToPage(
       index,
-      duration: Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
     );
 
@@ -122,8 +169,11 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
   @override
   void dispose() {
+    _loadRequestId++;
+
     _carouselTimer?.cancel();
     _heroController.dispose();
+
     super.dispose();
   }
 
@@ -145,27 +195,23 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   // NAVIGATION
   // =========================================================
 
-  // BUYER PROFILE
   void _openProfile() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => BuyerProfilePage()),
+      MaterialPageRoute(builder: (_) => const BuyerProfilePage()),
     );
   }
 
-  // SHOPPING CART
   void _openCart() {
     Navigator.pushNamed(context, '/buyer-cart');
   }
 
-  // NOTIFICATIONS
   void _openNotifications() {
     _showMessage('Notifications will be connected later.');
   }
 
-  // PRODUCT DETAILS
   void _openProduct(BuyerHomeItem product) {
-    if (product.slug.isEmpty) {
+    if (product.slug.trim().isEmpty) {
       _showMessage('Product information is unavailable.');
       return;
     }
@@ -173,7 +219,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProductDetailsPage(
+        builder: (_) => ProductDetailsPage(
           product: ProductDetailsData.fromCatalogItem(product),
         ),
       ),
@@ -198,20 +244,16 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
     return Scaffold(
       backgroundColor: BuyerHomeStyle.background,
-
       body: SafeArea(
         child: RefreshIndicator(
           color: BuyerHomeStyle.primary,
           onRefresh: _refresh,
-
           child: CustomScrollView(
-            physics: AlwaysScrollableScrollPhysics(
+            physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-
             slivers: [
               SliverToBoxAdapter(child: _buildHeader()),
 
@@ -251,8 +293,12 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                 if (homeData!.newArrivals.isNotEmpty)
                   SliverToBoxAdapter(child: _buildNewArrivals()),
 
-                SliverToBoxAdapter(child: SizedBox(height: 30)),
-              ],
+                const SliverToBoxAdapter(child: SizedBox(height: 30)),
+              ] else
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildEmptySection('No homepage data available.'),
+                ),
             ],
           ),
         ),
@@ -277,14 +323,14 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
               color: BuyerHomeStyle.textSecondary,
             ),
 
-            SizedBox(height: 15),
+            const SizedBox(height: 15),
 
-            Text(
+            const Text(
               'Unable to load homepage',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
 
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
 
             Text(
               errorMessage ?? 'Please try again.',
@@ -295,12 +341,13 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
               ),
             ),
 
-            SizedBox(height: 17),
+            const SizedBox(height: 17),
 
-            ElevatedButton(
+            ElevatedButton.icon(
               style: BuyerHomeStyle.primaryButton,
               onPressed: loadHomeData,
-              child: Text('Retry'),
+              icon: const Icon(Icons.refresh, size: 17),
+              label: const Text('Retry'),
             ),
           ],
         ),
@@ -315,7 +362,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 13),
-
       child: Row(
         children: [
           Container(
@@ -325,17 +371,22 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
               color: BuyerHomeStyle.darkGreen,
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.shopping_bag_rounded,
               color: Colors.white,
               size: 24,
             ),
           ),
 
-          SizedBox(width: 9),
+          const SizedBox(width: 9),
 
           Expanded(
-            child: Text('MOBILE SUKI', style: BuyerHomeStyle.brand),
+            child: Text(
+              'MOBILE SUKI',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: BuyerHomeStyle.brand,
+            ),
           ),
 
           const ThemeToggleButton(),
@@ -358,6 +409,8 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     return IconButton(
       tooltip: label,
       visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 34, minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       onPressed: onTap,
       icon: Icon(icon, color: BuyerHomeStyle.textPrimary, size: 21),
     );
@@ -368,7 +421,15 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   // =========================================================
 
   Widget _networkImage(String url, {BoxFit fit = BoxFit.cover}) {
-    if (url.isEmpty) {
+    if (url.trim().isEmpty) {
+      return BuyerHomeStyle.imageError();
+    }
+
+    final uri = Uri.tryParse(url);
+
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
       return BuyerHomeStyle.imageError();
     }
 
@@ -382,7 +443,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }
 
   // =========================================================
-  // HERO CAROUSEL
+  // HERO SECTION
   // =========================================================
 
   Widget _buildHeroSection() {
@@ -392,25 +453,22 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
       padding: const EdgeInsets.symmetric(
         horizontal: BuyerHomeStyle.horizontalPadding,
       ),
-
       child: ClipRRect(
         borderRadius: BorderRadius.circular(17),
-
         child: SizedBox(
           height: 270,
-
           child: Stack(
             children: [
               PageView.builder(
                 controller: _heroController,
                 itemCount: slides.length,
-
                 onPageChanged: (index) {
+                  if (!mounted) return;
+
                   setState(() {
                     currentSlide = index;
                   });
                 },
-
                 itemBuilder: (context, index) {
                   return _buildHeroSlide(slides[index]);
                 },
@@ -421,22 +479,18 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                   left: 0,
                   right: 0,
                   bottom: 12,
-
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-
                     children: List.generate(slides.length, (index) {
                       final active = currentSlide == index;
 
                       return GestureDetector(
                         onTap: () => _changeSlide(index),
-
                         child: AnimatedContainer(
-                          duration: Duration(milliseconds: 250),
+                          duration: const Duration(milliseconds: 250),
                           margin: const EdgeInsets.symmetric(horizontal: 3),
                           width: active ? 23 : 7,
                           height: 7,
-
                           decoration: BoxDecoration(
                             color: active ? Colors.white : Colors.white54,
                             borderRadius: BorderRadius.circular(20),
@@ -488,7 +542,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
         _networkImage(slide.image),
 
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
@@ -499,11 +553,9 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
         Padding(
           padding: const EdgeInsets.fromLTRB(28, 22, 25, 35),
-
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               if (slide.label.isNotEmpty)
                 Container(
@@ -517,7 +569,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                   ),
                   child: Text(
                     slide.label,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
@@ -525,13 +577,13 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                   ),
                 ),
 
-              SizedBox(height: 13),
+              const SizedBox(height: 13),
 
               Text(
                 slide.title,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
@@ -539,25 +591,24 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                 ),
               ),
 
-              SizedBox(height: 9),
+              const SizedBox(height: 9),
 
               Text(
                 slide.description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 10,
                   height: 1.5,
                 ),
               ),
 
-              SizedBox(height: 14),
+              const SizedBox(height: 14),
 
               if (slide.button.isNotEmpty)
                 ElevatedButton(
                   onPressed: () => _openShop(),
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: BuyerHomeStyle.primary,
@@ -572,10 +623,9 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                       borderRadius: BorderRadius.circular(7),
                     ),
                   ),
-
                   child: Text(
                     slide.button,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
@@ -591,12 +641,10 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Widget _carouselArrow(IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.black38,
-      shape: CircleBorder(),
-
+      shape: const CircleBorder(),
       child: InkWell(
-        customBorder: CircleBorder(),
+        customBorder: const CircleBorder(),
         onTap: onTap,
-
         child: Padding(
           padding: const EdgeInsets.all(3),
           child: Icon(icon, color: Colors.white, size: 22),
@@ -614,7 +662,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 0),
-
       child: Row(
         children: List.generate(promotions.length, (index) {
           final promo = promotions[index];
@@ -625,16 +672,12 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                 right: index < promotions.length - 1 ? 5 : 0,
                 left: index > 0 ? 5 : 0,
               ),
-
               child: GestureDetector(
                 onTap: () => _openShop(),
-
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(11),
-
                   child: SizedBox(
                     height: 95,
-
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -644,30 +687,28 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
                         Padding(
                           padding: const EdgeInsets.all(10),
-
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
-
                             children: [
                               Text(
                                 promo.subtitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 8,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white70,
                                 ),
                               ),
 
-                              SizedBox(height: 3),
+                              const SizedBox(height: 3),
 
                               Text(
                                 promo.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -713,68 +754,69 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     return Container(
       margin: const EdgeInsets.fromLTRB(13, 17, 13, 0),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 12),
-
       decoration: BuyerHomeStyle.sectionDecoration,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 600 ? 3 : 2;
 
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: benefits.length,
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: benefits.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisExtent: 65,
+              crossAxisSpacing: 5,
+              mainAxisSpacing: 8,
+            ),
+            itemBuilder: (context, index) {
+              final benefit = benefits[index];
 
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisExtent: 59,
-          crossAxisSpacing: 5,
-          mainAxisSpacing: 8,
-        ),
-
-        itemBuilder: (context, index) {
-          final benefit = benefits[index];
-
-          return Row(
-            children: [
-              Container(
-                width: 33,
-                height: 33,
-                decoration: BuyerHomeStyle.iconDecoration,
-                child: Icon(
-                  _benefitIcon(benefit.icon),
-                  color: BuyerHomeStyle.primary,
-                  size: 17,
-                ),
-              ),
-
-              SizedBox(width: 7),
-
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Text(
-                      benefit.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
+              return Row(
+                children: [
+                  Container(
+                    width: 33,
+                    height: 33,
+                    decoration: BuyerHomeStyle.iconDecoration,
+                    child: Icon(
+                      _benefitIcon(benefit.icon),
+                      color: BuyerHomeStyle.primary,
+                      size: 17,
                     ),
+                  ),
 
-                    SizedBox(height: 3),
+                  const SizedBox(width: 7),
 
-                    Text(
-                      benefit.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: BuyerHomeStyle.sectionSubtitle,
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          benefit.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 3),
+
+                        Text(
+                          benefit.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: BuyerHomeStyle.sectionSubtitle,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -794,50 +836,52 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 13),
-
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 Text(eyebrow.toUpperCase(), style: BuyerHomeStyle.eyebrow),
 
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
 
                 Text(title, style: BuyerHomeStyle.sectionTitle),
 
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
 
                 Text(subtitle, style: BuyerHomeStyle.sectionSubtitle),
               ],
             ),
           ),
 
-          GestureDetector(
+          const SizedBox(width: 8),
+
+          InkWell(
             onTap: onAction ?? () => _openShop(),
-
-            child: Row(
-              children: [
-                Text(
-                  action,
-                  style: TextStyle(
-                    color: BuyerHomeStyle.primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  Text(
+                    action,
+                    style: TextStyle(
+                      color: BuyerHomeStyle.primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
 
-                SizedBox(width: 3),
+                  const SizedBox(width: 3),
 
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 13,
-                  color: BuyerHomeStyle.primary,
-                ),
-              ],
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 13,
+                    color: BuyerHomeStyle.primary,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -854,7 +898,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(13, 26, 13, 0),
-
       child: Column(
         children: [
           _sectionHeader(
@@ -865,52 +908,42 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
           ),
 
           SizedBox(
-            height: 101,
-
+            height: 104,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: categories.length,
-
-              separatorBuilder: (context, index) {
-                return SizedBox(width: 12);
-              },
-
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 final category = categories[index];
 
-                return GestureDetector(
+                return InkWell(
                   onTap: () {
                     _openShop(
                       category: category.slug,
                       categoryName: category.name,
                     );
                   },
-
                   child: SizedBox(
-                    width: 63,
-
+                    width: 67,
                     child: Column(
                       children: [
                         Container(
                           width: 57,
                           height: 57,
-
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: BuyerHomeStyle.border),
                           ),
-
                           child: ClipOval(child: _networkImage(category.image)),
                         ),
 
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
 
                         Text(
                           category.name,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
@@ -931,7 +964,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
   // =========================================================
   // PRODUCT CARD
-  // MEDIUM PHONE OVERFLOW ADJUSTMENT
   // =========================================================
 
   Widget _buildProductCard(
@@ -939,20 +971,17 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     bool showDiscount = true,
     bool bestSeller = false,
   }) {
-    return GestureDetector(
+    return InkWell(
       onTap: () => _openProduct(product),
-
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         decoration: BuyerHomeStyle.cardDecoration,
         clipBehavior: Clip.antiAlias,
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             AspectRatio(
               aspectRatio: 1,
-
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -962,21 +991,18 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     Positioned(
                       top: 7,
                       left: 7,
-
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 7,
                           vertical: 4,
                         ),
-
                         decoration: BoxDecoration(
                           color: BuyerHomeStyle.accent,
                           borderRadius: BorderRadius.circular(5),
                         ),
-
                         child: Text(
                           '-${product.discount}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
@@ -989,19 +1015,16 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     Positioned(
                       top: 7,
                       left: 7,
-
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 7,
                           vertical: 4,
                         ),
-
                         decoration: BoxDecoration(
                           color: BuyerHomeStyle.primary,
                           borderRadius: BorderRadius.circular(5),
                         ),
-
-                        child: Text(
+                        child: const Text(
                           'BEST SELLER',
                           style: TextStyle(
                             color: Colors.white,
@@ -1018,22 +1041,17 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(9),
-
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      height: 30,
-
-                      child: Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: BuyerHomeStyle.productName,
-                      ),
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: BuyerHomeStyle.productName,
                     ),
 
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
 
                     Text(
                       product.price.isEmpty
@@ -1047,7 +1065,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     if (showDiscount)
                       Padding(
                         padding: const EdgeInsets.only(top: 3),
-
                         child: Row(
                           children: [
                             if (product.oldPrice.isNotEmpty)
@@ -1065,7 +1082,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                               ),
 
                             if (product.oldPrice.isNotEmpty)
-                              SizedBox(width: 5),
+                              const SizedBox(width: 5),
 
                             Expanded(
                               child: Text(
@@ -1084,7 +1101,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                         ),
                       ),
 
-                    Spacer(),
+                    const Spacer(),
 
                     Row(
                       children: [
@@ -1094,13 +1111,19 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                           size: 13,
                         ),
 
-                        SizedBox(width: 3),
+                        const SizedBox(width: 3),
 
-                        Text(
-                          product.rating.isEmpty ? 'No rating' : product.rating,
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: BuyerHomeStyle.textSecondary,
+                        Flexible(
+                          child: Text(
+                            product.rating.isEmpty
+                                ? 'No rating'
+                                : product.rating,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: BuyerHomeStyle.textSecondary,
+                            ),
                           ),
                         ),
                       ],
@@ -1130,23 +1153,31 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 600 ? 3 : 2;
+        final width = constraints.maxWidth;
+
+        final columns = width >= 900
+            ? 5
+            : width >= 600
+            ? 3
+            : 2;
+
+        final cardWidth = (width - (columns - 1) * 9) / columns;
+
+        // Images are square; reserve adequate room
+        // for the product title, price and rating.
+        final cardHeight = cardWidth + 115;
 
         return GridView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           itemCount: items.length,
-
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             crossAxisSpacing: 9,
             mainAxisSpacing: 11,
-
-            // Taller product cards for Medium Phone.
-            childAspectRatio: 0.58,
+            mainAxisExtent: cardHeight,
           ),
-
           itemBuilder: (context, index) {
             return _buildProductCard(
               items[index],
@@ -1166,7 +1197,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Widget _buildEmptySection(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 25),
-
       child: Center(
         child: Text(message, style: BuyerHomeStyle.sectionSubtitle),
       ),
@@ -1183,12 +1213,10 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     return Container(
       margin: const EdgeInsets.fromLTRB(13, 25, 13, 0),
       decoration: BuyerHomeStyle.sectionDecoration,
-
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-
             child: Row(
               children: [
                 Icon(
@@ -1197,7 +1225,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                   size: 25,
                 ),
 
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
 
                 Expanded(
                   child: Text(
@@ -1207,6 +1235,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                 ),
 
                 IconButton(
+                  tooltip: 'View All Flash Deals',
                   visualDensity: VisualDensity.compact,
                   onPressed: () => _openShop(),
                   icon: Icon(
@@ -1223,7 +1252,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
           Padding(
             padding: const EdgeInsets.all(9),
-
             child: _buildProductGrid(products, showDiscount: true),
           ),
         ],
@@ -1240,7 +1268,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(13, 27, 13, 0),
-
       child: Column(
         children: [
           _sectionHeader(
@@ -1265,12 +1292,10 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     return Container(
       margin: const EdgeInsets.fromLTRB(13, 27, 13, 0),
       padding: const EdgeInsets.all(12),
-
       decoration: BoxDecoration(
         color: BuyerHomeStyle.lightGreen,
         borderRadius: BorderRadius.circular(14),
       ),
-
       child: Column(
         children: [
           _sectionHeader(
