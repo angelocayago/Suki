@@ -7,9 +7,9 @@ use App\Models\{Address, Application, LogisticsHub, LogisticsProvider, Order, Ri
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{DB, Mail, Notification, Storage};
 use PHPUnit\Framework\Attributes\DataProvider;
-use Tests\TestCase;
+use Tests\Support\IsolatedStorageTestCase;
 
-class LogisticsRiderReviewAssignmentTest extends TestCase
+class LogisticsRiderReviewAssignmentTest extends IsolatedStorageTestCase
 {
     use RefreshDatabase;
 
@@ -24,7 +24,7 @@ class LogisticsRiderReviewAssignmentTest extends TestCase
         parent::setUp();
         $this->assertSame('sqlite', DB::connection()->getDriverName());
         $this->assertSame(':memory:', DB::connection()->getDatabaseName());
-        $this->assertStringStartsWith(strtolower(str_replace('\\', '/', sys_get_temp_dir())).'/', strtolower(str_replace('\\', '/', storage_path())));
+        $this->assertStoragePathIsIsolated();
         Storage::fake('local'); Storage::fake('public'); Mail::fake(); Notification::fake();
         $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('afterCommit', 'adminsAfterCommit')->andReturnNull();
         $this->actor = User::factory()->create(['role' => 'logistics', 'status' => 'active', 'is_suspended' => false]);

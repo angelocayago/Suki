@@ -89,7 +89,7 @@
 
     <div class="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-10">
 
-        <div class="flex h-[74px] items-center gap-4 lg:gap-7">
+        <div class="buyer-main-header flex h-[74px] items-center gap-4 lg:gap-7">
 
 
             {{-- LOGO --}}
@@ -193,6 +193,10 @@
 
             {{-- RIGHT ACTIONS --}}
             <div class="flex items-center gap-1 sm:gap-2">
+
+                @if(auth()->check() && auth()->user()->isBuyer())
+                    <x-theme-toggle />
+                @endif
 
 
                 {{-- CART --}}

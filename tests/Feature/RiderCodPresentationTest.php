@@ -7,9 +7,9 @@ use App\Models\{LogisticsProvider, Order, Rider, Seller, SellerOrder, Shipment, 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{DB, Mail, Notification, Storage};
 use PHPUnit\Framework\Attributes\DataProvider;
-use Tests\TestCase;
+use Tests\Support\IsolatedStorageTestCase;
 
-class RiderCodPresentationTest extends TestCase
+class RiderCodPresentationTest extends IsolatedStorageTestCase
 {
     use RefreshDatabase;
 
@@ -19,7 +19,7 @@ class RiderCodPresentationTest extends TestCase
         parent::setUp();
         $this->assertSame('sqlite', DB::connection()->getDriverName());
         $this->assertSame(':memory:', DB::connection()->getDatabaseName());
-        $this->assertStringStartsWith(strtolower(str_replace('\\', '/', sys_get_temp_dir())).'/', strtolower(str_replace('\\', '/', storage_path())));
+        $this->assertStoragePathIsIsolated();
         Storage::fake('delivery_proofs'); Mail::fake(); Notification::fake();
         $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('afterCommit', 'adminsAfterCommit')->andReturnNull();
     }

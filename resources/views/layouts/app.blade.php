@@ -10,6 +10,7 @@
 
     {{-- Vite / Laravel Assets --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('components.theme-preload')
 
     {{-- Poppins Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +26,7 @@
 
 </head>
 
-<body class="bg-[#F8FAF8] text-[#1F2937] antialiased">
+<body @class(['bg-[#F8FAF8] text-[#1F2937] antialiased', 'suki-buyer-shell' => auth()->check() && auth()->user()->isBuyer()])>
 
     {{-- ==========================================
          BUYER NAVIGATION
@@ -64,6 +65,7 @@
         });
     </script>
 
+    @include('components.logout-confirmation')
 </body>
 
 </html>

@@ -2,6 +2,7 @@
 <html lang="en" class="scroll-smooth">
 
 <head>
+    @include('components.theme-preload')
 
     <meta charset="UTF-8">
 
@@ -112,7 +113,7 @@
     <aside
         id="riderSidebar"
         class="fixed inset-y-0 left-0 z-50
-               flex w-[270px]
+               flex w-[224px]
                -translate-x-full
                flex-col
                border-r border-white/10
@@ -126,7 +127,7 @@
 
         {{-- BRAND --}}
         <div
-            class="flex h-[82px]
+            class="flex h-[64px]
                    items-center
                    border-b border-white/10
                    px-6"
@@ -177,6 +178,10 @@
                 </div>
 
             </a>
+
+            <button id="riderSidebarCollapse" type="button" class="rider-sidebar-collapse hidden lg:flex" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="riderSidebar">
+                <i data-lucide="panel-left-close" class="h-4 w-4" aria-hidden="true"></i>
+            </button>
 
         </div>
 
@@ -353,7 +358,6 @@
 
 
                 {{-- EARNINGS --}}
-                <x-notification-link class="block rounded-xl px-3 py-2.5 text-[13px] text-white/65 hover:text-white" />
                 <a
                     href="{{ route('rider.earnings') }}"
                     class="
@@ -482,7 +486,7 @@
 
     <div
         class="min-h-screen
-               lg:pl-[270px]"
+               lg:pl-[224px]"
     >
 
 
@@ -495,7 +499,7 @@
         >
 
             <div
-                class="flex min-h-[74px]
+                class="flex min-h-[64px]
                        items-center gap-4
                        px-4
                        sm:px-6
@@ -508,6 +512,8 @@
                     id="riderSidebarOpen"
                     type="button"
                     aria-label="Open rider navigation"
+                    aria-expanded="false"
+                    aria-controls="riderSidebar"
                     class="flex h-10 w-10
                            shrink-0
                            items-center justify-center
@@ -557,7 +563,9 @@
 
 
                 {{-- STATUS --}}
-                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
+                    <x-theme-toggle />
+                    <x-notification-bell :href="route('notifications.page')" label="Rider notifications" />
 
                     <div
                         class="hidden
@@ -618,10 +626,10 @@
             class="mx-auto
                    w-full
                    max-w-[1500px]
-                   px-4 py-6
-                   sm:px-6
-                   lg:px-8
-                   lg:py-8"
+                   px-4 py-5
+                   sm:px-5
+                   lg:px-6
+                   lg:py-6"
         >
 
             @yield('content')
@@ -638,111 +646,9 @@
         SIDEBAR SCRIPT
     ========================================================== --}}
 
-    <script>
+    {{-- Sidebar interactions are initialized once by resources/js/app.js. --}}
 
-        document.addEventListener(
-            'DOMContentLoaded',
-            function () {
-
-                const sidebar =
-                    document.getElementById(
-                        'riderSidebar'
-                    );
-
-                const overlay =
-                    document.getElementById(
-                        'riderSidebarOverlay'
-                    );
-
-                const openButton =
-                    document.getElementById(
-                        'riderSidebarOpen'
-                    );
-
-
-                function openSidebar() {
-
-                    sidebar?.classList.remove(
-                        '-translate-x-full'
-                    );
-
-                    overlay?.classList.remove(
-                        'hidden'
-                    );
-
-                    document.body.classList.add(
-                        'overflow-hidden'
-                    );
-
-                }
-
-
-                function closeSidebar() {
-
-                    sidebar?.classList.add(
-                        '-translate-x-full'
-                    );
-
-                    overlay?.classList.add(
-                        'hidden'
-                    );
-
-                    document.body.classList.remove(
-                        'overflow-hidden'
-                    );
-
-                }
-
-
-                openButton?.addEventListener(
-                    'click',
-                    openSidebar
-                );
-
-
-                overlay?.addEventListener(
-                    'click',
-                    closeSidebar
-                );
-
-
-                window.addEventListener(
-                    'resize',
-                    function () {
-
-                        if (
-                            window.innerWidth >= 1024
-                        ) {
-
-                            overlay?.classList.add(
-                                'hidden'
-                            );
-
-                            document.body.classList.remove(
-                                'overflow-hidden'
-                            );
-
-                        }
-
-                    }
-                );
-
-
-                if (
-                    typeof lucide !== 'undefined' &&
-                    typeof lucide.createIcons ===
-                        'function'
-                ) {
-
-                    lucide.createIcons();
-
-                }
-
-            }
-        );
-
-    </script>
-
+    @include('components.logout-confirmation')
 </body>
 
 </html>

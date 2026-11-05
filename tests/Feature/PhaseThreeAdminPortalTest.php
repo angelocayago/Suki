@@ -47,14 +47,15 @@ class PhaseThreeAdminPortalTest extends TestCase
 
         $this->actingAs($admin)
             ->patch(route('superadmin.users.status', $buyer), ['status' => 'suspended'])
-            ->assertSessionHasErrors('reason');
+            ->assertSessionHasErrors('reason_code');
 
         $this->assertSame('active', $buyer->fresh()->status);
 
         $this->actingAs($admin)
             ->patch(route('superadmin.users.status', $buyer), [
                 'status' => 'suspended',
-                'reason' => 'Repeated marketplace policy violations.',
+                'reason_code' => 'other',
+                'custom_reason' => 'Repeated marketplace policy violations.',
             ])
             ->assertRedirect();
 
@@ -105,7 +106,8 @@ class PhaseThreeAdminPortalTest extends TestCase
 
         $this->actingAs($admin)->patch(route('superadmin.users.status', $logisticsUser), [
             'status' => 'inactive',
-            'reason' => 'Provider account closed.',
+            'reason_code' => 'other',
+            'custom_reason' => 'Provider account closed.',
         ])->assertRedirect();
 
         $this->assertSame('suspended', $sellerUser->fresh()->status);
@@ -121,7 +123,8 @@ class PhaseThreeAdminPortalTest extends TestCase
         $this->actingAs($admin)
             ->patch(route('superadmin.users.status', $admin), [
                 'status' => 'suspended',
-                'reason' => 'Self restriction attempt.',
+                'reason_code' => 'other',
+                'custom_reason' => 'Self restriction attempt.',
             ])
             ->assertSessionHasErrors('status');
 
