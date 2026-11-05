@@ -220,7 +220,12 @@ class FulfillmentController extends Controller
                 'name' => $item->product_name,
                 'quantity' => $item->quantity,
             ])->all(),
-            'total' => ($sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor) / 100,
+            // COD is allocated per shipment at checkout, including vouchers and shipping.
+            'total' => $order->payment_method === 'cod'
+                ? $shipment->cod_amount_minor / 100
+                : ($sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor) / 100,
+            'payment_method' => $order->payment_method,
+            'cod_amount_minor' => $shipment?->cod_amount_minor,
             'tracking_code' => $shipment?->tracking_code,
             'pickup_rider_index' => $shipment?->pickup_rider_id,
             'pickup_rider_name' => $shipment?->pickupRider?->user?->full_name,

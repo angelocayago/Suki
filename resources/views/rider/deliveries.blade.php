@@ -406,7 +406,7 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
 
                                 @if (isset($order['total']))
                                     <p class="text-sm text-gray-600">
-                                        <span class="font-medium">Total:</span>
+                                        <span class="font-medium">{{ ($order['source'] ?? '') === 'database' ? (($order['payment_method'] ?? '') === 'cod' ? 'Shipment COD due:' : 'Subtotal + shipping (before discounts):') : 'Total:' }}</span>
                                         ₱{{ number_format((float) $order['total'], 2) }}
                                     </p>
                                 @endif
@@ -539,7 +539,11 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                         </label>
                                         <input name="received_by" required maxlength="150" placeholder="Received by" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                                         <input name="delivery_note" maxlength="1000" placeholder="Delivery note (optional)" class="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                                        <label class="mb-3 block text-sm"><input type="checkbox" name="cod_collected" value="1" required> COD collected: ₱{{ number_format($order['total'], 2) }}</label>
+                                        @if(($order['payment_method'] ?? '') === 'cod')
+                                            <label class="mb-3 block text-sm"><input type="checkbox" name="cod_collected" value="1" required> COD collected: ₱{{ number_format($order['cod_amount_minor'] / 100, 2) }}</label>
+                                        @else
+                                            <p class="mb-3 text-sm">No COD collection required.</p>
+                                        @endif
                                     @endif
 
                                     <button

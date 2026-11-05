@@ -220,7 +220,17 @@ class FulfillmentController extends Controller
                 'name' => $item->product_name,
                 'quantity' => $item->quantity,
             ])->all(),
-            'total' => ($sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor) / 100,
+            'total' => $order->payment_method === 'cod'
+                ? $shipment->cod_amount_minor / 100
+                : ($sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor) / 100,
+            'payment_method' => $order->payment_method,
+            'cod_amount_minor' => $shipment->cod_amount_minor,
+            'pickup_address' => collect([
+                $sellerOrder->seller?->pickupAddress?->line1,
+                $sellerOrder->seller?->pickupAddress?->barangay,
+                $sellerOrder->seller?->pickupAddress?->city,
+                $sellerOrder->seller?->pickupAddress?->province,
+            ])->filter()->implode(', '),
             'tracking_code' => $shipment->tracking_code,
             'logistics_provider_id' => $shipment->logistics_provider_id,
             'pickup_rider_name' => $shipment->pickupRider?->user?->full_name,

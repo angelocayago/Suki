@@ -191,4 +191,25 @@ class LogisticsRiderReviewAssignmentTest extends TestCase
         $this->assertSame('PICKUP-TRACK', $shipment->fresh()->tracking_code);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'PICKUP_RIDER_ASSIGNED']);
     }
+
+    public function test_pickup_confirmation_preserves_route_csrf_identifiers_and_displays_errors_without_writes(): void
+    {
+        $rider = $this->rider(); [$sellerOrder, $shipment] = $this->parcel();
+        $before = $shipment->fresh()->getRawOriginal();
+        $this->withSession(['_token' => 'test-csrf', 'success' => 'Previous assignment saved.'])->get(route('logistics.assignments'))
+            ->assertOk()->assertSee('Confirm Pickup Assignment')->assertSee('data-pickup-assignment', false)
+            ->assertSee('data-order="PICKUP-TEST"', false)->assertSee('data-pickup-location="Street, Barangay, City, Province"', false)
+            ->assertSee(route('logistics.database.pickup-rider.assign', $sellerOrder), false)
+            ->assertSee('name="_token"', false)->assertSee('test-csrf')->assertSee('Previous assignment saved.')
+            ->assertDontSee("return confirm('Assign this pickup rider?')", false);
+        $this->assertSame($before, $shipment->fresh()->getRawOriginal());
+        $this->assertDatabaseCount('delivery_events', 0);
+        $url = route('logistics.database.pickup-rider.assign', $sellerOrder);
+        $this->from(route('logistics.assignments'))->post($url, ['pickup_rider_id' => 999999])->assertNotFound();
+        $sellerOrder->update(['workflow_status' => OrderStatus::Placed]);
+        $this->from(route('logistics.assignments'))->post($url, ['pickup_rider_id' => $rider->id])->assertSessionHasErrors('order');
+        $this->get(route('logistics.assignments'))->assertOk()->assertSee('The assignment could not be saved.')->assertSee('Only an active ready-for-pickup parcel may be assigned.');
+        $this->assertNull($shipment->fresh()->pickup_rider_id);
+        $this->assertDatabaseCount('delivery_events', 0);
+    }
 }
