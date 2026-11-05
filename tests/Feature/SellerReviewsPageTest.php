@@ -53,9 +53,10 @@ class SellerReviewsPageTest extends TestCase
         $this->review(1); $this->review(2,202); $this->review(3,101,4,'seller'); $this->review(4,101,5,'rider');
         $response=$this->actingAs($this->seller)->withSession(['reviews'=>[['body'=>'POISON']]])->get(route('reviews.seller-page'))->assertOk()
             ->assertSee('Buyer Display')->assertSee('5 out of 5 stars')->assertSee('Purchased Blue Product')->assertSee('Blue / Large')->assertSee('Color')->assertSee('products/purchased-blue.webp')
-            ->assertSee('Shop review')->assertSee('Magandang quality. Thank you!')->assertDontSee('FOREIGN')->assertDontSee('POISON')->assertDontSee('private@example.test')->assertDontSee('PRIVATE-PHONE')
+            ->assertSee('Product review')->assertSee('Magandang quality. Thank you!')->assertDontSee('FOREIGN')->assertDontSee('POISON')->assertDontSee('private@example.test')->assertDontSee('PRIVATE-PHONE')
             ->assertSee('aria-expanded="false"',false)->assertDontSee('With Media')->assertDontSee('Download PDF')->assertDontSee('name="from"',false);
-        $this->assertSame([3,1],$response->viewData('reviews')->pluck('id')->all());
+        $this->assertSame([1],$response->viewData('reviews')->pluck('id')->all());
+        $this->listing(['tab'=>'shop'])->assertSee('Shop review')->assertViewHas('reviews',fn($p)=>$p->pluck('id')->all()===[3]);
         if($dir=getenv('SELLER_REVIEWS_CHECK_DIR')) file_put_contents($dir.'/reviews.html',$response->getContent());
     }
 
@@ -191,5 +192,114 @@ class SellerReviewsPageTest extends TestCase
             foreach(DB::getQueryLog() as $query) $this->assertMatchesRegularExpression('/^select\b/i',ltrim($query['query']));
             $this->assertLessThan(20,count(DB::getQueryLog()));
         } finally { DB::disableQueryLog(); DB::flushQueryLog(); }
+    }
+
+    public function test_summary_is_global_owned_inbox_only_and_includes_labeled_hidden_reviews(): void
+    {
+        $this->review(1,101,5); $this->review(2,101,2,'seller'); $this->review(3,101,1);
+        $this->review(4,202,1); $this->review(5,101,1,'rider');
+        DB::table('transaction_reviews')->where('id',2)->update(['seller_response'=>'Saved reply']);
+        DB::table('transaction_reviews')->where('id',3)->update(['hidden_at'=>'2026-11-01', 'seller_response'=>'   ']);
+        $response=$this->listing(['rating'=>5])->assertSee('Average Product Rating')->assertSee('Product review inbox')->assertSee('including reviews hidden by moderation')->assertSee('Quick replies')->assertSee('Thank you!')->assertSee('Salamat po')->assertSee('Appreciate support')->assertSee('Great rating');
+        $this->assertSame(['total'=>2,'average'=>3.0,'needs_reply'=>2,'replied'=>0],$response->viewData('summary'));
+        $this->assertSame(['total'=>1,'average'=>2.0,'needs_reply'=>0,'replied'=>1],$response->viewData('summaries')['shop']);
+        $this->assertSame(1,$response->viewData('reviews')->total());
+        $response->assertSee('type="button" data-review-template=',false)->assertSee('maxlength="500"',false)->assertSee('data-review-counter',false)->assertSee('data-review-cancel',false)->assertSee('role="status"',false);
+    }
+
+    public function test_zero_inbox_has_no_fabricated_average_and_status_filters_are_server_side_and_persist(): void
+    {
+        $empty=$this->listing()->assertSee('No ratings yet');
+        $this->assertNull($empty->viewData('summary')['average']); $this->assertSame(0,$empty->viewData('summary')['total']);
+        foreach(range(1,28) as $id)$this->review($id);
+        DB::table('transaction_reviews')->where('id',1)->update(['seller_response'=>'Replied already']);
+        $query=['reply'=>'needs_reply','rating'=>5,'product'=>1,'search'=>'quality'];
+        $response=$this->listing($query); $this->assertSame(27,$response->viewData('reviews')->total());
+        $this->assertSame(25,$response->viewData('reviews')->count());
+        parse_str(parse_url($response->viewData('reviews')->nextPageUrl(),PHP_URL_QUERY),$params);
+        foreach($query as $key=>$value)$this->assertSame((string)$value,(string)$params[$key]);
+        $this->listing(['reply'=>'replied'])->assertViewHas('reviews',fn($p)=>$p->pluck('id')->all()===[1]);
+        $this->actingAs($this->seller)->from(route('reviews.seller-page'))->get(route('reviews.seller-page',['reply'=>'forged']))->assertSessionHasErrors('reply');
+    }
+
+    public function test_reply_save_retains_valid_filters_and_updates_one_existing_reply_without_duplicate_reviews(): void
+    {
+        $this->review(1); $this->review(2,202);
+        $query=['reply'=>'needs_reply','search'=>'quality','rating'=>5,'product'=>1];
+        $before=TransactionReview::find(1)->only(['body','rating','buyer_id','seller_id','hidden_at']);
+        $this->actingAs($this->seller)->post(route('reviews.respond',1),['response'=>'Manually edited quick reply','_review_filters'=>$query])->assertRedirect(route('reviews.seller-page',$query));
+        $this->assertSame('Manually edited quick reply',TransactionReview::find(1)->seller_response);
+        $this->assertSame($before,TransactionReview::find(1)->only(array_keys($before)));
+        $this->assertSame(0,$this->listing($query)->viewData('reviews')->total());
+        $this->listing(['reply'=>'replied'])->assertSee('Replied')->assertSee('Manually edited quick reply')->assertSee('Edit reply');
+        $this->post(route('reviews.respond',1),['response'=>'Updated once more'])->assertRedirect();
+        $this->assertDatabaseCount('transaction_reviews',2);
+        $this->assertSame('Updated once more',TransactionReview::find(1)->seller_response);
+        $this->postJson(route('reviews.respond',2),['response'=>'Foreign reply'])->assertForbidden();
+    }
+
+    public function test_kind_tabs_have_distinct_metrics_status_filters_and_hidden_review_visibility(): void
+    {
+        $this->review(1,101,5,'product','PRODUCT ONLY'); $this->review(2,101,3,'product','PRODUCT ONLY');
+        $this->review(3,101,1,'seller','SHOP ONLY'); $this->review(4,101,2,'seller','SHOP ONLY');
+        $this->review(5,101,5,'rider','RIDER ONLY'); $this->review(6,202,5,'product','FOREIGN ONLY');
+        DB::table('transaction_reviews')->whereIn('id',[2,4])->update(['seller_response'=>'Saved reply']);
+        DB::table('transaction_reviews')->where('id',1)->update(['hidden_at'=>'2026-11-01']);
+        foreach(['product'=>[[2,1],[1],[2],4.0,'PRODUCT ONLY','SHOP ONLY'], 'shop'=>[[4,3],[3],[4],1.5,'SHOP ONLY','PRODUCT ONLY']] as $tab=>[$all,$needs,$replied,$average,$visible,$absent]) {
+            $response=$this->listing(['tab'=>$tab])->assertSee($visible)->assertDontSee($absent)->assertDontSee('RIDER ONLY')->assertDontSee('FOREIGN ONLY');
+            $this->assertSame($all,$response->viewData('reviews')->pluck('id')->all());
+            $this->assertSame(['total'=>2,'average'=>$average,'needs_reply'=>1,'replied'=>1],$response->viewData('summary'));
+            $this->listing(['tab'=>$tab,'reply'=>'needs_reply'])->assertViewHas('reviews',fn($p)=>$p->pluck('id')->all()===$needs);
+            $this->listing(['tab'=>$tab,'reply'=>'replied'])->assertViewHas('reviews',fn($p)=>$p->pluck('id')->all()===$replied);
+            $this->assertSame($tab,$response->viewData('activeTab'));
+        }
+        $this->listing(['tab'=>'product'])->assertSee('Hidden by moderation');
+        $this->listing(['tab'=>'shop','search'=>'SHOP ONLY','rating'=>1])->assertViewHas('reviews',fn($p)=>$p->pluck('id')->all()===[3]);
+    }
+
+    public function test_shop_tab_drops_product_filter_and_type_links_preserve_only_compatible_context(): void
+    {
+        $this->review(1); $this->review(2,101,4,'seller');
+        $shop=$this->listing(['tab'=>'shop','product'=>2])->assertDontSee('id="reviewProductSearch"',false)->assertSee('Average Shop Rating')->assertSee('name="tab" value="shop"',false);
+        $this->assertArrayNotHasKey('product',$shop->viewData('criteria'));
+        $this->assertSame([2],$shop->viewData('reviews')->pluck('id')->all());
+        $product=$this->listing(['tab'=>'product','product'=>1,'search'=>'quality','rating'=>5,'reply'=>'needs_reply']);
+        preg_match('/<nav class="sr-kind-tabs"[^>]*>(.*?)<\/nav>/s',$product->getContent(),$nav);
+        preg_match_all('/href="([^"]+)"/',$nav[1],$links);
+        parse_str(parse_url(html_entity_decode($links[1][1]),PHP_URL_QUERY),$target);
+        $this->assertSame(['search'=>'quality','rating'=>'5','reply'=>'needs_reply','tab'=>'shop'],$target);
+        $this->actingAs($this->seller)->from(route('reviews.seller-page'))->get(route('reviews.seller-page',['tab'=>'rider']))->assertSessionHasErrors('tab');
+        $this->listing(['tab'=>'shop','search'=>'none'])->assertSee('No Shop Reviews match these filters.');
+    }
+
+    public function test_each_kind_paginates_only_its_own_records_and_empty_shop_average_is_null(): void
+    {
+        $this->review(1);
+        $empty=$this->listing(['tab'=>'shop'])->assertSee('No ratings yet')->assertSee('No Shop Reviews have been received yet.');
+        $this->assertSame(['total'=>0,'average'=>null,'needs_reply'=>0,'replied'=>0],$empty->viewData('summary'));
+        foreach(range(2,28) as $id)$this->review($id);
+        foreach(range(101,128) as $id)$this->review($id,101,2,'seller','Shop quality');
+        foreach(['product','shop'] as $tab) {
+            $response=$this->listing(['tab'=>$tab,'search'=>'quality','reply'=>'needs_reply']);
+            $this->assertSame(28,$response->viewData('reviews')->total());
+            $this->assertSame(25,$response->viewData('reviews')->count());
+            $next=$response->viewData('reviews')->nextPageUrl();
+            parse_str(parse_url($next,PHP_URL_QUERY),$params);
+            $this->assertSame($tab,$params['tab']); $this->assertSame('needs_reply',$params['reply']);
+            $this->get($next)->assertOk()->assertViewHas('reviews',fn($p)=>$p->count()===3 && $p->pluck('kind')->unique()->all()===[$tab==='product'?'product':'seller']);
+        }
+    }
+
+    public function test_shop_reply_returns_to_selected_tab_and_cannot_forge_tab_or_change_buyer_feedback(): void
+    {
+        $this->review(1,101,4,'seller','Shop service'); $this->review(2,202,1,'seller','Foreign shop');
+        $filters=['tab'=>'shop','reply'=>'needs_reply','search'=>'Shop','rating'=>4];
+        $this->actingAs($this->seller)->post(route('reviews.respond',1),['response'=>'Manual shop reply','_review_filters'=>$filters+['product'=>1]])->assertRedirect(route('reviews.seller-page',$filters));
+        $this->listing(['tab'=>'shop','reply'=>'replied'])->assertSee('Manual shop reply')->assertSee('Edit reply')->assertSee('data-review-template=',false)->assertSee('name="_review_filters[tab]" value="shop"',false);
+        $this->postJson(route('reviews.respond',1),['response'=>'Invalid return context','_review_filters'=>['tab'=>'rider']])->assertUnprocessable();
+        $this->assertSame('Manual shop reply',TransactionReview::find(1)->seller_response);
+        $this->assertSame('Shop service',TransactionReview::find(1)->body);
+        $this->postJson(route('reviews.respond',2),['response'=>'Foreign reply','_review_filters'=>$filters])->assertForbidden();
+        $this->assertDatabaseCount('transaction_reviews',2);
     }
 }

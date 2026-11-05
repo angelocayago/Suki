@@ -648,6 +648,15 @@
                                     <p class="mt-2 text-sm text-gray-500">
                                         Quantity: {{ $item['quantity'] }}
                                     </p>
+                                    @if(!empty($item['variant_name']))<p class="mt-1 text-sm text-gray-600">Purchased variant: {{ $item['variant_name'] }}</p>@endif
+                                    @if(is_array($item['variation'] ?? null))<dl class="mt-1 text-sm text-gray-600">@foreach(\Illuminate\Support\Arr::dot($item['variation']) as $name => $value)<div><dt class="inline">{{ $name }}:</dt> <dd class="inline">{{ $value }}</dd></div>@endforeach</dl>@endif
+                                    @if($actions = $item['review_actions'] ?? null)
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            @if($actions['create'])<a href="{{ $actions['url'] }}" class="rounded-lg bg-[#1F6F5B] px-3 py-2 text-xs font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F6F5B]">Rate Product</a>@endif
+                                            @if($actions['view'])<a href="{{ $actions['url'] }}" class="rounded-lg border border-[#1F6F5B] px-3 py-2 text-xs font-semibold text-[#1F6F5B]">View Review</a>@endif
+                                            @if($actions['edit'])<a href="{{ $actions['edit_url'] }}" class="rounded-lg border border-[#1F6F5B] px-3 py-2 text-xs font-semibold text-[#1F6F5B]">Edit Review</a>@endif
+                                        </div>
+                                    @endif
 
                                     @if(!empty($item['return_eligible']))
                                         <a href="{{ route('buyer.return-refunds.index') }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-3 py-1.5 text-xs font-semibold text-[#1F6F5B]">
@@ -682,6 +691,21 @@
                 </div>
 
                 {{-- SHIPPING & PAYMENT --}}
+                @if(!empty($order['has_review_actions']))
+                    <section class="rounded-2xl border border-gray-200 bg-white p-5" aria-label="Seller ratings">
+                        <h2 class="font-semibold">Rate your Sellers</h2>
+                        <p class="mt-1 text-sm text-gray-600">Seller service ratings are separate from product reviews.</p>
+                        @foreach($order['seller_orders'] ?? [] as $sellerOrder)
+                            @php($actions = $sellerOrder['review_actions'] ?? null)
+                            @if($actions && ($actions['create'] || $actions['view']))
+                                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-3">
+                                    <span class="break-words text-sm font-semibold">{{ $sellerOrder['seller_name'] }}</span>
+                                    <a href="{{ $actions['url'] }}" class="rounded-lg border border-[#1F6F5B] px-3 py-2 text-xs font-semibold text-[#1F6F5B]">{{ $actions['view'] ? 'View Seller Rating' : 'Rate Seller' }}</a>
+                                </div>
+                            @endif
+                        @endforeach
+                    </section>
+                @endif
                 <div class="rounded-2xl border border-gray-200 bg-white">
 
                     <div class="border-b border-gray-100 px-5 py-4">

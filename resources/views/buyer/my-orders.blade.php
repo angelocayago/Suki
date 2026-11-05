@@ -341,6 +341,9 @@
 
                                 {{-- ACTIONS --}}
                                 <div class="flex flex-wrap gap-2">
+                                    @if(!empty($order['has_review_actions']))
+                                        <a href="{{ route('buyer.order-details', $order['id']) }}" class="inline-flex items-center justify-center rounded-xl border border-[#1F6F5B] px-4 py-2.5 text-xs font-semibold text-[#1F6F5B]">Review Purchase</a>
+                                    @endif
 
 
                                     {{-- CANCEL --}}

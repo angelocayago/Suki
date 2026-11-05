@@ -973,6 +973,7 @@ Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($resolveProdu
 $orderToViewArray = function (Order $order): array {
 
     $items = [];
+    $reviewActions = app(\App\Support\BuyerReviews::class)->forOrder($order, (int) auth()->id());
     $activeReturnItemIds = \App\Models\ReturnRefundRequest::query()
         ->whereIn('order_item_id', $order->items->pluck('id'))
         ->whereIn('status', ['SUBMITTED', 'SELLER_RESPONDED', 'UNDER_REVIEW'])
@@ -993,6 +994,8 @@ $orderToViewArray = function (Order $order): array {
             'quantity' => (int) $item->quantity,
             'image' => $item->image,
             'variation' => $item->variation,
+            'variant_name' => $item->variant_name,
+            'review_actions' => $reviewActions['items'][$item->id] ?? null,
             'line_total' => (float) $item->line_total,
             'return_eligible' => in_array($sellerOrderStatuses->get($item->seller_order_id), ['DELIVERED', 'COMPLETED'], true)
                 && !in_array($item->id, $activeReturnItemIds, true),
@@ -1009,6 +1012,7 @@ $orderToViewArray = function (Order $order): array {
                 'shipment_id' => $sellerOrder->shipment?->id,
                 'has_proof' => (bool) $sellerOrder->shipment?->proof_path,
                 'seller_name' => $sellerOrder->seller?->name ?? 'Seller',
+                'review_actions' => $reviewActions['sellers'][$sellerOrder->id] ?? null,
                 'status' => $sellerOrder->status === 'cancelled'
                     ? 'cancelled'
                     : strtolower($sellerOrder->workflow_status->value),
@@ -1017,6 +1021,8 @@ $orderToViewArray = function (Order $order): array {
             ->all(),
 
         'items' => $items,
+        'has_review_actions' => collect($reviewActions['items'])->contains(fn ($state) => $state['create'] || $state['view'])
+            || collect($reviewActions['sellers'])->contains(fn ($state) => $state['create'] || $state['view']),
 
         'subtotal' => (float) $order->subtotal,
 

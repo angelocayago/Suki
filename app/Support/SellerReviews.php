@@ -22,17 +22,34 @@ class SellerReviews
         // hidden reviews. Public Buyer review visibility is a different policy.
         $sellerIds = Seller::where('user_id',$request->user()->id)->pluck('id');
         $criteria = $request->validate([
+            'tab'=>['nullable',Rule::in(['product','shop'])],
             'search'=>['nullable','string','max:100'],
             'rating'=>['nullable','integer','between:1,5'],
-            'product'=>['nullable','integer',Rule::exists('products','id')->where(fn($q)=>$q->whereIn('seller_id',$sellerIds))],
+            'product'=>[Rule::excludeIf($request->query('tab') === 'shop'),'nullable','integer',Rule::exists('products','id')->where(fn($q)=>$q->whereIn('seller_id',$sellerIds))],
+            'reply'=>['nullable',Rule::in(['needs_reply','replied'])],
             'page'=>['nullable','integer','min:1'],
         ]);
         $criteria = array_filter(Arr::except($criteria,'page'),fn($v)=>$v !== null && $v !== '');
+        $activeTab = $criteria['tab'] ?? 'product';
+        $criteria['tab'] = $activeTab;
         if (isset($criteria['search'])) {
             $criteria['search'] = trim($criteria['search']);
             if ($criteria['search'] === '') unset($criteria['search']);
         }
         $query = TransactionReview::whereIn('seller_id',$sellerIds)->whereIn('kind',['product','seller']);
+        // Per-kind owned inbox metrics, before search/status filters and pagination.
+        // Hidden reviews remain included under the existing Seller visibility policy.
+        $totals = (clone $query)->selectRaw("kind, COUNT(*) AS total, AVG(rating) AS average, SUM(CASE WHEN seller_response IS NULL OR TRIM(seller_response) = '' THEN 1 ELSE 0 END) AS needs_reply")->groupBy('kind')->get()->keyBy('kind');
+        $summaries = [];
+        foreach (['product'=>'product', 'shop'=>'seller'] as $tab=>$kind) {
+            $row = $totals->get($kind);
+            $summaries[$tab] = ['total'=>(int)($row?->total ?? 0), 'average'=>$row?->average === null ? null : (float)$row->average, 'needs_reply'=>(int)($row?->needs_reply ?? 0)];
+            $summaries[$tab]['replied'] = $summaries[$tab]['total'] - $summaries[$tab]['needs_reply'];
+        }
+        $summary = $summaries[$activeTab];
+        $query->where('kind', $activeTab === 'product' ? 'product' : 'seller');
+        if (($criteria['reply'] ?? null) === 'needs_reply') $query->where(fn($q)=>$q->whereNull('seller_response')->orWhereRaw("TRIM(seller_response) = ''"));
+        if (($criteria['reply'] ?? null) === 'replied') $query->whereNotNull('seller_response')->whereRaw("TRIM(seller_response) <> ''");
         if (isset($criteria['rating'])) $query->where('rating',$criteria['rating']);
         if (isset($criteria['product'])) $query->where('product_id',$criteria['product']);
         if (isset($criteria['search'])) {
@@ -76,11 +93,11 @@ class SellerReviews
         });
         $selectedProduct = isset($criteria['product']) ? Product::withTrashed()->whereIn('seller_id',$sellerIds)->find($criteria['product'],['id','name']) : null;
         $chips = [];
-        foreach($criteria as $key=>$value) $chips[$key] = [
-            'label'=>match($key){'search'=>'Search: '.$value,'rating'=>$value.' Stars','product'=>'Product: '.$selectedProduct?->name},
+        foreach(Arr::except($criteria,'tab') as $key=>$value) $chips[$key] = [
+            'label'=>match($key){'search'=>'Search: '.$value,'rating'=>$value.' Stars','product'=>'Product: '.$selectedProduct?->name,'reply'=>$value === 'needs_reply' ? 'Needs Reply' : 'Replied'},
             'url'=>route('reviews.seller-page',Arr::except($criteria,$key)),
         ];
-        return compact('reviews','criteria','selectedProduct','chips');
+        return compact('reviews','criteria','selectedProduct','chips','summary','summaries','activeTab');
     }
 
     public function products(Request $request): array

@@ -576,13 +576,13 @@
                 Product Description
             </button>
 
-            <button
-                type="button"
+            <a
+                href="#customer-reviews"
                 class="px-6 py-4 text-sm font-medium
                        text-gray-500 hover:text-gray-800"
             >
                 Reviews ({{ $product['ratings'] }})
-            </button>
+            </a>
 
         </div>
 
@@ -615,7 +615,7 @@
 
             </ul>
 
-            <h2 class="font-semibold text-lg mt-8">Customer reviews</h2>
+            <h2 id="customer-reviews" class="scroll-mt-24 font-semibold text-lg mt-8" tabindex="-1">Customer reviews</h2>
             @forelse ($reviews as $review)
                 <article class="border-t py-4">
                     <p>{{ $review->rating }}/5</p>

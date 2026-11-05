@@ -40,7 +40,7 @@ class TransactionReviewController extends Controller
     private function eligible(SellerOrder $order, Request $request, bool $limit = false): void
     {
         abort_unless((int) $order->order->buyer_id === (int) $request->user()->id, 403);
-        if ($order->status === 'cancelled' || $order->workflow_status !== OrderStatus::Completed || ! $order->completed_at || $order->completed_at->isFuture() || ($limit && $order->completed_at->lt(now()->subDays(30)))) {
+        if (! app(\App\Services\TransactionReviewEligibility::class)->order($order, (int) $request->user()->id, $limit)) {
             throw ValidationException::withMessages(['order' => 'This transaction is not eligible for review.']);
         }
     }
@@ -51,11 +51,11 @@ class TransactionReviewController extends Controller
         $result = DB::transaction(function () use ($request, $item, $data) {
             $order = SellerOrder::with('order')->lockForUpdate()->findOrFail($item->seller_order_id);
             $this->eligible($order, $request, true);
-            abort_unless($item->product_id && (int) $item->order_id === (int) $order->order_id && $item->product && (int) $item->product->seller_id === (int) $order->seller_id, 403);
+            abort_unless(app(\App\Services\TransactionReviewEligibility::class)->productIdentity($item, $order), 403);
             abort_if($request->filled('product_id') && (int) $request->input('product_id') !== (int) $item->product_id, 403);
             return $this->createReview('product', 'item:'.$item->id, $request, $order, $data, ['order_item_id' => $item->id, 'product_id' => $item->product_id]);
         });
-        return $request->expectsJson() ? $result : redirect()->route('reviews.buyer-page')->with('success', 'Review saved.');
+        return $request->expectsJson() ? $result : $this->reviewRedirect($request, 'item:'.$item->id, $item->seller_order_id, 'product-review-'.$item->id, 'Review saved.');
     }
 
     public function seller(Request $request, SellerOrder $sellerOrder)
@@ -67,7 +67,7 @@ class TransactionReviewController extends Controller
             abort_if($request->filled('seller_id') && (int) $request->input('seller_id') !== (int) $order->seller_id, 403);
             return $this->createReview('seller', 'seller-order:'.$order->id, $request, $order, $data);
         });
-        return $request->expectsJson() ? $result : redirect()->route('reviews.buyer-page')->with('success', 'Store review saved.');
+        return $request->expectsJson() ? $result : $this->reviewRedirect($request, 'seller-order:'.$sellerOrder->id, $sellerOrder->id, 'seller-review-'.$sellerOrder->id, 'Store review saved.');
     }
 
     public function rider(Request $request, SellerOrder $sellerOrder)
@@ -117,18 +117,35 @@ class TransactionReviewController extends Controller
             $review->update($data + ['edited' => true]);
             return response()->json(['id' => $review->id]);
         });
-        return $request->expectsJson() ? $result : redirect()->route('reviews.buyer-page')->with('success', 'Review updated.');
+        return $request->expectsJson() ? $result : $this->reviewRedirect($request, 'item:'.$review->order_item_id, $review->seller_order_id, 'product-review-'.$review->order_item_id, 'Review updated.');
+    }
+
+    private function reviewRedirect(Request $request, string $key, int $sellerOrderId, string $anchor, string $message)
+    {
+        $url = $request->input('_review_form') === $key
+            ? app(\App\Support\BuyerReviews::class)->url($sellerOrderId, $anchor)
+            : route('reviews.buyer-page');
+        return redirect($url)->with('success', $message);
     }
 
     public function respond(Request $request, TransactionReview $review)
     {
         $data = $request->validate(['response' => ['required', 'string', 'max:500']]);
+        $filters = $request->validate([
+            '_review_filters' => ['sometimes', 'array:search,rating,product,reply,tab'],
+            '_review_filters.tab' => ['nullable', 'in:product,shop'],
+            '_review_filters.search' => ['nullable', 'string', 'max:100'],
+            '_review_filters.rating' => ['nullable', 'integer', 'between:1,5'],
+            '_review_filters.product' => ['nullable', 'integer', 'min:1'],
+            '_review_filters.reply' => ['nullable', 'in:needs_reply,replied'],
+        ])['_review_filters'] ?? [];
+        if (($filters['tab'] ?? 'product') === 'shop') unset($filters['product']);
         abort_unless(in_array($review->kind, ['product', 'seller'], true) && DB::table('sellers')->where('id', $review->seller_id)->where('user_id', $request->user()->id)->exists(), 403);
         DB::transaction(function () use ($review, $data) {
             $review->update(['seller_response' => $data['response']]);
             app(DomainNotificationService::class)->afterCommit($review->buyer_id, 'Seller responded to your review', 'The seller has responded to your review.', ['review_id' => $review->id]);
         });
-        return $request->expectsJson() ? response()->json(['id' => $review->id]) : redirect()->route('reviews.seller-page')->with('success', 'Response saved.');
+        return $request->expectsJson() ? response()->json(['id' => $review->id]) : redirect()->route('reviews.seller-page', $filters)->with('success', 'Response saved.');
     }
 
     public function moderate(Request $request, TransactionReview $review)

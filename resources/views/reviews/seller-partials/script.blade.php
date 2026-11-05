@@ -7,8 +7,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (image.complete && image.naturalWidth === 0) hideBroken();
     });
     document.querySelectorAll('[data-review-reply]').forEach(form => {
-        const button = form.querySelector('button');
+        if (form.dataset.replyInitialized) return;
+        form.dataset.replyInitialized = 'true';
+        const button = form.querySelector('button[type="submit"]');
+        const textarea = form.querySelector('textarea[name="response"]');
+        const counter = form.querySelector('[data-review-counter]');
+        const undo = form.querySelector('[data-review-undo]');
+        const status = form.querySelector('[data-review-template-status]');
+        let previousDraft = null;
         let submitting = false;
+        const count = () => { counter.textContent = `${Array.from(textarea.value).length}/500 characters`; };
+        textarea.addEventListener('input', count);
+        count();
+        form.querySelectorAll('[data-review-template]').forEach(template => template.addEventListener('click', () => {
+            if (submitting) return;
+            previousDraft = textarea.value;
+            textarea.value = template.dataset.reviewTemplate;
+            undo.hidden = false; count(); textarea.focus();
+            status.textContent = 'Template inserted. Edit freely, undo to restore your previous text, then choose Save reply to post.';
+        }));
+        undo.addEventListener('click', () => {
+            if (submitting || previousDraft === null) return;
+            textarea.value = previousDraft; previousDraft = null;
+            undo.hidden = true; count(); textarea.focus(); status.textContent = 'Previous draft restored. Nothing has been posted.';
+        });
+        form.querySelector('[data-review-cancel]').addEventListener('click', () => {
+            if (submitting) return;
+            const editor = form.closest('details');
+            editor.open = false; editor.querySelector('summary').focus();
+        });
         form.addEventListener('submit', event => {
             if (submitting || !form.reportValidity()) { event.preventDefault(); return; }
             submitting = true; button.disabled = true; button.textContent = 'Saving…'; form.setAttribute('aria-busy','true');
@@ -48,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitting = false; apply.disabled = false; apply.textContent = 'Apply Filters'; form.removeAttribute('aria-busy');
     });
     const picker = document.getElementById('reviewProductSearch');
+    if (!picker) return; // Shop Reviews intentionally has no product selector.
     const id = document.getElementById('reviewProductId');
     const results = document.getElementById('reviewProductResults');
     const status = document.getElementById('reviewProductStatus');
