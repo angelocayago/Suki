@@ -7,11 +7,7 @@ use App\Models\Order;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\User;
-use App\Services\ReportService;
 use App\Services\SellerSalesService;
-use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /** Dashboard-only, read-only presentation; shared business services remain authoritative. */
 class SellerDashboard
@@ -21,7 +17,7 @@ class SellerDashboard
 
     public function __construct(
         private readonly SellerSalesService $sales,
-        private readonly ReportService $reports,
+        private readonly SellerReports $reports,
     ) {}
 
     /** Also supports the existing legacy dashboard view without trusting session records. */
@@ -45,24 +41,17 @@ class SellerDashboard
         }
 
         $businessTimezone = 'Asia/Manila';
-        $start = CarbonImmutable::today($businessTimezone)->subDays(6);
-        $salesByDay = collect(range(0, 6))->map(function (int $offset) use ($seller, $start) {
-            $day = $start->addDays($offset);
-            // ReportService defines completed sales and filters on completed_at.
-            $report = $this->reports->seller($seller,
-                $day->setTimezone(config('app.timezone')),
-                $day->endOfDay()->setTimezone(config('app.timezone')));
-
-            return ['date' => $day->toDateString(), 'label' => $day->format('M d'),
-                'gross_minor' => (int) $report['summary']['raw_minor'],
-                'gross' => $report['summary']['raw_minor'] / 100];
-        });
+        $salesSeries = $this->reports->dashboardSeries($seller);
+        $salesByDay = collect($salesSeries['7d']['points'])->map(fn ($day) => $day + ['gross_minor'=>$day['raw_minor'], 'gross'=>$day['raw_minor'] / 100]);
 
         $recentOrders = $seller->orders()->with(['order', 'items', 'shipment'])
             ->latest()->orderByDesc('id')->limit(5)->get()->map(fn (SellerOrder $order) => [
+                'id' => $order->id,
                 'display_reference' => $order->order?->order_number ?: 'Seller order #'.$order->id,
                 'status' => $this->status($order),
                 'gross_amount' => $order->items->sum(fn ($item) => (int) $item->unit_price_minor * (int) $item->quantity) / 100,
+                'gross_minor' => $order->items->sum(fn ($item) => (int) $item->unit_price_minor * (int) $item->quantity),
+                'item_count' => $order->items->count(),
                 'recipient_name' => $order->order?->recipient_name,
                 'product_name' => $order->items->first()?->product_name,
                 'tracking_code' => $order->shipment?->tracking_code,
@@ -75,11 +64,12 @@ class SellerDashboard
         $lowStockProducts = (clone $lowStockQuery)->count();
         $lowStockList = $lowStockQuery->with(['images', 'variants' => fn ($query) => $query->where('is_active', true)])
             ->orderBy('name')->orderBy('id')->limit(5)->get()->map(function ($product) {
-                $path = $product->images->first()?->path;
                 $stock = $product->variants->sum('stock');
 
                 return ['name' => $product->name, 'stock' => $stock,
-                    'image' => $path ? (Str::startsWith($path, ['https://', 'http://']) ? $path : Storage::disk('public')->url($path)) : null,
+                    'id' => $product->id,
+                    'image' => app(\App\Services\ProductCatalogService::class)->thumbnail($product),
+                    'variants' => $product->variants->where('stock', '<=', self::LOW_STOCK_THRESHOLD)->map(fn ($variant) => ['name'=>$variant->name, 'stock'=>(int)$variant->stock])->values()->all(),
                     'low_stock_variants' => $product->variants->where('stock', '>', 0)->where('stock', '<=', self::LOW_STOCK_THRESHOLD)->count(),
                     'out_of_stock_variants' => $product->variants->where('stock', '<=', 0)->count()];
             });
@@ -87,10 +77,9 @@ class SellerDashboard
             ->where('stock', '<=', self::LOW_STOCK_THRESHOLD)
             ->whereHas('product', fn ($query) => $query->where('seller_id', $seller->id)->where('is_active', true))->count();
 
-        $report = $this->reports->seller($seller, null, null);
         $completedSales = $this->sales->completedSummary($seller);
 
-        return compact('salesByDay', 'businessTimezone', 'recentOrders', 'statusCounts', 'lowStockProducts', 'lowStockVariants', 'lowStockList', 'completedSales') + [
+        return compact('salesByDay', 'salesSeries', 'businessTimezone', 'recentOrders', 'statusCounts', 'lowStockProducts', 'lowStockVariants', 'lowStockList', 'completedSales') + [
             'productCount' => $seller->products()->count(),
             'orderCount' => array_sum($statusCounts),
             'completedCount' => $statusCounts['completed'] ?? 0,
@@ -99,7 +88,7 @@ class SellerDashboard
                 ->whereHas('buyer')->distinct()->count('buyer_id'),
             'grossCompleted' => $completedSales['raw_sales_minor'] / 100,
             'stockThreshold' => self::LOW_STOCK_THRESHOLD,
-            'topProducts' => collect($report['products'])->sortByDesc('units')->take(5)->values(),
+            'topProducts' => $this->reports->dashboardTopProducts($seller)->map(fn ($row) => (array)$row),
         ];
     }
 

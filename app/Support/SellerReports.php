@@ -103,6 +103,42 @@ class SellerReports
         return $this->productQuery($seller, $period)->cursor();
     }
 
+    /** Bounded dashboard series, using the same completed-item source as reports. */
+    public function dashboardSeries(Seller $seller): array
+    {
+        $today = CarbonImmutable::today('Asia/Manila');
+        $until = $today->addDay();
+        $sqlite = DB::connection()->getDriverName() === 'sqlite';
+        $local = $sqlite ? "datetime(seller_orders.completed_at, '+8 hours')" : "((seller_orders.completed_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')";
+        $values = [];
+        foreach (['day'=>$today->subDays(29), 'month'=>$today->startOfMonth()->subMonths(11)] as $unit=>$start) {
+            $bucket = $unit === 'day'
+                ? ($sqlite ? "strftime('%Y-%m-%d', $local)" : "to_char($local, 'YYYY-MM-DD')")
+                : ($sqlite ? "strftime('%Y-%m', $local)" : "to_char($local, 'YYYY-MM')");
+            $period = ['from'=>$start->setTimezone('UTC'), 'until'=>$until->setTimezone('UTC')];
+            $values[$unit] = $this->items($seller, $period)->join('seller_orders', 'seller_orders.id', '=', 'order_items.seller_order_id')
+                ->selectRaw($bucket.' AS bucket, SUM('.self::RAW_SQL.') AS raw_minor')->groupByRaw($bucket)->get()->pluck('raw_minor', 'bucket');
+        }
+        $series = [];
+        foreach (['7d'=>7, '30d'=>30, '12m'=>12] as $key=>$count) {
+            $monthly = $key === '12m';
+            $start = $monthly ? $today->startOfMonth()->subMonths(11) : $today->subDays($count - 1);
+            $points = [];
+            for ($index = 0; $index < $count; $index++) {
+                $date = $monthly ? $start->addMonths($index) : $start->addDays($index);
+                $bucket = $date->format($monthly ? 'Y-m' : 'Y-m-d');
+                $points[] = ['date'=>$bucket, 'label'=>$date->format($monthly ? 'M Y' : 'M d'), 'period'=>$date->format($monthly ? 'F Y' : 'M d, Y'), 'raw_minor'=>(int)($values[$monthly ? 'month' : 'day'][$bucket] ?? 0)];
+            }
+            $series[$key] = ['points'=>$points, 'total_minor'=>array_sum(array_column($points, 'raw_minor')), 'from'=>$start->toDateString(), 'to'=>$today->toDateString(), 'granularity'=>$monthly ? 'month' : 'day'];
+        }
+        return $series;
+    }
+
+    public function dashboardTopProducts(Seller $seller)
+    {
+        return $this->productQuery($seller, ['from'=>null, 'until'=>null])->limit(5)->get();
+    }
+
     private function completed(Seller $seller, array $period)
     {
         $query = SellerOrder::query()->where('seller_id', $seller->id)->where('workflow_status', 'COMPLETED')->where('status', '!=', 'cancelled');
