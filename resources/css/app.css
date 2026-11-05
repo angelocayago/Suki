@@ -301,3 +301,150 @@ body {
     }
 
 }
+
+/* ================================================================
+   SHARED SUKI PORTAL THEME
+================================================================ */
+
+.suki-theme-toggle,
+.suki-notification-bell {
+    position: relative;
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce6e0;
+    border-radius: 8px;
+    background: #fff;
+    color: #52635b;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.suki-theme-toggle:hover,
+.suki-notification-bell:hover { background: #eef5f1; color: #173f35; }
+.suki-theme-toggle:focus-visible,
+.suki-notification-bell:focus-visible { outline: 2px solid #1f6f5b; outline-offset: 2px; }
+.suki-theme-toggle svg,
+.suki-notification-bell svg { width: 18px; height: 18px; }
+.suki-notification-bell { text-decoration: none; }
+.suki-notification-badge {
+    position: absolute; top: -5px; right: -5px; display: grid; min-width: 17px; height: 17px;
+    place-items: center; padding: 0 4px; border: 2px solid #f8faf8; border-radius: 999px;
+    background: #1f6f5b; color: white; font-size: 9px; font-weight: 700; line-height: 1;
+}
+
+/* Compact portal shells and responsive sidebars. */
+.seller-sidebar-shell .seller-sidebar-brand { height: 64px; }
+.seller-sidebar-shell .seller-topbar-row { min-height: 64px !important; }
+.suki-buyer-shell .buyer-main-header { height: 64px; }
+.seller-sidebar-shell .seller-sidebar-nav { padding-block: 14px; }
+.seller-sidebar-shell .seller-sidebar-link { min-height: 36px; padding-block: 8px; font-size: 12px; }
+.seller-sidebar-shell.seller-sidebar-collapsed #sellerSidebar { width: 68px; }
+.seller-sidebar-shell.seller-sidebar-collapsed #sellerMainContent { padding-left: 68px; }
+.seller-sidebar-shell .seller-header-icon { width: 36px; height: 36px; border-radius: 8px; }
+#logisticsSidebar nav, #riderSidebar nav { overflow-y: auto; }
+#logisticsSidebar .rounded-2xl, #riderSidebar .rounded-2xl { border-radius: 8px; }
+#logisticsSidebar .px-4.pt-5, #riderSidebar .px-4.pt-5 { padding-top: 12px; }
+body.logistics-sidebar-collapsed > div.min-h-screen { padding-left: 68px; }
+body.logistics-sidebar-collapsed #logisticsSidebar { width: 68px; }
+body.logistics-sidebar-collapsed #logisticsSidebar > div:first-child > a,
+body.logistics-sidebar-collapsed #logisticsSidebar > div:nth-child(2),
+body.logistics-sidebar-collapsed #logisticsSidebar nav a span,
+body.logistics-sidebar-collapsed #logisticsSidebar nav a:not(:has(svg)) { display: none; }
+body.logistics-sidebar-collapsed #logisticsSidebar nav { padding-inline: 8px; }
+body.logistics-sidebar-collapsed #logisticsSidebar nav a { justify-content: center; padding-inline: 0; font-size: 0; }
+body.logistics-sidebar-collapsed #logisticsSidebar nav a svg { width: 18px; height: 18px; }
+body.rider-sidebar-collapsed > div.min-h-screen { padding-left: 68px; }
+body.rider-sidebar-collapsed #riderSidebar { width: 68px; }
+body.rider-sidebar-collapsed #riderSidebar > div:first-child > a,
+body.rider-sidebar-collapsed #riderSidebar > div:nth-child(2),
+body.rider-sidebar-collapsed #riderSidebar nav a span,
+body.rider-sidebar-collapsed #riderSidebar nav a:not(:has(svg)) { display: none; }
+body.rider-sidebar-collapsed #riderSidebar nav { padding-inline: 8px; }
+body.rider-sidebar-collapsed #riderSidebar nav a { justify-content: center; padding-inline: 0; font-size: 0; }
+body.rider-sidebar-collapsed #riderSidebar nav a svg { width: 18px; height: 18px; }
+.rider-sidebar-collapse { width: 30px; height: 30px; margin-left: auto; align-items: center; justify-content: center; border-radius: 6px; color: #e1eee8; }
+.rider-sidebar-collapse:focus-visible { outline: 2px solid #b9e4d2; outline-offset: 2px; }
+.admin-growth-chart { width: 100%; min-width: 500px; height: 170px; overflow: visible; }
+.admin-chart-scroll { overflow-x: auto; }
+.admin-chart-grid { fill: none; stroke: #e3eae6; stroke-dasharray: 3 4; }
+.admin-growth-line { fill: none; stroke: #1f6f5b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.admin-growth-point { fill: #fff; stroke: #1f6f5b; stroke-width: 2.5; }
+.admin-chart-labels { display: flex; justify-content: space-between; gap: 8px; color: #728078; font-size: 10px; }
+.admin-chart-empty { display: grid; min-height: 150px; place-items: center; color: #728078; font-size: 12px; }
+.admin-order-chart { display: grid; gap: 14px; }
+.admin-order-label { display: flex; justify-content: space-between; gap: 12px; color: #52635b; font-size: 12px; }
+.admin-order-label span { display: flex; align-items: center; gap: 8px; }
+.admin-order-label i { width: 8px; height: 8px; border-radius: 50%; }
+.admin-order-label strong { color: #173f35; font-weight: 600; }
+.admin-order-track { height: 7px; overflow: hidden; margin-top: 6px; border-radius: 4px; background: #edf2ef; }
+.admin-order-track span { display: block; height: 100%; border-radius: inherit; }
+body.admin-sidebar-collapsed #admin-sidebar { width: 68px; }
+
+@media (max-width: 1023px) {
+    body.logistics-sidebar-collapsed > div.min-h-screen,
+    body.rider-sidebar-collapsed > div.min-h-screen { padding-left: 0; }
+    .seller-sidebar-shell .seller-topbar-row { min-height: 58px !important; }
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+body[data-theme="dark"] {
+    color-scheme: dark;
+    background: #111a16;
+    color: #e5eee9;
+}
+
+html[data-theme="dark"] body :is(header, .bg-white, [class*="bg-white/"], [class*="bg-[#F"],
+    .dashboard-panel, .stat-box, .seller-header-panel, .seller-inbox-list, .seller-notification-item) {
+    background-color: #19271f !important;
+}
+
+html[data-theme="dark"] body :is(main section, main article, main .rounded-xl, main .rounded-2xl) {
+    border-color: #304238;
+}
+
+html[data-theme="dark"] body :is(main p, main h1, main h2, main h3, main h4, main label,
+    header h1, header h2, header p, [class*="text-[#"], [class*="text-gray-"]):not([class*="text-white"]):not([class*="text-red-"]):not([class*="text-emerald-"]) {
+    color: #d8e4dd !important;
+}
+
+html[data-theme="dark"] body :is(a, button):hover { border-color: #527866; }
+html[data-theme="dark"] body :is(input, select, textarea) {
+    border-color: #405449 !important;
+    background-color: #142019 !important;
+    color: #edf4f0 !important;
+}
+html[data-theme="dark"] body :is(input, select, textarea)::placeholder { color: #9aada2 !important; }
+html[data-theme="dark"] body :is(table, thead, tbody, tr, th, td) { border-color: #304238 !important; }
+html[data-theme="dark"] body tbody tr:hover { background-color: #203229 !important; }
+html[data-theme="dark"] body :is(.seller-sidebar-shell #sellerSidebar, #admin-sidebar, #logisticsSidebar, #riderSidebar) { background-color: #10251c !important; }
+html[data-theme="dark"] body .seller-sidebar-shell #sellerSidebar .seller-sidebar-link[aria-current="page"],
+html[data-theme="dark"] body .admin-nav-link.is-active,
+html[data-theme="dark"] body .admin-nav-child.is-active,
+html[data-theme="dark"] body #logisticsSidebar a.bg-white,
+html[data-theme="dark"] body #riderSidebar a.bg-white { background-color: #dcece4 !important; color: #173f35 !important; }
+html[data-theme="dark"] body :is(.seller-header-icon, .seller-header-avatar) { border-color: #405449; background-color: #19271f; color: #d8e4dd; }
+html[data-theme="dark"] body .seller-header-panel { border-color: #304238; color: #d8e4dd; }
+html[data-theme="dark"] body .seller-header-panel .seller-notification-item { border-color: #304238; color: #c9d8cf; }
+html[data-theme="dark"] body .seller-header-panel .seller-notification-item.is-unread { background: #20382c !important; }
+html[data-theme="dark"] body .seller-header-panel .seller-profile-logout { background: #19271f; }
+html[data-theme="dark"] body dialog { border-color: #405449 !important; background: #19271f !important; color: #e5eee9 !important; }
+html[data-theme="dark"] body #sukiLogoutDialog p { color: #b4c5bb !important; }
+html[data-theme="dark"] body .suki-theme-toggle,
+html[data-theme="dark"] body .suki-notification-bell { border-color: #405449; background: #19271f; color: #d8e4dd; }
+html[data-theme="dark"] body .suki-notification-badge { border-color: #19271f; }
+html[data-theme="dark"] body :is(.admin-dashboard-chart-grid, .admin-dashboard-chart-label) { color: #b6c9bd; }
+html[data-theme="dark"] body .admin-chart-grid { stroke: #354a3e; }
+html[data-theme="dark"] body .admin-growth-point { fill: #19271f; }
+html[data-theme="dark"] body .admin-order-label,
+html[data-theme="dark"] body .admin-order-label strong,
+html[data-theme="dark"] body .admin-chart-labels,
+html[data-theme="dark"] body .admin-chart-empty { color: #b6c9bd; }
+html[data-theme="dark"] body .admin-order-track { background: #26382e; }
+
+@media (prefers-reduced-motion: reduce) {
+    .suki-theme-toggle, .suki-notification-bell { transition: none; }
+}

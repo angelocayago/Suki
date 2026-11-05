@@ -298,10 +298,28 @@ Last 7 Days
 
 
 
-<canvas
-id="userGrowthChart"
-height="120">
-</canvas>
+@php
+    $growthValues = collect($userGrowth)->pluck('count')->map(fn ($value) => (int) $value)->all();
+    $growthMax = max(1, ...$growthValues);
+    $growthPoints = collect($growthValues)->map(function ($value, $index) use ($growthMax, $growthValues) {
+        $x = count($growthValues) > 1 ? 16 + ($index * 268 / (count($growthValues) - 1)) : 150;
+        $y = 100 - ($value / $growthMax * 78);
+        return round($x, 1).','.round($y, 1);
+    })->implode(' ');
+@endphp
+@if(array_sum($growthValues) > 0)
+    <div class="admin-chart-scroll" role="img" aria-label="User registrations over the last seven days">
+        <svg viewBox="0 0 300 130" preserveAspectRatio="none" class="admin-growth-chart"><title>User growth over the last seven days</title><path d="M16 22H284 M16 61H284 M16 100H284" class="admin-chart-grid"/><polyline points="{{ $growthPoints }}" class="admin-growth-line"/>
+            @foreach($userGrowth as $index => $point)
+                @php $cx = count($userGrowth) > 1 ? 16 + ($index * 268 / (count($userGrowth) - 1)) : 150; $cy = 100 - ((($point['count'] ?? 0) / $growthMax) * 78); @endphp
+                <circle cx="{{ round($cx, 1) }}" cy="{{ round($cy, 1) }}" r="3.5" class="admin-growth-point"><title>{{ $point['date'] }}: {{ $point['count'] }} users</title></circle>
+            @endforeach
+        </svg>
+    </div>
+    <div class="admin-chart-labels">@foreach($userGrowth as $point)<span>{{ $point['date'] }}</span>@endforeach</div>
+@else
+    <div class="admin-chart-empty">No new users in the last 7 days.</div>
+@endif
 
 
 
@@ -376,7 +394,20 @@ Today
 <div class="max-w-[280px] mx-auto">
 
 
-<canvas id="orderChart"></canvas>
+@php
+    $orderTotal = array_sum($orderOverview);
+    $orderColors = ['pending' => '#7b8c83', 'processing' => '#82a995', 'delivered' => '#1f6f5b', 'cancelled' => '#bd806d'];
+    $orderMax = max(1, ...array_values($orderOverview));
+@endphp
+@if($orderTotal > 0)
+    <div class="admin-order-chart" aria-label="Order status distribution">
+        @foreach($orderOverview as $status => $count)
+            <div class="admin-order-row"><div class="admin-order-label"><span><i style="background:{{ $orderColors[$status] }}"></i>{{ ucfirst($status) }}</span><strong>{{ number_format($count) }}</strong></div><div class="admin-order-track"><span style="width:{{ round($count / $orderMax * 100, 1) }}%;background:{{ $orderColors[$status] }}"></span></div></div>
+        @endforeach
+    </div>
+@else
+    <div class="admin-chart-empty">No orders recorded yet.</div>
+@endif
 
 
 </div>
@@ -648,6 +679,8 @@ document.addEventListener(
 'DOMContentLoaded',
 ()=>{
 
+if (typeof Chart === 'undefined') return;
+
 
 
 new Chart(
@@ -857,9 +890,9 @@ background:white;
 
 border:1px solid #E3EAE6;
 
-border-radius:22px;
+border-radius:8px;
 
-padding:25px;
+padding:20px;
 
 box-shadow:
 0 10px 30px rgba(23,63,53,.055);
@@ -987,6 +1020,21 @@ color:#728078;
 }
 
 
+
+    .stat-box, .dashboard-panel { min-width:0; border-radius:8px; background:#fffefa; box-shadow:0 3px 12px rgba(23,63,53,.045); }
+    .stat-box { padding:18px 20px; }
+    .stat-box p { font-size:12px; font-weight:500; }
+    .stat-box h2 { margin-top:10px; font-size:clamp(1.7rem,3vw,2rem); font-weight:700; letter-spacing:-.04em; line-height:1.1; }
+    .stat-box span { font-size:11px; }
+    .dashboard-panel { padding:20px; }
+    .dashboard-panel h3 { font-size:15px; font-weight:600; letter-spacing:-.015em; }
+    .dashboard-panel p { font-size:11px; }
+    .dashboard-panel button { min-height:34px; border:1px solid #e3eae6; border-radius:6px; background:#f8faf8; padding:7px 11px; color:#596c62; font-size:11px; }
+    .dashboard-panel button:focus-visible { outline:2px solid #1f6f5b; outline-offset:2px; }
+    .dashboard-panel canvas { max-height:270px; }
+    .activity-item { border-left-width:2px; padding-left:12px; font-size:12px; font-weight:500; }
+    .activity-item span { font-size:11px; }
+    @media (max-width:640px) { .dashboard-panel { padding:16px; } .stat-box { padding:16px; } }
 
 </style>
 

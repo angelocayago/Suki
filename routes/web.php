@@ -5686,12 +5686,7 @@ Route::post(
             ->regenerateToken();
 
 
-        return redirect()
-            ->route('admin.login')
-            ->with(
-                'success',
-                'Administrator logged out successfully.'
-            );
+        return redirect()->route('admin.login');
 
     }
 )->name('admin.logout');
@@ -6079,12 +6074,7 @@ Route::post('/logout', function (Request $request) {
 
     $request->session()->regenerateToken();
 
-    return redirect()
-        ->route($redirectRoute)
-        ->with(
-            'success',
-            'You have been logged out successfully.'
-        );
+    return redirect()->route($redirectRoute);
 
 })->name('logout');
 

@@ -82,7 +82,7 @@ test('confirmation submits original POST form and CSRF exactly once, guarding re
     h.cancel.handlers.click(); assert.equal(h.dialog.open, true);
 });
 
-test('global confirmation respects the dedicated Seller dialog and retains other roles', () => {
+test('shared logout confirmation preserves Seller compatibility and other roles', () => {
     const base = path.join(__dirname, '../../resources');
     const global = fs.readFileSync(path.join(base, 'js/app.js'), 'utf8');
     assert.match(global, /form\[data-confirm-logout\]/);
@@ -90,6 +90,15 @@ test('global confirmation respects the dedicated Seller dialog and retains other
     for (const file of ['views/layouts/seller.blade.php', 'views/seller/header/controls.blade.php']) {
         const markup = fs.readFileSync(path.join(base, file), 'utf8');
         assert.match(markup, /method="POST" data-seller-logout/);
+        assert.match(markup, /data-confirm-logout/);
     }
+    const component = fs.readFileSync(path.join(base, 'views/components/logout-confirmation.blade.php'), 'utf8');
+    assert.match(component, /Are you sure you want to sign out\?/);
+    assert.match(component, /You will be signed out of your account\./);
+    assert.match(component, />Cancel</);
+    assert.match(component, />Sign Out</);
+    assert.match(global, /dialog\.showModal\(\)/);
+    assert.match(global, /event\.key !== 'Tab'/);
+    assert.match(global, /HTMLFormElement\.prototype\.submit\.call/);
     assert.doesNotMatch(source, /window\.(confirm|alert)\(/);
 });

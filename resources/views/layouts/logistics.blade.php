@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+    @include('components.theme-preload')
 
     <meta charset="UTF-8">
 
@@ -101,7 +102,7 @@
     id="logisticsSidebar"
     class="
         fixed inset-y-0 left-0 z-50
-        flex w-[270px]
+        flex w-[224px]
         -translate-x-full
         flex-col
         border-r
@@ -116,7 +117,7 @@
     {{-- BRAND --}}
     <div
         class="
-            flex h-[78px]
+            flex h-[64px]
             items-center
             border-b
             border-white/[0.08]
@@ -178,13 +179,14 @@
                 transition
                 hover:bg-white/[0.08]
                 hover:text-white
-                lg:hidden
             "
-            aria-label="Close navigation"
+            aria-label="Collapse sidebar"
+            aria-expanded="true"
+            aria-controls="logisticsSidebar"
         >
 
             <i
-                data-lucide="x"
+                data-lucide="panel-left-close"
                 class="h-[18px] w-[18px]"
             ></i>
 
@@ -459,7 +461,6 @@
 
 
         {{-- SHIPMENTS --}}
-        <x-notification-link class="block rounded-xl px-3 py-2.5 text-[12px] text-white/65 hover:text-white" />
         <a
             href="{{ route('logistics.shipments') }}"
             class="
@@ -711,7 +712,7 @@
 <div
     class="
         min-h-screen
-        lg:pl-[270px]
+        lg:pl-[224px]
     "
 >
 
@@ -723,7 +724,7 @@
     <header
         class="
             sticky top-0 z-30
-            h-[72px]
+            h-[64px]
             border-b
             border-[#E2E9E5]
             bg-white/95
@@ -763,6 +764,8 @@
                         lg:hidden
                     "
                     aria-label="Open navigation"
+                    aria-expanded="false"
+                    aria-controls="logisticsSidebar"
                 >
 
                     <i
@@ -816,6 +819,9 @@
                     items-center gap-2
                 "
             >
+
+                <x-theme-toggle />
+                <x-notification-bell :href="route('notifications.page')" label="Logistics notifications" />
 
                 {{-- ACTIVE STATUS --}}
                 <div
@@ -911,10 +917,10 @@
 
     <main
         class="
-            min-h-[calc(100vh-72px)]
+            min-h-[calc(100vh-64px)]
             p-4
-            sm:p-6
-            xl:p-8
+            sm:p-5
+            xl:p-6
         "
     >
 
@@ -1006,10 +1012,9 @@ document.addEventListener(
         );
 
 
-        closeButton?.addEventListener(
-            'click',
-            closeSidebar
-        );
+        closeButton?.addEventListener('click', function () {
+            if (window.matchMedia('(max-width: 1023px)').matches) closeSidebar();
+        });
 
 
         overlay?.addEventListener(
@@ -1051,6 +1056,7 @@ document.addEventListener(
 </script>
 
 
+    @include('components.logout-confirmation')
 </body>
 
 </html>

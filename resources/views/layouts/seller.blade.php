@@ -23,6 +23,7 @@
         'resources/css/app.css',
         'resources/js/app.js'
     ])
+    @include('components.theme-preload')
 
     <link
         rel="preconnect"
@@ -47,7 +48,7 @@
     <style>
         .seller-sidebar-shell #sellerSidebar {
             position: fixed; inset: 0 auto 0 0; z-index: 50; display: flex;
-            flex-direction: column; width: 270px; height: 100dvh;
+            flex-direction: column; width: 224px; height: 100dvh;
             background: #173F35; color: #fff; border-right: 1px solid #DDE6E1;
             transform: translateX(-100%); transition: width .3s ease, transform .3s ease;
         }
@@ -98,10 +99,10 @@
         .seller-sidebar-shell #sellerMainContent { min-width: 0; transition: padding-left .3s ease; }
         @media (min-width: 1024px) {
             .seller-sidebar-shell #sellerSidebar { transform: none; }
-            .seller-sidebar-shell #sellerMainContent { padding-left: 270px; }
+            .seller-sidebar-shell #sellerMainContent { padding-left: 224px; }
             .seller-sidebar-shell .seller-sidebar-overlay { display: none; }
-            .seller-sidebar-shell.seller-sidebar-collapsed #sellerSidebar { width: 76px; }
-            .seller-sidebar-shell.seller-sidebar-collapsed #sellerMainContent { padding-left: 76px; }
+            .seller-sidebar-shell.seller-sidebar-collapsed #sellerSidebar { width: 68px; }
+            .seller-sidebar-shell.seller-sidebar-collapsed #sellerMainContent { padding-left: 68px; }
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-brand { justify-content: center; padding: 6px 0; }
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-brand-link,
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-link-label,
@@ -127,6 +128,9 @@
     </style>
 
     @include('seller.header.style')
+    <style>
+        .seller-sidebar-shell .seller-header-icon { width:36px; height:36px; border-radius:8px; }
+    </style>
 </head>
 
 
@@ -197,7 +201,6 @@
                 ],
                 'Customer Service' => [
                     ['seller.messages.index', 'Messages', 'message-circle', 'seller.messages.*'],
-                    ['seller.notifications.index', 'Notifications', 'bell', 'seller.notifications.*'],
                     ['reviews.seller-page', 'Reviews', 'star', 'reviews.seller-page'],
                     ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
                     ['seller.complaints.index', 'Complaints', 'message-square-warning', 'seller.complaints.*'],
@@ -242,7 +245,7 @@
         MAIN
     ========================================================== --}}
 
-    <div id="sellerMainContent" class="min-h-screen lg:pl-[270px]">
+    <div id="sellerMainContent" class="min-h-screen lg:pl-[224px]">
 
 
         {{-- TOPBAR --}}
@@ -343,6 +346,7 @@
 
                 {{-- ACTIONS --}}
                 <div class="seller-header-actions flex items-center gap-2">
+                    <x-theme-toggle />
 
                     <a
                         href="{{ $sellerHeader['store_url'] ?? route('buyer.home') }}"
@@ -427,7 +431,7 @@
     </div>
 
 
-    @include('seller.logout-modal')
+    @include('components.logout-confirmation')
     @include('seller.header.script')
     @stack('scripts')
 

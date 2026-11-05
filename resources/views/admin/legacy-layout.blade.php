@@ -394,5 +394,6 @@
         });
     </script>
 
+    @include('components.logout-confirmation')
 </body>
 </html>
