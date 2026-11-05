@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\Conversation;
+use App\Models\LogisticsHub;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\TestAccountsSeeder;
@@ -81,6 +82,26 @@ class SystemFunctionalStabilizationTest extends TestCase
         $order = $buyer->buyerOrders()->with('sellerOrders.shipment')->sole();
         $sellerOrder = $order->sellerOrders->sole();
 
+        // This lifecycle fixture has matching barangay service areas but must also
+        // assign the riders to an active provider hub covering that barangay.
+        $pickupAddress = $sellerUser->sellers()->sole()->pickupAddress;
+        $provider = $logisticsUser->logisticsProvider()->sole();
+        $hub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id,
+            'name' => 'Acceptance Barangay Hub',
+            'region' => $pickupAddress->region,
+            'region_code' => $pickupAddress->region_code,
+            'province' => $pickupAddress->province,
+            'province_code' => $pickupAddress->province_code,
+            'city' => $pickupAddress->city,
+            'city_municipality_code' => $pickupAddress->city_municipality_code,
+            'barangay' => $pickupAddress->barangay,
+            'barangay_code' => $pickupAddress->barangay_code,
+            'is_active' => true,
+        ]);
+        $pickupUser->rider->update(['logistics_hub_id' => $hub->id]);
+        $deliveryUser->rider->update(['logistics_hub_id' => $hub->id]);
+
         foreach ([OrderStatus::Confirmed, OrderStatus::Preparing, OrderStatus::ReadyForPickup] as $status) {
             $this->actingAs($sellerUser)
                 ->post(route('seller.orders.status', $sellerOrder), ['status' => $status->value])
@@ -111,15 +132,23 @@ class SystemFunctionalStabilizationTest extends TestCase
             'rider_id' => $deliveryUser->rider->id,
         ])->assertSessionHasNoErrors();
 
-        foreach ([OrderStatus::OutForDelivery, OrderStatus::Delivered] as $status) {
-            $this->actingAs($deliveryUser)
-                ->post(route('rider.database.order.status', $sellerOrder), [
-                    'status' => $status->value,
-                    'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
-                    'received_by' => 'Buyer', 'cod_collected' => '1',
-                ])
-                ->assertSessionHasNoErrors();
-        }
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.delivery.accept', $sellerOrder))
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), ['status' => OrderStatus::OutForDelivery->value])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->shipment->fresh()->workflow_status);
+
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.database.order.status', $sellerOrder), [
+                'status' => OrderStatus::Delivered->value,
+                'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
+                'received_by' => 'Buyer', 'cod_collected' => '1',
+            ])
+            ->assertSessionHasNoErrors();
 
         $this->actingAs($buyer)
             ->post(route('order.status.update', $order->order_number), ['status' => 'completed'])
