@@ -1,53 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+<div class="catalog-shop">
 
-@php
-    $catalogPaginator = $products instanceof \Illuminate\Contracts\Pagination\Paginator
-        ? $products
-        : null;
 
-    $products = $catalogPaginator
-        ? $catalogPaginator->items()
-        : array_values($products ?? []);
-
-    $categories = [
-        'All Products',
-        'Fashion',
-        'Beauty',
-        'Home',
-        'Electronics',
-        'Sports',
-        'Food',
-        'Pets',
-        'Toys',
-        'Automotive',
-    ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | CURRENT BUYER WISHLIST
-    |--------------------------------------------------------------------------
-    |
-    | Kinukuha natin ang product_slug ng wishlist items ng currently
-    | authenticated buyer para malaman kung filled green o gray
-    | ang bawat heart button.
-    |
-    */
-
-    $wishlistSlugs = [];
-
-    if (
-        auth()->check() &&
-        auth()->user()->role === 'buyer'
-    ) {
-        $wishlistSlugs = auth()
-            ->user()
-            ->wishlistItems()
-            ->pluck('product_slug')
-            ->toArray();
-    }
-@endphp
 
 
 {{-- ========================================================= --}}
@@ -116,6 +72,7 @@
 {{-- Database-backed marketplace controls. All filters are preserved by the paginator. --}}
 <section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 mt-5">
     <form id="catalogFilters" method="GET" action="{{ route('buyer.shop') }}" class="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-6">
+        <input type="hidden" name="rating" value="{{ request('rating') }}">
         <label class="md:col-span-2">
             <span class="sr-only">Search products</span>
             <input name="q" value="{{ request('q') }}" maxlength="100" placeholder="Search products" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
@@ -123,9 +80,11 @@
         <label>
             <span class="sr-only">Category</span>
             <select name="category" class="w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+                @php($categorySummary = count($selectedCategories) > 1 || ($filterOptions['categories']->whereIn('id', $selectedCategories)->whereNotNull('parent_id')->isNotEmpty()))
+                <option value="__selected" disabled data-catalog-category-placeholder @selected($categorySummary) @if(!$categorySummary) hidden @endif>{{ count($selectedCategories) }} {{ count($selectedCategories) === 1 ? 'category' : 'categories' }} selected</option>
                 <option value="">All categories</option>
-                @foreach(($filterOptions['categories'] ?? collect()) as $filterCategory)
-                    <option value="{{ $filterCategory->slug }}" @selected(request('category') == $filterCategory->slug)>{{ $filterCategory->name }}</option>
+                @foreach(($filterOptions['categories'] ?? collect())->whereNull('parent_id') as $filterCategory)
+                    <option value="{{ $filterCategory->slug }}" @selected(count($selectedCategories) === 1 && in_array($filterCategory->id, $selectedCategories, true))>{{ $filterCategory->name }}</option>
                 @endforeach
             </select>
         </label>
@@ -149,22 +108,20 @@
             </select>
         </label>
         <div class="flex gap-2">
-            <input name="min_price" value="{{ request('min_price') }}" min="0" step="0.01" type="number" placeholder="Min price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
-            <input name="max_price" value="{{ request('max_price') }}" min="0" step="0.01" type="number" placeholder="Max price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+            <input name="min_price" aria-label="Minimum price" value="{{ request('min_price') }}" min="0" step="0.01" type="number" placeholder="Min price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
+            <input name="max_price" aria-label="Maximum price" value="{{ request('max_price') }}" min="0" step="0.01" type="number" placeholder="Max price" class="min-w-0 w-full rounded-lg border-gray-300 text-sm focus:border-[#1F6F5B] focus:ring-[#1F6F5B]">
         </div>
         <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="hidden" name="in_stock" value="0">
+
             <input type="checkbox" name="in_stock" value="1" @checked(request('in_stock') === '1') class="rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]">
             In stock only
         </label>
         <div class="flex gap-3 md:col-span-6">
             <button class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#155244]">Apply filters</button>
-            <a href="{{ route('buyer.shop') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</a>
+            <a href="{{ route('buyer.shop') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-catalog-reset>Reset</a>
         </div>
     </form>
 </section>
-
-
 {{-- ========================================================= --}}
 {{-- CATEGORY QUICK FILTER --}}
 {{-- ========================================================= --}}
@@ -188,14 +145,15 @@
     </div>
 
 
-    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+    <div class="catalog-category-pills flex gap-3 overflow-x-auto pb-2 scrollbar-hide" data-catalog-pills tabindex="0" aria-label="Browse main categories">
 
+        <a href="{{ route('buyer.shop', request()->except(['page', 'category', 'categories'])) }}" data-catalog-category="" data-category-id="" class="catalog-all-pill shrink-0 px-4 py-2.5 rounded-lg border text-sm font-medium">All</a>
         @foreach(($filterOptions['categories'] ?? collect())->whereNull('parent_id') as $category)
 
             <a
-                href="{{ route('buyer.shop', ['category' => $category->slug]) }}"
-                class="shrink-0 px-4 py-2.5 rounded-lg border
-                {{ request('category') === $category->slug ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]' }}
+                href="{{ route('buyer.shop', array_merge(request()->except(['page', 'category', 'categories']), ['categories' => [$category->id]])) }}"
+                data-catalog-category="{{ $category->slug }}" data-category-id="{{ $category->id }}" class="shrink-0 px-4 py-2.5 rounded-lg border
+                {{ in_array($category->id, $selectedCategories, true) ? 'bg-[#1F6F5B] text-white border-[#1F6F5B]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#1F6F5B] hover:text-[#1F6F5B]' }}
                 text-sm font-medium transition"
             >
                 {{ $category->name }}
@@ -214,16 +172,17 @@
 
 <section class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
 
-    <div class="grid lg:grid-cols-[235px_1fr] gap-7">
+    <div class="grid lg:grid-cols-[280px_1fr] items-start gap-7">
 
 
         {{-- ================================================= --}}
         {{-- SIDEBAR --}}
         {{-- ================================================= --}}
 
-        <aside class="hidden lg:block">
+        <div id="catalogBackdrop" class="catalog-backdrop" hidden></div>
+        <aside id="catalogSidebar" class="hidden lg:block" aria-label="Shop filters">
 
-            <div class="bg-white border border-gray-200 rounded-2xl sticky top-28 overflow-hidden">
+            <div class="catalog-sidebar-card bg-white border border-gray-200 rounded-2xl sticky top-28">
 
 
                 {{-- FILTER HEADER --}}
@@ -244,12 +203,12 @@
 
                         </div>
 
-                        <button
-                            type="button"
+                        <a href="{{ route('buyer.shop') }}" data-catalog-reset
                             class="text-xs font-medium text-[#1F6F5B] hover:underline"
                         >
                             Reset
-                        </button>
+                        </a>
+                        <button type="button" data-catalog-close class="catalog-mobile-only" aria-label="Close filters">&times;</button>
 
                     </div>
 
@@ -260,53 +219,30 @@
                 <div class="px-5 py-5 border-b border-gray-100">
 
                     <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                        Categories
+                        Categories <span data-catalog-category-count class="catalog-count"></span>
                     </h3>
+                    <div class="catalog-category-tools"><button type="button" data-catalog-clear-categories>Clear categories</button></div>
+                    @if($filterOptions['categories']->count() > 10)<label class="catalog-category-search"><span class="sr-only">Search categories</span><input type="search" data-catalog-category-search placeholder="Search categories"></label>@endif
 
-                    <div class="space-y-3">
-
-                        @foreach($categories as $category)
-
-                            @if($category !== 'All Products')
-
-                                <label class="flex items-center justify-between gap-3 text-sm text-gray-600 cursor-pointer group">
-
-                                    <div class="flex items-center gap-3">
-
-                                        <input
-                                            type="checkbox"
-                                            class="w-4 h-4 rounded border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-                                        >
-
-                                        <span class="group-hover:text-[#1F6F5B] transition">
-                                            {{ $category }}
-                                        </span>
-
-                                    </div>
-
-                                </label>
-
-                            @endif
-
-                        @endforeach
-
+                    <div class="catalog-category-list" role="region" aria-label="Filter by category" tabindex="0">
+                        @include('buyer.partials.catalog-category-tree', ['nodes' => $categoryGroups->get('', collect())])
                     </div>
+                    <button type="button" data-catalog-show-more aria-expanded="false" class="catalog-show-more" hidden>Show more</button>
 
                 </div>
 
 
                 {{-- PRICE --}}
-                <div class="px-5 py-5 border-b border-gray-100">
+                <details class="catalog-filter-section" open><summary>Price Range</summary>
+                <div class="px-5 py-5 border-b border-gray-100 catalog-price-content">
 
-                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                        Price Range
-                    </h3>
 
-                    <div class="flex items-center gap-2">
 
+                    <div class="catalog-price-inputs flex items-center gap-2">
+                        <span aria-hidden="true">&#8369;</span>
                         <input
                             type="number"
-                            placeholder="Min"
+                            data-catalog-price-input placeholder="Min" min="0" step="0.01" aria-label="Sidebar minimum price" data-catalog-price="min_price" value="{{ request('min_price') }}"
                             class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
                         >
 
@@ -314,16 +250,17 @@
                             —
                         </span>
 
+                        <span aria-hidden="true">&#8369;</span>
                         <input
                             type="number"
-                            placeholder="Max"
+                            data-catalog-price-input placeholder="Max" min="0" step="0.01" aria-label="Sidebar maximum price" data-catalog-price="max_price" value="{{ request('max_price') }}"
                             class="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#1F6F5B] focus:ring-1 focus:ring-[#1F6F5B]"
                         >
 
                     </div>
 
                     <button
-                        type="button"
+                        type="button" data-catalog-apply-price
                         class="w-full mt-3 py-2.5 rounded-lg bg-[#1F6F5B] text-white text-xs font-semibold hover:bg-[#155244] transition"
                     >
                         Apply Price
@@ -332,329 +269,35 @@
                 </div>
 
 
-                {{-- RATING --}}
-                <div class="px-5 py-5">
-
-                    <h3 class="text-sm font-semibold text-gray-900 mb-4">
-                        Customer Rating
-                    </h3>
-
-                    <div class="space-y-3">
-
-                        @foreach([
-                            '5 stars',
-                            '4 stars & up',
-                            '3 stars & up'
-                        ] as $rating)
-
-                            <label class="flex items-center gap-3 text-sm text-gray-600 cursor-pointer">
-
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    class="w-4 h-4 border-gray-300 text-[#1F6F5B] focus:ring-[#1F6F5B]"
-                                >
-
-                                <div class="flex items-center gap-1">
-
-                                    <i
-                                        data-lucide="star"
-                                        class="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]"
-                                    ></i>
-
-                                    <span>
-                                        {{ $rating }}
-                                    </span>
-
-                                </div>
-
-                            </label>
-
-                        @endforeach
-
-                    </div>
-
-                </div>
+                <p id="catalogPriceError" class="catalog-price-error" role="alert"></p>
+                </details>
+                @include('buyer.partials.catalog-rating-filter')
+                <div class="catalog-drawer-footer catalog-mobile-only"><button type="button" data-catalog-drawer-apply>Apply filters</button><a href="{{ route('buyer.shop') }}" data-catalog-reset>Reset</a></div>
 
             </div>
 
         </aside>
 
 
-        {{-- ================================================= --}}
-        {{-- PRODUCTS AREA --}}
-        {{-- ================================================= --}}
-
-        <div>
-
-
-            {{-- TOOLBAR --}}
-            <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-5">
-
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-                    <div>
-
-                        <p class="text-sm text-gray-700">
-
-                            <span data-catalog-count class="font-semibold">
-                                {{ $catalogPaginator?->total() ?? count($products) }}
-                            </span>
-
-                            products available
-
-                        </p>
-
-                    </div>
-
-
-                    <div class="flex items-center gap-2">
-
-                        <button
-                            type="button"
-                            class="lg:hidden inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-[#1F6F5B] hover:text-[#1F6F5B] transition"
-                        >
-                            <i
-                                data-lucide="sliders-horizontal"
-                                class="w-4 h-4"
-                            ></i>
-
-                            Filters
-                        </button>
-
-
-                        <div class="flex items-center gap-2">
-
-                            <span class="hidden sm:block text-xs text-gray-400">
-                                Sort by
-                            </span>
-
-                            <select name="sort"
-                                class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1F6F5B]"
-                            >
-                                <option>Use filters above</option>
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {{-- ================================================= --}}
-            {{-- PRODUCT GRID --}}
-            {{-- ================================================= --}}
-
-            <div id="catalogResults" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-
-                @foreach($products as $product)
-
-                    @php
-                        $isWishlisted = in_array(
-                            $product['slug'],
-                            $wishlistSlugs,
-                            true
-                        );
-                    @endphp
-
-
-                    <article
-                        class="group relative bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-[#D5EAE2] hover:shadow-lg hover:-translate-y-0.5 transition duration-200"
-                    >
-
-
-                        {{-- PRODUCT IMAGE --}}
-                        <div class="relative aspect-square overflow-hidden bg-gray-100">
-
-                            <a
-                                href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
-                                class="block w-full h-full"
-                            >
-
-                                <img
-                                    src="{{ $product['image'] }}"
-                                    alt="{{ $product['name'] }}"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                                >
-
-                            </a>
-
-
-                            {{-- SALE BADGE --}}
-                            <span
-                                class="absolute top-3 left-3 z-10 bg-[#F59E0B] text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm"
-                            >
-                                SALE
-                            </span>
-
-
-                            {{-- ================================================= --}}
-{{-- WISHLIST TOGGLE --}}
-{{-- ================================================= --}}
-
-<form
-    action="{{ route('buyer.wishlist.toggle', ['slug' => $product['slug']]) }}"
-    method="POST"
-    class="absolute top-3 right-3 z-20"
->
-    @csrf
-
-    <button
-        type="submit"
-        class="w-9 h-9 rounded-full border flex items-center justify-center shadow-sm transition-all duration-200"
-        style="
-            @if($isWishlisted)
-                background-color: #1F6F5B;
-                border-color: #1F6F5B;
-                color: #ffffff;
-            @else
-                background-color: #ffffff;
-                border-color: #e5e7eb;
-                color: #6b7280;
-            @endif
-        "
-        title="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
-        aria-label="{{ $isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist' }}"
-    >
-        <i
-            data-lucide="heart"
-            class="w-4 h-4"
-            style="
-                @if($isWishlisted)
-                    fill: #ffffff;
-                    stroke: #ffffff;
-                @else
-                    fill: none;
-                    stroke: #6b7280;
-                @endif
-            "
-        ></i>
-    </button>
-</form>
-                        </div>
-
-
-                        {{-- PRODUCT DETAILS --}}
-                        <a
-                            href="{{ route('buyer.product', ['slug' => $product['slug']]) }}"
-                            class="block p-3.5 sm:p-4"
-                        >
-
-
-                            {{-- CATEGORY --}}
-                            <p class="text-[11px] font-medium text-[#1F6F5B] mb-1">
-                                {{ $product['category'] }}
-                            </p>
-
-
-                            {{-- NAME --}}
-                            <h3
-                                class="text-sm font-medium text-gray-800 leading-5 line-clamp-2 min-h-[40px] group-hover:text-[#1F6F5B] transition"
-                            >
-                                {{ $product['name'] }}
-                            </h3>
-
-
-                            {{-- PRICE --}}
-                            <div class="flex items-center gap-2 mt-3">
-
-                                <span class="text-lg font-bold text-[#1F6F5B]">
-                                    ₱{{ number_format($product['price'],2) }}
-                                </span>
-
-                            </div>
-
-
-                            {{-- RATING + SOLD --}}
-                            <div class="flex items-center gap-2 mt-2">
-
-                                <div class="flex items-center gap-1">
-
-                                    <i
-                                        data-lucide="star"
-                                        class="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]"
-                                    ></i>
-
-                                    <span class="text-xs font-medium text-gray-600">
-                                        {{ $product['rating'] }}
-                                    </span>
-
-                                </div>
-
-                                <span class="text-xs text-gray-400">
-                                    {{ $product['sold'] }} sold
-                                </span>
-
-                            </div>
-
-
-                            {{-- SHIPPING --}}
-                            <div class="flex items-center gap-1 mt-2">
-
-                                <i
-                                    data-lucide="truck"
-                                    class="w-3.5 h-3.5 text-[#1F6F5B]"
-                                ></i>
-
-                                <span class="text-[11px] text-gray-400">
-                                    ₱50 shipping per seller
-                                </span>
-
-                            </div>
-
-                        </a>
-
-                    </article>
-
-                @endforeach
-
-            </div>
-
-
-            {{-- ================================================= --}}
-            {{-- PAGINATION --}}
-            {{-- ================================================= --}}
-
-            @if($catalogPaginator && $catalogPaginator->hasPages())
-                <div class="mt-10">
-                    {{ $catalogPaginator->links() }}
+        <div class="min-w-0">
+            @if($errors->any())
+                <div role="alert" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
                 </div>
             @endif
-
+            <p id="catalogStatus" role="status" aria-live="polite" class="sr-only"></p>
+            <div class="catalog-results-wrap">
+            <div id="catalogLoading" class="catalog-loading" hidden aria-hidden="true"><div class="catalog-product-grid">@for($skeleton = 0; $skeleton < 4; $skeleton++)<div class="catalog-skeleton"><div></div><span></span><span></span></div>@endfor</div></div>
+            <div id="catalogResults" tabindex="-1" aria-label="Product results" aria-busy="false">
+                @include('buyer.partials.catalog-results')
+            </div>
+            </div>
         </div>
-
     </div>
-
 </section>
-
+</div>
 @endsection
 
 @push('scripts')
-<script>
-(() => {
-    const form = document.getElementById('catalogFilters');
-    if (!form) return;
-    let timer;
-    const results = document.getElementById('catalogResults');
-    const count = document.querySelector('[data-catalog-count]');
-    const load = (url, push = true) => fetch(url, {headers: {'Accept': 'application/json'}})
-        .then(response => response.ok ? response.json() : Promise.reject(response))
-        .then(payload => {
-            results.innerHTML = payload.html;
-            if (count) count.textContent = payload.count;
-            if (push) history.pushState({}, '', url);
-        })
-        .catch(() => { window.location.assign(url); });
-    form.addEventListener('submit', event => { event.preventDefault(); const url = new URL(form.action); new FormData(form).forEach((value, key) => { if (value !== '' && !(key === 'in_stock' && value === '0')) url.searchParams.append(key, value); }); load(url); });
-    form.querySelectorAll('select, input[type="checkbox"]').forEach((field) => field.addEventListener('change', () => form.requestSubmit()));
-    form.querySelector('input[name="q"]')?.addEventListener('input', () => {
-        clearTimeout(timer); timer = setTimeout(() => form.requestSubmit(), 350);
-    });
-    document.querySelectorAll('a[href*="category="]').forEach(link => link.addEventListener('click', event => { event.preventDefault(); load(link.href); }));
-    window.addEventListener('popstate', () => load(window.location.href, false));
-})();
-</script>
+    @include('buyer.partials.catalog-script')
 @endpush

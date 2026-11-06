@@ -150,9 +150,12 @@
 
                     <input
                         type="text"
-                        name="search"
-                        value="{{ request('search') }}"
-                        placeholder="Search products and stores"
+                        name="q"
+                        value="{{ request('q') }}"
+                        maxlength="100"
+                        aria-label="Search products"
+                        data-catalog-navbar-search
+                        placeholder="Search products"
                         class="h-11 w-full
                                rounded-xl
                                border border-[#DDE6E1]

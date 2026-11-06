@@ -335,13 +335,40 @@ class ProductController extends Controller
 
     public function shop(\Illuminate\Http\Request $request, ProductCatalogService $catalog)
     {
-        $validated = $request->validate(['q'=>['nullable','string','max:100'],'category'=>['nullable','string','max:100'],'seller'=>['nullable','string','max:100'],'in_stock'=>['nullable','in:0,1'],'min_price'=>['nullable','numeric','min:0'],'max_price'=>['nullable','numeric','min:0','gte:min_price'],'sort'=>['nullable','in:newest,price_asc,price_desc,name,best_selling']]);
+        $rating = $request->input('rating');
+        $rating = is_scalar($rating) ? filter_var($rating, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 5]]) : false;
+        $request->merge(['rating' => $rating === false ? null : $rating]);
+        $validated = $request->validate([
+            'rating' => ['nullable', 'integer', 'between:1,5'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'category' => ['nullable', 'string', 'max:100'], // Existing single-category links.
+            'categories' => ['sometimes', 'array', 'max:100'],
+            'categories.*' => ['bail', 'required', 'integer', \Illuminate\Validation\Rule::exists('categories', 'id')->where('is_active', true)],
+            'seller' => ['nullable', 'string', 'max:100'],
+            'in_stock' => ['nullable', 'in:0,1'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0', ...($request->filled('min_price') ? ['gte:min_price'] : [])],
+            'sort' => ['nullable', 'in:newest,price_asc,price_desc,name,best_selling'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
         $products = $catalog->marketplacePage($validated);
+        $wishlistSlugs = $request->user()?->isBuyer() ? $request->user()->wishlistItems()->pluck('product_slug')->all() : [];
+
+        $categoryOptions = \App\Models\Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'slug', 'parent_id']);
+        $selectedCategories = array_values(array_unique(array_map('intval', $validated['categories'] ?? [])));
+        if (!$selectedCategories && filled($validated['category'] ?? null)) {
+            $legacy = $categoryOptions->first(fn ($category) => $category->slug === $validated['category'] || (string) $category->id === $validated['category']);
+            if ($legacy) $selectedCategories = [$legacy->id];
+        }
+        $catalogContext = ['filters' => $validated, 'categories' => $categoryOptions, 'selected' => $selectedCategories];
+        if ($request->expectsJson()) {
+            return response()->json([
+                'html' => view('buyer.partials.catalog-results', compact('products', 'wishlistSlugs', 'catalogContext'))->render(),
+                'count' => $products->total(),
+            ])->header('Cache-Control', 'private, no-store');
+        }
         $filterOptions = [
-            'categories' => \App\Models\Category::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'slug', 'parent_id']),
+            'categories' => $categoryOptions->reject(fn ($category) => strcasecmp(trim($category->name), 'Others') === 0),
             'sellers' => \App\Models\Seller::query()
                 ->where('status', 'approved')
                 ->whereHas('owner', fn ($query) => $query->where('status', 'active')->where('is_suspended', false))
@@ -349,14 +376,18 @@ class ProductController extends Controller
                 ->get(['id', 'name', 'slug']),
         ];
 
-        if ($request->expectsJson()) {
-            return response()->json([
-                'html' => view('buyer.partials.catalog-results', compact('products'))->render(),
-                'count' => $products->total(),
-            ]);
+        $categoryGroups = $filterOptions['categories']->groupBy('parent_id');
+        $byId = $filterOptions['categories']->keyBy('id');
+        $expandedCategories = [];
+        foreach ($selectedCategories as $id) {
+            $seen = [];
+            while (($parent = $byId->get($id)?->parent_id) && !isset($seen[$parent])) {
+                $seen[$parent] = true;
+                $expandedCategories[] = $parent;
+                $id = $parent;
+            }
         }
-
-        return view('buyer.shop', compact('products', 'filterOptions'));
+        return view('buyer.shop', compact('products', 'filterOptions', 'wishlistSlugs', 'categoryGroups', 'selectedCategories', 'expandedCategories', 'catalogContext'));
     }
 
 

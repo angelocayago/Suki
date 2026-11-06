@@ -52,35 +52,63 @@ class ProductCatalogService
      */
     public function marketplacePage(array $filters, int $perPage = 24): LengthAwarePaginator
     {
-        $query = $this->marketplaceQuery()->withSum($this->completedSalesRelation(), 'quantity');
+        // Standard SQL COALESCE keeps unsold products at zero on both databases,
+        // including PostgreSQL where descending NULLs otherwise precede sales.
+        $query = $this->marketplaceQuery()->withAggregate($this->completedSalesRelation(), DB::raw('COALESCE(SUM(quantity), 0)'));
 
+        if (in_array((string) ($filters['rating'] ?? ''), ['1', '2', '3', '4', '5'], true)) {
+            // Match the one-decimal average shown on cards, using the same visible reviews.
+            $query->whereHas('visibleReviews', fn ($reviews) => $reviews->select('product_id')->groupBy('product_id')
+                ->havingRaw('ROUND(AVG(rating), 1) '.((int) $filters['rating'] === 5 ? '=' : '>=').' ?', [(int) $filters['rating']]));
+        }
         if (filled($filters['q'] ?? null)) {
             $term = trim((string) $filters['q']);
-            $query->where(fn ($q) => $q->where('products.name', 'like', "%{$term}%")->orWhere('products.description', 'like', "%{$term}%"));
+            $query->where(fn ($q) => $q->whereLike('products.name', "%{$term}%")->orWhereLike('products.description', "%{$term}%"));
         }
-        if (filled($filters['category'] ?? null)) {
-            $category = Category::query()->where('id', $filters['category'])->orWhere('slug', $filters['category'])->first();
+        if (!empty($filters['categories'])) {
+            $roots = Category::query()->where('is_active', true)->whereIn('id', $filters['categories'])->pluck('id')->all();
+            $query->whereIn('products.category_id', $this->categoryTreeIds($roots));
+        } elseif (filled($filters['category'] ?? null)) {
+            $categoryQuery = Category::query()->where('is_active', true)->where(function ($query) use ($filters) {
+                $query->where('slug', (string) $filters['category']);
+                if (ctype_digit((string) $filters['category'])) $query->orWhere('id', $filters['category']);
+            });
+            $category = $categoryQuery->first();
             if (! $category) $query->whereRaw('1 = 0');
-            else $query->whereIn('products.category_id', $this->categoryTreeIds($category->id));
+            else $query->whereIn('products.category_id', $this->categoryTreeIds([$category->id]));
         }
         if (filled($filters['seller'] ?? null)) {
-            $query->whereHas('seller', fn ($q) => $q->where('id', $filters['seller'])->orWhere('slug', $filters['seller']));
+            $query->whereHas('seller', function ($q) use ($filters) {
+                $q->where(function ($seller) use ($filters) {
+                    $seller->where('slug', (string) $filters['seller']);
+                    if (ctype_digit((string) $filters['seller'])) $seller->orWhere('id', $filters['seller']);
+                });
+            });
         }
-        if (($filters['in_stock'] ?? false) === '1') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('stock', '>', 0));
-        if (isset($filters['min_price']) && $filters['min_price'] !== '') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('price_minor', '>=', (int) round(((float) $filters['min_price']) * 100)));
-        if (isset($filters['max_price']) && $filters['max_price'] !== '') $query->whereHas('variants', fn ($q) => $q->where('is_active', true)->where('price_minor', '<=', (int) round(((float) $filters['max_price']) * 100)));
+        // One variant must satisfy the entire filter. Relation scopes also exclude
+        // soft-deleted variants from matching, aggregation and card presentation.
+        $eligible = function ($variants) use ($filters) {
+            $variants->where('is_active', true);
+            if (($filters['in_stock'] ?? '') === '1') $variants->where('stock', '>', 0);
+            if (filled($filters['min_price'] ?? null)) $variants->where('price_minor', '>=', (int) round(((float) $filters['min_price']) * 100));
+            if (filled($filters['max_price'] ?? null)) $variants->where('price_minor', '<=', (int) round(((float) $filters['max_price']) * 100));
+        };
+        $query->whereHas('variants', $eligible)
+            ->with(['variants' => $eligible])
+            ->withMin(['variants as catalog_price_minor' => $eligible], 'price_minor');
 
         match ($filters['sort'] ?? 'newest') {
-            'price_asc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) asc'),
-            'price_desc' => $query->orderByRaw('(select min(price_minor) from product_variants where product_variants.product_id = products.id and is_active = 1) desc'),
+            'price_asc' => $query->orderBy('catalog_price_minor'),
+            'price_desc' => $query->orderByDesc('catalog_price_minor'),
             'name' => $query->orderBy('products.name'),
             'best_selling' => $query->orderByDesc('order_items_sum_quantity'),
             default => $query->orderByDesc('products.created_at'),
         };
 
-        return $query->paginate(min(max($perPage, 1), 48))
+        return $query->orderByDesc('products.id')->paginate(min(max($perPage, 1), 48))
             ->withQueryString()
-            ->through(fn (Product $product) => $this->marketplaceItem($product));
+            ->through(fn (Product $product) => $this->marketplaceItem($product, $product->variants->sortBy([['price_minor', 'asc'], ['id', 'asc']])->first())
+                + ['price_from' => $product->variants->pluck('price_minor')->unique()->count() > 1]);
     }
 
     public function sellerProducts(Seller $seller): array
@@ -242,16 +270,23 @@ class ProductCatalogService
             });
     }
 
-    private function categoryTreeIds(int $rootId): array
+    private function categoryTreeIds(array $rootIds): array
     {
-        $ids = [$rootId]; $frontier = [$rootId];
-        while ($frontier) { $frontier = Category::query()->whereIn('parent_id', $frontier)->pluck('id')->all(); $ids = [...$ids, ...$frontier]; }
-        return $ids;
+        if (!$rootIds) return [];
+        $children = Category::query()->get(['id', 'parent_id'])->groupBy('parent_id');
+        $seen = []; $frontier = $rootIds;
+        while ($frontier) {
+            $id = (int) array_pop($frontier);
+            if (isset($seen[$id])) continue;
+            $seen[$id] = true;
+            foreach ($children->get($id, collect()) as $child) $frontier[] = $child->id;
+        }
+        return array_keys($seen);
     }
 
-    private function marketplaceItem(Product $product): array
+    private function marketplaceItem(Product $product, ?ProductVariant $displayVariant = null): array
     {
-        $variant = $product->variants->sortBy('id')->first();
+        $variant = $displayVariant ?? $product->variants->sortBy('id')->first();
         $images = $product->images
             ->map(fn ($image) => $this->marketplaceImageUrl($image->path))
             ->filter()
