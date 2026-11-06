@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Logistics;
 
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ShipmentScannerController;
 use App\Models\LogisticsProvider;
 use App\Models\Rider;
 use App\Models\RiderServiceArea;
@@ -105,6 +106,13 @@ class FulfillmentController extends Controller
         ]);
 
         $status = OrderStatus::from(strtoupper($validated['status']));
+        if ($status === OrderStatus::Sorted) {
+            if ((int) $request->session()->get(ShipmentScannerController::sortingVerificationKey($provider->id)) !== (int) $sellerOrder->shipment->id) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'status' => 'Scan and verify this exact parcel in Shipment Scanner before confirming sorting.',
+                ]);
+            }
+        }
         $context = [];
         if ($status === OrderStatus::Sorted) {
             $context['sorting_area'] = $validated['sorting_area'];
@@ -114,6 +122,10 @@ class FulfillmentController extends Controller
         }
 
         $workflow->transition($sellerOrder, $request->user(), $status, $context);
+
+        if ($status === OrderStatus::Sorted) {
+            $request->session()->forget(ShipmentScannerController::sortingVerificationKey($provider->id));
+        }
 
         return back()->with('success', 'Logistics status updated successfully.');
     }

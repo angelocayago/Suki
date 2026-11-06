@@ -29,7 +29,11 @@ class PhaseSixShipmentScannerTest extends TestCase
             ->post(route('logistics.shipment-scanner.resolve'), ['payload' => $this->payload($shipment)])
             ->assertOk()
             ->assertSee($shipment->tracking_code)
-            ->assertSee('Shipment Scanner');
+            ->assertSee('Shipment Scanner')
+            ->assertSee('id="start-camera"', false)
+            ->assertSee('id="stop-camera"', false)
+            ->assertSee('id="camera-status"', false)
+            ->assertSee('aria-live="polite"', false);
     }
 
     public function test_logistics_cannot_resolve_another_providers_shipment(): void
@@ -41,6 +45,14 @@ class PhaseSixShipmentScannerTest extends TestCase
         $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.resolve'), ['payload' => $this->payload($shipment->fresh())])
             ->assertForbidden();
+
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.database.order.status', $shipment->sellerOrder), [
+                'status' => 'sorted',
+                'sorting_area' => 'Wrong Provider',
+            ])
+            ->assertForbidden();
+        $this->assertSame(OrderStatus::AssignedToRider, $shipment->sellerOrder->fresh()->workflow_status);
     }
 
     public function test_assigned_rider_can_resolve_only_their_shipment(): void
@@ -113,20 +125,90 @@ class PhaseSixShipmentScannerTest extends TestCase
         extract($this->context(OrderStatus::AtSortingCenter));
 
         $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'mark_sorted', 'sorting_area' => 'Hub sorting'])
+            ->assertSessionHasErrors('action');
+        $this->assertSame(OrderStatus::AtSortingCenter, $sellerOrder->fresh()->workflow_status);
+
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
+            ->assertOk();
+
+        $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'receive_sorting'])
             ->assertRedirect(route('logistics.shipment-scanner'));
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'RECEIVED_AT_SORTING_CENTER']);
 
         $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
+            ->assertOk()
+            ->assertSee('Confirm Sorting')
+            ->assertSee('SCAN-')
+            ->assertSee('Scanner Store')
+            ->assertSee('Barangay, City, Province')
+            ->assertSee('Pickup rider');
+
+        $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'mark_sorted', 'sorting_area' => 'Hub sorting'])
             ->assertRedirect(route('logistics.shipment-scanner'));
         $this->assertSame(OrderStatus::Sorted, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::Sorted, $shipment->fresh()->workflow_status);
+        $this->assertNotNull($sellerOrder->fresh()->sorted_at);
+        $this->assertSame($provider->id, $shipment->fresh()->logistics_provider_id);
+        $this->assertNull($shipment->fresh()->rider_id);
+    }
+
+    public function test_wrong_resolved_shipment_cannot_be_used_to_sort_a_different_parcel(): void
+    {
+        extract($this->context(OrderStatus::AtSortingCenter));
+        $otherOrderRecord = $sellerOrder->order->replicate();
+        $otherOrderRecord->order_number = 'SCAN-OTHER-'.uniqid();
+        $otherOrderRecord->reference = 'SCAN-OTHER-'.uniqid();
+        $otherOrderRecord->save();
+        $otherOrder = $sellerOrder->replicate();
+        $otherOrder->order_id = $otherOrderRecord->id;
+        $otherOrder->save();
+        $otherShipment = $shipment->replicate();
+        $otherShipment->seller_order_id = $otherOrder->id;
+        $otherShipment->tracking_code = 'SUKI-OTHER-'.strtoupper(uniqid());
+        $otherShipment->save();
+
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $otherShipment->tracking_code])
+            ->assertOk()
+            ->assertSee($otherShipment->tracking_code);
+
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'mark_sorted', 'sorting_area' => 'Hub sorting'])
+            ->assertSessionHasErrors('action');
+
+        $this->assertSame(OrderStatus::AtSortingCenter, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::AtSortingCenter, $otherOrder->fresh()->workflow_status);
+    }
+
+    public function test_direct_forged_sort_post_is_rejected_without_scanner_verification(): void
+    {
+        extract($this->context(OrderStatus::AtSortingCenter));
+
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.database.order.status', $sellerOrder), [
+                'status' => 'sorted',
+                'sorting_area' => 'Forged Area',
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(OrderStatus::AtSortingCenter, $sellerOrder->fresh()->workflow_status);
+        $this->assertNull($sellerOrder->fresh()->sorted_at);
+        $this->assertSame(OrderStatus::AtSortingCenter, $shipment->fresh()->workflow_status);
+        $this->assertNull($shipment->fresh()->rider_id);
     }
 
     public function test_duplicate_sorting_receipt_scan_is_idempotent_without_duplicate_events(): void
     {
         extract($this->context(OrderStatus::AtSortingCenter));
 
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
+            ->assertOk();
         $this->actingAs($logisticsUser)->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'receive_sorting'])->assertRedirect();
         $this->actingAs($logisticsUser)->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'receive_sorting'])->assertRedirect();
 
@@ -176,7 +258,7 @@ class PhaseSixShipmentScannerTest extends TestCase
         $seller->update(['pickup_address_id' => $pickup->id]);
         $order = Order::create(['order_number' => 'SCAN-'.uniqid(), 'reference' => 'SCAN-'.uniqid(), 'buyer_id' => $buyer->id, 'seller_id' => $sellerUser->id, 'status' => $status->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 50, 'discount_amount' => 0, 'total_amount' => 150, 'total_minor' => 15000, 'recipient_name' => 'Buyer', 'recipient_phone' => '0912', 'region' => 'Region', 'region_code' => '01', 'province' => 'Province', 'province_code' => '0101', 'municipality' => 'City', 'city_municipality_code' => '010101', 'barangay' => 'Barangay', 'barangay_code' => '010101001', 'street_address' => 'Street', 'shipping_address' => []]);
         $sellerOrder = SellerOrder::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'logistics_provider_id' => $provider->id, 'subtotal_minor' => 10000, 'shipping_fee_minor' => 5000, 'commission_minor' => 0, 'status' => $status->legacySellerStatus(), 'workflow_status' => $status]);
-        $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'pickup_rider_id' => $pickupRider->id, 'rider_id' => $deliveryRider->id, 'tracking_code' => 'SUKI-SCAN-'.strtoupper(uniqid()), 'status' => $status->legacyShipmentStatus(), 'workflow_status' => $status, 'fee_minor' => 5000, 'cod_amount_minor' => 15000, 'cod_collected' => false, 'attempts' => 0]);
+        $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'pickup_rider_id' => $pickupRider->id, 'rider_id' => $status === OrderStatus::AtSortingCenter ? null : $deliveryRider->id, 'tracking_code' => 'SUKI-SCAN-'.strtoupper(uniqid()), 'status' => $status->legacyShipmentStatus(), 'workflow_status' => $status, 'fee_minor' => 5000, 'cod_amount_minor' => 15000, 'cod_collected' => false, 'attempts' => 0]);
 
         return compact('logisticsUser', 'provider', 'pickupUser', 'pickupRider', 'deliveryUser', 'deliveryRider', 'sellerOrder', 'shipment');
     }

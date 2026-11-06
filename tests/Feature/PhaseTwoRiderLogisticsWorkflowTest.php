@@ -76,10 +76,13 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->assertDontSee('value="Area A"', false);
 
         $this->actingAs($logisticsUser)
-            ->post(route('logistics.database.order.status', $sellerOrder), [
-                'status' => 'sorted',
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
+            ->assertOk();
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.action', $shipment), [
+                'action' => 'mark_sorted',
                 'sorting_area' => 'Cavinti, Laguna',
-            ])->assertSessionHasNoErrors();
+            ])->assertRedirect(route('logistics.shipment-scanner'));
         $this->assertSame('Cavinti, Laguna', $shipment->fresh()->sorting_area);
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
@@ -320,9 +323,12 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder));
         $this->actingAs($logisticsUser)
-            ->post(route('logistics.database.order.status', $sellerOrder), [
-                'status' => 'sorted', 'sorting_area' => 'Area B',
-            ]);
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
+            ->assertOk();
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.action', $shipment), [
+                'action' => 'mark_sorted', 'sorting_area' => 'Area B',
+            ])->assertRedirect(route('logistics.shipment-scanner'));
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
                 'status' => 'assigned_to_rider', 'rider_id' => $otherDeliveryRider->id,
