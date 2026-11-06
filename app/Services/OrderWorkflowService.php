@@ -307,6 +307,7 @@ class OrderWorkflowService
     public function acceptDelivery(SellerOrder $sellerOrder, Rider $rider): Shipment
     {
         return DB::transaction(function () use ($sellerOrder, $rider) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $locked = SellerOrder::query()->with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
             $shipment = Shipment::query()->with('rider.user')->where('seller_order_id', $locked->id)->lockForUpdate()->first();
             if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id !== $rider->id) {
@@ -330,6 +331,7 @@ class OrderWorkflowService
     public function reassignDeliveryRider(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, Rider $rider): Shipment
     {
         return DB::transaction(function () use ($sellerOrder, $provider, $actor, $rider) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $locked = SellerOrder::query()->with('order')->lockForUpdate()->findOrFail($sellerOrder->id);
             $shipment = Shipment::query()->where('seller_order_id', $locked->id)->lockForUpdate()->first();
             if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id) {
@@ -377,6 +379,7 @@ class OrderWorkflowService
     public function acceptPickup(SellerOrder $sellerOrder, Rider $rider): Shipment
     {
         return DB::transaction(function () use ($sellerOrder, $rider) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $lockedOrder = SellerOrder::query()
                 ->with(['order', 'shipment', 'shipment.provider', 'shipment.pickupRider.user'])
                 ->lockForUpdate()
@@ -452,6 +455,7 @@ class OrderWorkflowService
         User $actor
     ): Shipment {
         return DB::transaction(function () use ($sellerOrder, $provider, $actor) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $lockedOrder = SellerOrder::query()
                 ->with(['order', 'shipment.pickupRider', 'shipment.provider'])
                 ->lockForUpdate()
@@ -640,6 +644,7 @@ class OrderWorkflowService
         }
 
         return DB::transaction(function () use ($sellerOrder, $actor, $category, $details, $labels) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
             $lockedOrder = SellerOrder::query()
                 ->with(['order', 'shipment.rider.user'])
                 ->lockForUpdate()

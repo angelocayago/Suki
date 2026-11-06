@@ -1003,6 +1003,7 @@ $orderToViewArray = function (Order $order): array {
     }
 
     return [
+        'cancel_rejection' => app(\App\Services\OrderCancellationService::class)->rejectionReason($order),
         'order_id' => $order->id,
         'id' => $order->order_number,
 
@@ -2066,102 +2067,9 @@ Route::get(
 // CANCEL ORDER
 // =====================================================
 
-Route::post(
-    '/my-orders/{order}/cancel-legacy',
-    function (
-        Request $request,
-        $orderNumber
-    ) use (
-        $requireBuyer
-    ) {
-
-        if ($redirect = $requireBuyer()) {
-            return $redirect;
-        }
-
-
-        $order =
-            Order::where(
-                'buyer_id',
-                auth()->id()
-            )
-                ->where(
-                    'order_number',
-                    $orderNumber
-                )
-                ->first();
-
-
-        if (!$order) {
-
-            return back()
-                ->with(
-                    'error',
-                    'Order not found.'
-                );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ONLY PLACED ORDERS CAN BE CANCELLED
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $order->status
-            !== 'PLACED'
-        ) {
-
-            return back()
-                ->with(
-                    'error',
-                    'This order can no longer be cancelled because the seller has already started processing it.'
-                );
-        }
-
-
-        $request->validate([
-
-            'cancel_reason' =>
-                'required|in:changed_mind,ordered_by_mistake,found_better_price,wrong_product,seller_requested,other',
-        ]);
-
-
-        $order->update([
-
-            'status' =>
-                'CANCELLED',
-
-            'cancel_reason' =>
-                $request
-                    ->cancel_reason,
-
-            'cancelled_at' =>
-                now(),
-        ]);
-
-
-        return redirect()
-            ->route(
-                'buyer.order-details',
-                [
-
-                    'order' =>
-                        $order
-                            ->order_number,
-                ]
-            )
-            ->with(
-                'success',
-                'Your order has been cancelled successfully!'
-            );
-
-    }
-)->name(
-    'buyer.order.cancel.legacy'
-);
-
+Route::post('/my-orders/{order}/cancel-legacy', [OrderCancellationController::class, 'store'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->name('buyer.order.cancel.legacy');
 Route::post('/my-orders/{order}/cancel', [OrderCancellationController::class, 'store'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
     ->name('buyer.order.cancel');
@@ -2367,6 +2275,19 @@ Route::post(
             'returned' =>
                 'returned_at',
         ];
+
+        // The legacy seller status URL must acquire the same parent lock and
+        // recheck cancellation through ERP rather than resurrecting a stale order.
+        if ($user->hasRole('seller') && $order->sellerOrders()->exists()) {
+            DB::transaction(function () use ($order, $user, $newStatus) {
+                Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+                $sellerOrder = $order->sellerOrders()
+                    ->whereHas('seller', fn ($query) => $query->where('user_id', $user->id))
+                    ->lockForUpdate()->firstOrFail();
+                app(\App\Services\OrderWorkflowService::class)->transition($sellerOrder, $user, strtoupper($newStatus));
+            });
+            return back()->with('success', 'Order status updated successfully.');
+        }
 
         // Database-backed orders must complete through the centralized ERP
         // workflow so every seller order, shipment, and the parent order stay

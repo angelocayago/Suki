@@ -218,7 +218,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
 
         $this->actingAs($buyer)->post(route('buyer.order.cancel', $order->order_number), [
             'cancel_reason' => 'changed_mind',
-        ])->assertSessionHasErrors('order');
+        ])->assertSessionHasErrors('order', null, 'cancellation');
         $this->assertSame(3, $item['variant']->fresh()->stock);
     }
 

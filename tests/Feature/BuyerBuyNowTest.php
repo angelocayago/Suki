@@ -22,7 +22,12 @@ class BuyerBuyNowTest extends TestCase
         DB::statement('CREATE TABLE wishlist_items (id INTEGER PRIMARY KEY, user_id INTEGER, product_slug TEXT)');
         DB::statement('CREATE TABLE transaction_reviews (id INTEGER PRIMARY KEY, product_id INTEGER, seller_id INTEGER, kind TEXT, rating INTEGER, hidden_at TEXT)');
         \Tests\Support\ShopVoucherSchema::create();
-        foreach([Order::class,OrderItem::class,SellerOrder::class,\App\Models\Shipment::class,CartItem::class,Address::class,Product::class,ProductVariant::class,\App\Models\ProductImage::class,Category::class] as $class){
+        // Order Details now inspects real fulfillment/payment evidence before
+        // displaying cancellation. Supply those empty tables in this memory-only fixture.
+        foreach(['seller_wallet_entries','rider_cod_remittances','rider_shipping_fee_earnings'] as $table) {
+            DB::statement('CREATE TABLE '.$table.' (id INTEGER PRIMARY KEY, seller_order_id INTEGER)');
+        }
+        foreach([Order::class,OrderItem::class,SellerOrder::class,\App\Models\Shipment::class,\App\Models\DeliveryEvent::class,\App\Models\Payment::class,CartItem::class,Address::class,Product::class,ProductVariant::class,\App\Models\ProductImage::class,Category::class] as $class){
             $model=new $class();$table=$model->getTable();DB::statement('CREATE TABLE '.$table.' (id INTEGER PRIMARY KEY)');
             foreach(array_unique([...$model->getFillable(),'created_at','updated_at',...(in_array($class,[Product::class,ProductVariant::class])?['deleted_at']:[])]) as $column){
                 $type=str_ends_with($column,'_id')||str_ends_with($column,'_minor')||in_array($column,['quantity','selected','stock','is_active','is_default'],true)?'INTEGER':'TEXT';

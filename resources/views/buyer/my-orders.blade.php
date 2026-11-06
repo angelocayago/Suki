@@ -346,35 +346,7 @@
                                     @endif
 
 
-                                    {{-- CANCEL --}}
-                                    @if(in_array($status, ['placed', 'order_placed'], true))
-
-                                        <form
-                                            action="{{ route('buyer.order.cancel', $order['id']) }}"
-                                            method="POST"
-                                            onsubmit="return confirm('Are you sure you want to cancel this order?');"
-                                        >
-
-                                            @csrf
-                                            <input type="hidden" name="cancel_reason" value="changed_mind">
-
-                                            <button
-                                                type="submit"
-                                                class="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                                            >
-
-                                                <i
-                                                    data-lucide="x"
-                                                    class="h-4 w-4"
-                                                ></i>
-
-                                                Cancel Order
-
-                                            </button>
-
-                                        </form>
-
-                                    @endif
+                                    @include('buyer.partials.cancellation-action')
 
 
                                     {{-- VIEW ORDER --}}
@@ -410,4 +382,5 @@
 
 </div>
 
+@include('buyer.partials.cancellation-dialog')
 @endsection

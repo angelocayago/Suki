@@ -8,6 +8,7 @@ use App\Services\OrderCancellationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderCancellationController extends Controller
 {
@@ -16,17 +17,11 @@ class OrderCancellationController extends Controller
         string $order,
         OrderCancellationService $cancellation
     ): RedirectResponse {
-        $validated = $request->validate([
+        $request->merge(['cancel_order_reference' => $order]);
+        $validated = $request->validateWithBag('cancellation', [
             'cancel_reason' => [
                 'required',
-                Rule::in([
-                    'changed_mind',
-                    'ordered_by_mistake',
-                    'found_better_price',
-                    'wrong_product',
-                    'seller_requested',
-                    'other',
-                ]),
+                Rule::in(array_keys(OrderCancellationService::REASONS)),
             ],
         ]);
 
@@ -35,11 +30,11 @@ class OrderCancellationController extends Controller
             ->where('order_number', $order)
             ->firstOrFail();
 
-        $cancellation->cancelByBuyer(
-            $buyerOrder,
-            $request->user(),
-            $validated['cancel_reason']
-        );
+        try {
+            $cancellation->cancelByBuyer($buyerOrder, $request->user(), $validated['cancel_reason']);
+        } catch (ValidationException $exception) {
+            throw $exception->errorBag('cancellation');
+        }
 
         return redirect()
             ->route('buyer.order-details', $buyerOrder->order_number)
