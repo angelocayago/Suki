@@ -428,7 +428,7 @@ Submitted Date
 </p>
 
 <p class="font-semibold">
-{{ $application->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($application->created_at, 'M d, Y') }}
 </p>
 
 </div>
@@ -460,7 +460,7 @@ Reviewed Date
 <p class="font-semibold">
 
 {{ $application->reviewed_at
-? $application->reviewed_at->format('M d, Y')
+? \App\Support\ManilaTime::format($application->reviewed_at, 'M d, Y')
 : '-'
 }}
 

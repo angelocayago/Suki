@@ -28,7 +28,7 @@
             @endphp
             <a class="inbox-row {{ $selected ? 'is-selected' : '' }} {{ $unread ? 'is-unread' : '' }}" data-preview-id="{{ $latest?->id ?? 0 }}" data-conversation-reference="{{ $threadConversation->reference }}" href="{{ route('seller.messages.show',['conversation'=>$threadConversation->reference]+$listQuery) }}" @if($selected) aria-current="page" @endif>
                 <span class="inbox-avatar" aria-hidden="true">{{ $identity['initial'] }}</span>
-                <span class="inbox-row-content"><span class="inbox-row-heading"><strong>{{ $identity['name'] }}</strong><time datetime="{{ $activity?->toIso8601String() }}" title="{{ $activity?->copy()->timezone('Asia/Manila')->format('M j, Y g:i A').' Manila' }}">{{ $activity?->diffForHumans(short:true) }}</time></span>
+                <span class="inbox-row-content"><span class="inbox-row-heading"><strong>{{ $identity['name'] }}</strong><time datetime="{{ $activity?->toIso8601String() }}" title="{{ \App\Support\ManilaTime::format($activity).' PHT' }}">{{ \App\Support\ManilaTime::relative($activity) }}</time></span>
                     <span class="inbox-row-context">{{ $identity['context'] ?: $identity['roles'] }}</span>
                     <span class="inbox-row-preview">{{ \App\Services\MessageAttachmentService::preview($latest) }}</span>
                     <span class="inbox-row-bottom"><span class="inbox-type">{{ $identity['type_label'] }}</span><span class="inbox-unread" data-inbox-unread data-count="{{ $unread }}" @if(!$unread) hidden @endif aria-label="{{ $unread }} unread messages">{{ $unread>99 ? '99+' : $unread }}</span></span>

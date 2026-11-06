@@ -72,7 +72,7 @@
                             <td class="px-5 py-4">{{ str($violation->category->value)->replace('_', ' ')->headline() }}</td>
                             <td class="px-5 py-4"><span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{{ $violation->severity->value }}</span></td>
                             <td class="px-5 py-4"><span class="rounded-full bg-[#EEF5F1] px-3 py-1 text-xs font-semibold text-[#173F35]">{{ $violation->status->value }}</span></td>
-                            <td class="px-5 py-4 text-gray-500">{{ $violation->created_at->format('M d, Y') }}</td>
+                            <td class="px-5 py-4 text-gray-500">{{ \App\Support\ManilaTime::format($violation->created_at, 'M d, Y') }}</td>
                             <td class="px-5 py-4 text-right"><a href="{{ route('admin.compliance.show', $violation) }}" class="font-semibold text-[#1F6F5B] hover:underline">Open</a></td>
                         </tr>
                     @empty

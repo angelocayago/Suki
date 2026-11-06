@@ -1036,9 +1036,7 @@
                                                font-medium
                                                text-[#52635B]"
                                     >
-                                        {{ \Carbon\Carbon::parse(
-                                            $historyDate
-                                        )->format('M d, Y') }}
+                                        {{ \App\Support\ManilaTime::format($historyDate, 'M d, Y') }}
                                     </p>
 
 
@@ -1047,9 +1045,7 @@
                                                text-[9px]
                                                text-[#9AA59F]"
                                     >
-                                        {{ \Carbon\Carbon::parse(
-                                            $historyDate
-                                        )->format('h:i A') }}
+                                        {{ \App\Support\ManilaTime::format($historyDate, 'h:i A') }} PHT
                                     </p>
 
                                 @else
@@ -1345,9 +1341,7 @@
 
                             @if($historyDate)
 
-                                {{ \Carbon\Carbon::parse(
-                                    $historyDate
-                                )->format('M d, Y') }}
+                                {{ \App\Support\ManilaTime::format($historyDate, 'M d, Y') }}
 
                             @else
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Seller;
 use App\Models\SellerOrder;
+use App\Support\ManilaTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -20,14 +21,7 @@ class ReportController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $from = $request->from
-            ? now()->parse($request->from)->startOfDay()
-            : null;
-
-
-        $to = $request->to
-            ? now()->parse($request->to)->endOfDay()
-            : null;
+        [$from, $to] = ManilaTime::utcDateBounds($request->from, $request->to);
 
 
 
@@ -101,11 +95,19 @@ class ReportController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        $driver = DB::connection()->getDriverName();
+        $manilaDate = match ($driver) {
+            'sqlite' => "date(created_at, '+8 hours')",
+            'mysql' => 'DATE(DATE_ADD(created_at, INTERVAL 8 HOUR))',
+            'pgsql' => "DATE(created_at + INTERVAL '8 hours')",
+            default => 'DATE(created_at)',
+        };
+
         $salesPerformance =
             (clone $ordersQuery)
             ->select(
                 DB::raw(
-                    'DATE(created_at) as date'
+                    $manilaDate.' as date'
                 ),
                 DB::raw(
                     'COUNT(*) as orders'
@@ -116,7 +118,7 @@ class ReportController extends Controller
             )
             ->groupBy(
                 DB::raw(
-                    'DATE(created_at)'
+                    $manilaDate
                 )
             )
             ->orderBy(

@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Seller;
 use App\Models\SellerViolation;
 use App\Services\Admin\SellerComplianceService;
+use App\Support\ManilaTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,7 @@ class SellerComplianceController extends Controller
         ]);
 
         $query = SellerViolation::query()->with(['seller.owner', 'product', 'creator']);
+        [$dateFrom, $dateTo] = ManilaTime::utcDateBounds($validated['date_from'] ?? null, $validated['date_to'] ?? null);
 
         if (filled($validated['search'] ?? null)) {
             $search = trim($validated['search']);
@@ -46,8 +48,8 @@ class SellerComplianceController extends Controller
             ->when(filled($validated['severity'] ?? null) && $validated['severity'] !== 'ALL', fn ($q) => $q->where('severity', $validated['severity']))
             ->when(filled($validated['status'] ?? null) && $validated['status'] !== 'ALL', fn ($q) => $q->where('status', $validated['status']))
             ->when(filled($validated['category'] ?? null) && $validated['category'] !== 'ALL', fn ($q) => $q->where('category', $validated['category']))
-            ->when(filled($validated['date_from'] ?? null), fn ($q) => $q->whereDate('created_at', '>=', $validated['date_from']))
-            ->when(filled($validated['date_to'] ?? null), fn ($q) => $q->whereDate('created_at', '<=', $validated['date_to']));
+            ->when($dateFrom !== null, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo !== null, fn ($q) => $q->where('created_at', '<=', $dateTo));
 
         $violations = $query->latest()->paginate(15)->withQueryString();
         $sellers = Seller::query()->orderBy('name')->get(['id', 'name']);

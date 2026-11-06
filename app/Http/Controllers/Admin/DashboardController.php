@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Seller;
+use App\Support\ManilaTime;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
@@ -66,8 +67,10 @@ class DashboardController extends Controller
         for ($i = 6; $i >= 0; $i--) {
 
 
-            $date = Carbon::now()
-                ->subDays($i);
+            $date = Carbon::now(ManilaTime::TIMEZONE)
+                ->subDays($i)
+                ->startOfDay();
+            [$dayStart, $dayEnd] = ManilaTime::utcDateBounds($date->toDateString(), $date->toDateString());
 
 
 
@@ -78,10 +81,7 @@ class DashboardController extends Controller
 
 
                 'count' =>
-                    User::whereDate(
-                        'created_at',
-                        $date
-                    )->count(),
+                    User::whereBetween('created_at', [$dayStart, $dayEnd])->count(),
 
             ];
 

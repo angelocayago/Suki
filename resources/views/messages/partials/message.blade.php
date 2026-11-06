@@ -18,7 +18,7 @@
         <p class="mt-2 whitespace-pre-wrap break-words text-sm">{{ $message->body }}</p>
         @include('messages.partials.attachment-gallery')
         <time class="mt-2 block text-[10px] {{ $isMine ? 'text-white/60' : 'text-gray-400' }}">
-            {{ $message->sent_at?->format('M d, Y h:i A') }}
+            {{ \App\Support\ManilaTime::format($message->sent_at) }} PHT
         </time>
     </div>
 </article>

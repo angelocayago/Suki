@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Complaint;
 use App\Models\User;
 use App\Services\Admin\ComplaintService;
+use App\Support\ManilaTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class ComplaintController extends Controller
         ]);
 
         $assignedTo = $validated['assigned_to'] ?? 'ALL';
+        [$dateFrom, $dateTo] = ManilaTime::utcDateBounds($validated['date_from'] ?? null, $validated['date_to'] ?? null);
         if (! in_array($assignedTo, ['ALL', 'UNASSIGNED'], true)) {
             if (! ctype_digit((string) $assignedTo) || ! $this->activeAdmins()->whereKey((int) $assignedTo)->exists()) {
                 throw ValidationException::withMessages([
@@ -63,12 +65,12 @@ class ComplaintController extends Controller
                 fn (Builder $builder) => $builder->where('assigned_to', (int) $assignedTo)
             )
             ->when(
-                filled($validated['date_from'] ?? null),
-                fn (Builder $builder) => $builder->whereDate('created_at', '>=', $validated['date_from'])
+                $dateFrom !== null,
+                fn (Builder $builder) => $builder->where('created_at', '>=', $dateFrom)
             )
             ->when(
-                filled($validated['date_to'] ?? null),
-                fn (Builder $builder) => $builder->whereDate('created_at', '<=', $validated['date_to'])
+                $dateTo !== null,
+                fn (Builder $builder) => $builder->where('created_at', '<=', $dateTo)
             )
             ->when(filled($validated['order_reference'] ?? null), function (Builder $builder) use ($validated) {
                 $reference = trim($validated['order_reference']);

@@ -69,7 +69,7 @@
                 <table><thead><tr>@foreach(['Order / Date','Buyer / Items','Amount / Payment','Fulfillment','Actions'] as $heading)<th scope="col">{{ $heading }}</th>@endforeach</tr></thead>
                 <tbody>@foreach($paginator as $order)
                     <tr>
-                        <td data-label="Order / Date"><strong>{{ $order['reference'] }}</strong><p class="orders-muted">Seller order #{{ $order['id'] }}</p><p class="orders-muted">{{ $order['date']?->format('M j, Y g:i A') ?? 'Date not recorded' }} PHT</p></td>
+                        <td data-label="Order / Date"><strong>{{ $order['reference'] }}</strong><p class="orders-muted">Seller order #{{ $order['id'] }}</p><p class="orders-muted">{{ \App\Support\ManilaTime::format($order['date']) ?? 'Date not recorded' }} PHT</p></td>
                         <td data-label="Buyer / Items"><strong>{{ $order['recipient'] }}</strong>@include('seller.partials.order-items')</td>
                         <td data-label="Amount / Payment"><strong>&#8369;{{ number_format($order['total_minor'] / 100, 2) }}</strong><p class="orders-muted">{{ strtoupper($order['payment_method']) }} &middot; {{ $order['payment_status'] }}</p></td>
                         <td data-label="Fulfillment"><span class="orders-badge" data-status="{{ $order['status'] }}">{{ $order['status_label'] }}</span><p class="orders-muted">{{ $order['shipment_status'] }}</p><p class="orders-muted">{{ $order['tracking'] ?: 'Tracking not assigned' }}</p></td>

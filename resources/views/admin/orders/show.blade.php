@@ -101,7 +101,7 @@ mt-2
 ">
 
 Placed
-{{ ($order->placed_at ?? $order->created_at)->format('M d, Y h:i A') }}
+{{ \App\Support\ManilaTime::format($order->placed_at ?? $order->created_at) PHT }}
 
 </p>
 
@@ -1254,7 +1254,7 @@ text-gray-500
 mt-1
 ">
 
-{{ $event['time']->format('M d, Y h:i A') }}
+{{ \App\Support\ManilaTime::format($event['time']) PHT }}
 
 </p>
 

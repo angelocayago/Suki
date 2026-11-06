@@ -18,7 +18,7 @@
         <div>
             <a href="{{ route('admin.complaints.index') }}" class="text-sm font-semibold text-[#1F6F5B]">&larr; Complaint queue</a>
             <h1 class="mt-2 text-2xl font-bold text-[#173F35]">{{ $complaint->reference }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ str(strtolower($complaint->category->value))->replace('_', ' ')->headline() }} &middot; created {{ $complaint->created_at->format('M d, Y h:i A') }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ str(strtolower($complaint->category->value))->replace('_', ' ')->headline() }} &middot; created {{ \App\Support\ManilaTime::format($complaint->created_at) PHT }}</p>
         </div>
         <div class="flex items-center gap-2">
             <span class="self-start rounded-full bg-[#EEF5F1] px-4 py-2 text-xs font-bold text-[#173F35]">{{ str(strtolower($complaint->status->value))->replace('_', ' ')->headline() }}</span>
@@ -54,7 +54,7 @@
                     <div class="mt-5 rounded-xl bg-[#F6F9F7] p-4">
                         <div class="text-xs uppercase text-gray-500">Resolution</div>
                         <p class="mt-2 whitespace-pre-line text-sm text-gray-700">{{ $complaint->resolution_notes }}</p>
-                        <div class="mt-2 text-xs text-gray-500">{{ $complaint->resolver->name ?? 'System' }} &middot; {{ $complaint->resolved_at?->format('M d, Y h:i A') }}</div>
+                        <div class="mt-2 text-xs text-gray-500">{{ $complaint->resolver->name ?? 'System' }} &middot; {{ \App\Support\ManilaTime::format($complaint->resolved_at) PHT }}</div>
                     </div>
                 @endif
             </section>
@@ -190,7 +190,7 @@
                     @forelse($complaint->events as $event)
                         <div class="border-l-2 border-[#BFD2C9] pl-3 text-sm">
                             <div class="font-semibold text-[#173F35]">{{ str(strtolower($event->action))->replace('_', ' ')->headline() }}</div>
-                            <div class="mt-1 text-xs text-gray-500">{{ $event->created_at->format('M d, Y h:i A') }} &middot; {{ $event->actor->name ?? 'System' }}</div>
+                            <div class="mt-1 text-xs text-gray-500">{{ \App\Support\ManilaTime::format($event->created_at) PHT }} &middot; {{ $event->actor->name ?? 'System' }}</div>
                             @if($event->previous_status || $event->new_status)
                                 <p class="mt-2 text-gray-700">{{ $event->previous_status?->value ?? 'New' }} &rarr; {{ $event->new_status?->value ?? 'No status change' }}</p>
                             @endif

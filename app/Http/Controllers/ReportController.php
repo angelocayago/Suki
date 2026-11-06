@@ -8,10 +8,10 @@ use App\Models\Seller;
 use App\Services\ReportService;
 use App\Services\SellerWalletService;
 use App\Support\SellerReports;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use App\Support\ManilaTime;
 
 class ReportController extends Controller
 {
@@ -52,7 +52,7 @@ class ReportController extends Controller
     private function dates(Request $request): array
     {
         $validated = $request->validate(['from'=>['nullable','date'],'to'=>['nullable','date','after_or_equal:from']]);
-        return [isset($validated['from']) ? CarbonImmutable::parse($validated['from'])->startOfDay() : null, isset($validated['to']) ? CarbonImmutable::parse($validated['to'])->endOfDay() : null];
+        return ManilaTime::utcDateBounds($validated['from'] ?? null, $validated['to'] ?? null);
     }
 
     private function csv(string $filename, iterable $rows, array $columns): Response

@@ -33,7 +33,7 @@
             <header class="sr-reviewer">
                 <span class="sr-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($review['buyer'],0,1)) }}</span>
                 <div class="sr-reviewer-info"><div class="sr-reviewer-line"><h3 id="reviewer-{{ $review['id'] }}">{{ $review['buyer'] }}</h3><span class="sr-reply-status {{ filled($review['response']) ? 'is-replied' : 'needs-reply' }}">{{ filled($review['response']) ? 'Replied' : 'Needs Reply' }}</span>@if($review['hidden'])<span class="sr-hidden-badge">Hidden by moderation</span>@endif</div>
-                    @if($review['date'])<time datetime="{{ $review['date']->toIso8601String() }}">{{ $review['date']->format('M d, Y') }} &middot; {{ $review['date']->format('h:i A') }}</time>@endif
+                    @if($review['date'])<time datetime="{{ $review['date']->toIso8601String() }}">{{ \App\Support\ManilaTime::format($review['date'], 'M d, Y') }} &middot; {{ \App\Support\ManilaTime::format($review['date'], 'h:i A') PHT }}</time>@endif
                     <div class="sr-rating" role="img" aria-label="{{ $review['rating'] }} out of 5 stars"><span aria-hidden="true">@for($star=1;$star<=5;$star++)<span class="{{ $star <= $review['rating'] ? 'sr-star-filled' : 'sr-star-empty' }}">&#9733;</span>@endfor</span><span class="sr-rating-number">{{ $review['rating'] }}/5</span></div>
                 </div>
             </header>

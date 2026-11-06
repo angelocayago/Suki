@@ -34,7 +34,7 @@
                             <td class="px-5 py-4">{{ $complaint->order->order_number ?? 'Not linked' }}</td>
                             <td class="px-5 py-4"><span class="rounded-full bg-[#EEF5F1] px-3 py-1 text-xs font-semibold text-[#173F35]">{{ str(strtolower($complaint->status->value))->replace('_', ' ')->headline() }}</span></td>
                             <td class="px-5 py-4">{{ $complaint->evidence_count }}</td>
-                            <td class="px-5 py-4 text-gray-500">{{ $complaint->created_at->format('M d, Y') }}</td>
+                            <td class="px-5 py-4 text-gray-500">{{ \App\Support\ManilaTime::format($complaint->created_at, 'M d, Y') }}</td>
                             <td class="px-5 py-4 text-right"><a href="{{ route('complaints.mine.show', $complaint) }}" class="font-semibold text-[#1F6F5B] hover:underline">View</a></td>
                         </tr>
                     @empty

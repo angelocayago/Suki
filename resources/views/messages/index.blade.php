@@ -65,7 +65,7 @@
                             {{ \App\Services\MessageAttachmentService::preview($latestMessage) }}
                         </p>
                         <time class="shrink-0 text-xs text-gray-400">
-                            {{ ($latestMessage?->sent_at ?? $conversation->created_at)->format('M d, Y h:i A') }}
+                            {{ \App\Support\ManilaTime::format($latestMessage?->sent_at ?? $conversation->created_at) }} PHT
                         </time>
                     </div>
                 </div>

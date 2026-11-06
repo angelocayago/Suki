@@ -7,7 +7,7 @@
         <header><strong>Notifications</strong><span><span data-seller-unread-total>{{ $sellerHeader['unread_count'] }}</span> unread</span></header>
         <div id="sellerNotificationPreview">
             @forelse($sellerHeader['recent'] as $notice)
-                <form method="POST" action="{{ $notice['open_url'] }}">@csrf<button type="submit" class="seller-notification-item {{ $notice['unread'] ? 'is-unread' : '' }}"><strong>{{ $notice['title'] }}</strong><span class="seller-notification-message">{{ $notice['message'] }}</span>@if($notice['date'])<time datetime="{{ $notice['date']->toIso8601String() }}">{{ $notice['date']->format('M d, Y h:i A') }}</time>@endif</button></form>
+                <form method="POST" action="{{ $notice['open_url'] }}">@csrf<button type="submit" class="seller-notification-item {{ $notice['unread'] ? 'is-unread' : '' }}"><strong>{{ $notice['title'] }}</strong><span class="seller-notification-message">{{ $notice['message'] }}</span>@if($notice['date'])<time datetime="{{ $notice['date']->toIso8601String() }}">{{ \App\Support\ManilaTime::format($notice['date']) }}</time>@endif</button></form>
             @empty<p class="seller-header-empty">No notifications yet.</p>@endforelse
         </div>
         <p id="sellerNotificationLoadStatus" class="seller-header-status" role="status" aria-live="polite"></p>

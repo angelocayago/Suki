@@ -544,7 +544,7 @@ py-4
 text-sm
 ">
 
-{{ $order->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($order->created_at, 'M d, Y') }}
 
 </td>
 

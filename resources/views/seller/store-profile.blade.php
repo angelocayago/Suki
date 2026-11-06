@@ -27,7 +27,7 @@
         'approved' => 'Active', 'pending' => 'Pending', 'suspended' => 'Suspended',
         'rejected' => 'Rejected', default => 'Not available',
     };
-    $memberSince = $seller->created_at?->format('F j, Y');
+    $memberSince = \App\Support\ManilaTime::format($seller->created_at, 'F j, Y');
 @endphp
 
 <div class="store-profile-page">

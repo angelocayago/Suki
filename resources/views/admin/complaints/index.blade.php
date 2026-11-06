@@ -86,7 +86,7 @@
                                 @endif
                             </td>
                             <td class="px-5 py-4">{{ $complaint->assignee->name ?? 'Unassigned' }}</td>
-                            <td class="px-5 py-4 text-gray-500">{{ $complaint->created_at->format('M d, Y') }}</td>
+                            <td class="px-5 py-4 text-gray-500">{{ \App\Support\ManilaTime::format($complaint->created_at, 'M d, Y') }}</td>
                             <td class="px-5 py-4 text-right"><a href="{{ route('admin.complaints.show', $complaint) }}" class="font-semibold text-[#1F6F5B] hover:underline">Open</a></td>
                         </tr>
                     @empty

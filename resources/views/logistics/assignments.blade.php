@@ -90,10 +90,10 @@
                 <p class="mt-3 text-xs text-[#52615a]">Pickup rider: <span class="font-semibold">{{ $order['pickup_rider_name'] }}</span>{{ !empty($order['pickup_assignment_open']) ? ' · awaiting acceptance' : '' }}</p>
             @endif
             @if(!empty($order['assignment_history']) && count($order['assignment_history']))
-                <details class="mt-3 text-xs text-[#52615a]"><summary class="cursor-pointer font-semibold">Assignment history</summary><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($order['assignment_history'] as $event)<li>{{ $event->occurred_at?->format('M j, Y g:i A') }} — {{ $event->note ?? str($event->status)->replace('_', ' ')->headline() }}</li>@endforeach</ul></details>
+                <details class="mt-3 text-xs text-[#52615a]"><summary class="cursor-pointer font-semibold">Assignment history</summary><ul class="mt-2 list-disc space-y-1 pl-5">@foreach($order['assignment_history'] as $event)<li>{{ \App\Support\ManilaTime::format($event->occurred_at, 'M j, Y g:i A') }} PHT — {{ $event->note ?? str($event->status)->replace('_', ' ')->headline() }}</li>@endforeach</ul></details>
             @endif
             @if(!empty($order['failure_history']) && count($order['failure_history']))
-                <details class="mt-3 text-xs"><summary>Failed delivery history</summary><ul>@foreach($order['failure_history'] as $event)<li>Attempt {{ $event->attempt }}: {{ $event->note }} — {{ $event->user?->full_name }} ({{ $event->occurred_at?->format('M j, Y g:i A') }})</li>@endforeach</ul></details>
+                <details class="mt-3 text-xs"><summary>Failed delivery history</summary><ul>@foreach($order['failure_history'] as $event)<li>Attempt {{ $event->attempt }}: {{ $event->note }} — {{ $event->user?->full_name }} ({{ \App\Support\ManilaTime::format($event->occurred_at, 'M j, Y g:i A') }} PHT)</li>@endforeach</ul></details>
             @endif
         </div>
     @empty
