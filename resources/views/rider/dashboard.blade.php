@@ -280,7 +280,7 @@
     */
 
     $hour =
-        (int) now()->format('H');
+        (int) \App\Support\ManilaTime::format(now(), 'H');
 
     if ($hour < 12) {
 

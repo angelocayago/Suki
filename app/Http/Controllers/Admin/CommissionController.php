@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Seller;
 use App\Models\SellerOrder;
+use App\Support\ManilaTime;
 use Illuminate\Http\Request;
 
 class CommissionController extends Controller
@@ -148,21 +149,21 @@ class CommissionController extends Controller
         |
         */
 
-        $currentMonthStart = now()
+        $currentMonthStart = now(ManilaTime::TIMEZONE)
             ->copy()
             ->startOfMonth();
 
-        $currentMonthEnd = now()
+        $currentMonthEnd = now(ManilaTime::TIMEZONE)
             ->copy()
             ->endOfMonth();
 
 
-        $previousMonthStart = now()
+        $previousMonthStart = now(ManilaTime::TIMEZONE)
             ->copy()
             ->subMonthNoOverflow()
             ->startOfMonth();
 
-        $previousMonthEnd = now()
+        $previousMonthEnd = now(ManilaTime::TIMEZONE)
             ->copy()
             ->subMonthNoOverflow()
             ->endOfMonth();

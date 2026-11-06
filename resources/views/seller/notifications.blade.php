@@ -12,7 +12,7 @@
             <article class="seller-inbox-item {{ $notice['unread'] ? 'is-unread' : '' }}">
                 <div class="seller-inbox-item-heading"><h3>{{ $notice['title'] }}</h3><span>{{ $notice['unread'] ? 'Unread' : 'Read' }}</span></div>
                 <p class="seller-inbox-message">{{ $notice['message'] }}</p>
-                @if($notice['date'])<time datetime="{{ $notice['date']->toIso8601String() }}">{{ $notice['date']->format('M d, Y h:i A') }}</time>@endif
+                @if($notice['date'])<time datetime="{{ $notice['date']->toIso8601String() }}">{{ \App\Support\ManilaTime::format($notice['date']) }}</time>@endif
                 <div class="seller-inbox-actions">
                     @if($notice['destination'])<form method="POST" action="{{ $notice['open_url'] }}">@csrf<button type="submit">Open notification</button></form>@endif
                     @if($notice['unread'])<form method="POST" action="{{ route('seller.notifications.read',$notice['id']) }}">@csrf @if(isset($criteria['filter']))<input type="hidden" name="filter" value="{{ $criteria['filter'] }}">@endif<button type="submit" class="seller-inbox-secondary">Mark as read</button></form>@endif

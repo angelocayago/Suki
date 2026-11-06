@@ -712,7 +712,7 @@ Settings
                                 text-sm
                             ">
 
-                                {{ $announcement->created_at->format('M d, Y') }}
+                                {{ \App\Support\ManilaTime::format($announcement->created_at, 'M d, Y') }}
 
                             </td>
 

@@ -123,10 +123,14 @@ class SystemFunctionalStabilizationTest extends TestCase
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder))
             ->assertSessionHasNoErrors();
-        $this->post(route('logistics.database.order.status', $sellerOrder), [
-            'status' => OrderStatus::Sorted->value,
-            'sorting_area' => 'Acceptance Area',
-        ])->assertSessionHasNoErrors();
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code])
+            ->assertOk();
+        $this->actingAs($logisticsUser)
+            ->post(route('logistics.shipment-scanner.action', $sellerOrder->shipment), [
+                'action' => 'mark_sorted',
+                'sorting_area' => 'Acceptance Area',
+            ])->assertRedirect(route('logistics.shipment-scanner'));
         $this->post(route('logistics.database.order.status', $sellerOrder), [
             'status' => OrderStatus::AssignedToRider->value,
             'rider_id' => $deliveryUser->rider->id,

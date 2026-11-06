@@ -32,11 +32,11 @@
                     <div><dt class="text-xs uppercase text-gray-500">Seller</dt><dd class="mt-1 font-semibold"><a class="text-[#1F6F5B]" href="{{ route('admin.sellers.show', $violation->seller) }}">{{ $violation->seller->name }}</a></dd></div>
                     <div><dt class="text-xs uppercase text-gray-500">Created by</dt><dd class="mt-1 font-semibold">{{ $violation->creator->name ?? 'System' }}</dd></div>
                     <div><dt class="text-xs uppercase text-gray-500">Related product</dt><dd class="mt-1 font-semibold">{{ $violation->product->name ?? 'None' }}</dd></div>
-                    <div><dt class="text-xs uppercase text-gray-500">Created</dt><dd class="mt-1 font-semibold">{{ $violation->created_at->format('M d, Y h:i A') }}</dd></div>
+                    <div><dt class="text-xs uppercase text-gray-500">Created</dt><dd class="mt-1 font-semibold">{{ \App\Support\ManilaTime::format($violation->created_at) PHT }}</dd></div>
                 </dl>
                 <div class="mt-5"><div class="text-xs uppercase text-gray-500">Reason</div><p class="mt-2 whitespace-pre-line text-sm text-gray-700">{{ $violation->reason }}</p></div>
                 @if($violation->details)<div class="mt-5"><div class="text-xs uppercase text-gray-500">Details</div><p class="mt-2 whitespace-pre-line text-sm text-gray-700">{{ $violation->details }}</p></div>@endif
-                @if(!$isOpen)<div class="mt-5 rounded-xl bg-[#F6F9F7] p-4"><div class="text-xs uppercase text-gray-500">Resolution</div><p class="mt-2 text-sm text-gray-700">{{ $violation->resolution_notes }}</p><div class="mt-2 text-xs text-gray-500">{{ $violation->resolver->name ?? 'System' }} &middot; {{ $violation->resolved_at?->format('M d, Y h:i A') }}</div></div>@endif
+                @if(!$isOpen)<div class="mt-5 rounded-xl bg-[#F6F9F7] p-4"><div class="text-xs uppercase text-gray-500">Resolution</div><p class="mt-2 text-sm text-gray-700">{{ $violation->resolution_notes }}</p><div class="mt-2 text-xs text-gray-500">{{ $violation->resolver->name ?? 'System' }} &middot; {{ \App\Support\ManilaTime::format($violation->resolved_at) PHT }}</div></div>@endif
             </section>
 
             <section class="rounded-2xl border border-[#DCE5E0] bg-white p-6 shadow-sm">
@@ -66,7 +66,7 @@
                 <h2 class="text-lg font-bold text-[#173F35]">Warnings</h2>
                 <div class="mt-4 space-y-3">
                     @forelse($violation->warnings as $warning)
-                        <div class="rounded-xl border border-[#E3EAE6] p-4"><p class="text-sm text-gray-700">{{ $warning->message }}</p><div class="mt-2 text-xs text-gray-500">{{ $warning->issuer->name ?? 'System' }} &middot; {{ $warning->issued_at->format('M d, Y h:i A') }} &middot; {{ $warning->isAcknowledged() ? 'Acknowledged' : 'Not acknowledged' }}</div></div>
+                        <div class="rounded-xl border border-[#E3EAE6] p-4"><p class="text-sm text-gray-700">{{ $warning->message }}</p><div class="mt-2 text-xs text-gray-500">{{ $warning->issuer->name ?? 'System' }} &middot; {{ \App\Support\ManilaTime::format($warning->issued_at) PHT }} &middot; {{ $warning->isAcknowledged() ? 'Acknowledged' : 'Not acknowledged' }}</div></div>
                     @empty
                         <p class="text-sm text-gray-500">No warnings issued.</p>
                     @endforelse
@@ -149,7 +149,7 @@
                 <h2 class="text-lg font-bold text-[#173F35]">Compliance history</h2>
                 <div class="mt-4 space-y-4">
                     @forelse($violation->events as $event)
-                        <div class="border-l-2 border-[#BFD2C9] pl-3 text-sm"><div class="font-semibold text-[#173F35]">{{ str($event->action)->replace('_', ' ')->headline() }}</div><div class="mt-1 text-xs text-gray-500">{{ $event->created_at->format('M d, Y h:i A') }} &middot; {{ $event->actor->name ?? 'System' }}</div>@if($event->reason)<p class="mt-2 text-gray-700">{{ $event->reason }}</p>@endif</div>
+                        <div class="border-l-2 border-[#BFD2C9] pl-3 text-sm"><div class="font-semibold text-[#173F35]">{{ str($event->action)->replace('_', ' ')->headline() }}</div><div class="mt-1 text-xs text-gray-500">{{ \App\Support\ManilaTime::format($event->created_at) PHT }} &middot; {{ $event->actor->name ?? 'System' }}</div>@if($event->reason)<p class="mt-2 text-gray-700">{{ $event->reason }}</p>@endif</div>
                     @empty
                         <p class="text-sm text-gray-500">No compliance history.</p>
                     @endforelse

@@ -1898,9 +1898,7 @@
 
                                 @if(!empty($order['created_at']))
 
-                                    {{ \Carbon\Carbon::parse(
-                                        $order['created_at']
-                                    )->format('M d, Y') }}
+                                    {{ \App\Support\ManilaTime::format($order['created_at'], 'M d, Y') }}
 
                                 @else
 
@@ -2074,9 +2072,7 @@
 
                             @if(!empty($order['created_at']))
 
-                                {{ \Carbon\Carbon::parse(
-                                    $order['created_at']
-                                )->format('M d, Y') }}
+                                {{ \App\Support\ManilaTime::format($order['created_at'], 'M d, Y') }}
 
                             @else
 

@@ -77,7 +77,7 @@ py-4
 text-sm
 ">
 
-{{ $buyer->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($buyer->created_at, 'M d, Y') }}
 
 </td>
 

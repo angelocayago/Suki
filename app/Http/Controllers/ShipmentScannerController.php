@@ -18,7 +18,9 @@ class ShipmentScannerController extends Controller
 {
     public function logistics(Request $request): View
     {
-        return $this->scannerView('logistics');
+        $trackingCode = $request->query('tracking_code');
+
+        return $this->scannerView('logistics', null, is_string($trackingCode) ? substr(trim($trackingCode), 0, 100) : '');
     }
 
     public function rider(Request $request): View
@@ -42,12 +44,21 @@ class ShipmentScannerController extends Controller
             throw ValidationException::withMessages(['payload' => 'The shipment QR code is invalid or has been altered.']);
         }
 
+        $provider = $actorType === 'logistics' ? $this->providerFor($request) : null;
+        if ($provider) {
+            $request->session()->forget(self::sortingVerificationKey($provider->id));
+        }
+
         $shipment = Shipment::query()
             ->with(['sellerOrder.order', 'sellerOrder.seller', 'provider', 'rider.user', 'pickupRider.user', 'events'])
             ->where('tracking_code', $trackingCode)
             ->firstOrFail();
 
         $this->authorizeShipment($request, $shipment, $actorType);
+
+        if ($provider && $shipment->sellerOrder->workflow_status === OrderStatus::AtSortingCenter) {
+            $request->session()->put(self::sortingVerificationKey($provider->id), $shipment->id);
+        }
 
         return $this->scannerView($actorType, $shipment);
     }
@@ -66,6 +77,13 @@ class ShipmentScannerController extends Controller
 
         $action = $data['action'];
         $sellerOrder = $shipment->sellerOrder;
+
+        if ($action === 'mark_sorted') {
+            $provider = $this->providerFor($request);
+            if ((int) $request->session()->get(self::sortingVerificationKey($provider->id)) !== (int) $shipment->id) {
+                throw ValidationException::withMessages(['action' => 'Scan and verify this exact parcel before confirming sorting.']);
+            }
+        }
 
         if ($action === 'receive_sorting' && $shipment->events()->where('status', 'RECEIVED_AT_SORTING_CENTER')->exists()) {
             return $this->redirectToScanner($actorType)->with('success', 'This parcel was already received at the sorting center.');
@@ -93,18 +111,28 @@ class ShipmentScannerController extends Controller
                 'mark_sorted' => $workflow->transition($sellerOrder, $request->user(), OrderStatus::Sorted, ['sorting_area' => $data['sorting_area']]),
                 default => throw ValidationException::withMessages(['action' => 'This scan action is not available to logistics.']),
             };
+
+            if ($action === 'mark_sorted') {
+                $request->session()->forget(self::sortingVerificationKey($provider->id));
+            }
         }
 
         return $this->redirectToScanner($actorType)->with('success', 'Shipment scan action recorded.');
     }
 
-    private function scannerView(string $actorType, ?Shipment $shipment = null): View
+    private function scannerView(string $actorType, ?Shipment $shipment = null, string $prefillTrackingCode = ''): View
     {
         return view('shipments.scanner', [
             'actorType' => $actorType,
             'shipment' => $shipment,
             'allowedAction' => $shipment ? $this->allowedAction(request(), $shipment) : null,
+            'prefillTrackingCode' => $prefillTrackingCode,
         ]);
+    }
+
+    public static function sortingVerificationKey(int $providerId): string
+    {
+        return 'shipment_scanner.logistics_sort_verified.'.$providerId;
     }
 
     private function allowedAction(Request $request, Shipment $shipment): ?string
@@ -114,6 +142,11 @@ class ShipmentScannerController extends Controller
 
         if ($request->user()->hasRole('logistics')) {
             if ($status !== OrderStatus::AtSortingCenter) {
+                return null;
+            }
+
+            $provider = $this->providerFor($request);
+            if ((int) $request->session()->get(self::sortingVerificationKey($provider->id)) !== (int) $shipment->id) {
                 return null;
             }
 

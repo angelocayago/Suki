@@ -7,7 +7,7 @@
     <header class="orders-intro">
         <a href="{{ $backUrl }}" class="orders-button">&larr; Back to Orders</a>
         <h2>{{ $order['reference'] }}</h2>
-        <p class="orders-muted">Seller order #{{ $order['id'] }} &middot; {{ $order['date']?->format('M j, Y g:i A') ?? 'Date not recorded' }} PHT</p>
+        <p class="orders-muted">Seller order #{{ $order['id'] }} &middot; {{ \App\Support\ManilaTime::format($order['date']) ?? 'Date not recorded' }} PHT</p>
         <p><span class="orders-badge" data-status="{{ $order['status'] }}">{{ $order['status_label'] }}</span></p>
     </header>
     @if(session('success'))<div role="status" class="orders-alert">{{ session('success') }}</div>@endif

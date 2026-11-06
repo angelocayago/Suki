@@ -657,6 +657,15 @@
                         @if($status === 'at_sorting_center')
 
 
+                            @if($isDatabase && !empty($parcel['logistics_provider_id']))
+                                <span class="mr-2 text-[10px] text-[#52635B]">Destination area: {{ $parcel['destination_sorting_area'] }}</span>
+                                <a href="{{ route('logistics.shipment-scanner', ['tracking_code' => $parcel['tracking_code']]) }}"
+                                   class="inline-flex h-9 items-center gap-2 rounded-xl bg-[#173F35] px-4 text-[10px] font-semibold text-white hover:bg-[#1F6F5B]">
+                                    <i data-lucide="scan-line" class="h-3.5 w-3.5"></i>
+                                    Scan to Sort
+                                </a>
+                            @else
+
                             <form method="POST" action="{{ $isDatabase
                                 ? (empty($parcel['logistics_provider_id'])
                                     ? route('logistics.database.orders.receive', $parcelId)
@@ -702,6 +711,8 @@
                                 </button>
 
                             </form>
+
+                            @endif
 
 
 

@@ -1012,7 +1012,7 @@
                                            font-medium
                                            text-[#52635B]"
                                 >
-                                    {{ $buyer->created_at->format('M d, Y') }}
+                                    {{ \App\Support\ManilaTime::format($buyer->created_at, 'M d, Y') }}
                                 </p>
 
                                 <p
@@ -1020,7 +1020,7 @@
                                            text-[9px]
                                            text-[#98A39D]"
                                 >
-                                    {{ $buyer->created_at->format('h:i A') }}
+                                    {{ \App\Support\ManilaTime::format($buyer->created_at, 'h:i A') }} PHT
                                 </p>
 
                             </td>
@@ -1473,7 +1473,7 @@
                                    font-semibold
                                    text-[#52635B]"
                         >
-                            {{ $buyer->created_at->format('M d, Y') }}
+                            {{ \App\Support\ManilaTime::format($buyer->created_at, 'M d, Y') }}
                         </span>
 
                     </div>

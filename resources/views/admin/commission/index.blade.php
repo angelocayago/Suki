@@ -765,7 +765,7 @@ Commission Management
                                 text-gray-600
                             ">
 
-                                {{ $record->created_at->format('M d, Y') }}
+                                {{ \App\Support\ManilaTime::format($record->created_at, 'M d, Y') }}
 
                             </td>
 

@@ -127,7 +127,7 @@
 
         <div class="rounded-lg border border-[#E1E5E2] bg-white px-3 py-2 text-xs font-medium text-[#606863]">
 
-            {{ now()->format('M d, Y') }}
+            {{ \App\Support\ManilaTime::format(now(), 'M d, Y') }}
 
         </div>
 
@@ -891,7 +891,7 @@
                                     </p>
 
                                     <p class="mt-1 text-[10px] text-[#9AA19C]">
-                                        {{ $order->created_at->format('M d, H:i') }}
+                                        {{ \App\Support\ManilaTime::format($order->created_at, 'M d, H:i') PHT }}
                                     </p>
 
                                 </td>

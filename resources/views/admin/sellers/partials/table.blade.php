@@ -140,7 +140,7 @@ font-medium
 
 <td class="px-5 py-4 text-sm">
 
-{{ $seller->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($seller->created_at, 'M d, Y') }}
 
 </td>
 

@@ -650,7 +650,7 @@ text-[#173F35]
 mt-2
 ">
 
-{{ $seller->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($seller->created_at, 'M d, Y') }}
 
 </p>
 

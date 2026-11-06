@@ -13,9 +13,9 @@ use App\Models\SellerOrder;
 use App\Models\SellerWalletEntry;
 use App\Models\Shipment;
 use App\Models\VoucherRedemption;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use App\Support\ManilaTime;
 
 /** Read-only projections over the canonical custody and settlement ledgers. */
 class MoneyReportService
@@ -83,8 +83,7 @@ class MoneyReportService
 
     public function admin(array $filters): array
     {
-        $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from'])->startOfDay() : null;
-        $to = isset($filters['to']) ? CarbonImmutable::parse($filters['to'])->endOfDay() : null;
+        [$from, $to] = ManilaTime::utcDateBounds($filters['from'] ?? null, $filters['to'] ?? null);
         $shipmentScope = Shipment::query()->where('cod_collected', true)
             ->when($filters['provider_id'] ?? null, fn (Builder $q, $id) => $q->where('logistics_provider_id', $id))
             ->when($filters['seller_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('sellerOrder', fn (Builder $sellerOrders) => $sellerOrders->where('seller_id', $id)));

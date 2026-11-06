@@ -539,7 +539,7 @@ Joined Date
 </p>
 
 <p class="font-semibold">
-{{ $user->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($user->created_at, 'M d, Y') }}
 </p>
 </div>
 
@@ -706,7 +706,7 @@ Account Status History
             {{ ucfirst($event->previous_status) }} → {{ ucfirst($event->new_status) }}
         </div>
         <div class="text-gray-500 mt-1">
-            {{ $event->created_at->format('M d, Y h:i A') }}
+            {{ \App\Support\ManilaTime::format($event->created_at) }} PHT
             · by {{ $event->actor->name ?? 'System' }}
         </div>
         @if($event->reason)

@@ -84,7 +84,7 @@
     */
 
     $todayDate =
-        now()->format('Y-m-d');
+        \App\Support\ManilaTime::format(now(), 'Y-m-d');
 
 
     $todayDeliveries =
@@ -103,11 +103,7 @@
                 }
 
 
-                return substr(
-                    (string) $date,
-                    0,
-                    10
-                ) === $todayDate;
+                return \App\Support\ManilaTime::format($date, 'Y-m-d') === $todayDate;
 
             })
             ->count();
@@ -123,7 +119,7 @@
     */
 
     $currentMonth =
-        now()->format('Y-m');
+        \App\Support\ManilaTime::format(now(), 'Y-m');
 
 
     $monthlyDeliveries =
@@ -1149,18 +1145,14 @@
 
                                 @if($transactionDate)
 
-                                    {{ \Carbon\Carbon::parse(
-                                        $transactionDate
-                                    )->format('M d, Y') }}
+                                    {{ \App\Support\ManilaTime::format($transactionDate, 'M d, Y') }}
 
                                     <p
                                         class="mt-0.5
                                                text-[9px]
                                                text-[#A0AAA5]"
                                     >
-                                        {{ \Carbon\Carbon::parse(
-                                            $transactionDate
-                                        )->format('h:i A') }}
+                                        {{ \App\Support\ManilaTime::format($transactionDate, 'h:i A') }} PHT
                                     </p>
 
                                 @else
@@ -1396,9 +1388,7 @@
 
                                 @if($transactionDate)
 
-                                    {{ \Carbon\Carbon::parse(
-                                        $transactionDate
-                                    )->format('M d, Y') }}
+                                    {{ \App\Support\ManilaTime::format($transactionDate, 'M d, Y') }}
 
                                 @else
 

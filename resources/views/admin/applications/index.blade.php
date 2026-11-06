@@ -559,7 +559,7 @@ py-4
 text-sm
 ">
 
-{{ $application->created_at->format('M d, Y') }}
+{{ \App\Support\ManilaTime::format($application->created_at, 'M d, Y') }}
 
 </td>
 

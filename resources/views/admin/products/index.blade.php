@@ -61,7 +61,7 @@
                                     {{ $product->moderation_status->value }}
                                 </span>
                             </td>
-                            <td class="px-5 py-4 text-gray-500">{{ $product->created_at->format('M d, Y') }}</td>
+                            <td class="px-5 py-4 text-gray-500">{{ \App\Support\ManilaTime::format($product->created_at, 'M d, Y') }}</td>
                             <td class="px-5 py-4 text-right">
                                 <a href="{{ route('admin.products.show', $product) }}"
                                    class="font-semibold text-[#1F6F5B] hover:underline">Review</a>

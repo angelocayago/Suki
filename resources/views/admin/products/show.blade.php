@@ -107,7 +107,7 @@
                     @forelse($product->moderationEvents as $event)
                         <div class="border-l-2 border-[#BFD2C9] pl-3 text-sm">
                             <div class="font-semibold text-[#173F35]">{{ $event->previous_status?->value ?? 'NEW' }} → {{ $event->new_status->value }}</div>
-                            <div class="mt-1 text-xs text-gray-500">{{ $event->created_at->format('M d, Y h:i A') }} · {{ $event->actor->name ?? 'System' }}</div>
+                            <div class="mt-1 text-xs text-gray-500">{{ \App\Support\ManilaTime::format($event->created_at) PHT }} · {{ $event->actor->name ?? 'System' }}</div>
                             @if($event->reason)<p class="mt-2 text-gray-700">{{ $event->reason }}</p>@endif
                         </div>
                     @empty
