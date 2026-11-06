@@ -16,6 +16,37 @@ use Illuminate\Validation\ValidationException;
 
 class OrderWorkflowService
 {
+    /** Receive a whole purchase atomically, including historical parent-only orders. */
+    public function confirmReceipt(Order $order, ?User $buyer): void
+    {
+        DB::transaction(function () use ($order, $buyer) {
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+            if ($buyer && (! $buyer->hasRole('buyer') || (int) $locked->buyer_id !== (int) $buyer->id || $buyer->status !== 'active' || $buyer->is_suspended)) {
+                throw new AuthorizationException('Only the buyer who owns this purchase may confirm receipt.');
+            }
+            if (strtoupper($locked->status) === 'COMPLETED') {
+                return;
+            }
+            if (strtoupper($locked->status) !== 'DELIVERED') {
+                throw ValidationException::withMessages(['order' => 'Only a delivered purchase can be marked received.']);
+            }
+            $parcels = $locked->sellerOrders()->orderBy('id')->lockForUpdate()->get();
+            if ($parcels->isNotEmpty()) {
+                foreach ($parcels as $parcel) {
+                    if ($parcel->workflow_status !== OrderStatus::Completed) {
+                        $this->transition($parcel, $buyer, OrderStatus::Completed);
+                    }
+                }
+                $this->synchronizeParentOrder($locked);
+                return;
+            }
+            if (! $buyer && (! $locked->delivered_at || $locked->delivered_at->gt(now()->subDays(3)))) {
+                throw new AuthorizationException('Automatic completion requires a recorded delivery at least three days ago.');
+            }
+            $locked->update(['status' => 'COMPLETED', 'completed_at' => now()]);
+        });
+    }
+
     /**
      * Assign (or safely reassign) the rider responsible for collecting a
      * ready parcel.  This deliberately does not advance the ERP status: the
@@ -189,6 +220,10 @@ class OrderWorkflowService
             }
 
             $this->authorizeTransition($lockedOrder, $actor, $currentStatus, $nextStatus);
+
+            if ($nextStatus === OrderStatus::Completed && ($lockedOrder->status === 'cancelled' || $lockedOrder->shipment?->status === 'cancelled')) {
+                throw ValidationException::withMessages(['order' => 'A cancelled parcel cannot be marked received.']);
+            }
 
             if ($nextStatus === OrderStatus::Delivered && (! $lockedOrder->shipment?->proof_path || ($lockedOrder->order->payment_method === 'cod' && ! $lockedOrder->shipment->cod_collected))) {
                 throw ValidationException::withMessages(['proof_photo' => 'Delivery proof and COD collection confirmation are required.']);

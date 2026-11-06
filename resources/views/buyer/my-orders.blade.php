@@ -19,7 +19,7 @@
 
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">
-                        My Orders
+                        My Purchases
                     </h1>
 
                     <p class="mt-1 text-sm text-gray-500">
@@ -76,6 +76,16 @@
 
 
 
+        <nav aria-label="Purchase categories" class="mb-6 flex gap-2 overflow-x-auto pb-2">
+            @foreach($purchaseTabs as $key => $label)
+                <a href="{{ route('buyer.my-orders', ['tab' => $key]) }}" aria-current="{{ $purchaseTab === $key ? 'page' : 'false' }}"
+                   class="shrink-0 rounded-xl border px-4 py-3 text-sm font-semibold {{ $purchaseTab === $key ? 'border-[#1F6F5B] bg-[#1F6F5B] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#1F6F5B]' }}">
+                    {{ $label }} ({{ $purchaseCounts[$key] }})
+                </a>
+            @endforeach
+        </nav>
+        <p class="mb-5 text-sm text-gray-500">Cash on delivery purchases appear under To Ship or To Receive. Return/Refund options are available in View Order.</p>
+
         @if(empty($orders))
 
             {{-- ========================================================= --}}
@@ -94,12 +104,11 @@
                 </div>
 
                 <h2 class="mt-5 text-lg font-semibold text-gray-900">
-                    No orders yet
+                    {{ $purchaseTab === 'all' ? 'No orders yet' : 'No purchases in '.$purchaseTabs[$purchaseTab] }}
                 </h2>
 
                 <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-                    You haven't placed any orders yet.
-                    Start shopping and your purchases will appear here.
+                    Purchases matching this category will appear here.
                 </p>
 
                 <a
@@ -142,13 +151,13 @@
                                 'class' => 'bg-[#DDF3EC] text-[#1F6F5B]',
                             ],
 
-                            'seller_preparing' => [
+                            'confirmed', 'preparing', 'seller_preparing' => [
                                 'label' => 'Preparing Order',
                                 'icon' => 'package-check',
                                 'class' => 'bg-[#DDF3EC] text-[#1F6F5B]',
                             ],
 
-                            'ready_to_ship' => [
+                            'ready_for_pickup', 'ready_to_ship' => [
                                 'label' => 'Ready to Ship',
                                 'icon' => 'box',
                                 'class' => 'bg-[#DDF3EC] text-[#1F6F5B]',
@@ -160,7 +169,7 @@
                                 'class' => 'bg-blue-50 text-blue-600',
                             ],
 
-                            'in_transit' => [
+                            'at_sorting_center', 'sorted', 'assigned_to_rider', 'in_transit' => [
                                 'label' => 'In Transit',
                                 'icon' => 'truck',
                                 'class' => 'bg-blue-50 text-blue-600',
@@ -197,7 +206,7 @@
                             ],
 
                             default => [
-                                'label' => 'Order Placed',
+                                'label' => ucwords(str_replace('_', ' ', $status)),
                                 'icon' => 'package',
                                 'class' => 'bg-[#DDF3EC] text-[#1F6F5B]',
                             ],
@@ -234,6 +243,8 @@
                                     </span>
 
                                 </div>
+
+                                <p class="mt-2 text-sm font-medium text-[#1F6F5B]">{{ collect($order['seller_orders'])->pluck('seller_name')->join(' / ') ?: ($order['seller_name'] ?: 'Store unavailable') }}</p>
 
                                 <p class="mt-1 text-xs text-gray-500">
 
@@ -272,11 +283,7 @@
 
                                 <div class="flex gap-4 px-5 py-4 sm:px-6">
 
-                                    <img
-                                        src="{{ $item['image'] }}"
-                                        alt="{{ $item['name'] }}"
-                                        class="h-20 w-20 shrink-0 rounded-xl object-cover"
-                                    >
+                                    @include('buyer.partials.purchase-thumbnail', ['thumbnailSize' => 'h-20 w-20'])
 
 
                                     <div class="min-w-0 flex-1">
@@ -288,6 +295,9 @@
                                         <p class="mt-1 text-xs text-gray-500">
                                             Qty: {{ $item['quantity'] }}
                                         </p>
+                                        @if($item['variant_name'] || $item['variation'])
+                                            <p class="mt-1 break-words text-xs text-gray-500">{{ $item['variant_name'] ?: (is_array($item['variation']) ? implode(' / ', $item['variation']) : $item['variation']) }}</p>
+                                        @endif
 
                                         <p class="mt-2 text-sm font-semibold text-gray-900">
                                             ₱{{ number_format($item['price'], 2) }}
@@ -322,6 +332,8 @@
 
                         <div class="border-t border-gray-100 bg-gray-50/60 px-5 py-4 sm:px-6">
 
+                            @include('buyer.partials.purchase-delivery')
+
                             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
 
@@ -341,6 +353,7 @@
 
                                 {{-- ACTIONS --}}
                                 <div class="flex flex-wrap gap-2">
+                                    @include('buyer.partials.receipt-action')
                                     @if(!empty($order['has_review_actions']))
                                         <a href="{{ route('buyer.order-details', $order['id']) }}" class="inline-flex items-center justify-center rounded-xl border border-[#1F6F5B] px-4 py-2.5 text-xs font-semibold text-[#1F6F5B]">Review Purchase</a>
                                     @endif
@@ -383,4 +396,5 @@
 </div>
 
 @include('buyer.partials.cancellation-dialog')
+@include('buyer.partials.receipt-dialog')
 @endsection

@@ -45,7 +45,7 @@
                 @if(!empty($sellerOrder['has_proof']))
                     <a href="{{ route('shipments.delivery-proof', $sellerOrder['shipment_id']) }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B]">View delivery proof · {{ $sellerOrder['seller_name'] }}</a>
                 @endif
-                @if(in_array($sellerOrder['status'] ?? '', ['assigned_to_rider', 'out_for_delivery'], true))
+                @if(in_array($sellerOrder['status'] ?? '', ['picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered', 'completed', 'delivery_failed', 'rts_initiated', 'rts_returning', 'rts_completed'], true))
                     <a href="{{ route('buyer.seller-order.track', [$order['order_id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
                 @endif
             @endforeach
@@ -152,7 +152,7 @@
                 [
                     'key' => 'completed',
                     'label' => 'Completed',
-                    'description' => 'You have confirmed that you received your order.',
+                    'description' => 'Receipt was confirmed or the order completed automatically after delivery.',
                     'icon' => 'badge-check',
                 ],
 
@@ -633,11 +633,7 @@
 
                             <div class="flex gap-4 p-5">
 
-                                <img
-                                    src="{{ $item['image'] }}"
-                                    alt="{{ $item['name'] }}"
-                                    class="h-24 w-24 shrink-0 rounded-xl object-cover"
-                                >
+                                @include('buyer.partials.purchase-thumbnail', ['thumbnailSize' => 'h-24 w-24'])
 
                                 <div class="min-w-0 flex-1">
 
@@ -859,39 +855,7 @@
 
                     @endif
 
-                    {{-- CONFIRM ORDER RECEIVED --}}
-                    @if($status === 'delivered')
-
-                        <p class="mt-4 text-xs text-gray-500">Confirm receipt when your parcel arrives. Delivered parcels are automatically completed after three days.</p>
-
-                        <form
-                            action="{{ route('order.status.update', $order['id']) }}"
-                            method="POST"
-                            class="mt-6"
-                        >
-
-                            @csrf
-
-                            <input
-                                type="hidden"
-                                name="status"
-                                value="completed"
-                            >
-
-                            <button
-                                type="submit"
-                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#155244]"
-                            >
-
-                                <i data-lucide="badge-check" class="h-4 w-4"></i>
-
-                                Confirm Order Received
-
-                            </button>
-
-                        </form>
-
-                    @endif
+                    @include('buyer.partials.receipt-action')
 
                     @include('buyer.partials.cancellation-action')
 
@@ -1027,7 +991,6 @@
                                 <i data-lucide="badge-check" class="mt-0.5 h-4 w-4 shrink-0 text-green-600"></i>
 
                                 <p class="text-xs leading-5 text-green-700">
-                                    You have confirmed that you received your order.
                                     This order is now completed.
                                 </p>
 
@@ -1049,5 +1012,6 @@
 
 {{-- ========================================================= --}}
 @include('buyer.partials.cancellation-dialog')
+@include('buyer.partials.receipt-dialog')
 
 @endsection

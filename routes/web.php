@@ -1006,6 +1006,7 @@ $orderToViewArray = function (Order $order): array {
         'cancel_rejection' => app(\App\Services\OrderCancellationService::class)->rejectionReason($order),
         'order_id' => $order->id,
         'id' => $order->order_number,
+        'seller_name' => $order->seller?->full_name,
 
         'seller_orders' => $order->sellerOrders
             ->map(fn ($sellerOrder) => [
@@ -1013,6 +1014,8 @@ $orderToViewArray = function (Order $order): array {
                 'shipment_id' => $sellerOrder->shipment?->id,
                 'has_proof' => (bool) $sellerOrder->shipment?->proof_path,
                 'seller_name' => $sellerOrder->seller?->name ?? 'Seller',
+                'delivered_at' => $sellerOrder->delivered_at?->format('Y-m-d H:i:s'),
+                'auto_complete_at' => $sellerOrder->delivered_at?->copy()->addDays(3)->format('Y-m-d H:i:s'),
                 'review_actions' => $reviewActions['sellers'][$sellerOrder->id] ?? null,
                 'status' => $sellerOrder->status === 'cancelled'
                     ? 'cancelled'
@@ -1901,7 +1904,7 @@ Route::get(
 
 
         $order =
-            Order::with(['items', 'sellerOrders.seller'])
+            Order::with(['items', 'sellerOrders.seller', 'sellerOrders.shipment'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -1960,7 +1963,7 @@ Route::get(
 
 
         $databaseOrders =
-            Order::with(['items', 'sellerOrders.seller'])
+            Order::with(['items', 'sellerOrders.seller', 'sellerOrders.shipment'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -1987,10 +1990,24 @@ Route::get(
         }
 
 
+        $purchaseTabs = \App\Support\BuyerPurchases::tabs();
+        $purchaseTab = request()->query('tab', 'all');
+        abort_unless(is_string($purchaseTab) && isset($purchaseTabs[$purchaseTab]), 422, 'Unknown purchase category.');
+        $purchaseCounts = array_fill_keys(array_keys($purchaseTabs), 0);
+        foreach ($orders as $purchase) {
+            $purchaseCounts['all']++;
+            $purchaseCounts[\App\Support\BuyerPurchases::category($purchase)]++;
+        }
+        if ($purchaseTab !== 'all') {
+            $orders = array_filter($orders, fn ($purchase) => \App\Support\BuyerPurchases::category($purchase) === $purchaseTab);
+        }
+
         return view(
             'buyer.my-orders',
             [
-
+                'purchaseTabs' => $purchaseTabs,
+                'purchaseTab' => $purchaseTab,
+                'purchaseCounts' => $purchaseCounts,
                 'orders' =>
                     $orders,
             ]
@@ -2021,7 +2038,7 @@ Route::get(
 
 
         $order =
-            Order::with(['items', 'sellerOrders.seller'])
+            Order::with(['items', 'sellerOrders.seller', 'sellerOrders.shipment'])
                 ->where(
                     'buyer_id',
                     auth()->id()
@@ -2184,6 +2201,18 @@ Route::post(
                 $order->status
             );
 
+        $user = auth()->user();
+        if ($user->hasRole('buyer')) {
+            abort_unless((int) $order->buyer_id === (int) $user->id, 403);
+            abort_unless($request->status === 'completed', 422, 'Buyers may only confirm receipt.');
+            try {
+                app(\App\Services\OrderWorkflowService::class)->confirmReceipt($order, $user);
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                return back()->with('error', collect($exception->errors())->flatten()->first());
+            }
+            return back()->with('success', 'Order received. Your purchase is Completed.');
+        }
+
 
         if (
             $currentStatus
@@ -2216,13 +2245,9 @@ Route::post(
                 $request->status
             );
 
-        $user = auth()->user();
         $allowedTransition = false;
 
-        if ($user->hasRole('buyer')) {
-            abort_unless((int) $order->buyer_id === (int) $user->id, 403);
-            $allowedTransition = $currentStatus === 'delivered' && $newStatus === 'completed';
-        } elseif ($user->hasRole('seller')) {
+        if ($user->hasRole('seller')) {
             abort_unless((int) $order->seller_id === (int) $user->id, 403);
             $sellerTransitions = [
                 'placed' => 'confirmed',
@@ -2288,40 +2313,6 @@ Route::post(
             });
             return back()->with('success', 'Order status updated successfully.');
         }
-
-        // Database-backed orders must complete through the centralized ERP
-        // workflow so every seller order, shipment, and the parent order stay
-        // synchronized. Keep the direct parent update below for legacy orders
-        // that do not have seller-order fulfillment records.
-        if (
-            $user->hasRole('buyer') &&
-            $newStatus === 'completed' &&
-            $order->sellerOrders()->exists()
-        ) {
-            DB::transaction(function () use ($order, $user) {
-                Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
-                $sellerOrders = $order->sellerOrders()
-                    ->lockForUpdate()
-                    ->get();
-
-                foreach ($sellerOrders as $sellerOrder) {
-                    if ($sellerOrder->workflow_status === \App\Enums\OrderStatus::Completed) {
-                        continue;
-                    }
-                    app(\App\Services\OrderWorkflowService::class)->transition(
-                        $sellerOrder,
-                        $user,
-                        \App\Enums\OrderStatus::Completed
-                    );
-                }
-            });
-
-            return back()->with(
-                'success',
-                'Order status updated successfully.'
-            );
-        }
-
 
         $updates = [
 
