@@ -76,6 +76,8 @@ Route::middleware('auth')->prefix('notifications')->name('notifications.')->grou
     Route::get('/', [NotificationInboxController::class, 'index'])->name('index');
     Route::get('/inbox', [NotificationInboxController::class, 'page'])->name('page');
     Route::get('/unread-count', [NotificationInboxController::class, 'unreadCount'])->name('unread-count');
+    Route::get('/preview', [NotificationInboxController::class, 'preview'])->middleware(['not_suspended', 'approved', 'role:buyer'])->name('preview');
+    Route::post('/{notification}/open', [NotificationInboxController::class, 'open'])->middleware(['not_suspended', 'approved', 'role:buyer'])->name('open');
     Route::post('/read-all', [NotificationInboxController::class, 'markAllRead'])->name('read-all');
     Route::post('/{notification}/read', [NotificationInboxController::class, 'markRead'])->name('read');
 });

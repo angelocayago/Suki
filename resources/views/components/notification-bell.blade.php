@@ -1,5 +1,9 @@
 @props(['href' => null, 'label' => 'Notifications'])
 
+@if(auth()->user()?->isBuyer() && $href === null)
+    @include('buyer.partials.notification-bell')
+@else
+
 @php
     try {
         $notificationUnreadCount = auth()->user()?->unreadNotifications()->count() ?? 0;
@@ -19,3 +23,4 @@
         <span class="suki-notification-badge" aria-hidden="true">{{ $notificationUnreadCount > 99 ? '99+' : $notificationUnreadCount }}</span>
     @endif
 </a>
+@endif

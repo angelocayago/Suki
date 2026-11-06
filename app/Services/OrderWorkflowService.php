@@ -44,6 +44,13 @@ class OrderWorkflowService
                 throw new AuthorizationException('Automatic completion requires a recorded delivery at least three days ago.');
             }
             $locked->update(['status' => 'COMPLETED', 'completed_at' => now()]);
+            if ($locked->buyer_id) {
+                app(DomainNotificationService::class)->afterCommit(
+                    $locked->buyer_id, 'Order completed',
+                    'Order '.$locked->order_number.($buyer ? ': Your purchase is complete.' : ': Your purchase was automatically completed three days after delivery.'),
+                    ['order_id' => $locked->id, 'status' => 'COMPLETED']
+                );
+            }
         });
     }
 
@@ -318,7 +325,16 @@ class OrderWorkflowService
             $message = 'Order status: '.str_replace('_', ' ', strtolower($nextStatus->value)).'.';
             $notificationContext = ['seller_order_id' => $lockedOrder->id, 'status' => $nextStatus->value];
             if ($lockedOrder->order->buyer_id) {
-                $notifications->afterCommit($lockedOrder->order->buyer_id, 'Order update', $message, $notificationContext);
+                [$buyerTitle, $buyerMessage] = match ($nextStatus) {
+                    OrderStatus::Confirmed => ['Order confirmed', 'The seller confirmed your order.'],
+                    OrderStatus::PickedUp => ['Order shipped', 'Your parcel was handed to logistics.'],
+                    OrderStatus::OutForDelivery => ['Out for delivery', 'Your parcel is on its way to you.'],
+                    OrderStatus::Delivered => ['Order delivered', 'Your parcel was delivered. Confirm receipt in My Purchases.'],
+                    OrderStatus::Completed => ['Order completed', $actor === null ? 'Your delivered items were automatically completed three days after delivery.' : 'Receipt confirmed for this store’s items.'],
+                    default => ['Order update', $message],
+                };
+                $notifications->afterCommit($lockedOrder->order->buyer_id, $buyerTitle, 'Order '.$lockedOrder->order->order_number.': '.$buyerMessage,
+                    $notificationContext + ['order_id' => $lockedOrder->order_id]);
             }
             if ($lockedOrder->seller?->user_id) {
                 $notifications->afterCommit($lockedOrder->seller->user_id, 'Order update', $message, $notificationContext);

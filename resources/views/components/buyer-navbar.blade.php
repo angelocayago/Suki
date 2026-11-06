@@ -196,6 +196,7 @@
 
                 @if(auth()->check() && auth()->user()->isBuyer())
                     <x-theme-toggle />
+                    <x-notification-bell />
                 @endif
 
 
