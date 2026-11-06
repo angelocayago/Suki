@@ -28,5 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Conversation::class, ConversationPolicy::class);
+        \Illuminate\Support\Facades\Storage::extend('chat_private_s3',fn($app,$config)=>
+            \App\Filesystem\PrivateChatS3Filesystem::make($app['filesystem'],$config));
     }
 }

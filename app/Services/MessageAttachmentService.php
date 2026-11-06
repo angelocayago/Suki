@@ -47,6 +47,21 @@ class MessageAttachmentService
         return $this->available() && $this->uploadLimitsSufficient();
     }
 
+    /** Explain the first blocking gate without querying undeployed schema. */
+    public function uploadUnavailableReason(): ?string
+    {
+        if (!filter_var(config('messaging.attachments_enabled', false), FILTER_VALIDATE_BOOLEAN)) return 'Photo sharing has not been enabled yet. You can still send text messages.';
+        if (!$this->databaseDeploymentVerified()) return 'Photo sharing is awaiting deployment verification. You can still send text messages.';
+        if (!$this->privateConfiguration()) return 'Private photo storage must be configured before sharing photos. You can still send text messages.';
+        if (!extension_loaded('gd') || !extension_loaded('fileinfo')
+            || !function_exists('imagecreatefromjpeg') || !function_exists('imagejpeg')
+            || !function_exists('imagecreatefrompng') || !function_exists('imagepng')
+            || !function_exists('imagecreatefromwebp') || !function_exists('imagewebp')) return 'Photo processing is unavailable on this server. You can still send text messages.';
+        if (!Schema::hasTable('message_attachments')) return 'Photo sharing is awaiting its attachment database setup. You can still send text messages.';
+        if (!$this->uploadLimitsSufficient()) return 'Photo uploads exceed the server upload allowance. You can still send text messages.';
+        return null;
+    }
+
     public function uploadLimitsSufficient(): bool
     {
         $bytes=function (string $value): int {
@@ -89,6 +104,7 @@ class MessageAttachmentService
     private function privateConfiguration(): bool
     {
         $disk=config('filesystems.disks.'.self::DISK, []);
+        if (($disk['driver'] ?? null)==='chat_private_s3') return \App\Filesystem\PrivateChatS3Filesystem::configured($disk);
         if (($disk['driver'] ?? null)!=='local' || ($disk['visibility'] ?? null)!=='private' || ($disk['serve'] ?? true)!==false || empty($disk['root'])) return false;
         $resolve=fn (string $path) => strtolower(rtrim(str_replace('\\','/',realpath($path) ?: ((realpath(dirname($path)) ?: dirname($path)).'/'.basename($path))),'/'));
         $root=$resolve($disk['root']);
@@ -205,8 +221,8 @@ class MessageAttachmentService
     public function cleanup(array $paths): void
     {
         foreach ($paths as $path) {
-            try { Storage::disk(self::DISK)->delete($path); }
-            catch (Throwable $exception) { report($exception); }
+            try { if(!Storage::disk(self::DISK)->delete($path)) \Illuminate\Support\Facades\Log::warning('Chat attachment cleanup requires review.'); }
+            catch (Throwable $exception) { \Illuminate\Support\Facades\Log::warning('Chat attachment cleanup failed.'); }
         }
     }
 

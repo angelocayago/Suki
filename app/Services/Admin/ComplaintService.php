@@ -57,6 +57,16 @@ class ComplaintService
             $this->ensureRequiredText($subject, 'subject');
             $this->ensureRequiredText($description, 'description');
 
+            // Resolve financial identities without locks, then lock Sellers before
+            // resolveContext takes parent/order locks. Ownership is revalidated there.
+            $sellerOrderId = $sellerOrder?->id ?? $shipment?->seller_order_id;
+            $financialOrders = SellerOrder::query();
+            if ($sellerOrderId) $financialOrders->whereKey($sellerOrderId);
+            elseif ($order) $financialOrders->where('order_id',$order->id);
+            else $financialOrders->whereRaw('1 = 0');
+            $sellerIds = $financialOrders->pluck('seller_id')->push($seller?->id)->push($product?->seller_id)->filter()->unique()->sort()->values();
+            Seller::whereIn('id',$sellerIds)->orderBy('id')->lockForUpdate()->get();
+
             $context = $this->resolveContext(
                 $order,
                 $sellerOrder,
@@ -66,6 +76,9 @@ class ComplaintService
                 $rider,
                 $logisticsProvider
             );
+            if ($context['seller'] && !$sellerIds->contains($context['seller']->id)) {
+                throw ValidationException::withMessages(['complaint'=>'Financial ownership changed; retry the complaint.']);
+            }
             $complainantRole = $this->authorizeComplainant($actor, $context);
 
             $complaint = Complaint::create([
@@ -292,7 +305,11 @@ class ComplaintService
         return DB::transaction(function () use ($complaint, $actor, $next, $notes, $action) {
             $this->ensureAdmin($actor);
             $this->ensureRequiredText($notes, 'resolution_notes');
+            $reference = Complaint::findOrFail($complaint->id);
+            $financialSellerId = $reference->seller_order_id ? SellerOrder::whereKey($reference->seller_order_id)->value('seller_id') : null;
+            if ($financialSellerId) Seller::whereKey($financialSellerId)->lockForUpdate()->firstOrFail();
             $locked = $this->lockedActiveComplaint($complaint);
+            if ($locked->seller_order_id !== $reference->seller_order_id) throw ValidationException::withMessages(['complaint'=>'Complaint context changed; retry the decision.']);
             $previous = $locked->status;
             $this->ensureTransition($previous, $next);
 
@@ -312,7 +329,7 @@ class ComplaintService
             // Releasing an earning is an explicit consequence of resolving/dismissing
             // a complaint, never a side effect of a wallet page view.
             if ($locked->seller_order_id) {
-                app(SellerWalletService::class)->reconcileSellerOrder(
+                app(SellerWalletService::class)->reconcileSellerOrderResult(
                     SellerOrder::query()->findOrFail($locked->seller_order_id)
                 );
             }

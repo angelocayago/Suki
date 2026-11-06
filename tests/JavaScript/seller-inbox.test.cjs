@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../../resources/views/seller/messages/script.blade.php'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 const message=(id,body='Incoming',sender='22',day='2026-11-01')=>({id:Number(id),body,sent_at:day+'T01:00:00+08:00',sender:{id:Number(sender),name:'Buyer Gagsti',role_context:sender==='11'?'SELLER':'BUYER'},display:{id:String(id),sender_id:sender,day,day_label:'Today',time:'1:00 AM',relative:'1h ago',full_time:'Nov 1, 2026 1:00 AM Manila'}});
 
-function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(initial.at(-1)??0),imageApi=null}={}) {
+function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(initial.at(-1)??0),imageApi=null,photoApi=null}={}) {
     const document={hidden,handlers:{}};
     function element(tag='div') {
         const node={tag,children:[],parentElement:null,dataset:{},handlers:{},className:'',style:{setProperty(){}},hidden:false,disabled:false,textContent:'',value:'',removed:false,
@@ -25,7 +25,7 @@ function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(init
     const ids={};for(const id of ['sellerInbox','inboxThread','inboxHistory','inboxMessages','inboxLoadOlder','inboxOlderStatus','inboxNewMessages','inboxComposer','inboxBody','inboxSend','inboxSendError','inboxPollNotice','inboxPollError','inboxRetry','inboxClosed','inboxConversationStatus'])ids[id]=element();
     const {sellerInbox:inbox,inboxThread:thread,inboxHistory:history,inboxMessages:messages,inboxComposer:form,inboxBody:body,inboxSend:send}=ids;
     inbox.append(thread);thread.append(history,form);history.append(messages);form.append(body,send);send.append(element('span'));
-    Object.assign(thread.dataset,{lastId:cursor,userId:'11',status:'ACTIVE',pollUrl:'https://shop.test/seller/messages/owned/poll',readUrl:'https://shop.test/seller/messages/owned/read',csrf:'csrf-fixture'});form.action='https://shop.test/seller/messages/owned/send';body.scrollHeight=42;
+    Object.assign(thread.dataset,{reference:'owned',lastId:cursor,userId:'11',status:'ACTIVE',pollUrl:'https://shop.test/seller/messages/owned/poll',readUrl:'https://shop.test/seller/messages/owned/read',csrf:'csrf-fixture'});form.action='https://shop.test/seller/messages/owned/send';body.scrollHeight=42;
     const selected=element('a'),badge=element('span'),preview=element('span');selected.className='inbox-row is-selected is-unread';badge.dataset.inboxUnread='';preview.className='inbox-row-preview';selected.append(badge,preview);inbox.append(selected);
     ids.inboxNewMessages.hidden=true;ids.inboxPollNotice.hidden=true;
     for(const id of initial){const row=element('article');row.className='inbox-message';Object.assign(row.dataset,{messageId:String(id),senderId:'22',day:'2026-11-01',dayLabel:'Today'});messages.append(row);}
@@ -38,7 +38,7 @@ function harness({hidden=false,initial=[1,2,3,4,5,6,7,8,9,10],cursor=String(init
     const response=(data={},status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
     const fire=async(node,type,extra={})=>{const event={preventDefault(){this.prevented=true;},...extra};for(const fn of node.handlers[type]??[])await fn(event);return event;};
     let submits=0;form.requestSubmit=()=>{submits++;return fire(form,'submit');};
-    vm.runInNewContext(source,{document,URL,window:{SukiMessageImages:imageApi,innerHeight:900,visualViewport:null,location:{origin:'https://shop.test'},addEventListener(type,fn){(windowHandlers[type]??=[]).push(fn);}},
+    vm.runInNewContext(source,{document,URL,window:{SukiChatPhoto:photoApi,SukiMessageImages:imageApi,innerHeight:900,visualViewport:null,location:{origin:'https://shop.test'},addEventListener(type,fn){(windowHandlers[type]??=[]).push(fn);}},
         setTimeout(fn,delay){const id=++timerId;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);},
         async fetch(url,options){const kind=new URL(url).pathname.split('/').at(-1);calls.push({url:String(url),options,kind});const next=replies[kind].shift();if(next instanceof Error)throw next;return next??response(kind==='poll'?{messages:[],conversation_status:'ACTIVE'}:{},kind==='read'?204:200);},
     });
@@ -149,7 +149,7 @@ test('composer accounts for borders, grows to five lines, then scrolls and shrin
     assert.equal(h.body.style.height,'44px');assert.equal(h.body.style.overflowY,'hidden');assert.equal(h.body.scrollTop,0);assert.equal(h.send.disabled,true);
 });
 
-test('Seller stays text-only even if an upload adapter is present',async()=>{
+test('Seller text sends remain unchanged without a selected photo or legacy upload adapter',async()=>{
     let mounted=false;const imageApi={attach(){mounted=true;throw Error('Uploads must not mount');}};
     const h=harness({imageApi});await h.flush();assert.equal(mounted,false);assert.equal(h.send.disabled,true);
     await h.sendText('');assert.equal(h.calls.filter(c=>c.kind==='send').length,0);
@@ -157,4 +157,17 @@ test('Seller stays text-only even if an upload adapter is present',async()=>{
     const request=h.calls.find(c=>c.kind==='send');assert.equal(request.options.headers['Content-Type'],'application/json');
     assert.deepEqual(JSON.parse(request.options.body),{body:'Text only'});assert.equal(h.body.value,'');
     for(const event of ['paste','drop','dragover'])assert.equal(h.thread.handlers[event],undefined);
+});
+
+test('Seller image-only and captioned sends preserve multipart files and private gallery rendering',async()=>{
+    for(const caption of ['', 'Seller caption']){
+        let selected=true;const busy=[],galleries=[];
+        const photoApi={hasPhoto:()=>selected,busy(form,value){busy.push(value);},clear(){selected=false;},payload(form,body){const data=new FormData();data.set('body',body);data.append('images[]',new Blob(['synthetic payload'],{type:'image/png'}),'seller.png');return data;}};
+        const imageApi={gallery(files,reference){galleries.push({files,reference});const node=h.document.createElement('div');node.className='message-image-gallery';return node;}};
+        const h=harness({photoApi,imageApi});await h.flush();h.body.value=caption;await h.fire(h.body,'input');assert.equal(h.send.disabled,false);
+        const sent={...message(11,caption,'11'),attachments:[{id:1,url:'https://shop.test/seller/messages/owned/attachments/1',thumbnail_url:'https://shop.test/seller/messages/owned/attachments/1/thumbnail',download_url:'https://shop.test/seller/messages/owned/attachments/1/download'}]};
+        h.replies.send.push(h.response({message:sent},201));await h.fire(h.form,'submit');const request=h.calls.find(c=>c.kind==='send');
+        assert.ok(request.options.body instanceof FormData);assert.equal(request.options.body.get('body'),caption);assert.equal(request.options.body.get('images[]').name,'seller.png');assert.equal(request.options.headers['Content-Type'],undefined);
+        assert.equal(selected,false);assert.ok(busy.includes(true));assert.equal(busy.at(-1),false);assert.equal(galleries.length,1);assert.equal(galleries[0].reference,'owned');assert.equal(galleries[0].files[0].id,1);
+    }
 });

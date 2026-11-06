@@ -1,5 +1,22 @@
 <?php
 
+$chatPhotoDriver=env('CHAT_PHOTOS_STORAGE_DRIVER','local');
+$chatPhotoDisk=$chatPhotoDriver==='s3' ? [
+    'driver'=>'chat_private_s3',
+    'endpoint'=>env('CHAT_PHOTOS_S3_ENDPOINT'),
+    'region'=>env('CHAT_PHOTOS_S3_REGION'),
+    'bucket'=>env('CHAT_PHOTOS_S3_BUCKET'),
+    'key'=>env('CHAT_PHOTOS_S3_ACCESS_KEY_ID'),
+    'secret'=>env('CHAT_PHOTOS_S3_SECRET_ACCESS_KEY'),
+    'private_bucket_verified'=>env('CHAT_PHOTOS_S3_PRIVATE_BUCKET_VERIFIED',false),
+    'use_path_style_endpoint'=>true,'visibility'=>'private','serve'=>false,'throw'=>true,
+] : [
+    'driver'=>$chatPhotoDriver,
+    'root'=>env('MESSAGE_ATTACHMENTS_ROOT',storage_path('app/private/message-attachments')),
+    'visibility'=>'private','directory_visibility'=>'private','serve'=>false,'throw'=>true,
+    'permissions'=>['file'=>['private'=>0600],'dir'=>['private'=>0700]],
+];
+
 return [
 
     /*
@@ -30,15 +47,7 @@ return [
 
     'disks' => [
 
-        'message_attachments' => [
-            'driver' => 'local',
-            'root' => env('MESSAGE_ATTACHMENTS_ROOT', storage_path('app/private/message-attachments')),
-            'visibility' => 'private',
-            'directory_visibility' => 'private',
-            'serve' => false,
-            'throw' => true,
-            'permissions' => ['file' => ['private' => 0600], 'dir' => ['private' => 0700]],
-        ],
+        'message_attachments' => $chatPhotoDisk,
 
         'delivery_proofs' => [
             'driver' => 'local',

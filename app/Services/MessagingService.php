@@ -269,7 +269,7 @@ class MessagingService
                 if (!($exception instanceof ValidationException)
                     && !($exception instanceof \Illuminate\Auth\Access\AuthorizationException)
                     && !($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface)) {
-                    report($exception);
+                    \Illuminate\Support\Facades\Log::warning('Chat attachment persistence failed.');
                     throw ValidationException::withMessages(['images'=>'Images could not be saved. Please try again.']);
                 }
             }

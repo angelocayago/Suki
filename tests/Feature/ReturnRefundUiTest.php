@@ -27,7 +27,7 @@ class ReturnRefundUiTest extends TestCase
         $this->actingAs($buyer)->get(route('buyer.return-refunds.index'))
             ->assertOk()->assertSee('RR-'.$request->id)->assertDontSee('RR-'.$otherRequest->id);
         $this->actingAs($buyer)->get(route('buyer.return-refunds.show', $request))
-            ->assertOk()->assertSee('Approved — Refund Due')->assertSee('₱12.00')->assertDontSee('Paid')->assertDontSee('Disbursed');
+            ->assertOk()->assertSee('Approved — Refund Due')->assertSee('₱12.00')->assertSee('Payment Pending')->assertSee('No verified payment has been recorded.');
     }
 
     public function test_buyer_cannot_view_another_buyers_return_detail(): void
@@ -45,7 +45,7 @@ class ReturnRefundUiTest extends TestCase
         $order = $item->order;
 
         $this->actingAs($buyer)->get(route('buyer.order-details', $order->order_number))
-            ->assertOk()->assertSee('Return / Refund');
+            ->assertOk()->assertSee('View Request');
 
         [$ineligibleBuyer, , $ineligibleItem] = $this->request('SUBMITTED', 'PLACED');
         $this->actingAs($ineligibleBuyer)->get(route('buyer.order-details', $ineligibleItem->order->order_number))
@@ -60,7 +60,7 @@ class ReturnRefundUiTest extends TestCase
         $this->actingAs($sellerUser)->get(route('seller.return-refunds.index'))
             ->assertOk()->assertSee($request->buyer->name)->assertDontSee($otherRequest->buyer->name);
         $this->actingAs($sellerUser)->get(route('seller.return-refunds.show', $otherRequest))->assertNotFound();
-        $this->actingAs($sellerUser)->patch(route('seller.return-refunds.respond', $request), ['recommendation' => 'APPROVE', 'note' => 'Item condition supports approval.'])
+        $this->actingAs($sellerUser)->patchJson(route('seller.return-refunds.respond', $request), ['recommendation' => 'APPROVE', 'note' => 'Item condition supports approval.'])
             ->assertOk();
         $this->assertDatabaseHas('return_refund_requests', ['id' => $request->id, 'status' => 'SELLER_RESPONDED', 'seller_recommendation' => 'APPROVE']);
 
@@ -74,14 +74,18 @@ class ReturnRefundUiTest extends TestCase
     public function test_admin_queue_detail_and_canonical_final_decision_are_available_only_to_admins(): void
     {
         [$buyer, $request] = $this->request();
+        config(['returns.backend_enabled'=>true]);
+        $this->verifiedPurchase($request);
+        $request->update(['seller_recommendation'=>'APPROVE']);
+        \App\Models\ReturnRefundWorkflow::create(['return_refund_request_id'=>$request->id,'return_address'=>'Verified test return address','destination'=>['method'=>'GCASH','holder'=>'Test','account'=>'09123456789'],'parcel_status'=>'RECEIVED','courier'=>'Test courier','tracking_number'=>'RETURN-TEST','received_at'=>now(),'received_by'=>$request->seller->user_id,'inspection_result'=>'ACCEPTED']);
         $admin = $this->user('admin');
 
         $this->actingAs($admin)->get(route('admin.return-refunds.index'))->assertOk()->assertSee('RR-'.$request->id);
         $this->actingAs($admin)->get(route('admin.return-refunds.show', $request))->assertOk()->assertSee('Finalize decision');
         $this->actingAs($buyer)->get(route('admin.return-refunds.index'))->assertForbidden();
         $this->actingAs($buyer)->get(route('admin.return-refunds.show', $request))->assertForbidden();
-        $this->actingAs($admin)->patch(route('admin.return-refunds.decide', $request), ['decision' => 'APPROVED', 'reason' => 'Evidence reviewed.'])->assertOk();
-        $this->actingAs($admin)->get(route('admin.return-refunds.show', $request->fresh()))->assertOk()->assertSee('Approved — Refund Due')->assertDontSee('Paid')->assertDontSee('Disbursed');
+        $this->actingAs($admin)->patchJson(route('admin.return-refunds.decide', $request), ['decision' => 'APPROVED', 'reason' => 'Evidence reviewed.'])->assertOk();
+        $this->actingAs($admin)->get(route('admin.return-refunds.show', $request->fresh()))->assertOk()->assertSee('Approved — Refund Due')->assertSee('Payment Pending')->assertSee('No verified payment has been recorded.');
     }
 
     public function test_private_evidence_is_available_to_participants_and_admin_only(): void
@@ -137,6 +141,19 @@ class ReturnRefundUiTest extends TestCase
         $user->roles()->syncWithoutDetaching([Role::firstOrCreate(['name' => $role])->id]);
 
         return $user;
+    }
+
+    private function verifiedPurchase(ReturnRefundRequest $request): void
+    {
+        $category=\App\Models\Category::create(['name'=>'Verified','slug'=>'verified','is_active'=>true]);
+        $product=\App\Models\Product::create(['seller_id'=>$request->seller_id,'category_id'=>$category->id,'name'=>'Verified item','slug'=>'verified-item','is_active'=>true,'moderation_status'=>'APPROVED']);
+        $variant=\App\Models\ProductVariant::create(['product_id'=>$product->id,'sku'=>'VERIFIED','name'=>'Purchased variant','price_minor'=>1200,'stock'=>1,'is_active'=>true]);
+        $request->item->update(['product_id'=>$product->id,'product_variant_id'=>$variant->id]);
+        $provider=\App\Models\LogisticsProvider::create(['user_id'=>$this->user('logistics')->id,'name'=>'Verified provider','slug'=>'verified-provider','status'=>'approved']);
+        $rider=\App\Models\Rider::create(['user_id'=>$this->user('rider')->id,'logistics_provider_id'=>$provider->id,'vehicle_type'=>'motorcycle','plate_no'=>'TEST','is_active'=>true]);
+        $shipment=\App\Models\Shipment::create(['seller_order_id'=>$request->seller_order_id,'logistics_provider_id'=>$provider->id,'rider_id'=>$rider->id,'tracking_code'=>'VERIFIED','workflow_status'=>'DELIVERED','status'=>'delivered','fee_minor'=>0,'cod_amount_minor'=>1200,'cod_collected'=>true,'cod_collected_minor'=>1200,'cod_collected_at'=>now(),'attempts'=>0,'proof_path'=>'isolated/proof.jpg','proof_delivered_at'=>now(),'delivered_by'=>$rider->user_id]);
+        \App\Models\DeliveryEvent::create(['shipment_id'=>$shipment->id,'status'=>'COD_COLLECTED','attempt'=>0,'user_id'=>$rider->user_id,'occurred_at'=>now()]);
+        app(\App\Services\CodRemittanceService::class)->createLiability($shipment->fresh(['rider']));
     }
 
     private function sellerUser(): User

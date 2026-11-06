@@ -25,19 +25,19 @@ class MessageAttachmentController extends MessagingController
         $path=$files->safePath($record,$conversation->reference,$thumbnail);
         abort_unless($path,404);
         try { $storage=Storage::disk(MessageAttachmentService::DISK); $exists=$storage->exists($path); }
-        catch (\Throwable $exception) { report($exception); abort(503,'Image temporarily unavailable.'); }
+        catch (\Throwable $exception) { \Illuminate\Support\Facades\Log::warning('Private chat image lookup failed.'); abort(503,'Image temporarily unavailable.'); }
         abort_unless($exists,404);
         $extension=match ($record->mime_type) {'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'};
         $filename='message-image-'.$record->id.($thumbnail ? '-thumbnail' : '').'.'.$extension;
         $headers=['Content-Type'=>$record->mime_type,'X-Content-Type-Options'=>'nosniff','Cache-Control'=>'private, no-store, max-age=0',
             'Content-Security-Policy'=>"default-src 'none'; sandbox"];
         try { $stream=$storage->readStream($path); }
-        catch (\Throwable $exception) { report($exception); abort(503,'Image temporarily unavailable.'); }
+        catch (\Throwable $exception) { \Illuminate\Support\Facades\Log::warning('Private chat image read failed.'); abort(503,'Image temporarily unavailable.'); }
         abort_unless(is_resource($stream),404);
         $headers['Content-Disposition']=HeaderUtils::makeDisposition($request->routeIs('*.attachments.download') ? 'attachment' : 'inline',$filename);
         return response()->stream(function () use ($stream) {
             try { @fpassthru($stream); }
-            catch (\Throwable $exception) { report($exception); }
+            catch (\Throwable $exception) { \Illuminate\Support\Facades\Log::warning('Private chat image stream failed.'); }
             finally { fclose($stream); }
         },200,$headers);
     }

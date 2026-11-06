@@ -45,10 +45,11 @@
         @if($errors->has('body') || $errors->has('conversation'))<p class="inbox-error" role="alert">{{ $errors->first('body') ?: $errors->first('conversation') }}</p>@endif
         <p id="inboxSendError" class="inbox-error" role="alert" hidden></p>
         <p id="inboxClosed" class="inbox-closed" @if($isActive) hidden @endif>This conversation is {{ strtolower($conversation->status->value) }} and cannot receive new messages.</p>
-        <form id="inboxComposer" action="{{ route('seller.messages.store',$conversation->reference) }}" method="POST" @if(!$isActive) hidden @endif>
+        <form id="inboxComposer" class="suki-chat-composer" enctype="multipart/form-data" action="{{ route('seller.messages.store',$conversation->reference) }}" method="POST" @if(!$isActive) hidden @endif>
             @csrf
+            @include('messages.partials.photo-composer')
             <label class="inbox-sr-only" for="inboxBody">Message</label>
-            <textarea id="inboxBody" name="body" rows="1" maxlength="10000" required placeholder="Write a message…">{{ old('body') }}</textarea>
+            <textarea id="inboxBody" name="body" rows="1" maxlength="10000" @required(!($canAttach ?? false)) placeholder="Write a message…">{{ old('body') }}</textarea>
             <button type="submit" id="inboxSend" aria-label="Send message"><i data-lucide="send" aria-hidden="true"></i><span>Send</span></button>
         </form>
         <noscript><p>Messages send using the standard form. Live updates and older history require JavaScript.</p></noscript>

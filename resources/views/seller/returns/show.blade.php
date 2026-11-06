@@ -29,7 +29,7 @@
             @if($return->status === 'SUBMITTED')
                 <form id="rrRecommendation" method="POST" action="{{ route('seller.return-refunds.respond', $return) }}" class="rr-recommendation">
                     @csrf @method('PATCH')
-                    <label for="rrRecommendationValue">Recommendation <span aria-hidden="true">*</span></label><select id="rrRecommendationValue" name="recommendation" required><option value="APPROVE" @selected(old('recommendation') === 'APPROVE')>Recommend approval</option><option value="REJECT" @selected(old('recommendation') === 'REJECT')>Recommend rejection</option></select>
+                    <label for="rrRecommendationValue">Recommendation <span aria-hidden="true">*</span></label><select id="rrRecommendationValue" name="recommendation" required><option value="APPROVE" @selected(old('recommendation') === 'APPROVE')>Confirm willingness to proceed</option><option value="REJECT" @selected(old('recommendation') === 'REJECT')>Dispute/Decline</option></select>
                     <label for="rrNote">Explanation <span aria-hidden="true">*</span></label><textarea id="rrNote" name="note" required maxlength="5000" rows="4" placeholder="Explain your recommendation for Admin review.">{{ old('note') }}</textarea>
                     <p id="rrSubmitStatus" role="status" aria-live="polite" hidden></p><div id="rrSubmitError" class="rr-feedback" role="alert" hidden></div>
                     <button id="rrSubmit" class="rr-button" type="submit">Review recommendation</button>
@@ -46,4 +46,5 @@
     </div></div>
 </div>
 @include('seller.returns.script')
+@include('partials.return-journey')
 @endsection

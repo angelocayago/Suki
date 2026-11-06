@@ -14,7 +14,7 @@ class PayoutController extends Controller
     public function seller(Request $request, SellerWalletService $wallet, SellerWalletPage $page): View
     {
         $seller = $request->user()->sellers()->where('status', 'approved')->firstOrFail();
-        return view('seller.wallet.index', $page->history($seller, $request) + ['wallet'=>$wallet->summary($seller)]);
+        return view('seller.wallet.index', $page->history($seller, $request) + ['wallet'=>$wallet->summary($seller), 'payoutRestriction'=>$wallet->payoutRestriction($seller->id), 'earningRelease'=>$wallet->releaseReadiness()]);
     }
 
     public function request(Request $request, SellerWalletService $wallet): RedirectResponse

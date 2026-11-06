@@ -219,7 +219,7 @@ class SellerMessagesInboxTest extends TestCase
         $this->actingAs($this->seller)->get(route('seller.messages.index'))->assertForbidden();
     }
 
-    public function test_buyer_and_seller_have_no_upload_ui_even_when_backend_enabled_and_keep_existing_image_history(): void
+    public function test_buyer_and_seller_can_find_photo_composer_and_keep_private_image_history(): void
     {
         $this->createAttachmentTable();config(['messaging.attachments_enabled'=>true]);
         $conversation=$this->conversation();$message=$this->message($conversation,'');
@@ -227,11 +227,11 @@ class SellerMessagesInboxTest extends TestCase
             'path'=>'PRIVATE-NOT-FOR-HTML-'.$i,'original_name'=>$i===0?'<img src=x onerror=evil()>':'photo-'.$i.'.png','mime_type'=>'image/png','size'=>100,'width'=>640,'height'=>320]);
         foreach (['seller'=>11,'buyer'=>22] as $portal=>$id) {
             $response=$this->actingAs(User::findOrFail($id))->get(route($portal.'.messages.show',$conversation->reference))->assertOk()
-                ->assertDontSee('data-image-composer',false)->assertDontSee('type="file"',false)->assertDontSee('name="images[]"',false)
-                ->assertDontSee('multipart/form-data',false)->assertDontSee('Attach images')->assertDontSee('dragover')->assertDontSee('clipboardData')
+                ->assertSee('data-photo-composer',false)->assertSee('type="file"',false)->assertSee('name="images[]"',false)
+                ->assertSee('multipart/form-data',false)->assertSee('Add Photo')->assertSee('Remove Photo')->assertDontSee('dragover')->assertDontSee('clipboardData')
                 ->assertSee('data-message-gallery',false)->assertSee('>+1<',false)
                 ->assertSee('id="messageImageLightbox"',false)->assertDontSee('PRIVATE-NOT-FOR-HTML')->assertDontSee('<img src=x onerror=evil()>',false);
-            $this->assertMatchesRegularExpression('/<textarea[^>]*name="body"[^>]*required/', $response->getContent());
+            $this->assertMatchesRegularExpression('/<textarea[^>]*name="body"/', $response->getContent());
             $this->assertSame(4,substr_count($response->getContent(),'data-image-index="'));
             $this->get(route($portal.'.messages.index'))->assertOk()->assertSee('📷 5 photos');
             $this->getJson(route($portal.'.messages.poll',$conversation->reference))->assertOk()->assertJsonPath('messages.0.preview','📷 5 photos')->assertJsonCount(5,'messages.0.attachments');
@@ -248,5 +248,46 @@ class SellerMessagesInboxTest extends TestCase
         $this->actingAs($this->seller)->get(route('seller.messages.show',$conversation->reference))->assertOk()->assertDontSee('data-image-composer data-form=',false);
         $this->actingAs(User::findOrFail(22))->get(route('buyer.messages.show',$conversation->reference))->assertOk()->assertDontSee('name="images[]"',false);
         $this->assertTrue(app(\App\Services\MessageAttachmentService::class)->uploadLimitsSufficient());
+    }
+
+    public function test_complete_local_photo_exchange_uses_normal_inboxes_and_survives_conversation_reload(): void
+    {
+        $this->assertSame('local',config('filesystems.disks.message_attachments.driver'));
+        $this->assertFalse(config('returns.backend_enabled'));$this->assertFalse(config('returns.earning_release_enabled'));
+        $this->assertFalse(config('messaging.attachments_enabled'));$this->assertFalse(config('messaging.deployment_verified'));
+        $this->createAttachmentTable();config(['messaging.attachments_enabled'=>true]);
+        \Illuminate\Support\Facades\Storage::fake('message_attachments');\Illuminate\Support\Facades\Http::preventStrayRequests();
+        $disk=\Illuminate\Support\Facades\Storage::disk('message_attachments');$disk->put('existing.txt','Preserve');
+        $conversation=$this->conversation();$ids=[];
+        foreach([['buyer',22,'seller',11],['seller',11,'buyer',22]] as [$sender,$senderId,$receiver,$receiverId]){
+            $this->actingAs(User::findOrFail($senderId))->get(route($sender.'.messages.index'))->assertOk()->assertSee(route($sender.'.messages.show',$conversation->reference),false);
+            $this->get(route($sender.'.messages.show',$conversation->reference))->assertOk()->assertSee('Add Photo / Change Photo')->assertSee('Remove Photo')->assertSee('name="images[]"',false)->assertSee('class="suki-chat-composer"',false)->assertSee(route($sender.'.messages.store',$conversation->reference),false)->assertDontSee('Add Photo (unavailable)');
+            $this->post(route($sender.'.messages.store',$conversation->reference),['images'=>[\Illuminate\Http\UploadedFile::fake()->image($sender.'-synthetic.png',120,80)]])->assertRedirect(route($sender.'.messages.show',$conversation->reference))->assertSessionHas('success','Message sent.');
+            $message=\App\Models\Message::latest('id')->firstOrFail();$this->assertSame('',$message->body);$this->assertSame($senderId,(int)$message->sender_id);
+            $attachment=$message->attachments()->sole();$ids[]=$attachment->id;
+            $this->assertSame($message->id,$attachment->message_id);$this->assertSame('message_attachments',$attachment->disk);
+            $this->assertStringStartsWith(strtolower(str_replace('\\','/',realpath(sys_get_temp_dir()))).'/',strtolower(str_replace('\\','/',realpath($disk->path($attachment->path)))));
+            $this->assertTrue($disk->exists($attachment->path));$this->assertTrue($disk->exists(app(\App\Services\MessageAttachmentService::class)->thumbnailPath($attachment->path)));
+            for($reload=0;$reload<2;$reload++){
+                $this->actingAs(User::findOrFail($receiverId))->get(route($receiver.'.messages.index'))->assertOk()->assertSee(route($receiver.'.messages.show',$conversation->reference),false);
+                $this->get(route($receiver.'.messages.show',$conversation->reference))->assertOk()->assertSee('data-message-gallery',false)->assertSee('messageImageLightbox')->assertSee('data-image-index',false)->assertDontSee($attachment->path)->assertDontSee($disk->path($attachment->path));
+                $data=$this->getJson(route($receiver.'.messages.poll',$conversation->reference))->assertOk()->json('messages');
+                $received=collect($data)->firstWhere('id',$message->id);$this->assertSame('',$received['body']);$this->assertCount(1,$received['attachments']);
+                foreach(['url','thumbnail_url','download_url'] as $field){$url=$received['attachments'][0][$field];$this->assertStringContainsString('/'.$receiver.'/messages/'.$conversation->reference.'/attachments/',$url);$this->assertNull(parse_url($url,PHP_URL_QUERY));$this->assertStringNotContainsString('/storage/',$url);}
+                foreach(['show','thumbnail','download'] as $action){
+                    $response=$this->get(route($receiver.'.messages.attachments.'.$action,['conversation'=>$conversation->reference,'attachment'=>$attachment->id]))->assertOk()->assertHeader('X-Content-Type-Options','nosniff');
+                    $this->assertStringContainsString('private',$response->headers->get('Cache-Control'));$this->assertNotFalse(getimagesizefromstring($response->streamedContent()));
+                }
+            }
+            $this->actingAs(User::findOrFail($senderId))->post(route($sender.'.messages.store',$conversation->reference),['body'=>'Synthetic caption from '.$sender,'images'=>[\Illuminate\Http\UploadedFile::fake()->image('caption.png')]])->assertRedirect();
+            $this->actingAs(User::findOrFail($receiverId))->get(route($receiver.'.messages.show',$conversation->reference))->assertOk()->assertSee('Synthetic caption from '.$sender);
+        }
+        $this->assertSame(4,\App\Models\MessageAttachment::count());$this->assertSame(4,\App\Models\Message::count());
+        foreach([['buyer',33],['seller',55]] as [$portal,$id])foreach(['show','thumbnail','download'] as $action)$this->actingAs(User::findOrFail($id))->get(route($portal.'.messages.attachments.'.$action,['conversation'=>$conversation->reference,'attachment'=>$ids[0]]))->assertForbidden();
+        $this->actingAs(User::findOrFail(22))->get(route('seller.messages.attachments.show',['conversation'=>$conversation->reference,'attachment'=>$ids[0]]))->assertForbidden();
+        auth()->logout();foreach(['buyer','seller'] as $portal)foreach(['show','thumbnail','download'] as $action)$this->getJson(route($portal.'.messages.attachments.'.$action,['conversation'=>$conversation->reference,'attachment'=>$ids[0]]))->assertUnauthorized();
+        config(['messaging.attachments_enabled'=>false]);
+        foreach(['buyer'=>22,'seller'=>11] as $portal=>$id){$this->actingAs(User::findOrFail($id))->post(route($portal.'.messages.store',$conversation->reference),['body'=>'Text-only remains usable '.$portal])->assertRedirect();$this->get(route($portal.'.messages.show',$conversation->reference))->assertOk()->assertSee('Text-only remains usable '.$portal)->assertSee('Add Photo (unavailable)');}
+        $this->assertSame('Preserve',$disk->get('existing.txt'));$this->assertFalse(config('returns.backend_enabled'));$this->assertFalse(config('returns.earning_release_enabled'));$this->assertFalse(config('messaging.deployment_verified'));
     }
 }

@@ -110,7 +110,7 @@ class PhaseThreeMessagingContextEntryPointTest extends TestCase
             ->get(route('seller.orders'))
             ->assertOk()
             ->assertSee($route, false)
-            ->assertSee('Message Buyer');
+            ->assertSee('<button type="submit" class="orders-button">Message</button>', false);
     }
 
     public function test_session_fallback_seller_orders_do_not_render_messaging_actions(): void

@@ -28,6 +28,9 @@ class SellerWalletPageTest extends TestCase
             'users'=>'id INTEGER PRIMARY KEY, name TEXT, first_name TEXT, last_name TEXT, role TEXT, status TEXT, is_suspended INTEGER DEFAULT 0, verification_required_at TEXT, email_verified_at TEXT, phone_verified_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT',
             'sellers'=>'id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT, slug TEXT, logo_path TEXT, category_id INTEGER, status TEXT, created_at TEXT, updated_at TEXT',
             'categories'=>'id INTEGER PRIMARY KEY, name TEXT',
+            'return_refund_requests'=>'id INTEGER PRIMARY KEY, seller_id INTEGER, status TEXT',
+            'seller_orders'=>'id INTEGER PRIMARY KEY, seller_id INTEGER',
+            'complaints'=>'id INTEGER PRIMARY KEY, seller_order_id INTEGER, status TEXT',
             'notifications'=>'id TEXT PRIMARY KEY, type TEXT, notifiable_type TEXT, notifiable_id INTEGER, data TEXT, read_at TEXT, created_at TEXT, updated_at TEXT',
             'payouts'=>'id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER, amount_minor INTEGER, status TEXT, method TEXT, reference TEXT, reason TEXT, reviewed_by INTEGER, reviewed_at TEXT, paid_at TEXT, created_at TEXT, updated_at TEXT',
             'seller_wallet_entries'=>'id INTEGER PRIMARY KEY AUTOINCREMENT, seller_id INTEGER, seller_order_id INTEGER, payout_id INTEGER, type TEXT, status TEXT, amount_minor INTEGER, reference TEXT, description TEXT, created_at TEXT, updated_at TEXT',
@@ -239,7 +242,9 @@ class SellerWalletPageTest extends TestCase
         DB::enableQueryLog();
         $summary=app(SellerWalletService::class)->summary($this->shop);
         $queries=DB::getQueryLog(); DB::disableQueryLog();
-        $this->assertCount(1,$queries);
+        // SQLite uses two schema-capability reads for pre-migration deployments;
+        // financial totals still use one coherent aggregate statement.
+        $this->assertCount(3,$queries);
         $this->assertSame(80000,$summary['available_minor']); $this->assertSame(0,$summary['reserved_minor']);
         // Preserve the existing raw ledger paid-out reporting definition; anomalies need reconciliation.
         $this->assertSame((int)DB::table('seller_wallet_entries')->where('type','PAYOUT_COMPLETED')->sum('amount_minor'),$summary['paid_out_minor']);

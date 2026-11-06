@@ -202,7 +202,7 @@
                 'Customer Service' => [
                     ['seller.messages.index', 'Messages', 'message-circle', 'seller.messages.*'],
                     ['reviews.seller-page', 'Reviews', 'star', 'reviews.seller-page'],
-                    ['seller.return-refunds.index', 'Returns / Refunds', 'rotate-ccw', 'seller.return-refunds.*'],
+                    ['seller.return-refunds.index', 'Returns / Refunds — Requests', 'rotate-ccw', 'seller.return-refunds.*'],
                     ['seller.complaints.index', 'Complaints', 'message-square-warning', 'seller.complaints.*'],
                 ],
                 'Account' => [

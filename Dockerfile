@@ -27,12 +27,13 @@ RUN apt-get update && apt-get install -y \
     zip \
     libpng-dev \
     libjpeg62-turbo-dev \
+    libwebp-dev \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
     libpq-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install \
         pdo \
         pdo_pgsql \
@@ -46,6 +47,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+COPY docker/php/chat-uploads.ini /usr/local/etc/php/conf.d/zz-chat-uploads.ini
 
 COPY . .
 

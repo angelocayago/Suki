@@ -37,7 +37,7 @@ class PhaseFourWalletHardeningTest extends TestCase
         $this->assertDatabaseMissing('seller_wallet_entries', ['amount_minor' => 13000]);
     }
 
-    public function test_held_earning_is_released_only_by_explicit_complaint_resolution(): void
+    public function test_legacy_held_earning_without_verified_cod_is_not_released_by_complaint_resolution(): void
     {
         $fixture = $this->completedOrder();
         $complaint = Complaint::create(['reference'=>'CMP-HOLD-'.$fixture['sellerOrder']->id,'complainant_id'=>$fixture['buyer']->id,'complainant_role'=>'BUYER','order_id'=>$fixture['order']->id,'seller_order_id'=>$fixture['sellerOrder']->id,'buyer_id'=>$fixture['buyer']->id,'seller_id'=>$fixture['seller']->id,'category'=>ComplaintCategory::Other->value,'status'=>'OPEN','subject'=>'Review','description'=>'A relevant active dispute.','context_snapshot'=>[]]);
@@ -52,8 +52,9 @@ class PhaseFourWalletHardeningTest extends TestCase
 
         $admin = User::factory()->create(['role'=>'admin','status'=>'active']);
         app(ComplaintService::class)->dismiss($complaint, $admin, 'No further action is required.');
-        $this->assertSame(9000, $wallet->summary($fixture['seller'])['available_minor']);
-        app(SellerWalletService::class)->reconcileSellerOrder($fixture['sellerOrder']);
+        $this->assertSame(0, $wallet->summary($fixture['seller'])['available_minor']);
+        $this->assertSame(9000, $wallet->summary($fixture['seller'])['held_minor']);
+        $this->assertFalse(app(SellerWalletService::class)->reconcileSellerOrder($fixture['sellerOrder']));
         $this->assertDatabaseCount('seller_wallet_entries', 1);
     }
 

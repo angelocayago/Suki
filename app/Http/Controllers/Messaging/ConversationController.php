@@ -67,6 +67,7 @@ class ConversationController extends MessagingController
         $files=app(MessageAttachmentService::class);
         $attachmentsAvailable=$files->available();
         $canAttach=in_array($portal['name'],['buyer','seller'],true) && $conversation->status->value==='ACTIVE' && $files->canUpload();
+        $photoUnavailableReason=$canAttach ? null : $files->uploadUnavailableReason();
         $conversation->load([
             'participants.user:id,name,first_name,last_name',
             'participants.seller:id,name',
@@ -85,10 +86,10 @@ class ConversationController extends MessagingController
 
         if ($portal['name'] === 'seller') {
             $hasOlder=$messages->isNotEmpty() && $conversation->messages()->where('id','<',$messages->first()->id)->exists();
-            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + compact('conversation','messages','portal','hasOlder','attachmentsAvailable','canAttach'));
+            return view('seller.messages.inbox', app(SellerInbox::class)->listing($request) + compact('conversation','messages','portal','hasOlder','attachmentsAvailable','canAttach','photoUnavailableReason'));
         }
 
-        return view('messages.show', compact('conversation', 'messages', 'portal','attachmentsAvailable','canAttach'));
+        return view('messages.show', compact('conversation', 'messages', 'portal','attachmentsAvailable','canAttach','photoUnavailableReason'));
     }
 
     private function removeStaleMemberships(

@@ -51,12 +51,12 @@ test('foreign conversation or external image URLs are rejected and missing image
     assert.equal(image.hidden,true);assert.equal(gallery.children[0].querySelector('.message-image-fallback').hidden,false);
 });
 
-function buyerHarness() {
+function buyerHarness({photoApi=null}={}) {
     const h=harness(),thread=h.element(),input=h.element('textarea'),send=h.element('button'),error=h.element('p');
     h.form.id='messageComposer';h.form.action='https://shop.test/buyer/messages/owned/send';h.target.append(thread,h.form);h.form.append(input,send);
     Object.assign(thread.dataset,{pollUrl:'https://shop.test/buyer/messages/owned/poll',readUrl:'https://shop.test/buyer/messages/owned/read',reference:'owned',currentUser:'22',lastMessageId:'0'});
     const ids={'message-thread':thread,messageComposer:h.form,'message-body':input,messageSend:send,buyerMessageError:error,messageImageLightbox:h.dialog};
-    h.document.getElementById=id=>ids[id]??null;h.document.hidden=false;
+    h.document.getElementById=id=>ids[id]??null;h.document.hidden=false;h.window.SukiChatPhoto=photoApi;
     // Select the Buyer branch for this JS unit harness. Real Blade compilation
     // and enabled/disabled Buyer markup are covered by isolated PHP tests.
     const template=fs.readFileSync(path.join(__dirname,'../../resources/views/messages/show.blade.php'),'utf8');
@@ -103,4 +103,25 @@ test('Buyer composer autogrows to five lines then scrolls and shrinks cleanly',a
     h.input.value='Lines';h.input.scrollHeight=122;await h.fire(h.input,'input');assert.equal(h.input.style.height,'124px');assert.equal(h.input.style.overflowY,'hidden');
     h.input.scrollHeight=182;await h.fire(h.input,'input');assert.equal(h.input.style.height,'124px');assert.equal(h.input.style.overflowY,'auto');
     h.input.value='';h.input.scrollHeight=42;await h.fire(h.input,'input');assert.equal(h.input.style.height,'44px');assert.equal(h.input.style.overflowY,'hidden');
+});
+
+test('Buyer image-only and captioned sends use multipart and render an enlargeable private gallery',async()=>{
+    for(const caption of ['', 'Buyer caption']){
+        let selected=true;const busy=[];
+        const photoApi={hasPhoto:()=>selected,busy(form,value){busy.push(value);},clear(){selected=false;},payload(form,body){const data=new FormData();data.set('body',body);data.append('images[]',new Blob(['synthetic payload'],{type:'image/png'}),'synthetic.png');return data;}};
+        const h=buyerHarness({photoApi});h.input.value=caption;await h.fire(h.input,'input');assert.equal(h.send.disabled,false);
+        const attachments=items(1).map(file=>({...file,url:file.url.replace('/seller/','/buyer/'),thumbnail_url:file.thumbnail_url.replace('/seller/','/buyer/'),download_url:file.download_url.replace('/seller/','/buyer/')}));
+        h.replies.push({ok:true,status:201,json:async()=>({message:{...sentMessage,body:caption,attachments}})});
+        await h.fire(h.form,'submit');const request=h.calls.find(c=>c.url.endsWith('/send'));
+        assert.ok(request.options.body instanceof FormData);assert.equal(request.options.body.get('body'),caption);assert.equal(request.options.body.get('images[]').name,'synthetic.png');assert.equal(request.options.headers['Content-Type'],undefined);
+        assert.equal(selected,false);assert.ok(busy.includes(true));assert.equal(busy.at(-1),false);
+        const gallery=h.thread.querySelector('.message-image-gallery');assert.ok(gallery);await h.fire(gallery.children[0],'click');assert.equal(h.dialog.open,true);assert.match(h.light.lightboxImage.src,/\/buyer\/messages\/owned\/attachments\/1$/);
+    }
+});
+
+test('both portal gallery URLs open full-size images and retain authorized download links',async()=>{
+    for(const portal of ['buyer','seller']){
+        const h=harness();const files=items(1).map(file=>Object.fromEntries(Object.entries(file).map(([key,value])=>[key,typeof value==='string'?value.replace('/seller/','/'+portal+'/'):value])));
+        const gallery=h.api.gallery(files,'owned');await h.fire(gallery.children[0],'click');assert.equal(h.dialog.open,true);assert.equal(h.light.lightboxImage.src,files[0].url);assert.equal(h.light.lightboxDownload.href,files[0].download_url);h.dialog.close();assert.equal(h.document.activeElement,gallery.children[0]);
+    }
 });

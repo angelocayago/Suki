@@ -1,98 +1,202 @@
-# Buyer/Seller image messaging: local setup and verification
+# Private Buyer/Seller chat photos — Phase 4.5
 
-## Deployment status: OFF and not production ready
+This is local implementation documentation, not authorization to provision or
+activate a live service. It supersedes the earlier local-only and multi-image
+composer descriptions. The current visible composer selects one image; the
+existing backend and historical gallery support up to five.
 
-`MESSAGE_ATTACHMENTS_ENABLED` defaults to `false`. No `.env` file is changed. Local/testing SQLite with no connection-URL override supports the isolated preview. PostgreSQL additionally requires the default-false `MESSAGE_ATTACHMENTS_DEPLOYMENT_VERIFIED` administrator attestation; it was NOT enabled. No disposable PostgreSQL tools/service were found locally. Runtime PostgreSQL verification remains outstanding; static analysis finds ordinary Eloquent FK/EXISTS/ordered relationship queries and no SQLite-specific attachment persistence SQL. Shared/Render uploads remain disabled. `APP_ENV=local` alone never establishes test isolation.
+## Current boundaries
 
-The backend requires the existing attachment table, JPEG/PNG/WEBP GD codecs, Fileinfo, and private local-disk configuration. Upload controls and image sends also require adequate PHP upload limits. Missing upload prerequisites leave ordinary text messaging usable. No flag was enabled in the project or shared deployment.
+- Logical disk remains `message_attachments`; the default backend remains local.
+- Messaging activation and deployment-verification flags remain OFF by default.
+- Both Return/Refund financial flags remain false and are independent of photos.
+- No live bucket, credential, database connection, image upload, migration, Render
+  change or financial operation was performed for Phase 4.5.
+- Tests use SQLite memory schemas created directly and an in-memory HTTP transport.
+  No real S3-compatible service, Supabase integration, Docker image build or
+  persistence-after-redeployment test has been executed.
 
-## Essential Windows local setup
+## Backend configuration
 
-The inspected CLI uses `C:\php\php.ini`. Change only these insufficient limits and restart the PHP/Laravel server:
+`CHAT_PHOTOS_STORAGE_DRIVER=local` retains the existing private local filesystem.
+`MESSAGE_ATTACHMENTS_ROOT` optionally sets its private root. Existing public-root
+and linked-public-target rejection remains intact. Local development uploads are
+not a claim of deployed durability or Windows ACL verification.
 
-```ini
-upload_max_filesize = 5M
-post_max_size = 32M
-```
+For deployment, the supported external selection is
+`CHAT_PHOTOS_STORAGE_DRIVER=s3`. It maps to the dedicated internal driver
+`chat_private_s3`; other application storage disks are unchanged.
 
-`max_file_uploads=20` and `memory_limit=128M` already meet this implementation's checked local requirements. The web-server process/configuration was not independently available for verification. No global PHP configuration was edited. For a local demo, use an isolated local database and enable `MESSAGE_ATTACHMENTS_ENABLED=true` only in that isolated environment. Do not change the shared `.env` or enable shared uploads for testing.
+Required deployment-only settings (no values or credentials supplied here):
 
-The private local disk is reused at `storage/app/private/message-attachments`; optional `MESSAGE_ATTACHMENTS_ROOT` selects a different private local directory. No object-storage provider was added.
+- CHAT_PHOTOS_S3_ENDPOINT
+- CHAT_PHOTOS_S3_REGION
+- CHAT_PHOTOS_S3_BUCKET
+- CHAT_PHOTOS_S3_ACCESS_KEY_ID (server secret)
+- CHAT_PHOTOS_S3_SECRET_ACCESS_KEY (server secret)
+- CHAT_PHOTOS_S3_PRIVATE_BUCKET_VERIFIED (defaults false)
 
-## Pre-implementation storage gate
+The endpoint must be HTTPS on the hosted Supabase project hostname, optionally
+its `.storage.supabase.co` hostname, with `/storage/v1/s3`, no userinfo, custom port,
+query or fragment. Arbitrary S3 hosts and self-hosted/local HTTP endpoints are
+intentionally not enabled by this adapter. The test uses a fake Supabase-shaped
+hostname intercepted entirely by a RAM-only transport; no DNS is performed.
 
-- Existing private storage patterns were found in delivery-proof and complaint-evidence controllers.
-- The new `message_attachments` disk is local, rooted at `storage/app/private/message-attachments`, with private visibility, private directory visibility, generated filenames, `serve=false`, throwing I/O errors, and requested file/directory permissions 0600/0700. Roots in the public directory or configured linked public targets are rejected.
-- Durable persistence across deploys, backups, shared volumes, multi-instance availability, and web-server aliases were NOT verified. A shared PostgreSQL database does not share local files. No Supabase Storage integration or S3 adapter is installed for this feature.
-- On Windows, Unix mode bits/Flysystem visibility cannot prove Windows ACL privacy. The local adapter reported public mode visibility despite private write options; file access is still protected by private root placement and participant-authorized routes. Verify deployment ACLs independently.
-- CLI PHP reports `upload_max_filesize=2M`, `post_max_size=8M`, and `memory_limit=128M`. These do not meet five 5 MiB uploads, and deployed web/proxy settings are unknown. Verify web PHP per-file limits of at least 5 MiB, request limits of approximately 32 MiB including multipart overhead, `max_file_uploads >= 5`, and corresponding proxy/server limits. This implementation does not modify INI or server configuration.
+Use a dedicated private bucket, conservative S3-compatible bucket naming, its
+actual project region, and path-style addressing. Explicit nonempty credentials
+are required; the implementation does not fall back to normal AWS credential
+providers. No credentials belong in version control, browser variables, URLs or
+logs. S3 server keys have broad project Storage privileges and bypass RLS; they
+are not per-conversation user credentials. Laravel performs participant checks.
 
-## Schema: already applied by the user; not rerun
+`PRIVATE_BUCKET_VERIFIED` is an operator attestation, not an automated privacy
+probe. It must remain false until an authorized person has verified bucket
+privacy and anonymous access denial. Missing/invalid settings fail closed before
+object storage is created. The existing `MESSAGE_ATTACHMENTS_ENABLED` and
+`MESSAGE_ATTACHMENTS_DEPLOYMENT_VERIFIED` are separately required for PostgreSQL.
+Neither backend readiness nor this implementation enables those flags.
 
-The user reports `2026_11_01_000001_create_message_attachments_table` as `[6] Ran` on the intended Supabase database. Phase 4 did not rerun or modify that migration, create another migration, or query/write shared messaging records.
+Official references:
+- https://supabase.com/docs/guides/storage/s3/authentication
+- https://supabase.com/docs/guides/storage/s3/compatibility
+- https://supabase.com/docs/guides/storage/buckets/fundamentals
+- https://laravel.com/docs/12.x/filesystem
 
-`2026_11_01_000001_create_message_attachments_table.php` creates:
+## Official adapter and ACL compatibility
 
-- bigint `id` and `message_id` referencing canonical `messages.id`, cascading metadata deletion;
-- integer `position`, bounded to 0–4;
-- `disk` (50), `path` (255), `original_name` (255);
-- allowlisted `mime_type` (JPEG/PNG/WEBP), integer `size`, `width`, `height`;
-- `created_at` and `updated_at`;
-- unique `(message_id, position)` and `(disk, path)` indexes;
-- positive dimensions and size between 1 and 5,242,880 bytes.
+The official `league/flysystem-aws-s3-v3` dependency and AWS SDK are used through
+Laravel's S3 filesystem factory. There is no custom network protocol or REST
+storage implementation. The dedicated driver adds narrowly scoped command
+middleware: remove the default private object ACL before wire serialization,
+reject public ACLs and grant headers, and reject bucket/ACL administration.
+Supabase does not implement S3 object ACL headers. Bucket privacy is enforced by
+private bucket configuration and verified deployment controls, not by a successful
+object visibility API call.
 
-PostgreSQL uses a CHECK constraint for bounds; the existing migration uses SQLite INSERT/UPDATE triggers. Phase 4 tests now build equivalent guarded SQLite memory fixtures directly, without executing any migration. PostgreSQL DDL/transactions are not thereby dynamically verified.
+Only bounded attachment data operations are permitted. SDK configuration has TLS
+verification, finite timeouts, no configured retries, explicit credentials,
+path-style requests and checksums only when required. Real-provider compatibility
+still needs separate isolated verification; mocked HTTP serialization is not proof
+of Supabase service behavior. Never weaken the bucket to fix an upload error.
 
-No existing message-body column or message types are altered. An image-only message stores an empty body after actual image validation. `TEXT` and `SYSTEM` retain their existing meaning. Do not run migrations with the shared project `.env` without separate coordination and authorization.
+Direct `url`, temporary download URL and temporary upload URL generation on this
+dedicated disk are disabled. Browser JSON contains existing Laravel routes only.
+The filesystem alias and random relative object/thumbnail keys remain unchanged.
 
-Rollback drops only the new metadata table, not messages or files. Before a real deployment rollback, disable the feature and preserve metadata/files deliberately; dropping metadata or cascading message deletion does not remove physical files and can strand images. No shared historical records were modified.
+Lockfile additions only, with no existing package version changed:
+- league/flysystem-aws-s3-v3 3.35.3
+- aws/aws-sdk-php 3.403.0
+- aws/aws-crt-php 1.2.7
+- mtdowling/jmespath.php 2.9.2
+- symfony/filesystem v7.4.23
 
-## Request and response contract
+The new packages' PHP requirements fit PHP 8.3. Use the reviewed lockfile with
+`composer install`; do not resolve dependencies on deployment. Composer scripts
+were disabled during local installation. CLI ZIP was enabled only for that
+Composer process; no installed INI was changed.
 
-Existing Buyer/Seller `POST .../messages/{reference}/send` accepts optional `images[]` multipart uploads, with optional text body for image-containing requests. Text-only validation remains unchanged. Only Buyer/Seller portal participants may upload; other roles retain text-only sending.
+Composer's read-only audit reports 13 advisories across seven existing unchanged
+packages: laravel/framework, league/commonmark, symfony/http-foundation,
+symfony/http-kernel, symfony/mime, symfony/routing and symfony/yaml. None were
+reported for the five new dependencies. A separate reviewed dependency-security
+update remains outstanding; no unrelated framework update was attempted here.
 
-All uploads must pass existing portal/policy checks and are reauthorized inside the canonical conversation transaction. Sender IDs, message IDs, disk names, and file paths are server-derived. The existing read cursor and last-message update remain in that transaction. No new notification behavior or durable send-idempotency mechanism is added.
+## Delivery, validation and cleanup
 
-When enabled and ready, send/poll JSON gains additive `attachments` and `preview` fields. Attachments contain IDs, positions, sanitized original names, MIME, size, dimensions, and authorized inline/thumbnail/download URLs. Stored disk/path fields are hidden. Image-only previews derive Photo/number-of-photos from actual related metadata. Text captions retain their normal preview. Other message fields and forward/older cursors are preserved. When disabled attachment fields are omitted, preserving pre-migration text behavior.
+Buyer and Seller use the same disk, service and activation rules. Existing
+conversation policy, role/context ownership, active-account checks and CSRF remain.
+Every original, thumbnail and download request goes through authenticated Laravel
+routes and scopes the attachment to the authorized conversation. Private/no-store,
+validated Content-Type, generated download names, CSP and nosniff are preserved.
+Revoked/unrelated participants and guests cannot use a stored object key as access.
 
-Original names are still untrusted display text: future UI must escape them or use `textContent`, never HTML insertion.
+Images remain limited to JPEG/PNG/WebP, 5 MiB each, 4096 pixels per side and four
+megapixels. Detected MIME and extension must agree. GD decodes and re-encodes
+pixels; input metadata is not retained. Random normalized-image keys and private
+320px thumbnails are preserved. EXIF orientation is not guaranteed. A memory-budget
+guard remains in force; test actual web memory use with worst-case accepted files.
 
-Each existing messaging portal receives these GET routes, under its existing auth, suspension, approval, and role middleware:
+Message metadata, read cursor and conversation update remain transactional. Files
+are external side effects: failed writes attempt to delete only newly generated
+keys. A later thumbnail failure must remove its new original and roll back the
+message. Existing files are preserved. Persistence, read and cleanup warnings
+are generic and omit SDK exceptions, endpoints, credentials and internal paths.
 
-- `/messages/{reference}/attachments/{attachment}`
-- `/messages/{reference}/attachments/{attachment}/thumbnail`
-- `/messages/{reference}/attachments/{attachment}/download`
+Filesystem and database commits are not distributed transactions. Process crashes,
+ambiguous commit results or failed deletion may leave private orphan objects.
+There is no automatic orphan-deletion worker. Use an explicitly authorized,
+age-delayed, metadata-aware reconciliation process, never a blanket prefix purge.
 
-Every delivery checks the current portal participant and context ownership, then scopes the attachment through its message to that conversation. Admins require actual authorized participation. IDs, storage paths, or signed URLs do not substitute for authorization. Delivery uses generated filenames, validated stored MIME, inline/attachment disposition, `nosniff`, sandbox CSP, and private/no-store caching. Missing files return 404; ordinary storage failures have generic responses.
+## Container runtime
 
-## Image processing and limits
+Dockerfile adds libwebp-dev and GD --with-webp. Existing JPEG/PNG and Fileinfo
+requirements remain. Verify the actual built image's encode/decode functions.
+The container-only docker/php/chat-uploads.ini sets:
 
-- At most five files, each at most 5 MiB; extension and detected MIME must agree.
-- At most 4096 pixels per dimension and 4 megapixels; valid decode required.
-- A conservative per-image memory-budget check runs before decoding. Processing is sequential, never retaining five decoded images together.
-- GD decodes and re-encodes raster pixels, dropping incoming EXIF/GPS/text metadata. JPEG/WEBP output is recompressed; originals are not retained as separate raw files.
-- EXIF/Imagick support is unavailable locally. EXIF orientation is NOT preserved or guaranteed; portrait images relying on orientation metadata may rotate. No new dependency or external processing service was installed. Unsupported animated files that cannot be decoded are rejected.
-- Normalized images must remain at most 5 MiB. A private thumbnail, at most 320 pixels on its longest edge, is stored beside each normalized image with a server-derived `-thumb` filename. No image bytes enter the database.
+    upload_max_filesize = 6M
+    post_max_size = 40M
+    max_file_uploads = 20
 
-## Failure handling and remaining gates
+These satisfy the unchanged backend minima of 5M per file, 32M POST allowance (or
+unlimited) and five uploads. The request allowance covers the existing five-file
+backend, not merely today's one-photo UI. Verify Apache/proxy limits as well.
+This file does not change global Windows PHP settings. No Docker build was run.
 
-Ordinary validation, decode, filesystem, and database failures roll back message/attachment metadata and attempt deletion of all newly written originals/thumbnails. Late-file failure cleanup is tested. Errors do not return storage paths. Failed cleanup is logged internally.
+## Schema and existing files
 
-Filesystems and database commits are not one distributed transaction. Process termination, ambiguous commit outcomes, cleanup failures, outer transaction rollback, or later message deletion can leave orphan files. No automatic orphan-deletion worker was added; define and test an age-delayed, metadata-aware operational cleanup process before production. Do not blindly delete directories.
+Use the already committed migration:
+`2026_11_01_000001_create_message_attachments_table.php`.
+It depends on messages and the existing messaging schema, not the four pending
+Return/Refund financial/workflow migrations. No new database migration is needed.
+An earlier document reported that the user had applied the attachment migration;
+its actual current shared status remains independently UNVERIFIED.
 
-Durable send idempotency, PostgreSQL concurrent behavior, shared durable storage, Windows/deployment ACLs, actual web upload-limit verification, and orientation handling remain deferred. The existing send throttle remains 30/minute. No live test messages were submitted.
+Switching the backend behind `message_attachments` does NOT move local images.
+Before switching, separately authorize a metadata-only inventory and private-file
+verification. If files exist, copy each referenced normalized image and its
+thumbnail to the exact same relative key, verify byte count and SHA-256, and retain
+the old files until acceptance. Do not inspect private message content or rewrite
+attachment rows as a shortcut. Do not assume an empty bucket means no old records.
 
-## Integrated Buyer/Seller frontend
+## Separate rollout and verification
 
-Buyer and Seller share the picker, drag/drop/paste processing, five-image/5 MiB client validation, removable blob previews, multipart XHR transport, measured upload progress, private thumbnail grid, +N overlay, and modal gallery with keyboard navigation/focus restoration/protected downloads. Upload progress reaching 100% means uploaded/processing, not a successful message. Only the server's successful response clears the draft. Network timeouts retain caption/files and warn of an ambiguous result; no automatic POST retry or exactly-once guarantee is claimed.
+1. Prepare a reviewed chat-only patch from the committed baseline; preserve the
+   current dirty working tree and exclude Return/Refund financial changes.
+2. Test the adapter with disposable credentials/bucket/database, synthetic images
+   only. Include upload/read/delete, ACL compatibility, validation, failed-write
+   cleanup and failed-read errors. Actual provider access needs separate approval.
+3. Separately authorize and verify existing attachment schema/constraints, private
+   bucket settings, anonymous denial, secret handling, quotas and durable storage.
+4. Resolve any existing-file transfer before changing the disk configuration.
+5. Deploy the complete chat code, dependency lockfile and image runtime with gates
+   still off. Use deployment secret configuration, not committed credentials.
+6. Verify through two synthetic participant accounts: photo-only and captioned
+   messages, original/thumbnail/download, refresh and browser/mobile layout.
+   Unrelated Buyer/Seller and guest access must fail.
+7. Record stored normalized-image/thumbnail digests, restart the disposable app,
+   then redeploy it. Reopen the same messages and verify identical bytes and
+   current participant authorization. Repeat across instances if applicable.
+8. Only after separate approval set the private-bucket attestation and the two
+   messaging gates, refresh application config and restart processes as needed.
+   Keep both financial flags false. No refund migration or activation is implied.
 
-Server-rendered and polled galleries use authorized URLs, lazy loading, reserved thumbnail dimensions, error fallbacks, and escaped names. Related metadata is eager-loaded; previews do not issue per-message queries. Seller filters/unread/scroll/history/composer behavior and other portal text contracts remain covered by regression tests. No attachments are advertised when upload prerequisites are unavailable. Normal multipart forms remain usable without JavaScript.
+Rollback: disable messaging first, retain metadata and both stores, and revert only
+the reviewed chat code/config if necessary. Do not drop the attachment table or
+remove a bucket. Reverting to local requires verified local copies of any new
+remote objects; otherwise those messages will lose image access. Photo-only
+messages may appear empty while the feature is disabled. Do not silently fall
+back to another store when an object is missing.
 
-Browser automation was unavailable; visual/mobile verification remains outstanding. Automated HTTP/SQLite/disposable-file tests and JS DOM/transport tests provide functional coverage, not a claim of a real browser or PostgreSQL deployment test.
+## Verification limits
 
-Isolated tests were run with per-process PHP limits, without changing installed INI files:
+Mocked transport tests establish Laravel/SDK request serialization and application
+behavior, not actual Supabase bucket privacy, persistence or PostgreSQL concurrency.
+Browser/mobile acceptance, actual Docker execution and real S3 integration remain
+outstanding. No live credentials were read and no real images were uploaded.
 
-```text
-php -d upload_max_filesize=5M -d post_max_size=32M vendor/phpunit/phpunit/phpunit --do-not-cache-result tests/Feature/MessageAttachmentsTest.php tests/Feature/SellerMessagesInboxTest.php
-node --test tests/JavaScript/message-images.test.cjs tests/JavaScript/seller-inbox.test.cjs
-```
+Phase 4.5 verification: 33 isolated PHP tests passed with 915 assertions;
+183 JavaScript tests passed. Route audit verified 453 routes; relevant Blade
+compilation, PHP syntax and whitespace checks passed. No database migrations were
+executed; test schemas were constructed directly in SQLite memory. Composer
+manifest/lock validation passed, while security audit remains nonzero for the
+existing advisories listed above. Docker and real-provider integration were not run.

@@ -386,7 +386,7 @@
                                     class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5] hover:text-[#173F35]"
                                 >
                                     <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
-                                    Returns / Refunds
+                                    My Returns &amp; Refunds
                                 </a>
 
                                 <a
@@ -562,7 +562,7 @@
             @endif
 
             @if (auth()->check() && auth()->user()->isBuyer())
-                <a href="{{ route('buyer.vouchers.index') }}" class="whitespace-nowrap text-[#6E7D76]">My Vouchers</a>
+                <a href="{{ route('buyer.return-refunds.index') }}" class="whitespace-nowrap text-[#6E7D76]">My Returns &amp; Refunds</a><a href="{{ route('buyer.vouchers.index') }}" class="whitespace-nowrap text-[#6E7D76]">My Vouchers</a>
                 <x-profile-avatar :user="auth()->user()" size="h-8 w-8 shrink-0" />
                 <a href="{{ route('reviews.buyer-page') }}" class="whitespace-nowrap text-[#6E7D76]">My reviews</a>
                 <x-notification-link class="whitespace-nowrap text-[#6E7D76]" />

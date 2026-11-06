@@ -30,6 +30,7 @@ class SellerReturnsManagementTest extends TestCase
             'orders' => 'id INTEGER PRIMARY KEY, buyer_id INTEGER, order_number TEXT, reference TEXT, status TEXT, payment_method TEXT',
             'seller_orders' => 'id INTEGER PRIMARY KEY, seller_id INTEGER, order_id INTEGER, workflow_status TEXT, status TEXT',
             'order_items' => 'id INTEGER PRIMARY KEY, seller_order_id INTEGER, order_id INTEGER, product_name TEXT, quantity INTEGER, unit_price_minor INTEGER, commission_minor INTEGER, seller_funded_discount_minor INTEGER, platform_funded_discount_minor INTEGER',
+            'shipments' => 'id INTEGER PRIMARY KEY, seller_order_id INTEGER',
             'return_refund_requests' => 'id INTEGER PRIMARY KEY AUTOINCREMENT, buyer_id INTEGER, order_id INTEGER, seller_order_id INTEGER, order_item_id INTEGER, seller_id INTEGER, type TEXT, status TEXT, quantity INTEGER, buyer_reason TEXT, buyer_description TEXT, seller_recommendation TEXT, seller_note TEXT, seller_responded_at TEXT, reviewed_by INTEGER, admin_decision TEXT, admin_reason TEXT, decided_at TEXT, refund_minor INTEGER, created_at TEXT, updated_at TEXT, UNIQUE(order_item_id,status)',
             'return_refund_events' => 'id INTEGER PRIMARY KEY AUTOINCREMENT, return_refund_request_id INTEGER, actor_id INTEGER, action TEXT, data TEXT, created_at TEXT, updated_at TEXT',
             'return_refund_evidence' => 'id INTEGER PRIMARY KEY AUTOINCREMENT, return_refund_request_id INTEGER, uploaded_by INTEGER, path TEXT, mime TEXT, size INTEGER, description TEXT, created_at TEXT, updated_at TEXT',
@@ -182,27 +183,20 @@ class SellerReturnsManagementTest extends TestCase
         $this->assertSame(2, DB::table('return_refund_events')->count());
     }
 
-    public function test_buyer_submission_admin_approval_and_refund_due_accounting_remain_canonical(): void
+    public function test_existing_request_pages_remain_accessible_but_unreviewed_new_financial_flows_are_disabled(): void
     {
-        $original = $this->record(); $original->delete();
-        $data = ['type' => 'REFUND', 'quantity' => 1, 'reason' => 'Damaged', 'description' => 'Damaged on arrival'];
-        $response = $this->actingAs(User::findOrFail(22))->postJson(route('buyer.return-refunds.store', 1), $data)->assertCreated();
-        $request = ReturnRefundRequest::findOrFail($response->json('id'));
-        $this->postJson(route('buyer.return-refunds.store', 1), $data)->assertUnprocessable();
-        $this->actingAs(User::findOrFail(33))->get(route('buyer.return-refunds.show', $request))->assertNotFound();
-        $this->actingAs(User::findOrFail(22))->get(route('buyer.return-refunds.show', $request))->assertOk();
+        $request=$this->record();
+        $data=['type'=>'REFUND','quantity'=>1,'reason'=>'Damaged','description'=>'Damaged on arrival'];
+        $this->actingAs(User::findOrFail(22))->postJson(route('buyer.return-refunds.store',1),$data)->assertUnprocessable()->assertJsonValidationErrors('request');
+        $this->actingAs(User::findOrFail(33))->get(route('buyer.return-refunds.show',$request))->assertNotFound();
+        $this->actingAs(User::findOrFail(22))->get(route('buyer.return-refunds.show',$request))->assertOk();
         $this->get(route('seller.return-refunds.index'))->assertForbidden();
-        $this->actingAs(User::findOrFail(44))->get(route('admin.return-refunds.show', $request))->assertOk()->assertSee('Finalize decision');
-        $this->patchJson(route('admin.return-refunds.decide', $request), ['decision' => 'APPROVED', 'reason' => 'Evidence accepted'])->assertOk();
-        $this->assertDatabaseHas('return_refund_accounting', ['return_refund_request_id' => $request->id, 'refund_status' => 'REFUND_DUE', 'seller_adjustment_minor' => 850]);
-        $this->assertDatabaseHas('seller_wallet_entries', ['seller_id' => 101, 'type' => 'REFUND_ADJUSTMENT', 'amount_minor' => -850]);
-        $this->assertSame(850, $request->fresh()->refund_minor);
-        $this->patchJson(route('admin.return-refunds.decide', $request), ['decision' => 'APPROVED', 'reason' => 'Repeated'])->assertOk();
-        $this->assertSame(1, DB::table('seller_wallet_entries')->count());
-        $this->actingAs(User::findOrFail(11))->get(route('seller.return-refunds.show', $request))->assertOk()->assertSee('Approved — Refund Due')->assertSee('₱8.50')->assertSee('Evidence accepted')->assertDontSee('<form id="rrRecommendation"', false);
-        $this->actingAs(User::findOrFail(22))->get(route('buyer.return-refunds.show', $request))->assertOk()->assertSee('Approved — Refund Due')->assertDontSee('Disbursed');
+        $this->actingAs(User::findOrFail(44))->get(route('admin.return-refunds.show',$request))->assertOk()->assertSee('Finalize decision');
+        $this->patchJson(route('admin.return-refunds.decide',$request),['decision'=>'APPROVED','reason'=>'Not reviewed for deployment'])->assertUnprocessable()->assertJsonValidationErrors('request');
+        $this->assertSame('SUBMITTED',$request->fresh()->status);
+        $this->assertSame(0,DB::table('seller_wallet_entries')->count());
+        $this->assertSame(0,DB::table('return_refund_accounting')->count());
     }
-
     public function test_admin_rejection_has_no_refund_adjustment_and_closed_states_do_not_offer_response(): void
     {
         $request = $this->record();
@@ -222,9 +216,9 @@ class SellerReturnsManagementTest extends TestCase
         DB::table('seller_wallet_entries')->insert(['seller_id' => 101, 'type' => 'PAYOUT_RESERVATION', 'status' => 'RESERVED', 'amount_minor' => 500]);
         $service = app(SellerWalletService::class); $seller = Seller::findOrFail(101); $before = $service->summary($seller);
         $this->assertSame(1500, $before['available_minor']);
-        $calculation = app(ReturnRefundAllocationService::class)->calculate(OrderItem::findOrFail(1), 1);
-        $this->assertSame(850, $calculation['buyer_refund_due_minor']);
-        $this->assertSame(850, $calculation['seller_adjustment_minor']);
+        $calculation = app(ReturnRefundAllocationService::class)->calculate(OrderItem::findOrFail(1), 2);
+        $this->assertSame(1700, $calculation['buyer_refund_due_minor']);
+        $this->assertSame(1700, $calculation['seller_adjustment_minor']);
         $this->page(); $this->get(route('seller.return-refunds.show', $request))->assertOk();
         $this->assertSame($before, $service->summary($seller));
         $this->assertSame(2, DB::table('seller_wallet_entries')->count());

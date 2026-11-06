@@ -60,8 +60,9 @@ class MoneyReportService
 
     public function seller(Seller $seller): array
     {
+        $releaseIds = app(SellerWalletService::class)->validReleaseEntries($seller)->select('id');
         $entries = SellerWalletEntry::query()->where('seller_id', $seller->id)
-            ->whereIn('type', ['SALE_EARNING', 'REFUND_ADJUSTMENT'])
+            ->where(fn($q)=>$q->whereIn('type', ['SALE_EARNING', 'REFUND_ADJUSTMENT'])->orWhereIn('id',$releaseIds))
             ->latest('id')->get();
         $orders = SellerOrder::query()->where('seller_id', $seller->id)
             ->whereIn('id', $entries->where('type', 'SALE_EARNING')->pluck('seller_order_id')->filter())
@@ -73,10 +74,11 @@ class MoneyReportService
             $gross = $order ? (int) $order->items->sum(fn ($item) => (int) $item->unit_price_minor * (int) $item->quantity) : 0;
             $commission = $order ? (int) $order->items->sum('commission_minor') : 0;
             $discount = (int) ($sellerDiscounts[$entry->seller_order_id] ?? 0);
+            if ($entry->type === 'EARNING_RELEASE') $gross = $commission = $discount = 0;
             return compact('entry', 'order', 'gross', 'commission', 'discount');
         });
 
-        return ['rows' => $rows, 'wallet' => app(SellerWalletService::class)->summary($seller)];
+        return ['rows' => $rows, 'wallet' => app(SellerWalletService::class)->summary($seller), 'earningRelease'=>app(SellerWalletService::class)->releaseReadiness()];
     }
 
     public function admin(array $filters): array
@@ -101,6 +103,9 @@ class MoneyReportService
             ->when($filters['seller_id'] ?? null, fn (Builder $q, $id) => $q->where('seller_id', $id))
             ->when($from, fn (Builder $q) => $q->where('created_at', '>=', $from))
             ->when($to, fn (Builder $q) => $q->where('created_at', '<=', $to))->get();
+        // Financial balances are current obligations, not sums of date-filtered
+        // sales movements. Reuse the Seller Wallet projection, including payouts.
+        $balances = app(SellerWalletService::class)->reportSummary(isset($filters['seller_id']) ? (int)$filters['seller_id'] : null);
         $sellerOrders = $this->dated(SellerOrder::query()->where('workflow_status', 'COMPLETED')->where('status', '!=', 'cancelled')
             ->when($filters['seller_id'] ?? null, fn (Builder $q, $id) => $q->where('seller_id', $id))->with('items'), $from, $to, 'completed_at')->get();
         $commission = (int) $sellerOrders->sum(fn (SellerOrder $order) => (int) $order->items->sum('commission_minor'));
@@ -127,9 +132,13 @@ class MoneyReportService
             'cod_held_by_logistics_minor' => max(0, $received - $remitted),
             'cod_remitted_to_admin_minor' => $remitted,
             'rider_earnings_minor' => (int) $earnings->sum('amount_minor'),
-            'seller_payable_minor' => (int) $wallet->sum('amount_minor'),
-            'seller_available_minor' => (int) $wallet->where('status', 'AVAILABLE')->sum('amount_minor'),
-            'seller_held_minor' => (int) $wallet->where('status', 'HELD')->sum('amount_minor'),
+            'seller_payable_minor' => $balances['available_minor'] + $balances['held_minor'] + $balances['reserved_minor'],
+            'seller_available_minor' => $balances['available_minor'],
+            'seller_held_minor' => $balances['held_minor'],
+            'seller_reserved_minor' => $balances['reserved_minor'],
+            'seller_paid_minor' => $balances['verified_paid_out_minor'],
+            'seller_lifetime_earnings_minor' => $balances['total_earnings_minor'],
+            'earning_release' => app(SellerWalletService::class)->releaseReadiness(),
             'refund_adjustments_minor' => (int) $wallet->where('type', 'REFUND_ADJUSTMENT')->sum('amount_minor'),
             'commission_reversal_minor' => (int) $refundAccounting->commission_reversal_minor,
             'commission_revenue_minor' => $commission - (int) $refundAccounting->commission_reversal_minor,

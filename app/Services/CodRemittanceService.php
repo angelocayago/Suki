@@ -21,6 +21,31 @@ class CodRemittanceService
     public function submitLogistics(User $actor, array $ids, ?string $reference): LogisticsCodRemittance
     { return DB::transaction(function()use($actor,$ids,$reference){ if(!$actor->isLogistics()) abort(403); $provider=$actor->logisticsProvider; if(!$provider) abort(403); $items=RiderCodRemittance::whereIn('id',array_unique($ids))->where('logistics_provider_id',$provider->id)->where('status','ACCEPTED')->lockForUpdate()->get(); if($items->count()!==count(array_unique($ids))||$items->isEmpty()) throw ValidationException::withMessages(['remittances'=>'Select accepted COD receipts from your provider only.']); if(LogisticsCodRemittanceItem::whereIn('rider_cod_remittance_id',$items->pluck('id'))->exists()) throw ValidationException::withMessages(['remittances'=>'A selected receipt is already remitted upstream.']); $total=(int)$items->sum('accepted_minor'); $rem=LogisticsCodRemittance::create(['logistics_provider_id'=>$provider->id,'expected_minor'=>$total,'submitted_minor'=>$total,'status'=>'SUBMITTED','submitted_at'=>now(),'reference'=>$reference]); foreach($items as $item) LogisticsCodRemittanceItem::create(['logistics_cod_remittance_id'=>$rem->id,'rider_cod_remittance_id'=>$item->id,'amount_minor'=>$item->accepted_minor]); $this->audit($rem,$actor,'LOGISTICS_SUBMITTED'); app(DomainNotificationService::class)->adminsAfterCommit('COD remittance submitted','A Logistics COD remittance requires review.',['logistics_remittance_id'=>$rem->id]); return $rem; },3); }
     public function reviewLogistics(LogisticsCodRemittance $remittance, User $actor, string $status, ?string $reason): void
-    { DB::transaction(function()use($remittance,$actor,$status,$reason){ if(!$actor->isAdmin()) abort(403); $r=LogisticsCodRemittance::with('items.riderRemittance.sellerOrder.seller')->lockForUpdate()->findOrFail($remittance->id); if($r->status!=='SUBMITTED') throw ValidationException::withMessages(['remittance'=>'Only submitted remittances can be reviewed.']); if($status==='REJECTED'&&!filled($reason)) throw ValidationException::withMessages(['reason'=>'A discrepancy reason is required.']); $r->update(['status'=>$status,'accepted_minor'=>$status==='ACCEPTED'?$r->expected_minor:null,'reason'=>$status==='REJECTED'?trim($reason):null,'reviewed_by'=>$actor->id,'reviewed_at'=>now()]); $this->audit($r,$actor,'ADMIN_'.$status,$reason); if($status==='ACCEPTED') foreach($r->items as $item) if(app(SellerWalletService::class)->reconcileSellerOrder($item->riderRemittance->sellerOrder)) app(DomainNotificationService::class)->afterCommit($item->riderRemittance->sellerOrder->seller->user_id,'COD reconciliation complete','Your seller earning is now available.',['seller_order_id'=>$item->riderRemittance->seller_order_id]); app(DomainNotificationService::class)->afterCommit($r->provider->user_id,'COD remittance '.$status,'Your upstream COD remittance was '.strtolower($status).'.',['logistics_remittance_id'=>$r->id]); },3); }
+    {
+        DB::transaction(function()use($remittance,$actor,$status,$reason){
+            if(!$actor->isAdmin() || $actor->status !== 'active' || $actor->is_suspended) abort(403);
+            if(!in_array($status,['ACCEPTED','REJECTED'],true)) throw ValidationException::withMessages(['remittance'=>'Choose a valid review decision.']);
+            $references = LogisticsCodRemittanceItem::with('riderRemittance.sellerOrder')->where('logistics_cod_remittance_id',$remittance->id)->get();
+            $sellerIds = $references->map(fn($item)=>$item->riderRemittance?->sellerOrder?->seller_id)->filter()->unique()->sort()->values();
+            $parentIds = $references->map(fn($item)=>$item->riderRemittance?->sellerOrder?->order_id)->filter()->unique()->sort()->values();
+            // Lock all batch Sellers and parents in stable order, before taking
+            // the remittance lock. Reconciliation never locks custody in reverse.
+            \App\Models\Seller::whereIn('id',$sellerIds)->orderBy('id')->lockForUpdate()->get();
+            \App\Models\Order::whereIn('id',$parentIds)->orderBy('id')->lockForUpdate()->get();
+            $r = LogisticsCodRemittance::with('items.riderRemittance.sellerOrder.seller')->lockForUpdate()->findOrFail($remittance->id);
+            $freshSellers = $r->items->map(fn($item)=>$item->riderRemittance?->sellerOrder?->seller_id)->filter()->unique()->sort()->values();
+            $freshParents = $r->items->map(fn($item)=>$item->riderRemittance?->sellerOrder?->order_id)->filter()->unique()->sort()->values();
+            if($freshSellers->all() !== $sellerIds->all() || $freshParents->all() !== $parentIds->all()) throw ValidationException::withMessages(['remittance'=>'Batch ownership changed; retry the review.']);
+            if($r->status!=='SUBMITTED') throw ValidationException::withMessages(['remittance'=>'Only submitted remittances can be reviewed.']);
+            if($status==='REJECTED'&&!filled($reason)) throw ValidationException::withMessages(['reason'=>'A discrepancy reason is required.']);
+            $r->update(['status'=>$status,'accepted_minor'=>$status==='ACCEPTED'?$r->expected_minor:null,'reason'=>$status==='REJECTED'?trim($reason):null,'reviewed_by'=>$actor->id,'reviewed_at'=>now()]);
+            $this->audit($r,$actor,'ADMIN_'.$status,$reason);
+            if($status==='ACCEPTED')foreach($r->items as $item){
+                if($item->riderRemittance?->sellerOrder && app(SellerWalletService::class)->reconcileSellerOrderResult($item->riderRemittance->sellerOrder)['status'] === 'RELEASED')
+                    app(DomainNotificationService::class)->afterCommit($item->riderRemittance->sellerOrder->seller->user_id,'COD reconciliation complete','Your seller earning is now available.',['seller_order_id'=>$item->riderRemittance->seller_order_id]);
+            }
+            app(DomainNotificationService::class)->afterCommit($r->provider->user_id,'COD remittance '.$status,'Your upstream COD remittance was '.strtolower($status).'.',['logistics_remittance_id'=>$r->id]);
+        },3);
+    }
     private function audit($subject, User $actor, string $action, ?string $reason=null): void { DB::table('cod_remittance_audits')->insert(['subject_type'=>get_class($subject),'subject_id'=>$subject->id,'actor_id'=>$actor->id,'action'=>$action,'reason'=>$reason,'occurred_at'=>now()]); }
 }

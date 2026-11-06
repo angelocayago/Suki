@@ -659,9 +659,12 @@
                                     @endif
 
                                     @if(!empty($item['return_eligible']))
-                                        <a href="{{ route('buyer.return-refunds.index') }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-3 py-1.5 text-xs font-semibold text-[#1F6F5B]">
+                                        <a href="{{ route('buyer.return-refunds.create', $item['order_item_id']) }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-3 py-1.5 text-xs font-semibold text-[#1F6F5B]">
                                             Return / Refund
                                         </a>
+                                        @if(!app(\App\Services\ReturnRefundWorkflowService::class)->available())<p class="text-xs text-gray-500">Submission is temporarily disabled; view eligibility information.</p>@endif
+                                    @elseif(!empty($item['return_request']))
+                                        <p class="mt-2 text-xs">Request status: {{ str_replace('_',' ',$item['return_request']->status) }}</p><a class="underline" href="{{ route('buyer.return-refunds.show',$item['return_request']) }}">View Request</a>
                                     @endif
 
                                     <p class="mt-2 font-semibold text-gray-900">

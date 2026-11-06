@@ -11,6 +11,7 @@
 <div class="seller-wallet">
     <header class="wallet-heading"><p class="wallet-eyebrow">Finance</p><h1>Wallet &amp; Payouts</h1><p>Manage your wallet balance and payout requests.</p></header>
     @if(session('success'))<div class="wallet-success" role="status">{{ session('success') }}</div>@endif
+    @if(($earningRelease['status'] ?? 'READY') !== 'READY')<p class="wallet-error" role="status">{{ $earningRelease['message'] }} COD and complaint updates do not by themselves confirm release of these funds.</p>@endif
     <div class="wallet-summary">
         @foreach([
             'available_minor'=>['Available Balance', 'Balance available for payout requests.'],
@@ -23,6 +24,9 @@
     </div>
     <section class="wallet-card wallet-request" aria-labelledby="walletRequestHeading">
         <div><h2 id="walletRequestHeading">Request Payout</h2><p>Available balance: <strong>&#8369;{{ $money($available) }}</strong></p><p>Requests are reviewed before payment.</p></div>
+        @if(!empty($payoutRestriction))
+            <p class="wallet-error" role="status">{{ $payoutRestriction }} Your recorded balance has not been changed.</p>
+        @else
         <form id="walletPayoutForm" method="POST" action="{{ route('seller.payouts.store') }}" data-available-minor="{{ $available }}">
             @csrf
             <div class="wallet-amount-field"><label for="walletPayoutAmount">Payout amount (PHP) <span aria-hidden="true">*</span></label>
@@ -33,6 +37,7 @@
             <button id="walletPayoutSubmit" class="wallet-primary" type="submit" @disabled($available < 1)>Request Payout</button>
             @if($available < 1)<p class="wallet-no-funds">No balance available for a payout request.</p>@endif
         </form>
+        @endif
     </section>
     <section class="wallet-card wallet-history" aria-labelledby="walletHistoryHeading">
         <div class="wallet-history-heading"><h2 id="walletHistoryHeading">Payout History</h2><p>{{ $payouts->total() }} {{ $criteria ? 'matching requests' : 'requests' }} &middot; Newest first</p></div>

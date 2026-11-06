@@ -44,7 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function syncComposer() {
         const active=thread.dataset.status==='ACTIVE' && !stopped;
         form.hidden=thread.dataset.status!=='ACTIVE'; closed.hidden=thread.dataset.status==='ACTIVE';
-        body.disabled=sending || !active; send.disabled=sending || !active || !body.value.trim();
+        body.disabled=sending || !active; send.disabled=sending || !active || (!body.value.trim() && !window.SukiChatPhoto?.hasPhoto(form));
+        window.SukiChatPhoto?.busy(form,sending || !active);
         send.querySelector('span').textContent=sending ? 'Sending…' : 'Send';
         const textareaScroll=body.scrollTop;
         body.style.overflowY='hidden'; body.style.height='auto';
@@ -174,17 +175,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     form.addEventListener('submit',async event=>{
-        event.preventDefault();if (sending || stopped || !body.value.trim() || thread.dataset.status!=='ACTIVE') return;
-        const value=body.value;sending=true;feedback('');syncComposer();
+        event.preventDefault();if (sending || stopped || (!body.value.trim() && !window.SukiChatPhoto?.hasPhoto(form)) || thread.dataset.status!=='ACTIVE') return;
+        const value=body.value,photo=window.SukiChatPhoto?.hasPhoto(form),payload=photo?window.SukiChatPhoto.payload(form,value):null;sending=true;feedback('');syncComposer();
         try {
-            const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({body:value})});
+            const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{...headers,...(!photo?{'Content-Type':'application/json'}:{})},body:photo?payload:JSON.stringify({body:value})});
             if (stopForAccess(response)) return;
             if (response.status===422) {
                 const data=await response.json();feedback(Object.values(data.errors ?? {}).flat().join(' ') || 'Please review your message.');return;
             }
             if (response.status===429) {feedback('Too many messages. Wait before sending again.');return;}
             if (!response.ok) throw new Error('Unknown send result');
-            const data=await response.json();merge([data.message]);updatePreview(data.message);body.value='';followLatest();
+            const data=await response.json();merge([data.message]);updatePreview(data.message);body.value='';window.SukiChatPhoto?.clear(form);followLatest();
             await poll();
         } catch (_) {feedback('Sending could not be confirmed. Your message may have been sent. Check the conversation before retrying.');}
         finally {sending=false;syncComposer();}

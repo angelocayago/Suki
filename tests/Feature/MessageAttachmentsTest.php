@@ -99,6 +99,63 @@ class MessageAttachmentsTest extends TestCase
         $this->assertNull(DB::table('conversation_participants')->where('user_id',1)->value('last_read_message_id'));
     }
 
+    public function test_photo_unavailability_reports_the_first_gate_without_connecting_to_postgresql(): void
+    {
+        $files=app(MessageAttachmentService::class);
+        $this->assertNull($files->uploadUnavailableReason());
+        $default=config('database.default');
+        config(['database.default'=>'pgsql','messaging.attachments_enabled'=>false,'messaging.deployment_verified'=>false]);
+        $this->assertStringContainsString('not been enabled',$files->uploadUnavailableReason());
+        config(['messaging.attachments_enabled'=>true]);
+        $this->assertStringContainsString('deployment verification',$files->uploadUnavailableReason());
+        // Neither branch queries the configured PostgreSQL connection.
+        config(['database.default'=>$default,'filesystems.disks.message_attachments.visibility'=>'public']);
+        $this->assertStringContainsString('Private photo storage',$files->uploadUnavailableReason());
+        config(['filesystems.disks.message_attachments.visibility'=>'private']);Schema::drop('message_attachments');
+        $this->assertStringContainsString('database setup',$files->uploadUnavailableReason());
+    }
+
+    public function test_buyer_and_seller_s3_photo_routes_use_private_proxy_and_deny_guests_and_foreign_participants(): void
+    {
+        $transport=new \Tests\Support\InMemoryChatS3Transport();$configuration=$transport::config();
+        config(['filesystems.disks.message_attachments'=>$configuration]);
+        Storage::set('message_attachments',\App\Filesystem\PrivateChatS3Filesystem::make(app('filesystem'),$configuration,$transport));
+        $buyer=$this->send(['images'=>[$this->image()]],'buyer')->assertCreated()->json('message.attachments.0');
+        $seller=$this->send(['body'=>'Photo reply','images'=>[$this->image()]],'seller')->assertCreated()->json('message.attachments.0');
+        $this->assertCount(4,$transport->objects);$this->assertSame(2,MessageAttachment::count());
+        foreach([['buyer',2],['seller',1]] as [$portal,$id]){
+            $this->actingAs(User::findOrFail($id));
+            foreach(['show','thumbnail','download'] as $action){$response=$this->get(route($portal.'.messages.attachments.'.$action,['conversation'=>$this->conversation->reference,'attachment'=>$buyer['id']]))->assertOk();$this->assertNotEmpty($response->streamedContent());}
+            $this->getJson(route($portal.'.messages.poll',$this->conversation->reference))->assertOk()->assertJsonCount(2,'messages')->assertJsonMissingPath('messages.0.attachments.0.path')->assertDontSee('FAKE-TEST-SECRET')->assertDontSee('storage.supabase.co');
+        }
+        foreach([['buyer',3],['seller',4]] as [$portal,$id])$this->actingAs(User::findOrFail($id))->get(route($portal.'.messages.attachments.show',['conversation'=>$this->conversation->reference,'attachment'=>$seller['id']]))->assertForbidden();
+        auth()->logout();$this->getJson(route('buyer.messages.attachments.show',['conversation'=>$this->conversation->reference,'attachment'=>$buyer['id']]))->assertUnauthorized();
+        \Illuminate\Support\Facades\Log::spy();$transport->failReads=true;$this->actingAs($this->buyer)->get(route('buyer.messages.attachments.show',['conversation'=>$this->conversation->reference,'attachment'=>$buyer['id']]))->assertStatus(503)->assertDontSee('FAKE-TEST')->assertDontSee('storage.supabase.co');
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once()->with('Private chat image read failed.');
+        $this->assertFalse(config('returns.backend_enabled'));$this->assertFalse(config('returns.earning_release_enabled'));
+    }
+
+    public function test_s3_late_thumbnail_failure_removes_only_new_objects_and_rolls_back_metadata(): void
+    {
+        $transport=new \Tests\Support\InMemoryChatS3Transport();$transport->objects['existing.png']='Preserve';$transport->failPut=2;
+        $configuration=$transport::config();config(['filesystems.disks.message_attachments'=>$configuration]);
+        Storage::set('message_attachments',\App\Filesystem\PrivateChatS3Filesystem::make(app('filesystem'),$configuration,$transport));
+        $this->send(['images'=>[$this->image()]])->assertUnprocessable()->assertDontSee('FAKE-TEST')->assertDontSee('storage.supabase.co');
+        $this->assertSame(['existing.png'=>'Preserve'],$transport->objects);$this->assertSame(0,Message::count());$this->assertSame(0,MessageAttachment::count());
+    }
+
+    public function test_s3_database_failure_deletes_new_keys_and_logs_no_sdk_or_path_details(): void
+    {
+        $transport=new \Tests\Support\InMemoryChatS3Transport();$transport->objects['existing.png']='Preserve';
+        $configuration=$transport::config();config(['filesystems.disks.message_attachments'=>$configuration]);
+        Storage::set('message_attachments',\App\Filesystem\PrivateChatS3Filesystem::make(app('filesystem'),$configuration,$transport));
+        DB::statement("CREATE TRIGGER attachment_s3_test_fail BEFORE INSERT ON message_attachments BEGIN SELECT RAISE(ABORT, 'PRIVATE-SERVER-DETAIL'); END");
+        \Illuminate\Support\Facades\Log::spy();
+        $this->send(['images'=>[$this->image()]])->assertUnprocessable()->assertJsonValidationErrors('images')->assertDontSee('PRIVATE-SERVER-DETAIL')->assertDontSee('FAKE-TEST')->assertDontSee('storage.supabase.co');
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once()->with('Chat attachment persistence failed.');
+        $this->assertSame(['existing.png'=>'Preserve'],$transport->objects);$this->assertSame(0,Message::count());$this->assertSame(0,MessageAttachment::count());
+    }
+
     public function test_text_image_only_and_mixed_messages_preserve_canonical_identity_and_poll_contract(): void
     {
         $this->send(['body'=>'Text only'])->assertCreated()->assertJsonPath('message.body','Text only')->assertJsonCount(0,'message.attachments');

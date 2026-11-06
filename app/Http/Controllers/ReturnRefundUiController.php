@@ -11,6 +11,25 @@ use Illuminate\Support\Facades\DB;
 
 class ReturnRefundUiController extends Controller
 {
+    public function create(Request $request,\App\Models\OrderItem $item)
+    {
+        abort_unless((int)$item->order->buyer_id===(int)$request->user()->id,403);
+        $existing=ReturnRefundRequest::where('order_item_id',$item->id)->first();
+        if($existing)return redirect()->route('buyer.return-refunds.show',$existing);
+        $workflow=app(\App\Services\ReturnRefundWorkflowService::class);$available=$workflow->available();$calculation=null;$eligibility=null;
+        try{$calculation=app(\App\Services\ReturnRefundService::class)->inspectPurchase($request->user(),$item);}catch(\Illuminate\Validation\ValidationException $e){$eligibility=collect($e->errors())->flatten()->first();}
+        if(!$workflow->returnAddress($item))$eligibility='The Seller must complete the approved pickup/return address. Contact support before shipping any parcel.';
+        return view('buyer.returns.create',compact('item','available','calculation','eligibility'));
+    }
+
+    private function journey(ReturnRefundRequest $r,string $role): array
+    {
+        $service=app(\App\Services\ReturnRefundWorkflowService::class);$workflow=$service->find($r);$ready=$service->available();$approvable=false;
+        if($ready){try{$service->assertApprovable($r,true);$approvable=true;}catch(\Illuminate\Validation\ValidationException $e){}}
+        $refundQuote=null;
+        if($r->item){try{$refundQuote=app(\App\Services\ReturnRefundAllocationService::class)->calculate($r->item,(int)$r->quantity)['buyer_refund_due_minor'];}catch(\Illuminate\Validation\ValidationException $e){}}
+        return compact('workflow','role','ready','approvable','refundQuote');
+    }
     public function buyerIndex(Request $request)
     {
         $requests = $this->requests()->where('buyer_id', $request->user()->id)->latest()->get();
@@ -23,7 +42,7 @@ class ReturnRefundUiController extends Controller
         $returnRefundRequest = $this->requests()->where('buyer_id', $request->user()->id)->findOrFail($returnRefundRequest->id);
         $evidence = $this->evidence($returnRefundRequest);
 
-        return view('buyer.returns.show', compact('returnRefundRequest', 'evidence'));
+        return response()->view('buyer.returns.show', compact('returnRefundRequest', 'evidence')+$this->journey($returnRefundRequest,'buyer'))->header('Cache-Control','private, no-store');
     }
 
     public function sellerIndex(Request $request)
@@ -40,12 +59,18 @@ class ReturnRefundUiController extends Controller
             'Approved by Admin' => (int) ($counts['ADMIN_APPROVED'] ?? 0),
             'Rejected by Admin' => (int) ($counts['ADMIN_REJECTED'] ?? 0),
         ];
+        $workflows=collect();
+        if(app(\App\Services\ReturnRefundWorkflowService::class)->schemaReady()){
+            $pending=\App\Models\ReturnRefundWorkflow::where('parcel_status','SHIPPED')->whereIn('return_refund_request_id',(clone $owned)->whereIn('status',ReturnRefundRequest::ACTIVE_STATUSES)->reorder()->select('return_refund_requests.id'));
+            $summary['Awaiting parcel confirmation']=$pending->count();
+        }
         $requests = SellerReturnFilters::apply($owned, $criteria)->latest()->orderByDesc('id')
             ->paginate(15)->appends(array_filter($criteria, fn ($value, $key) => $value !== '' && $value !== 'all' && $value !== 'any', ARRAY_FILTER_USE_BOTH));
         $statuses = SellerReturnFilters::STATUSES;
         $dates = SellerReturnFilters::DATES;
+        if(app(\App\Services\ReturnRefundWorkflowService::class)->schemaReady())$workflows=\App\Models\ReturnRefundWorkflow::whereIn('return_refund_request_id',$requests->pluck('id'))->get(['id','return_refund_request_id','parcel_status'])->keyBy('return_refund_request_id');
 
-        return view('seller.returns.index', compact('requests', 'criteria', 'summary', 'statuses', 'dates'));
+        return view('seller.returns.index', compact('requests', 'criteria', 'summary', 'statuses', 'dates','workflows'));
     }
 
     public function sellerShow(Request $request, ReturnRefundRequest $returnRefundRequest)
@@ -58,7 +83,7 @@ class ReturnRefundUiController extends Controller
         $evidence = $this->evidence($returnRefundRequest);
         $statuses = SellerReturnFilters::STATUSES;
 
-        return view('seller.returns.show', compact('returnRefundRequest', 'evidence', 'statuses'));
+        return response()->view('seller.returns.show', compact('returnRefundRequest', 'evidence', 'statuses')+$this->journey($returnRefundRequest,'seller'))->header('Cache-Control','private, no-store');
     }
 
     public function adminIndex()
@@ -74,7 +99,7 @@ class ReturnRefundUiController extends Controller
         $evidence = $this->evidence($returnRefundRequest);
         $accounting = DB::table('return_refund_accounting')->where('return_refund_request_id', $returnRefundRequest->id)->first();
 
-        return view('admin.returns.show', compact('returnRefundRequest', 'evidence', 'accounting'));
+        return response()->view('admin.returns.show', compact('returnRefundRequest', 'evidence', 'accounting')+$this->journey($returnRefundRequest,'admin'))->header('Cache-Control','private, no-store');
     }
 
     private function requests()

@@ -71,14 +71,15 @@
         <footer class="border-t border-[#DCE5E0] bg-white p-4">
             @if($isActive)
                 <p id="buyerMessageError" class="text-sm text-red-700" role="alert" hidden></p>
-                <form id="messageComposer" @if($portal['name']==='buyer') data-buyer-composer @endif method="POST" action="{{ route($portal['route_prefix'].'.store', $conversation->reference) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <form id="messageComposer" enctype="multipart/form-data" @if($portal['name']==='buyer') data-buyer-composer @endif method="POST" action="{{ route($portal['route_prefix'].'.store', $conversation->reference) }}" class="suki-chat-composer">
                     @csrf
-                    <div class="flex-1">
+                    @if(in_array($portal['name'],['buyer','seller'],true))@include('messages.partials.photo-composer')@endif
+                    <div class="chat-composer-field">
                         <label for="message-body" class="sr-only">Message</label>
                         <textarea
                             id="message-body"
                             name="body"
-                            required
+                            @required(!($canAttach ?? false))
                             maxlength="10000"
                             rows="{{ $portal['name']==='buyer' ? 1 : 3 }}"
                             placeholder="Write a message"
@@ -215,8 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const fail=text=>{error.textContent=text;error.hidden=!text;};
     function syncBuyerComposer() {
         if (!form) return;
-        send.disabled=sending || closed || !input.value.trim();
+        send.disabled=sending || closed || (!input.value.trim() && !window.SukiChatPhoto?.hasPhoto(form));
         input.disabled=sending || closed;
+        window.SukiChatPhoto?.busy(form,sending || closed);
         send.textContent=sending ? 'Sending…' : 'Send message';
         input.style.overflowY='hidden';input.style.height='auto';
         const height=Math.max(44,input.scrollHeight+2);input.style.height=Math.min(height,124)+'px';input.style.overflowY=height>124?'auto':'hidden';
@@ -226,15 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('input',syncBuyerComposer);
         input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();if(!send.disabled)form.requestSubmit();}});
         form.addEventListener('submit',async event=>{
-            event.preventDefault();if(sending||closed||!input.value.trim())return;
-            const value=input.value;sending=true;fail('');syncBuyerComposer();
+            event.preventDefault();if(sending||closed||(!input.value.trim()&&!window.SukiChatPhoto?.hasPhoto(form)))return;
+            const value=input.value,photo=window.SukiChatPhoto?.hasPhoto(form),payload=photo?window.SukiChatPhoto.payload(form,value):null;sending=true;fail('');syncBuyerComposer();
             try {
-                const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},body:JSON.stringify({body:value})});
+                const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{Accept:'application/json',...(!photo?{'Content-Type':'application/json'}:{}),'X-CSRF-TOKEN':csrfToken},body:photo?payload:JSON.stringify({body:value})});
                 if(response.status===422){const data=await response.json();fail(Object.values(data.errors??{}).flat().join(' ')||'Please review your message.');return;}
                 if([401,403,419].includes(response.status)){closed=true;fail('Your session or conversation access changed. Refresh before sending.');return;}
                 if(response.status===429){fail('Too many messages. Wait before retrying.');return;}
                 if(!response.ok)throw new Error('Unknown send result');
-                const data=await response.json();appendMessage(data.message,false);input.value='';scrollToBottom();await poll();
+                const data=await response.json();appendMessage(data.message,false);input.value='';window.SukiChatPhoto?.clear(form);scrollToBottom();await poll();
             } catch (_) {fail('Sending could not be confirmed. Your message may have been sent. Check the conversation before retrying.');}
             finally {sending=false;syncBuyerComposer();}
         });

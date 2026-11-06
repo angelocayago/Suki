@@ -12,6 +12,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^2.10.1",
+        "league/flysystem-aws-s3-v3": "^3.25.1",
         "picqer/php-barcode-generator": "^3.3"
     },
     "require-dev": {

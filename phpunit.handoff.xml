@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/Support/chat-photo-bootstrap.php" cacheResult="false" colors="true">
+    <testsuites>
+        <testsuite name="Isolated Return Refund Chat Handoff">
+            <file>tests/Feature/BuyerBuyAgainTest.php</file>
+            <file>tests/Feature/BuyerBuyNowTest.php</file>
+            <file>tests/Feature/BuyerOrderCancellationTest.php</file>
+            <file>tests/Feature/BuyerShopVouchersTest.php</file>
+            <file>tests/Feature/CodRemittanceTest.php</file>
+            <file>tests/Feature/HeldEarningReconciliationTest.php</file>
+            <file>tests/Feature/IsolatedComplaintAdminInterfaceTest.php</file>
+            <file>tests/Feature/IsolatedComplaintEvidenceSubmissionTest.php</file>
+            <file>tests/Feature/IsolatedComplaintFoundationTest.php</file>
+            <file>tests/Feature/LogisticsRiderReviewAssignmentTest.php</file>
+            <file>tests/Feature/MessageAttachmentsTest.php</file>
+            <file>tests/Feature/PhaseFourVoucherTest.php</file>
+            <file>tests/Feature/PhaseFourWalletHardeningTest.php</file>
+            <file>tests/Feature/PhaseFourWalletPayoutTest.php</file>
+            <file>tests/Feature/PhaseSevenMoneyReportingTest.php</file>
+            <file>tests/Feature/PhaseThreeMessagingContextEntryPointTest.php</file>
+            <file>tests/Feature/PhaseTwoBCheckoutLifecycleTest.php</file>
+            <file>tests/Feature/PhaseTwoCheckoutTest.php</file>
+            <file>tests/Feature/PhaseTwoRiderLogisticsWorkflowTest.php</file>
+            <file>tests/Feature/PrivateChatS3StorageTest.php</file>
+            <file>tests/Feature/ReturnRefundIntegrityTest.php</file>
+            <file>tests/Feature/ReturnRefundJourneyTest.php</file>
+            <file>tests/Feature/ReturnRefundTest.php</file>
+            <file>tests/Feature/ReturnRefundUiTest.php</file>
+            <file>tests/Feature/RiderCodPresentationTest.php</file>
+            <file>tests/Feature/SellerComplaintsTest.php</file>
+            <file>tests/Feature/SellerDashboardAnalyticsTest.php</file>
+            <file>tests/Feature/SellerInventoryFunctionsTest.php</file>
+            <file>tests/Feature/SellerMessagesInboxTest.php</file>
+            <file>tests/Feature/SellerProductFormsTest.php</file>
+            <file>tests/Feature/SellerReportsDashboardTest.php</file>
+            <file>tests/Feature/SellerReturnsManagementTest.php</file>
+            <file>tests/Feature/SellerReviewsPageTest.php</file>
+            <file>tests/Feature/SellerWalletPageTest.php</file>
+            <file>tests/Feature/TransactionReviewTest.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>
