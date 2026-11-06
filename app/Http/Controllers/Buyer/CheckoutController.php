@@ -43,6 +43,10 @@ class CheckoutController extends Controller
                 'name' => $address->recipient,
                 'phone' => $address->phone,
                 'province' => $address->province,
+                'region_code' => $address->region_code,
+                'province_code' => $address->province_code,
+                'city_municipality_code' => $address->city_municipality_code,
+                'barangay_code' => $address->barangay_code,
                 'municipality' => $address->city,
                 'barangay' => $address->barangay,
                 'street' => $address->line1,
@@ -55,14 +59,17 @@ class CheckoutController extends Controller
         $addresses = $databaseAddresses->isNotEmpty()
             ? $databaseAddresses->all()
             : $request->session()->get('buyer_addresses', []);
-        $defaultAddress = collect($addresses)->firstWhere('is_default', true)
-            ?? ($addresses[0] ?? null);
+        $addresses = collect($addresses)->map(fn (array $address) => $address + ['delivery_issue' => $this->addressIssue($address)])->all();
+        $eligibleAddresses = collect($addresses)->whereNull('delivery_issue');
+        $defaultAddress = $eligibleAddresses->firstWhere('id', old('address_id'))
+            ?? $eligibleAddresses->firstWhere('is_default', true) ?? $eligibleAddresses->first();
 
         return view('buyer.checkout', array_merge($summary, [
             'buyNowToken' => $buyNowToken,
             'buyNowProduct' => $state['product_slug'] ?? null,
             'addresses' => $addresses,
             'defaultAddress' => $defaultAddress,
+            'hasEligibleAddress' => $eligibleAddresses->isNotEmpty(),
             'claimedVouchers' => app(\App\Services\ShopVoucherService::class)->claimedForCheckout($request->user(), collect($summary['cart'])->filter(fn($line)=>$line['available'] && $line['seller_id'])->groupBy('seller_id')->map(fn($lines)=>$lines->sum(fn($line)=>$line['price_minor']*$line['quantity']))),
         ]));
     }
@@ -80,6 +87,24 @@ class CheckoutController extends Controller
 
         $buyer = $request->user();
         $address = $this->resolveAddress($request, $validated['address_id']);
+        if ($issue = $this->addressIssue($address)) {
+            throw ValidationException::withMessages(['address_id' => $issue]);
+        }
+        try {
+            // Reuse the same hierarchy checks as address editing. Never guess codes
+            // or depend on provider/rider assignments when validating an address.
+            app(\App\Services\PhilippineAddressService::class)->resolve([
+                'region' => $address['region_code'],
+                'province' => $address['province_code'] ?? null,
+                'municipality' => $address['city_municipality_code'],
+                'barangay' => $address['barangay_code'],
+            ]);
+        } catch (ValidationException $exception) {
+            $unavailable = collect($exception->errors())->flatten()->contains('Address data could not be verified. Please try again later.');
+            throw ValidationException::withMessages(['address_id' => $unavailable
+                ? 'Delivery locations could not be verified right now. Please try again shortly. Your cart has not changed.'
+                : 'This address has outdated or mismatched delivery locations. Update it in Manage addresses, then return to checkout.']);
+        }
 
         try {
             $order = $checkout->checkout($buyer, $address, $validated['payment_method'], $direct->codes($request,$buyNowToken), $state, $buyNowToken ? $direct->reference($request,$buyNowToken) : null);
@@ -159,7 +184,11 @@ class CheckoutController extends Controller
         return [
             'recipient_name' => $sessionAddress['name'] ?? '',
             'recipient_phone' => $sessionAddress['phone'] ?? '',
-            'province' => $sessionAddress['province'] ?? '',
+            'province' => $sessionAddress['province'] ?? null,
+            'region_code' => $sessionAddress['region_code'] ?? null,
+            'province_code' => $sessionAddress['province_code'] ?? null,
+            'city_municipality_code' => $sessionAddress['city_municipality_code'] ?? null,
+            'barangay_code' => $sessionAddress['barangay_code'] ?? null,
             'municipality' => $sessionAddress['municipality'] ?? '',
             'barangay' => $sessionAddress['barangay'] ?? '',
             'street_address' => $sessionAddress['street'] ?? '',
@@ -169,5 +198,17 @@ class CheckoutController extends Controller
             'delivery_notes' => null,
             'source_address_id' => null,
         ];
+    }
+
+    private function addressIssue(array $address): ?string
+    {
+        $fields = ['region_code', 'city_municipality_code', 'barangay_code'];
+        if (filled($address['province'] ?? null)) $fields[] = 'province_code';
+        foreach ($fields as $field) {
+            if (! is_string($address[$field] ?? null) || ! preg_match('/^[0-9]{1,20}$/D', $address[$field])) {
+                return 'Update this address in Manage addresses and select its region, city/municipality and barangay before checkout.';
+            }
+        }
+        return null;
     }
 }

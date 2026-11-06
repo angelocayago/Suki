@@ -596,7 +596,7 @@
                                 {{ $address['street'] ?? '' }},
                                 Barangay {{ $address['barangay'] ?? '' }},
                                 {{ $address['municipality'] ?? '' }},
-                                {{ $address['province'] ?? '' }},
+                                @if(!empty($address['province'])){{ $address['province'] }},@endif
                                 {{ $address['postal_code'] ?? '' }}
 
                             </p>

@@ -9,12 +9,14 @@ use Tests\TestCase;
 
 class BuyerBuyNowTest extends TestCase
 {
+    use \Tests\Support\FakesCheckoutLocations;
     private User $buyer;
     protected function setUp(): void
     {
         parent::setUp();
         if(config('database.default')!=='sqlite'||config('database.connections.sqlite.database')!==':memory:'||config('database.connections.sqlite.url'))throw new \RuntimeException('Memory-only fixtures required.');
         $this->assertSame(':memory:',DB::connection()->getDatabaseName());
+        $this->fakeCheckoutLocations();
         DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, status TEXT, is_suspended INTEGER DEFAULT 0, first_name TEXT, last_name TEXT, middle_initial TEXT, email_verified_at TEXT, phone_verified_at TEXT, verification_required_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT)');
         DB::statement('CREATE TABLE sellers (id INTEGER PRIMARY KEY, user_id INTEGER, category_id INTEGER, name TEXT, slug TEXT, status TEXT, created_at TEXT, updated_at TEXT)');
         DB::statement('CREATE TABLE notifications (id TEXT PRIMARY KEY, type TEXT, notifiable_type TEXT, notifiable_id INTEGER, data TEXT, read_at TEXT, created_at TEXT, updated_at TEXT)');
@@ -47,7 +49,7 @@ class BuyerBuyNowTest extends TestCase
         $variant=$other->variants()->create(['sku'=>'SKU-21','name'=>'Default','price_minor'=>20000,'stock'=>10,'is_active'=>true]);DB::table('product_variants')->where('id',$variant->id)->update(['id'=>21]);
         CartItem::create(['user_id'=>1,'product_variant_id'=>11,'product_slug'=>$product->slug,'product_name'=>$product->name,'price'=>1,'quantity'=>1,'selected'=>true]);
         CartItem::create(['user_id'=>1,'product_variant_id'=>21,'product_slug'=>$other->slug,'product_name'=>$other->name,'price'=>1,'quantity'=>2,'selected'=>true]);
-        Address::create(['user_id'=>1,'recipient'=>'Buyer','phone'=>'09123456789','province'=>'P','city'=>'C','barangay'=>'B','line1'=>'Street','is_default'=>true]);
+        Address::create($this->checkoutLocationCodes()+['user_id'=>1,'recipient'=>'Buyer','phone'=>'09123456789','province'=>'P','city'=>'C','barangay'=>'B','line1'=>'Street','is_default'=>true]);
         Voucher::create(['code'=>'CART-B','scope'=>'SELLER','seller_id'=>202,'discount_type'=>'FIXED','discount_minor'=>100,'is_active'=>true]);
         Storage::fake('public');Storage::disk('public')->put('variants/12.png','selected image');
         $this->mock(\App\Services\DomainNotificationService::class)->shouldReceive('afterCommit')->andReturnNull();

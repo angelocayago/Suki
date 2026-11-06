@@ -15,7 +15,13 @@ use Tests\TestCase;
 
 class PhaseTwoCheckoutTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_checkout_creates_grouped_fulfillment_records_without_a_provider(): void
     {
@@ -152,6 +158,7 @@ class PhaseTwoCheckoutTest extends TestCase
         $this->cartItem($buyer, $item['product'], $item['variant'], 1);
 
         $sessionAddress = [
+            ...$this->checkoutLocationCodes(),
             'id' => 77,
             'name' => 'Session Recipient',
             'phone' => '09999999999',
@@ -247,6 +254,7 @@ class PhaseTwoCheckoutTest extends TestCase
     private function address(User $buyer): Address
     {
         return Address::create([
+            ...$this->checkoutLocationCodes(),
             'user_id' => $buyer->id,
             'label' => 'Home',
             'recipient' => $buyer->name,

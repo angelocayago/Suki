@@ -69,6 +69,9 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
+                        @if($errors->has('address_id'))
+                            <a href="{{ route('buyer.addresses') }}" class="mt-3 inline-block text-sm font-semibold text-[#1F6F5B] underline">Update delivery address</a>
+                        @endif
                     </div>
 
                 </div>
@@ -157,6 +160,8 @@
                                                     <input
                                                         type="radio"
                                                         name="address_id"
+                                                        required
+                                                        @disabled(!empty($address['delivery_issue']))
                                                         value="{{ $address['id'] }}"
                                                         {{ $isSelected ? 'checked' : '' }}
                                                         class="mt-1 h-4 w-4 accent-[#1F6F5B]"
@@ -191,7 +196,7 @@
                                                             {{ $address['street'] }},
                                                             Barangay {{ $address['barangay'] }},
                                                             {{ $address['municipality'] }},
-                                                            {{ $address['province'] }},
+                                                            @if(!empty($address['province'])){{ $address['province'] }},@endif
                                                             {{ $address['postal_code'] }}
 
                                                         </p>
@@ -209,6 +214,10 @@
                                             </div>
 
                                         </label>
+
+                                        @if(!empty($address['delivery_issue']))
+                                            <p class="text-sm text-amber-800">{{ $address['delivery_issue'] }} <a href="{{ route('buyer.addresses') }}" class="font-semibold underline">Update delivery address</a></p>
+                                        @endif
 
                                     @endforeach
 
@@ -662,7 +671,7 @@
                             {{-- PLACE ORDER --}}
                             <button data-place-order
                                 type="submit"
-                                @disabled($has_unavailable_items ?? false)
+                                @disabled(($has_unavailable_items ?? false) || !($hasEligibleAddress ?? false))
                                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B] focus:ring-offset-2"
                             >
 

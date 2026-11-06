@@ -18,7 +18,13 @@ use Tests\TestCase;
 
 class PhaseOneVariantCartContractTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_foreign_and_inactive_variant_ids_are_rejected(): void
     {
@@ -84,7 +90,7 @@ class PhaseOneVariantCartContractTest extends TestCase
             $cart->assertSee(route('buyer.cart.increase', $row->id), false);
         }
         $this->get(route('buyer.checkout'))->assertOk()->assertViewHas('cart', $summary['cart'])->assertViewHas('total', $summary['total']);
-        $address = Address::create(['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
+        $address = Address::create($this->checkoutLocationCodes() + ['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
         $other = $this->buyer();
         $otherRow = CartItem::create(['user_id' => $other->id, 'product_slug' => $product->slug, 'product_name' => $product->name, 'product_variant_id' => $first->id, 'price' => 1, 'quantity' => 1]);
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod', 'total' => 0])->assertSessionHasNoErrors();
@@ -214,7 +220,7 @@ class PhaseOneVariantCartContractTest extends TestCase
         $second = $this->secondVariant($product);
         $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['quantity' => 1]);
         $this->post(route('buyer.cart.add', $product->slug), ['variant_id' => $second->id, 'quantity' => 1]);
-        $address = Address::create(['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
+        $address = Address::create($this->checkoutLocationCodes() + ['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
         $this->get(route('buyer.checkout.legacy'))->assertRedirect(route('buyer.checkout'));
         $this->post(route('buyer.checkout.place-order.legacy'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasNoErrors();
         $order = Order::with('items')->sole();

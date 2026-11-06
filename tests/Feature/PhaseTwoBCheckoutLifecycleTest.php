@@ -16,7 +16,13 @@ use Tests\TestCase;
 
 class PhaseTwoBCheckoutLifecycleTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_approved_catalog_checkout_uses_database_price_and_creates_one_seller_order_per_seller(): void
     {
@@ -285,6 +291,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
     private function address(User $buyer): Address
     {
         return Address::firstOrCreate(['user_id' => $buyer->id], [
+            ...$this->checkoutLocationCodes(),
             'label' => 'Home', 'recipient' => $buyer->name, 'phone' => '09123456789',
             'line1' => '123 Test Street', 'barangay' => 'Test Barangay', 'city' => 'Test City',
             'province' => 'Test Province', 'postal_code' => '4000', 'is_default' => true,
