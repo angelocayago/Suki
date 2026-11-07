@@ -35,7 +35,8 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
         $this->actingAs($buyer)->get(route('buyer.cart'))->assertOk()->assertSee('Cart product');
 
         $product->update(['moderation_status' => ProductModerationStatus::Pending->value]);
-        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug))->assertNotFound();
+        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug))->assertRedirect()->assertSessionHasErrors(['product' => 'This product is no longer available.']);
+        $this->assertSame(2, $cartItem->fresh()->quantity);
     }
 
     public function test_wishlist_is_buyer_scoped_and_cannot_move_hidden_product_to_cart(): void
@@ -51,7 +52,8 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
         $this->assertDatabaseCount('wishlist_items', 1);
 
         $product->update(['moderation_status' => ProductModerationStatus::Rejected->value]);
-        $this->actingAs($buyer)->post(route('buyer.wishlist.move-to-cart', $product->slug))->assertNotFound();
+        $this->actingAs($buyer)->post(route('buyer.wishlist.move-to-cart', $product->slug))->assertRedirect()->assertSessionHasErrors(['product' => 'This product is no longer available.']);
+        $this->assertDatabaseHas('wishlist_items', ['user_id' => $buyer->id, 'product_slug' => $product->slug]);
         $this->assertDatabaseCount('cart_items', 0);
     }
 

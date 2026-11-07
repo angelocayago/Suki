@@ -34,7 +34,7 @@ class PhaseOneVariantCartContractTest extends TestCase
         $inactive = ProductVariant::create(['product_id' => $product->id, 'sku' => 'INACTIVE-'.$product->id, 'name' => 'Inactive', 'price_minor' => 9000, 'stock' => 5, 'is_active' => false]);
 
         $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $foreign->id, 'quantity' => 1])->assertNotFound();
-        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $inactive->id, 'quantity' => 1])->assertNotFound();
+        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $inactive->id, 'quantity' => 1])->assertRedirect()->assertSessionHasErrors(['product' => 'This product is no longer available.']);
         $this->assertDatabaseCount('cart_items', 0);
         $this->assertNotSame($product->id, $otherProduct->id);
         $this->assertNotNull($variant);
@@ -46,7 +46,9 @@ class PhaseOneVariantCartContractTest extends TestCase
         [, $product, $default] = $this->product('Options', 10000, 99);
         $selected = ProductVariant::create(['product_id' => $product->id, 'sku' => 'OPTIONS-SMALL', 'name' => 'Small', 'options' => ['Size' => 'S'], 'price_minor' => 27550, 'stock' => 2, 'is_active' => true]);
 
-        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $selected->id, 'quantity' => 8])->assertRedirect();
+        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $selected->id, 'quantity' => 8])->assertRedirect()->assertSessionHasErrors(['quantity' => 'Only 2 available. Please lower your quantity.']);
+        $this->assertDatabaseCount('cart_items', 0);
+        $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['variant_id' => $selected->id, 'quantity' => 2])->assertRedirect()->assertSessionHasNoErrors();
 
         $item = CartItem::where('user_id', $buyer->id)->sole();
         $this->assertSame($selected->id, $item->product_variant_id);
@@ -204,7 +206,10 @@ class PhaseOneVariantCartContractTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.wishlist.add', $product->slug), ['cart_item_id' => $row->id])->assertRedirect();
         $this->assertDatabaseMissing('cart_items', ['id' => $row->id]);
         $this->assertSame(2, $sibling->fresh()->quantity);
-        $this->post(route('buyer.wishlist.move-to-cart', $product->slug))->assertRedirect();
+        $this->post(route('buyer.wishlist.move-to-cart', $product->slug))->assertRedirect(route('buyer.product', $product->slug));
+        $this->assertDatabaseHas('wishlist_items', ['user_id' => $buyer->id, 'product_slug' => $product->slug]);
+        $this->assertDatabaseMissing('cart_items', ['user_id' => $buyer->id, 'product_variant_id' => $first->id]);
+        $this->post(route('buyer.cart.add', $product->slug), ['variant_id' => $first->id, 'quantity' => 1])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('cart_items', ['product_variant_id' => $first->id, 'quantity' => 1]);
         $this->assertSame(2, $sibling->fresh()->quantity);
         $this->assertSame($second->id, $sibling->fresh()->product_variant_id);

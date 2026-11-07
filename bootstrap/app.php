@@ -23,5 +23,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Format only Buyer mutation JSON; keep authorization and HTTP statuses intact.
+        $exceptions->render(function (\Throwable $error, \Illuminate\Http\Request $request) {
+            if (!$request->expectsJson() || !$request->routeIs('buyer.cart.add', 'buyer.cart.update', 'buyer.cart.increase', 'buyer.cart.decrease', 'buyer.cart.remove', 'buyer.cart.clear', 'buyer.wishlist.add', 'buyer.wishlist.remove', 'buyer.wishlist.toggle', 'buyer.wishlist.move-to-cart')) return null;
+            $status = $error instanceof \Illuminate\Auth\AuthenticationException ? 401 : ($error instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface ? $error->getStatusCode() : 500);
+            if ($error instanceof \Illuminate\Validation\ValidationException) return null;
+            [$message, $code] = match ($status) {
+                401 => ['Please log in to add items to your cart.', 'auth_required'],
+                403 => ['This account does not have access to the Buyer portal.', 'forbidden'],
+                404 => ['Not found.', 'not_found'],
+                419 => ['Your session expired. Please refresh the page or log in again.', 'session_expired'],
+                default => ['Something went wrong. Please try again.', 'server_error'],
+            };
+            return response()->json(['success' => false, 'message' => $message, 'errors' => (object) [], 'code' => $code], $status);
+        });
     })->create();

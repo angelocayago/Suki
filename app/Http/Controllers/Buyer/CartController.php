@@ -21,6 +21,63 @@ use Throwable;
 
 class CartController extends Controller
 {
+    public function action(Request $request, callable $operation, string $message, ?string $redirect = null)
+    {
+        if (!$request->user()) {
+            $message = str_contains((string) $request->route()?->getName(), 'wishlist') ? 'Please log in to save items to your wishlist.' : 'Please log in to add items to your cart.';
+            if ($request->expectsJson()) return response()->json(['success' => false, 'message' => $message, 'errors' => (object) [], 'code' => 'auth_required'], 401);
+            $intended = url()->previous();
+            $request->session()->put('url.intended', str_starts_with($intended, url('/')) ? $intended : route('buyer.home'));
+            return redirect()->route('login')->with('error', $message);
+        }
+        abort_unless(($request->user()->role === 'buyer' || (!$request->routeIs('buyer.cart.add', 'buyer.cart.clear', 'buyer.wishlist*') && $request->user()->hasAnyRole(['buyer']))) && $request->user()->status === 'active' && !$request->user()->is_suspended, 403);
+        try {
+            $result = $operation();
+            if ($result instanceof \Symfony\Component\HttpFoundation\Response) return $result;
+            if (is_string($result)) $message = $result;
+            if ($request->expectsJson()) return response()->json(['success' => true, 'message' => $message, 'errors' => (object) [], 'code' => 'ok']);
+            return ($redirect ? redirect()->route($redirect) : $this->actionBack($request))->with('success', $message);
+        } catch (ValidationException $error) {
+            $errors = $error->errors(); $message = collect($errors)->flatten()->first();
+            $code = $error->status === 409 ? (str_contains(strtolower($message), 'out of stock') ? 'out_of_stock' : 'insufficient_stock') : (isset($errors['quantity']) ? 'invalid_quantity' : (isset($errors['variant_id']) && str_contains($message, 'select') ? 'variant_required' : 'unavailable'));
+            if ($request->expectsJson()) return response()->json(['success' => false, 'message' => $message, 'errors' => $errors, 'code' => $code], $error->status);
+            return $this->actionBack($request)->withErrors($errors)->withInput()->with('cart_error_line', $request->route('cartItem'));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $error) {
+            throw $error;
+        } catch (Throwable $error) {
+            report($error); $message = 'Something went wrong. Please try again.';
+            if ($request->expectsJson()) return response()->json(['success' => false, 'message' => $message, 'errors' => (object) [], 'code' => 'server_error'], 500);
+            return back()->with('error', $message)->withInput();
+        }
+    }
+
+    private function actionBack(Request $request): RedirectResponse
+    {
+        // A newly hidden product must not send its own Buyer action back to a 404 page.
+        $slug = $request->route('slug');
+        if (is_string($slug) && str_contains((string) parse_url(url()->previous(), PHP_URL_PATH), '/product/')
+            && !app(ProductCatalogService::class)->marketplaceProduct($slug)) return redirect()->route('buyer.shop');
+        return back();
+    }
+
+    public function quantityData(Request $request, bool $default = false): array
+    {
+        if ($default && !$request->exists('quantity')) $request->merge(['quantity' => 1]);
+        return $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:2147483647'], 'variant_id' => ['nullable', 'integer', 'min:1']], [
+            'quantity.required' => 'Please enter a quantity.', 'quantity.integer' => 'Quantity must be a whole number.',
+            'quantity.min' => 'Please enter a quantity of at least 1.', 'quantity.max' => 'Quantity is too large.',
+        ]);
+    }
+
+    public function add(Request $request, string $slug, CheckoutService $checkout)
+    {
+        return $this->action($request, function () use ($request, $slug, $checkout) {
+            Product::withTrashed()->where('slug', $slug)->firstOrFail();
+            $data = $this->quantityData($request, true);
+            $checkout->addCartItem($request->user(), $slug, !empty($data['variant_id']) ? (int) $data['variant_id'] : null, (int) $data['quantity']);
+        }, 'Item added to cart!');
+    }
+
     public function buyAgain(Request $request, string $order, CheckoutService $checkout, ProductCatalogService $catalog): RedirectResponse
     {
         $previous = Order::with('items')->where('buyer_id', $request->user()->id)
@@ -128,7 +185,7 @@ class CartController extends Controller
         }
     }
 
-    public function increase(Request $request, int $cartItem, CheckoutService $checkout): RedirectResponse
+    public function increase(Request $request, int $cartItem, CheckoutService $checkout)
     {
         return $this->changeQuantity($request, $cartItem, $checkout, 1);
     }
@@ -138,30 +195,34 @@ class CartController extends Controller
         return $this->changeQuantity($request, $cartItem, $checkout, -1);
     }
 
-    public function update(Request $request, int $cartItem, CheckoutService $checkout): RedirectResponse
+    public function update(Request $request, int $cartItem, CheckoutService $checkout)
     {
-        $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:2147483647']]);
         return $this->changeQuantity($request, $cartItem, $checkout);
     }
 
-    private function changeQuantity(Request $request, int $cartItem, CheckoutService $checkout, ?int $delta = null): RedirectResponse
+    private function changeQuantity(Request $request, int $cartItem, CheckoutService $checkout, ?int $delta = null)
     {
-        DB::transaction(function () use ($request, $cartItem, $checkout, $delta) {
-            $owned = CartItem::where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($cartItem);
-            if ($delta === -1 && $owned->quantity === 1) {
-                $owned->delete();
-                return;
-            }
-            $quantity = $delta === null ? (int) $request->input('quantity') : $owned->quantity + $delta;
-            $checkout->updateCartQuantity($owned, $quantity);
-        }, 3);
-        return back()->with('success', 'Cart updated successfully.');
+        return $this->action($request, function () use ($request, $cartItem, $checkout, $delta) {
+            // Check ownership before validating user input; never disclose foreign rows.
+            CartItem::where('user_id', $request->user()->id)->findOrFail($cartItem);
+            if ($delta === null) $this->quantityData($request);
+            DB::transaction(function () use ($request, $cartItem, $checkout, $delta) {
+                $owned = CartItem::where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($cartItem);
+                if ($delta === -1 && $owned->quantity === 1) { $owned->delete(); return; }
+                $quantity = $delta === null ? (int) $request->input('quantity') : $owned->quantity + $delta;
+                $checkout->updateBuyerCartQuantity($owned, $quantity);
+            }, 3);
+        }, 'Cart updated successfully.');
     }
 
-    public function remove(Request $request, int $cartItem): RedirectResponse
+    public function remove(Request $request, int $cartItem)
     {
-        CartItem::where('user_id', $request->user()->id)->findOrFail($cartItem)->delete();
-        return back()->with('success', 'Item removed from cart.');
+        return $this->action($request, fn () => CartItem::where('user_id', $request->user()->id)->findOrFail($cartItem)->delete(), 'Item removed from cart.');
+    }
+
+    public function clear(Request $request)
+    {
+        return $this->action($request, fn () => CartItem::where('user_id', $request->user()->id)->delete(), 'Cart cleared.', 'buyer.cart');
     }
 
     public function index(Request $request, CheckoutService $checkout): View

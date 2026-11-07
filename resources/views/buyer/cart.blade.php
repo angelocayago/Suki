@@ -6,6 +6,7 @@
    SUKI SHOP SHOPPING CART
 ========================================================= --}}
 
+@if($has_unavailable_items ?? false)<p role="alert" class="mx-auto max-w-7xl px-4 pt-4 text-sm font-semibold text-red-700">Please fix the items marked below to continue.</p>@endif
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
 
     {{-- =====================================================
@@ -281,7 +282,7 @@
 
                                             @if(empty($item['available']))
                                                 <p class="mt-2 text-xs font-semibold text-red-600">
-                                                    Unavailable: this item can no longer be checked out.
+                                                    Unavailable: {{ $item['availability_issue'] ?? 'This product is no longer available.' }}
                                                 </p>
                                             @endif
 
@@ -374,9 +375,11 @@
 
 
                                                 {{-- QUANTITY --}}
-                                                <span class="flex h-9 min-w-10 items-center justify-center border-x border-gray-200 px-2 text-sm font-semibold text-gray-900">
-                                                    {{ $quantity }}
-                                                </span>
+                                                <form action="{{ route('buyer.cart.update', ['cartItem' => $cartItemId]) }}" method="POST" data-cart-quantity-form>
+                                                    @csrf
+                                                    <input type="text" inputmode="numeric" name="quantity" value="{{ $quantity }}" data-buyer-quantity data-cart-quantity data-last-valid="{{ $quantity }}" data-stock="{{ $item['stock'] }}" aria-label="Quantity for {{ $item['name'] }}" aria-invalid="{{ empty($item['available']) || (string) session('cart_error_line') === (string) $cartItemId && $errors->any() ? 'true' : 'false' }}" aria-describedby="cart-quantity-error-{{ $cartItemId }}" class="h-9 w-10 border-x border-y-0 border-gray-200 px-1 text-center text-sm font-semibold text-gray-900">
+                                                    <button type="submit" class="sr-only">Update quantity</button>
+                                                </form>
 
 
                                                 {{-- INCREASE --}}
@@ -405,6 +408,7 @@
                                         </div>
 
 
+                                        <p id="cart-quantity-error-{{ $cartItemId }}" data-quantity-error role="alert" class="text-xs text-red-700">@if((string) session('cart_error_line') === (string) $cartItemId){{ $errors->first() }}@endif</p>
                                         {{-- MOVE TO WISHLIST --}}
                                         <form
                                             action="{{ route('buyer.wishlist.add', ['slug' => $item['slug']]) }}"

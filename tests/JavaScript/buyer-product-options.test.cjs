@@ -12,10 +12,29 @@ function node() {
 function page(variants,controls=[],choice=null,mediaByColor={},media=[]) {
     const ids=Object.fromEntries(['buyNowButton','selectedVariant','quantity','quantityInput','variantStock','variantAvailability','variantPrice','mainProductImage','mainProductVideo','productMediaPrevious','productMediaNext'].map(id=>[id,node()]));
     ids.productVariantChoice=choice;const submit={};
-    const sandbox={document:{getElementById:id=>ids[id]??null,querySelector:()=>submit,querySelectorAll:selector=>selector==='[data-product-option]'?controls:selector==='[data-product-media]'?media:[]},alert(){}};
+    const wishlist=Object.assign(node(),{disabled:false,hidden:false});
+    wishlist.setAttribute('aria-label','Remove from Wishlist');
+    const sandbox={document:{getElementById:id=>ids[id]??null,querySelector:selector=>selector.includes('wishlist')?wishlist:submit,querySelectorAll:selector=>selector==='[data-product-option]'?controls:selector==='[data-product-media]'?media:[]},alert(){}};
     vm.runInNewContext(source.replace(/const purchasableVariants = .*?;/,`const purchasableVariants = ${JSON.stringify(variants)};`).replace(/const defaultProductImage = .*?;/,`const defaultProductImage = 'default.png';`),sandbox);
-    return {ids,submit,sandbox};
+    return {ids,submit,sandbox,wishlist};
 }
+
+test('switching between gallery and custom sold-out variant media leaves Wishlist state usable',()=>{
+    const controls=[{dataset:{productOption:'Flavor'},value:'Available'}];
+    const media=[Object.assign(node(),{dataset:{mediaType:'image',mediaSrc:'gallery.png'}})];
+    const {ids,submit,sandbox,wishlist}=page([
+        {id:1,options:{Flavor:'Available'},price:135,stock:1,image:'gallery.png'},
+        {id:2,options:{Flavor:'Sold out'},price:150,stock:0,image:'custom.png'}
+    ],controls,null,{},media);
+    for (const [flavor,disabled,image] of [['Sold out',true,'custom.png'],['Available',false,'gallery.png']]) {
+        controls[0].value=flavor;sandbox.resolveVariant();
+        assert.equal(ids.mainProductImage.src,image);
+        assert.equal(submit.disabled,disabled);assert.equal(ids.buyNowButton.disabled,disabled);
+        assert.equal(wishlist.disabled,false);assert.equal(wishlist.hidden,false);
+        assert.equal(wishlist.classList.contains('hidden'),false);
+        assert.equal(wishlist.getAttribute('aria-label'),'Remove from Wishlist');
+    }
+});
 test('arbitrary option selections resolve the exact variant ID price stock and quantity limit',()=>{
     const controls=[{dataset:{productOption:'Flavor'},value:'Chocolate'},{dataset:{productOption:'Pack Size'},value:'Single'}];
     const variants=[{id:11,options:{Flavor:'Chocolate','Pack Size':'Single'},price:35,stock:9},{id:22,options:{Flavor:'Vanilla','Pack Size':'Pack of 6'},price:190,stock:2}];

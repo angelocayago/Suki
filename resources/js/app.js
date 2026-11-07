@@ -1,3 +1,4 @@
+import './buyer-action-feedback';
 import './bootstrap';
 import Alpine from 'alpinejs';
 

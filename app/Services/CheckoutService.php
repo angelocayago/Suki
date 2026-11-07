@@ -80,6 +80,7 @@ class CheckoutService
                         'seller_name' => $product?->seller?->name,
                         'stock' => (int) ($variant?->stock ?? 0),
                         'available' => (bool) $available,
+                        'availability_issue' => $this->cartIssue($variant, (int) $cartItem->quantity, $cartItem->product_slug),
                     ],
                 ];
             })
@@ -413,6 +414,62 @@ class CheckoutService
         return $variants->count() === 1
             ? $variants->first()->setRelation('product', $product)
             : null;
+    }
+
+    /** Buyer Cart feedback only; checkout/order creation remains authoritative and unchanged. */
+    public function cartIssue(?ProductVariant $variant, int $quantity, string $slug): ?string
+    {
+        if (!$variant || $variant->trashed() || !$variant->product || $variant->product->trashed() || $variant->product->slug !== $slug) return 'This product is no longer available.';
+        $product = $variant->product;
+        if (!$product->seller || $product->seller->status !== 'approved' || !$product->seller->owner || $product->seller->owner->status !== 'active' || $product->seller->owner->is_suspended) return 'This shop is currently unavailable.';
+        if (!$this->isMarketplaceEligible($variant) || $variant->price_minor < 0) return 'This product is no longer available.';
+        if ($variant->stock < 1) return 'This item is out of stock.';
+        if ($quantity > $variant->stock) return 'Only '.$variant->stock.' available; your cart contains '.$quantity.'. Please lower the quantity or remove this item.';
+        if ($quantity < 1) return 'Please enter a quantity of at least 1.';
+        return null;
+    }
+
+    public function assertCartQuantity(?ProductVariant $variant, int $quantity, string $slug, bool $selected = false): void
+    {
+        if ($issue = $this->cartIssue($variant, $quantity, $slug)) {
+            if ($variant && $variant->stock < 1 && $issue === 'This item is out of stock.') $issue = $selected ? 'The selected variation is out of stock.' : $issue;
+            elseif ($variant && $quantity > $variant->stock && str_starts_with($issue, 'Only ')) $issue = 'Only '.$variant->stock.' available. Please lower your quantity.';
+            $key = str_contains($issue, 'shop') ? 'shop' : (str_contains($issue, 'no longer') ? 'product' : 'quantity');
+            throw ValidationException::withMessages([$key => $issue])->status($key === 'quantity' && $quantity > 0 ? 409 : 422);
+        }
+    }
+
+    public function addCartItem(User $buyer, string $slug, ?int $variantId, int $quantity): CartItem
+    {
+        return DB::transaction(function () use ($buyer, $slug, $variantId, $quantity) {
+            User::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
+            $product = Product::withTrashed()->where('slug', $slug)->firstOrFail();
+            $rows = CartItem::where('user_id', $buyer->id)->where('product_slug', $slug)->orderBy('id')->lockForUpdate()->get();
+            $query = ProductVariant::withTrashed()->with(['product' => fn ($q) => $q->withTrashed()->with(['category', 'seller.owner', 'images'])])->where('product_id', $product->id);
+            if ($variantId) $variant = $query->whereKey($variantId)->lockForUpdate()->firstOrFail();
+            else $variant = $query->whereNull('deleted_at')->where('is_active', true)->orderBy('id')->lockForUpdate()->first();
+            if (!$variant) throw ValidationException::withMessages(['product' => 'This product is no longer available.']);
+            $row = $rows->firstWhere('product_variant_id', $variant->id);
+            $this->assertCartQuantity($variant, $row && $quantity > 0 ? 1 : $quantity, $slug, (bool) $variantId);
+            $existing = (int) ($row?->quantity ?? 0);
+            if ($existing + $quantity > $variant->stock) {
+                $remaining = max(0, $variant->stock - $existing);
+                $message = $remaining ? 'Your cart already has '.$existing.' of this item. Only '.$remaining.' more can be added.' : 'Your cart already contains all '.$variant->stock.' available items.';
+                throw ValidationException::withMessages(['quantity' => $message])->status(409);
+            }
+            $values = ['product_name' => $product->name, 'price' => number_format($variant->price_minor / 100, 2, '.', ''), 'quantity' => $existing + $quantity];
+            if ($row) { $row->update($values); return $row; }
+            return CartItem::create($values + ['user_id' => $buyer->id, 'product_slug' => $slug, 'product_variant_id' => $variant->id, 'image' => app(ProductCatalogService::class)->thumbnail($product)]);
+        }, 3);
+    }
+
+    /** Buyer web feedback; preserve the existing API and Buy Again quantity contract below. */
+    public function updateBuyerCartQuantity(CartItem $cartItem, int $quantity): void
+    {
+        try { $variant = $this->lockedVariant($cartItem); }
+        catch (ValidationException) { throw ValidationException::withMessages(['product' => 'This product is no longer available.']); }
+        $this->assertCartQuantity($variant, $quantity, $cartItem->product_slug, true);
+        $cartItem->update(['quantity' => $quantity]);
     }
 
     /** Called inside an owned cart-row transaction by the Buyer controller. */

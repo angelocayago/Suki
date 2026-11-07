@@ -148,7 +148,8 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
 
         $this->actingAs($buyer)->get(route('buyer.cart'))
             ->assertOk()
-            ->assertSee('Unavailable: this item can no longer be checked out.');
+            ->assertSee('Unavailable: This product is no longer available.')
+            ->assertSee('aria-disabled="true" onclick="return false;"', false);
 
         $this->actingAs($buyer)->get(route('buyer.checkout'))
             ->assertOk()

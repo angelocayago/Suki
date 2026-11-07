@@ -175,6 +175,8 @@
 </a>
 @endif
 
+                </div>
+
                 {{-- MEDIA THUMBNAILS --}}
                 <div class="flex gap-3 mt-4 overflow-x-auto pb-2" id="productMediaThumbnails">
 
@@ -320,15 +322,28 @@
                     @endphp
                     @if($legacyCombinations)
                         <label for="productVariantChoice" class="mb-2 block text-sm text-gray-600">Product option</label>
-                        <select id="productVariantChoice" class="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
-                            @foreach($product['variants'] as $variant)<option value="{{ $variant['id'] }}">{{ $variant['name'] }}@if($variant['options']) — {{ implode(' / ', $variant['options']) }}@endif</option>@endforeach
+                        <select aria-describedby="variantAvailability" id="productVariantChoice" class="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
+                            @foreach($product['variants'] as $variant)
+                                <option value="{{ $variant['id'] }}" @disabled($variant['stock'] < 1)>
+                                    {{ $variant['name'] }}
+                                    @if($variant['stock'] < 1) - Out of stock @endif
+                                    @if($variant['options']) &mdash; {{ implode(' / ', $variant['options']) }} @endif
+                                </option>
+                            @endforeach
                         </select>
                     @else
                     @foreach($product['option_groups'] ?? [] as $optionName => $values)
                         <div class="py-3">
                             <label class="mb-2 block text-sm text-gray-600" for="productOption{{ $loop->index }}">{{ $optionName }}</label>
-                            <select id="productOption{{ $loop->index }}" data-product-option="{{ $optionName }}" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
-                                @foreach($values as $value)<option value="{{ $value }}" @selected(($product['variants'][0]['options'][$optionName] ?? null) === $value)>{{ $value }}</option>@endforeach
+                            <select aria-describedby="variantAvailability" id="productOption{{ $loop->index }}" data-product-option="{{ $optionName }}" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" onchange="resolveVariant()">
+                                @foreach($values as $value)
+                                    @php
+                                        $optionSoldOut = !collect($product['variants'])->contains(fn ($variant) => (string) ($variant['options'][$optionName] ?? '') === (string) $value && $variant['stock'] > 0);
+                                    @endphp
+                                    <option value="{{ $value }}" @disabled($optionSoldOut) @selected(($product['variants'][0]['options'][$optionName] ?? null) === $value)>
+                                        {{ $value }} @if($optionSoldOut) - Out of stock @endif
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                     @endforeach
@@ -358,23 +373,19 @@
 
                             <button
                                 type="button"
-                                onclick="decreaseQuantity()"
+                                onclick="decreaseQuantity()" aria-label="Decrease quantity"
                                 class="w-10 h-10 flex items-center justify-center
                                        hover:bg-gray-50"
                             >
                                 <i data-lucide="minus" class="w-4 h-4"></i>
                             </button>
 
-                            <span
-                                id="quantity"
-                                class="w-10 text-center text-sm font-medium"
-                            >
-                                1
-                            </span>
+                            <span id="quantity" class="sr-only">1</span>
+                            <input type="text" inputmode="numeric" name="quantity" id="quantityInput" value="{{ old('quantity', 1) }}" data-buyer-quantity data-preserve-old="{{ $errors->has('quantity') ? '1' : '0' }}" data-stock="{{ $product['stock'] }}" data-last-valid="1" aria-label="Quantity" aria-invalid="{{ $errors->has('quantity') ? 'true' : 'false' }}" aria-describedby="productQuantityError" class="w-10 border-0 p-0 text-center text-sm font-medium">
 
                             <button
                                 type="button"
-                                onclick="increaseQuantity()"
+                                onclick="increaseQuantity()" aria-label="Increase quantity"
                                 class="w-10 h-10 flex items-center justify-center
                                        hover:bg-gray-50"
                             >
@@ -383,6 +394,7 @@
 
                         </div>
 
+                        <span id="quantityLimitHint" class="text-xs text-gray-500" aria-live="polite"></span>
                         <span id="variantStock" class="text-xs text-gray-400">
                             {{ $product['stock'] }} pieces available
                         </span>
@@ -391,12 +403,7 @@
 
 
                     {{-- HIDDEN QUANTITY --}}
-                    <input
-                        type="hidden"
-                        name="quantity"
-                        id="quantityInput"
-                        value="1"
-                    >
+                    <p id="productQuantityError" data-quantity-error role="alert" class="mt-2 text-xs text-red-700">{{ $errors->first('quantity') }}</p>
 
 
                     {{-- ACTIONS --}}
@@ -405,7 +412,7 @@
 
                         {{-- ADD TO CART --}}
                         <button
-                            type="submit"
+                            type="submit" @disabled(($product['stock'] ?? 0) < 1)
                             class="w-full h-12 flex items-center justify-center gap-2
                                    rounded-lg border-2
                                    border-[#1F6F5B]
@@ -419,14 +426,14 @@
                                class="w-5 h-5">
                             </i>
 
-                            Add to Cart
+                            <span data-product-action-label>Add to Cart</span>
 
                         </button>
 
 
                         {{-- BUY NOW --}}
                         <button
-                            type="submit"
+                            type="submit" @disabled(($product['stock'] ?? 0) < 1)
                             id="buyNowButton"
                             formaction="{{ route('buyer.buy-now',$slug) }}"
                             class="h-12 rounded-lg
@@ -435,7 +442,7 @@
                                    hover:bg-[#155244]
                                    transition"
                         >
-                            Buy Now
+                            <span data-product-action-label>Buy Now</span>
                         </button>
 
                     </div>
@@ -753,10 +760,20 @@
         maxStock = variant?.stock || 0;
         quantity = Math.max(1, Math.min(quantity, maxStock));
         document.getElementById('quantity').textContent = quantity;
-        document.getElementById('quantityInput').value = quantity;
+        const quantityField = document.getElementById('quantityInput');
+        if (quantityField.dataset?.preserveOld !== '1') quantityField.value = quantity;
+        if (quantityField.dataset) { quantityField.dataset.stock = String(maxStock); quantityField.dataset.preserveOld = '0'; }
+        const limitHint = document.getElementById('quantityLimitHint');
+        if (limitHint) limitHint.textContent = maxStock > 0 && quantity === maxStock ? 'Max available' : '';
         document.getElementById('variantStock').textContent = `${maxStock} pieces available`;
         document.getElementById('variantAvailability').textContent = !variant ? 'This option combination is unavailable.' : maxStock < 1 ? 'This option is out of stock.' : '';
         if (variant) document.getElementById('variantPrice').textContent = `₱${Number(variant.price).toFixed(2)}`;
+        document.querySelectorAll('[onclick="increaseQuantity()"]')[0]?.toggleAttribute('disabled', maxStock < 1 || quantity >= maxStock);
+        document.querySelectorAll('[onclick="decreaseQuantity()"]')[0]?.toggleAttribute('disabled', quantity <= 1);
+        [[submit, 'Add to Cart'], [buyButton, 'Buy Now']].forEach(([button, label]) => {
+            const text = button?.querySelector?.('[data-product-action-label]');
+            if (text) text.textContent = maxStock < 1 ? 'Out of stock' : label;
+        });
         showVariantMedia(variant?.image || defaultProductImage);
     }
     // ==========================================
@@ -840,35 +857,20 @@
         if (mainProductImage.getAttribute('src') !== defaultProductImage) mainProductImage.src = defaultProductImage;
     });
     resolveVariant();
+    document.getElementById('quantityInput').addEventListener('input', event => {
+        if (/^[0-9]+$/.test(event.target.value) && Number(event.target.value) >= 1 && Number(event.target.value) <= maxStock) quantity = Number(event.target.value);
+    });
 
-    function increaseQuantity() {
-
-        if (quantity < maxStock) {
-
-            quantity++;
-
-            document.getElementById('quantity').textContent = quantity;
-
-            document.getElementById('quantityInput').value = quantity;
-
-        }
-
+    function stepQuantity(delta) {
+        const field = document.getElementById('quantityInput');
+        const current = Number(field.value) || 1;
+        quantity = Math.max(1, Math.min(maxStock || 1, current + delta));
+        document.getElementById('quantity').textContent = quantity;
+        field.value = quantity;
+        field.dispatchEvent?.(new Event('input', {bubbles:true}));
     }
-
-
-    function decreaseQuantity() {
-
-        if (quantity > 1) {
-
-            quantity--;
-
-            document.getElementById('quantity').textContent = quantity;
-
-            document.getElementById('quantityInput').value = quantity;
-
-        }
-
-    }
+    function increaseQuantity() { stepQuantity(1); }
+    function decreaseQuantity() { stepQuantity(-1); }
 
 
     // ==========================================

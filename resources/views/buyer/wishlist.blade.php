@@ -364,8 +364,12 @@
                         {{-- =====================================
                              ACTIONS
                         ====================================== --}}
+                        <p id="wishlist-stock-{{ $loop->index }}" class="mt-2 text-xs {{ ($item['availability'] ?? '') === 'in_stock' ? 'text-[#1F6F5B]' : 'text-red-700' }}">{{ $item['availability_message'] ?? '' }}</p>
                         <div class="mt-4 space-y-2">
 
+                            @if(($item['choose_variant'] ?? false) && ($item['availability'] ?? '') === 'in_stock')
+                                <a href="{{ route('buyer.product', $slug) }}" class="flex h-10 w-full items-center justify-center rounded-xl bg-[#1F6F5B] text-xs font-semibold text-white">Choose a variation first.</a>
+                            @else
                             {{-- MOVE TO CART --}}
                             <form
                                 action="{{ route('buyer.wishlist.move-to-cart', ['slug' => $slug]) }}"
@@ -374,7 +378,7 @@
                                 @csrf
 
                                 <button
-                                    type="submit"
+                                    type="submit" @disabled(($item['availability'] ?? '') !== 'in_stock') aria-describedby="wishlist-stock-{{ $loop->index }}"
                                     class="w-full
                                            h-10
                                            rounded-xl
@@ -394,13 +398,14 @@
                                         class="w-4 h-4"
                                     ></i>
 
-                                    Move to Cart
+                                    {{ ($item['availability'] ?? '') === 'in_stock' ? 'Move to Cart' : 'Unavailable' }}
 
                                 </button>
 
                             </form>
 
 
+                            @endif
                             {{-- REMOVE --}}
                             <form
                                 action="{{ route('buyer.wishlist.remove', ['slug' => $slug]) }}"

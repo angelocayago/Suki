@@ -38,6 +38,9 @@
          MAIN CONTENT
     =========================================== --}}
     <main class="min-h-screen">
+        @if(request()->routeIs('buyer.shop', 'buyer.product', 'buyer.cart', 'buyer.wishlist', 'buyer.home', 'buyer.stores.show'))
+            @include('buyer.partials.action-feedback')
+        @endif
         @yield('content')
     </main>
 

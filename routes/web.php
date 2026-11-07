@@ -605,87 +605,7 @@ Route::delete('/cart/vouchers/{code}', [CartController::class, 'removeVoucher'])
 // ADD TO CART
 // =====================================================
 
-Route::post('/cart/add/{slug}', function (Request $request, $slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $user = auth()->user();
-
-    $product = $products[$slug];
-
-    $request->validate(['quantity' => ['sometimes', 'integer', 'min:1', 'max:2147483647'], 'variant_id' => ['nullable', 'integer', 'min:1']]);
-    $selectedVariantId = (int) $request->input('variant_id');
-    if ($selectedVariantId > 0) {
-        $selectedVariant = \App\Models\ProductVariant::query()
-            ->whereKey($selectedVariantId)
-            ->where('product_id', $product['id'])
-            ->where('is_active', true)
-            ->firstOrFail();
-
-        $product['variant_id'] = $selectedVariant->id;
-        $product['price'] = $selectedVariant->price_minor / 100;
-        $product['stock'] = $selectedVariant->stock;
-    }
-
-    if (empty($product['variant_id'])) {
-        return back()->withErrors(['variant_id' => 'Please select an available product option.']);
-    }
-
-    $maxStock = (int) $product['stock'];
-    if ($maxStock < 1) {
-        return back()->withErrors(['quantity' => 'This product option is out of stock.']);
-    }
-
-    $requestedQuantity = (int) $request->input('quantity', 1);
-
-    $requestedQuantity = max(
-        1,
-        min($requestedQuantity, $maxStock)
-    );
-
-    DB::transaction(function () use ($user, $slug, $product, $requestedQuantity, $maxStock) {
-        // Share the Buyer lock with Buy Again and the API's Cart writer.
-        // Reading the row under lock avoids overwriting a concurrent increment.
-        User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-        $cartItem = CartItem::where('user_id', $user->id)
-            ->where('product_slug', $slug)
-            ->where('product_variant_id', $product['variant_id'])
-            ->lockForUpdate()->first();
-
-        if ($cartItem) {
-            $cartItem->update([
-                'quantity' => min($cartItem->quantity + $requestedQuantity, $maxStock),
-                'product_variant_id' => $product['variant_id'] ?? $cartItem->product_variant_id,
-            ]);
-        } else {
-            CartItem::create([
-                'user_id' => $user->id,
-                'product_slug' => $slug,
-                'product_name' => $product['name'],
-                'price' => $product['price'],
-                'image' => $product['image'] ?? null,
-                'quantity' => $requestedQuantity,
-                'product_variant_id' => $product['variant_id'] ?? null,
-            ]);
-        }
-    }, 3);
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            $product['name'] . ' added to cart!'
-        );
-
-})->name('buyer.cart.add');
+Route::post('/cart/add/{slug}', [CartController::class, 'add'])->name('buyer.cart.add');
 
 // =====================================================
 // INCREASE CART QUANTITY
@@ -701,267 +621,37 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->group(fu
 // =====================================================
 // CLEAR CART
 // =====================================================
-Route::post('/cart/clear', function () use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $user = auth()->user();
-
-    CartItem::where('user_id', $user->id)
-        ->delete();
-
-    return redirect()
-        ->route('buyer.cart')
-        ->with(
-            'success',
-            'Cart cleared.'
-        );
-
-})->name('buyer.cart.clear');
+Route::post('/cart/clear', [CartController::class, 'clear'])->name('buyer.cart.clear');
 
 // =====================================================
 // WISHLIST
 // =====================================================
 
-Route::get('/wishlist', function () use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $wishlist = auth()
-        ->user()
-        ->wishlistItems()
-        ->get()
-        ->mapWithKeys(function ($item) {
-            return [
-                $item->product_slug => [
-                    'name' => $item->product_name,
-                    'price' => (float) $item->price,
-                    'image' => $item->image,
-                ],
-            ];
-        })
-        ->toArray();
-
-    return view('buyer.wishlist', [
-        'wishlist' => $wishlist,
-    ]);
-
-})->name('buyer.wishlist');
+Route::get('/wishlist', [\App\Http\Controllers\Buyer\WishlistController::class, 'index'])->name('buyer.wishlist');
 
 // =====================================================
 // ADD TO WISHLIST
 // =====================================================
 
-Route::post('/wishlist/add/{slug}', function (Request $request, $slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $user = auth()->user();
-
-    $product = $products[$slug];
-
-    $request->validate(['cart_item_id' => ['nullable', 'integer', 'min:1']]);
-    $cartItem = $request->filled('cart_item_id')
-        ? CartItem::where('user_id', $user->id)->where('product_slug', $slug)->findOrFail($request->input('cart_item_id'))
-        : null;
-
-    WishlistItem::updateOrCreate(
-        [
-            'user_id' => $user->id,
-            'product_slug' => $slug,
-        ],
-        [
-            'product_name' => $product['name'],
-            'price' => $product['price'],
-            'image' => $product['image'] ?? null,
-        ]
-    );
-
-    // Kapag nasa cart ang product,
-    // alisin ito dahil nilipat na sa wishlist.
-    $cartItem?->delete();
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            $product['name'] . ' moved to your wishlist!'
-        );
-
-})->name('buyer.wishlist.add');
+Route::post('/wishlist/add/{slug}', [\App\Http\Controllers\Buyer\WishlistController::class, 'add'])->name('buyer.wishlist.add');
 
 // =====================================================
 // REMOVE FROM WISHLIST
 // =====================================================
 
-Route::post('/wishlist/remove/{slug}', function ($slug) use ($requireBuyer) {
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $user = auth()->user();
-
-    WishlistItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->delete();
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            'Item removed from wishlist.'
-        );
-
-})->name('buyer.wishlist.remove');
+Route::post('/wishlist/remove/{slug}', [\App\Http\Controllers\Buyer\WishlistController::class, 'remove'])->name('buyer.wishlist.remove');
 
 // =====================================================
 // TOGGLE WISHLIST
 // =====================================================
 
-Route::post('/wishlist/toggle/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $user = auth()->user();
-
-    $product = $products[$slug];
-
-    $wishlistItem = WishlistItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if ($wishlistItem) {
-
-        $wishlistItem->delete();
-
-        return redirect()
-            ->back()
-            ->with(
-                'success',
-                $product['name'] . ' removed from your wishlist.'
-            );
-    }
-
-    WishlistItem::create([
-        'user_id' => $user->id,
-        'product_slug' => $slug,
-        'product_name' => $product['name'],
-        'price' => $product['price'],
-        'image' => $product['image'] ?? null,
-    ]);
-
-    return redirect()
-        ->back()
-        ->with(
-            'success',
-            $product['name'] . ' added to your wishlist!'
-        );
-
-})->name('buyer.wishlist.toggle');
+Route::post('/wishlist/toggle/{slug}', [\App\Http\Controllers\Buyer\WishlistController::class, 'toggle'])->name('buyer.wishlist.toggle');
 
 // =====================================================
 // MOVE WISHLIST ITEM TO CART
 // =====================================================
 
-Route::post('/wishlist/move-to-cart/{slug}', function ($slug) use ($resolveProductCatalog, $requireBuyer) {
-
-    $products = $resolveProductCatalog();
-
-    if ($redirect = $requireBuyer()) {
-        return $redirect;
-    }
-
-    $user = auth()->user();
-
-    // Hanapin muna ang item sa wishlist ng current buyer.
-    $wishlistItem = WishlistItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->first();
-
-    if (!$wishlistItem) {
-        return redirect()
-            ->back()
-            ->with(
-                'error',
-                'Wishlist item not found.'
-            );
-    }
-
-    // Kunin ang stock mula sa product catalog.
-    if (!isset($products[$slug])) {
-        abort(404);
-    }
-
-    $product = $products[$slug];
-
-    $maxStock = (int) $product['stock'];
-
-    // Check kung nasa cart na ang product.
-    if ($maxStock < 1 || empty($product['variant_id'])) {
-        return back()->withErrors(['cart' => 'This product option is out of stock.']);
-    }
-    $cartItem = CartItem::where('user_id', $user->id)
-        ->where('product_slug', $slug)
-        ->where('product_variant_id', $product['variant_id'])
-        ->first();
-
-    if ($cartItem) {
-
-        // Existing na sa cart, dagdagan ng 1.
-        if ($cartItem->quantity < $maxStock) {
-            $cartItem->increment('quantity');
-        }
-
-        if (! $cartItem->product_variant_id && isset($product['variant_id'])) {
-            $cartItem->update(['product_variant_id' => $product['variant_id']]);
-        }
-
-    } else {
-
-        // Wala pa sa cart, gumawa ng bagong cart item.
-        CartItem::create([
-            'user_id' => $user->id,
-            'product_slug' => $slug,
-            'product_name' => $wishlistItem->product_name,
-            'price' => $wishlistItem->price,
-            'image' => $wishlistItem->image,
-            'quantity' => 1,
-            'product_variant_id' => $product['variant_id'] ?? null,
-        ]);
-    }
-
-    // Tanggalin na sa wishlist pagkatapos mailipat sa cart.
-    $wishlistItem->delete();
-
-    return redirect()
-        ->route('buyer.cart')
-        ->with(
-            'success',
-            $product['name'] . ' moved to your cart!'
-        );
-
-})->name('buyer.wishlist.move-to-cart');
+Route::post('/wishlist/move-to-cart/{slug}', [\App\Http\Controllers\Buyer\WishlistController::class, 'moveToCart'])->name('buyer.wishlist.move-to-cart');
 
 
 // =====================================================
