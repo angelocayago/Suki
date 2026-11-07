@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Support\DirectCheckout;
+use App\Support\CartSelection;
 use App\Services\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,10 +19,15 @@ class CheckoutController extends Controller
     {
         $direct = app(DirectCheckout::class);
         $buyNowToken = $direct->token($request);
+        $cartToken = null;
         if ($buyNowToken && ($completed = $direct->completed($request,$buyNowToken))) return redirect()->route('buyer.order-success',['order'=>$completed->order_number]);
         try {
+            if (!$buyNowToken) {
+                $cartToken = app(CartSelection::class)->token($request);
+                if ($completed = app(CartSelection::class)->completed($request,$cartToken)) return redirect()->route('buyer.order-success',['order'=>$completed->order_number]);
+            }
             $state = $buyNowToken ? $direct->selection($request,$buyNowToken) : null;
-            $summary = $buyNowToken ? $checkout->directSummary($request->user(),$state,$state['voucher_codes']) : $checkout->cartSummary($request->user(),$direct->codes($request,null));
+            $summary = $buyNowToken ? $checkout->directSummary($request->user(),$state,$state['voucher_codes']) : app(CartSelection::class)->preview($request,$cartToken,$checkout);
         } catch (ValidationException $error) {
             if($buyNowToken)$request->session()->forget('buy_now_selections.'.$buyNowToken);
             return redirect()->route('buyer.cart')->withErrors($error->errors());
@@ -66,6 +72,7 @@ class CheckoutController extends Controller
 
         return view('buyer.checkout', array_merge($summary, [
             'buyNowToken' => $buyNowToken,
+            'cartSelectionToken' => $cartToken,
             'buyNowProduct' => $state['product_slug'] ?? null,
             'addresses' => $addresses,
             'defaultAddress' => $defaultAddress,
@@ -79,6 +86,14 @@ class CheckoutController extends Controller
         $direct = app(DirectCheckout::class);
         $buyNowToken = $direct->token($request);
         if ($buyNowToken && ($completed = $direct->completed($request,$buyNowToken))) return redirect()->route('buyer.order-success',['order'=>$completed->order_number]);
+        $cartToken = null; $cartSnapshot = null;
+        if (!$buyNowToken) {
+            try {
+                $cartToken = app(CartSelection::class)->token($request);
+                if ($completed = app(CartSelection::class)->completed($request,$cartToken)) return redirect()->route('buyer.order-success',['order'=>$completed->order_number]);
+                $cartSnapshot = app(CartSelection::class)->state($request,$cartToken);
+            } catch (ValidationException $error) { return redirect()->route('buyer.cart')->withErrors($error->errors()); }
+        }
         $state = $buyNowToken ? $direct->selection($request,$buyNowToken) : null;
         $validated = $request->validate([
             'address_id' => ['required'],
@@ -107,19 +122,21 @@ class CheckoutController extends Controller
         }
 
         try {
-            $order = $checkout->checkout($buyer, $address, $validated['payment_method'], $direct->codes($request,$buyNowToken), $state, $buyNowToken ? $direct->reference($request,$buyNowToken) : null);
+            $order = $checkout->checkout($buyer, $address, $validated['payment_method'], $buyNowToken ? $direct->codes($request,$buyNowToken) : $cartSnapshot['voucher_codes'], $state,
+                $buyNowToken ? $direct->reference($request,$buyNowToken) : app(CartSelection::class)->reference($request,$cartToken), $cartSnapshot);
         } catch (ValidationException $exception) {
+            if (!$buyNowToken && isset($exception->errors()['cart_selection'])) return redirect()->route('buyer.cart')->withErrors($exception->errors());
             throw $exception;
         } catch (Throwable $exception) {
             report($exception);
 
             return redirect()
-                ->route('buyer.checkout',$buyNowToken ? ['buy_now'=>$buyNowToken] : [])
+                ->route('buyer.checkout',$buyNowToken ? ['buy_now'=>$buyNowToken] : ['cart_selection'=>$cartToken])
                 ->with('error', 'Unable to place your order. Please try again.');
         }
 
         if($buyNowToken)$request->session()->forget('buy_now_selections.'.$buyNowToken);
-        else $request->session()->forget('checkout_voucher_codes');
+        else { $request->session()->forget('checkout_voucher_codes'); $request->session()->forget('cart_checkouts.'.$cartToken); }
         return redirect()
             ->route('buyer.order-success', ['order' => $order->order_number])
             ->with('success', 'Your order has been placed successfully!');

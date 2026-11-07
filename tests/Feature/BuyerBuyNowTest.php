@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class BuyerBuyNowTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use \Tests\Support\FakesCheckoutLocations;
     private User $buyer;
     protected function setUp(): void
@@ -130,8 +131,8 @@ class BuyerBuyNowTest extends TestCase
 
     public function test_normal_cart_checkout_still_contains_and_orders_only_saved_cart_lines(): void
     {
-        $token=$this->start();$page=$this->get(route('buyer.checkout'))->assertOk();$this->assertCount(2,$page->viewData('cart'));$this->assertNull($page->viewData('buyNowToken'));
-        $this->post(route('buyer.checkout.place-order'),['address_id'=>Address::where('user_id',1)->value('id'),'payment_method'=>'cod'])->assertRedirect();
+        $token=$this->start();$page=$this->get(route('buyer.checkout', $this->cartCheckoutIntent()))->assertOk();$this->assertCount(2,$page->viewData('cart'));$this->assertNull($page->viewData('buyNowToken'));
+        $this->post(route('buyer.checkout.place-order'),['address_id'=>Address::where('user_id',1)->value('id'),'payment_method'=>'cod'] + $this->cartCheckoutIntent())->assertRedirect();
         $this->assertSame([11,21],OrderItem::orderBy('id')->pluck('product_variant_id')->all());$this->assertDatabaseCount('cart_items',0);$this->assertNotNull(session('buy_now_selections.'.$token));$this->assertSame(5,ProductVariant::findOrFail(12)->stock);
     }
 

@@ -9,6 +9,7 @@ use Tests\Support\{BuyerPurchasesSchema, IsolatedStorageTestCase};
 
 class BuyerActionFeedbackTest extends IsolatedStorageTestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     private User $buyer;
     private Product $product;
     private ProductVariant $variant;
@@ -99,14 +100,14 @@ class BuyerActionFeedbackTest extends IsolatedStorageTestCase
 
     public function test_cart_stock_drop_has_specific_warning_and_rejected_update_keeps_quantity(): void
     {
-        $this->add(['quantity' => 4])->assertOk(); $row = CartItem::sole(); $this->variant->update(['stock' => 2]);
-        $this->get(route('buyer.cart'))->assertOk()->assertSee('Please fix the items marked below to continue.')->assertSee('Only 2 available; your cart contains 4. Please lower the quantity or remove this item.')->assertSee('aria-disabled="true"', false)->assertSee('value="4"', false);
+        $this->add(['quantity' => 4])->assertOk(); $row = CartItem::sole(); $this->cartCheckoutIntent(); $this->variant->update(['stock' => 2]);
+        $this->get($this->selectedCartUrl())->assertOk()->assertSee('Please fix 1 selected item before checkout:')->assertSee('Only 2 available; your cart contains 4. Please lower the quantity or remove this item.')->assertSee('aria-disabled="true"', false)->assertSee('value="4"', false);
         $this->postJson(route('buyer.cart.update', $row->id), ['quantity' => 3])->assertStatus(409)->assertJsonPath('errors.quantity.0', 'Only 2 available. Please lower your quantity.');
         $this->assertSame(4, $row->fresh()->quantity);
-        $this->from(route('buyer.cart'))->post(route('buyer.cart.update', $row->id), ['quantity' => 3])->assertRedirect(route('buyer.cart'))->assertSessionHas('cart_error_line', (string) $row->id);
-        $this->get(route('buyer.cart'))->assertSee('value="4"', false)->assertSee('Only 2 available. Please lower your quantity.');
+        $this->from($this->selectedCartUrl())->post(route('buyer.cart.update', $row->id), ['quantity' => 3])->assertRedirect(route('buyer.cart'))->assertSessionHas('cart_error_line', (string) $row->id);
+        $this->get($this->selectedCartUrl())->assertSee('value="4"', false)->assertSee('Only 2 available. Please lower your quantity.');
         $this->postJson(route('buyer.cart.update', $row->id), ['quantity' => 2])->assertOk(); $this->assertSame(2, $row->fresh()->quantity);
-        $this->product->update(['is_active' => false]); $this->get(route('buyer.cart'))->assertSee('This product is no longer available.'); $this->assertDatabaseCount('cart_items', 1);
+        $this->product->update(['is_active' => false]); $this->get($this->selectedCartUrl())->assertSee('This product is no longer available.'); $this->assertDatabaseCount('cart_items', 1);
     }
 
     public function test_wishlist_moves_use_current_price_and_delete_only_after_success(): void

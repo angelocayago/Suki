@@ -11,6 +11,7 @@ use Tests\Support\{FakesCheckoutLocations, IsolatedStorageTestCase};
 
 class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use RefreshDatabase, FakesCheckoutLocations;
 
     protected function setUp(): void
@@ -46,9 +47,9 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
     {
         extract($this->fixture($provinceLess));
         $voucher = Voucher::create(['code' => 'ADDRESS10', 'scope' => 'PLATFORM', 'discount_type' => 'FIXED', 'discount_minor' => 1000, 'minimum_spend_minor' => 0, 'used_count' => 0, 'is_active' => true]);
-        $this->actingAs($buyer)->get(route('buyer.checkout'))->assertOk()->assertViewHas('hasEligibleAddress', true)
+        $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))->assertOk()->assertViewHas('hasEligibleAddress', true)
             ->assertViewHas('defaultAddress', fn ($value) => $value['id'] === $address->id);
-        $this->withSession(['checkout_voucher_codes' => ['ADDRESS10']])->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasNoErrors();
+        $this->withSession(['checkout_voucher_codes' => ['ADDRESS10']])->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
         $order = Order::sole();
         $this->assertSame($address->province, $order->province);
         foreach ($this->checkoutLocationCodes($provinceLess) as $field => $value) {
@@ -84,15 +85,15 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
     {
         extract($this->fixture());
         $address->update(['region_code' => null, 'province_code' => null, 'city_municipality_code' => null, 'barangay_code' => null]);
-        $this->actingAs($buyer)->get(route('buyer.checkout'))->assertOk()->assertSee('Update this address in Manage addresses')
+        $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))->assertOk()->assertSee('Update this address in Manage addresses')
             ->assertSee(route('buyer.addresses'), false)->assertViewHas('hasEligibleAddress', false);
         Http::assertNothingSent();
-        $this->from(route('buyer.checkout'))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasErrors('address_id');
+        $this->from(route('buyer.checkout', $this->cartCheckoutIntent()))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasErrors('address_id');
         $this->assertDatabaseCount('orders', 0); $this->assertSame(5, $variant->fresh()->stock); $this->assertSame(1, $buyer->cartItems()->count());
         $this->get(route('buyer.addresses'))->assertOk()->assertSee('Edit');
         $this->patch(route('buyer.addresses.update', $address->id), ['name' => 'Test Buyer', 'phone' => '09123456789', 'street' => '17 Test Street', 'label' => 'Home', 'region' => '13', 'province' => null, 'municipality' => '130001', 'barangay' => '130001001'])->assertSessionHasNoErrors();
         $this->assertNull($address->fresh()->province);
-        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasNoErrors();
+        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
         $this->assertNull(Order::sole()->province);
     }
 
@@ -101,7 +102,7 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
         extract($this->fixture(true));
         $legacy = $address->replicate(); $legacy->region_code = null; $legacy->save();
         $address->update(['is_default' => false]);
-        $this->actingAs($buyer)->get(route('buyer.checkout'))->assertViewHas('hasEligibleAddress', true)
+        $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))->assertViewHas('hasEligibleAddress', true)
             ->assertViewHas('defaultAddress', fn ($value) => $value['id'] === $address->id);
     }
 
@@ -114,7 +115,7 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
     public function test_missing_malformed_retired_and_mismatched_codes_never_create_orders(array $changes): void
     {
         extract($this->fixture()); $address->update($changes);
-        $this->actingAs($buyer)->from(route('buyer.checkout'))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasErrors('address_id');
+        $this->actingAs($buyer)->from(route('buyer.checkout', $this->cartCheckoutIntent()))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasErrors('address_id');
         $this->assertDatabaseCount('orders', 0); $this->assertDatabaseCount('seller_orders', 0);
         $this->assertDatabaseCount('voucher_redemptions', 0); $this->assertDatabaseCount('notification_outbox', 0);
         $this->assertSame(5, $variant->fresh()->stock); $this->assertSame(1, $buyer->cartItems()->count());
@@ -124,17 +125,22 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
     {
         extract($this->fixture(true));
         $this->fakeCheckoutLocations(['https://psgc.cloud/api/v2/regions' => Http::response([], 503)]);
-        $this->actingAs($buyer)->from(route('buyer.checkout'))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasErrors(['address_id' => 'Delivery locations could not be verified right now. Please try again shortly. Your cart has not changed.']);
+        $this->actingAs($buyer)->from(route('buyer.checkout', $this->cartCheckoutIntent()))->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasErrors(['address_id' => 'Delivery locations could not be verified right now. Please try again shortly. Your cart has not changed.']);
         $this->assertDatabaseCount('orders', 0); $this->assertSame(5, $variant->fresh()->stock);
         $this->fakeCheckoutLocations();
-        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasNoErrors();
+        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
     }
 
     public function test_other_buyers_address_cannot_be_selected(): void
     {
         extract($this->fixture());
         $other = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
-        $this->actingAs($other)->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasErrors('address_id');
+        CartItem::create(['user_id' => $other->id, 'product_slug' => $product->slug, 'product_name' => $product->name,
+            'product_variant_id' => $variant->id, 'price' => 1, 'quantity' => 1]);
+        $this->actingAs($other);
+        $intent = $this->cartCheckoutIntent($other);
+        $this->assertArrayHasKey('cart_selection', $intent);
+        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $intent)->assertSessionHasErrors('address_id');
         $this->assertDatabaseCount('orders', 0); Http::assertNothingSent();
     }
 

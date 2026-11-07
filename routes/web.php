@@ -593,7 +593,10 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 
 Route::get('/cart', [CartController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->block(10,10)
     ->name('buyer.cart');
+Route::post('/cart/selection', [CartController::class, 'selection'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->block(10,10)->name('buyer.cart.selection');
 Route::get('/my-vouchers', [\App\Http\Controllers\Buyer\VoucherController::class, 'index'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.vouchers.index');
 Route::post('/my-vouchers/{voucher}/claim', [\App\Http\Controllers\Buyer\VoucherController::class, 'claim'])->middleware(['auth','approved','not_suspended','role:buyer'])->whereNumber('voucher')->name('buyer.vouchers.claim');
 
@@ -889,7 +892,7 @@ $orderToViewArray = function (Order $order): array {
 // =====================================================
 
 Route::get('/checkout-legacy', function () use ($requireBuyer) {
-    return redirect()->route('buyer.checkout');
+    return redirect()->route('buyer.checkout', request()->only(['cart_selection', 'buy_now']));
 
 
     if ($redirect = $requireBuyer()) {

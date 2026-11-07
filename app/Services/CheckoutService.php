@@ -23,9 +23,25 @@ class CheckoutService
 {
     /** The project-wide COD shipping fee charged once for each seller shipment. */
     public const SHIPPING_FEE_PER_SELLER_MINOR = 5000;
-    public function cartSummary(User $buyer, array $voucherCodes = []): array
+    public function cartSummary(User $buyer, array $voucherCodes = [], ?array $cartIds = null): array
     {
-        return $this->selectionSummary($buyer, CartItem::where('user_id',$buyer->id)->orderBy('id')->get(), $voucherCodes);
+        $query = CartItem::where('user_id',$buyer->id)->orderBy('id')
+            ->with(['productVariant.product.category', 'productVariant.product.seller.owner', 'productVariant.product.images']);
+        if ($cartIds !== null) $query->whereIn('id', $cartIds);
+        $rows = $query->get();
+        if ($cartIds !== null && $rows->count() !== count($cartIds)) throw ValidationException::withMessages(['cart_selection' => 'Some selected items are no longer in your Cart. Review your selection.']);
+        return $this->selectionSummary($buyer, $rows, $voucherCodes);
+    }
+
+    public function fingerprints(array $cart): array
+    {
+        $out = [];
+        foreach ($cart as $line) {
+            $options = $line['variation'] ?? []; ksort($options);
+            $out[(int) $line['id']] = [(int) $line['variant_id'], (int) $line['product_id'], (int) $line['seller_id'], (int) $line['quantity'], (int) $line['price_minor'], $options];
+        }
+        ksort($out);
+        return $out;
     }
 
     public function directSummary(User $buyer, array $selection, array $voucherCodes = []): array
@@ -68,6 +84,7 @@ class CheckoutService
                     $cartItem->id => [
                         'id' => $cartItem->id,
                         'variant_id' => $variant?->id,
+                        'product_id' => $product?->id,
                         'slug' => $cartItem->product_slug,
                         'name' => $product?->name ?? $cartItem->product_name,
                         'price' => $variant ? $variant->price_minor / 100 : (float) $cartItem->price,
@@ -78,6 +95,7 @@ class CheckoutService
                         'variation' => $variant?->options,
                         'seller_id' => $product?->seller_id,
                         'seller_name' => $product?->seller?->name,
+                        'seller_slug' => $product?->seller?->slug,
                         'stock' => (int) ($variant?->stock ?? 0),
                         'available' => (bool) $available,
                         'availability_issue' => $this->cartIssue($variant, (int) $cartItem->quantity, $cartItem->product_slug),
@@ -125,15 +143,24 @@ class CheckoutService
         string $paymentMethod,
         array $voucherCodes = [],
         ?array $directSelection = null,
-        ?string $reference = null
+        ?string $reference = null,
+        ?array $cartSnapshot = null
     ): Order {
-        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference) {
+        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference, $cartSnapshot) {
+            if ($cartSnapshot !== null) {
+                abort_unless((int) $cartSnapshot['buyer_id'] === (int) $buyer->id && !$directSelection, 403);
+                User::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
+            }
             if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
+            if ($cartSnapshot !== null && $cartSnapshot['expires_at'] <= now()->timestamp) throw ValidationException::withMessages(['cart_selection' => 'Your Checkout selection expired. Return to Cart and choose Checkout again.']);
             $cartItems = $directSelection ? collect([$this->directItem($buyer,$directSelection)]) : CartItem::query()
                 ->where('user_id', $buyer->id)
+                ->when($cartSnapshot !== null, fn ($query) => $query->whereIn('id', $cartSnapshot['ids']))
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
+
+            if ($cartSnapshot !== null && $cartItems->count() !== count($cartSnapshot['ids'])) throw ValidationException::withMessages(['cart_selection' => 'Some selected items were removed. Return to Cart to review your selection.']);
 
             if ($cartItems->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -144,6 +171,13 @@ class CheckoutService
             $lines = $cartItems->map(
                 fn (CartItem $cartItem) => $this->resolveLine($cartItem)
             );
+
+            if ($cartSnapshot !== null) {
+                $current = $lines->map(fn ($line) => ['id' => $line['cart_item']->id, 'variant_id' => $line['variant']->id,
+                    'product_id' => $line['product']->id, 'seller_id' => $line['seller']->id,
+                    'quantity' => $line['quantity'], 'price_minor' => $line['variant']->price_minor, 'variation' => $line['variant']->options])->all();
+                if ($this->fingerprints($current) !== $cartSnapshot['fingerprints']) throw ValidationException::withMessages(['cart_selection' => 'A selected item changed in quantity, price, variant or store. Return to Cart and confirm it again.']);
+            }
 
             if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
 
@@ -167,6 +201,7 @@ class CheckoutService
             $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
             $discountMinor = collect($redemptions)->sum('amount');
             $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
+            if ($cartSnapshot !== null && $totalMinor !== $cartSnapshot['total_minor']) throw ValidationException::withMessages(['cart_selection' => 'Your selected total changed. Return to Cart and confirm it again.']);
             if ($discountMinor < 0 || $discountMinor > $subtotalMinor || $totalMinor < 0
                 || $sellerDiscounts->contains(fn ($discount, $sellerId) => $discount < 0 || $discount > $sellerSubtotals[$sellerId])
                 || $sellerDiscounts->sum() !== $discountMinor) {
@@ -394,7 +429,7 @@ class CheckoutService
     private function displayVariant(CartItem $cartItem): ?ProductVariant
     {
         if ($cartItem->product_variant_id) {
-            $variant = ProductVariant::query()
+            $variant = $cartItem->relationLoaded('productVariant') ? $cartItem->getRelation('productVariant') : ProductVariant::query()
                 ->with(['product.category', 'product.seller.owner', 'product.images'])
                 ->find($cartItem->product_variant_id);
 
