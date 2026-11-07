@@ -45,7 +45,7 @@
                 @if(!empty($sellerOrder['has_proof']))
                     <a href="{{ route('shipments.delivery-proof', $sellerOrder['shipment_id']) }}" class="mt-3 inline-flex rounded-lg border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B]">View delivery proof · {{ $sellerOrder['seller_name'] }}</a>
                 @endif
-                @if(in_array($sellerOrder['status'] ?? '', ['picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered', 'completed', 'delivery_failed', 'rts_initiated', 'rts_returning', 'rts_completed'], true))
+                @if(($sellerOrder['status'] ?? '') !== 'cancelled')
                     <a href="{{ route('buyer.seller-order.track', [$order['order_id'], $sellerOrder['seller_order_id']]) }}" class="mt-3 inline-flex rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Track {{ $sellerOrder['seller_name'] }} delivery</a>
                 @endif
             @endforeach
@@ -59,111 +59,7 @@
 
             $status = $order['status'] ?? 'placed';
 
-            $statusLabel = match($status) {
-                'placed' => 'Order Placed',
-                'confirmed' => 'Order Confirmed',
-                'preparing' => 'Seller is Preparing',
-                'ready_for_pickup' => 'Ready for Pickup',
-                'picked_up' => 'Picked Up',
-                'at_sorting_center' => 'At Sorting Center',
-                'sorted' => 'Parcel Sorted',
-                'assigned_to_rider' => 'Assigned to Rider',
-                'out_for_delivery' => 'Out for Delivery',
-                'delivered' => 'Delivered',
-                'completed' => 'Order Completed',
-                'delivery_failed' => 'Delivery Failed',
-                'returned' => 'Returned',
-                'cancelled' => 'Cancelled',
-                default => 'Order Placed',
-            };
-
-            $trackingSteps = [
-
-                [
-                    'key' => 'placed',
-                    'label' => 'Order Placed',
-                    'description' => 'Your order has been placed successfully.',
-                    'icon' => 'clipboard-check',
-                ],
-
-                [
-                    'key' => 'confirmed',
-                    'label' => 'Confirmed',
-                    'description' => 'The seller has confirmed your order.',
-                    'icon' => 'check-check',
-                ],
-
-                [
-                    'key' => 'preparing',
-                    'label' => 'Preparing',
-                    'description' => 'The seller is preparing your items.',
-                    'icon' => 'package',
-                ],
-
-                [
-                    'key' => 'ready_for_pickup',
-                    'label' => 'Ready for Pickup',
-                    'description' => 'Your order is packed and ready for pickup.',
-                    'icon' => 'package-check',
-                ],
-
-                [
-                    'key' => 'picked_up',
-                    'label' => 'Picked Up',
-                    'description' => 'The pickup rider has collected your parcel.',
-                    'icon' => 'truck',
-                ],
-
-                [
-                    'key' => 'at_sorting_center',
-                    'label' => 'Sorting Center',
-                    'description' => 'Your parcel has arrived at the sorting center.',
-                    'icon' => 'warehouse',
-                ],
-
-                [
-                    'key' => 'sorted',
-                    'label' => 'Parcel Sorted',
-                    'description' => 'Your parcel has been sorted according to its delivery area.',
-                    'icon' => 'layers',
-                ],
-
-                [
-                    'key' => 'assigned_to_rider',
-                    'label' => 'Rider Assigned',
-                    'description' => 'A delivery rider has been assigned to your parcel.',
-                    'icon' => 'bike',
-                ],
-
-                [
-                    'key' => 'out_for_delivery',
-                    'label' => 'Out for Delivery',
-                    'description' => 'Your parcel is currently out for delivery.',
-                    'icon' => 'route',
-                ],
-
-                [
-                    'key' => 'delivered',
-                    'label' => 'Delivered',
-                    'description' => 'Your parcel has been delivered successfully.',
-                    'icon' => 'check-circle',
-                ],
-
-                [
-                    'key' => 'completed',
-                    'label' => 'Completed',
-                    'description' => 'Receipt was confirmed or the order completed automatically after delivery.',
-                    'icon' => 'badge-check',
-                ],
-
-            ];
-
-            $statusIndex = collect($trackingSteps)
-                ->search(fn ($step) => $step['key'] === $status);
-
-            if ($statusIndex === false) {
-                $statusIndex = 0;
-            }
+            $statusLabel = $tracking['status'];
 
             $isCancelled = in_array($status, ['cancelled', 'returned', 'delivery_failed']);
 
@@ -179,7 +75,7 @@
 
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-                        Current Status
+                        Overall order status
                     </p>
 
                     <div class="mt-2 flex items-center gap-2">
@@ -216,7 +112,7 @@
                     </p>
 
                     <p class="mt-1 text-sm font-medium text-gray-700">
-                        {{ $order['created_at'] ?? 'N/A' }}
+                        {{ \App\Support\ManilaTime::format($order['created_at'] ?? null) ?? 'Time not recorded' }}@if($order['created_at'] ?? null) PHT @endif
                     </p>
                 </div>
 
@@ -228,244 +124,9 @@
         {{-- ORDER TRACKING --}}
         {{-- ========================================================= --}}
 
-        @if(!$isCancelled)
-
-            <section class="mb-6 rounded-2xl border border-gray-200 bg-white">
-
-                <div class="border-b border-gray-100 px-5 py-5">
-
-                    <div class="flex items-center gap-3">
-
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[#DDF3EC]">
-                            <i data-lucide="map" class="h-5 w-5 text-[#1F6F5B]"></i>
-                        </div>
-
-                        <div>
-                            <h2 class="font-semibold text-gray-900">
-                                Order Tracking
-                            </h2>
-
-                            <p class="text-xs text-gray-500">
-                                Track the progress of your order.
-                            </p>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="px-5 py-6 sm:px-8">
-
-                    {{-- DESKTOP TRACKING --}}
-                    <div class="hidden md:block">
-
-                        <div class="relative">
-
-                            <div class="absolute left-0 right-0 top-5 h-1 rounded-full bg-gray-200"></div>
-
-                            @if($statusIndex > 0)
-
-                                <div
-                                    class="absolute left-0 top-5 h-1 rounded-full bg-[#1F6F5B] transition-all"
-                                    style="width: {{ ($statusIndex / (count($trackingSteps) - 1)) * 100 }}%;"
-                                ></div>
-
-                            @endif
-
-                            <div class="relative grid grid-cols-11 gap-1">
-
-                                @foreach($trackingSteps as $index => $step)
-
-                                    @php
-                                        $isCompleted = $index <= $statusIndex;
-                                        $isCurrent = $index === $statusIndex;
-                                    @endphp
-
-                                    <div class="flex min-w-0 flex-col items-center text-center">
-
-                                        <div
-                                            class="
-                                                flex h-9 w-9 items-center justify-center rounded-full border-4 border-white
-                                                {{ $isCompleted
-                                                    ? 'bg-[#1F6F5B] text-white'
-                                                    : 'bg-gray-200 text-gray-400' }}
-                                                {{ $isCurrent ? 'ring-4 ring-[#DDF3EC]' : '' }}
-                                            "
-                                        >
-
-                                            @if($isCompleted)
-
-                                                <i
-                                                    data-lucide="{{ $isCurrent ? $step['icon'] : 'check' }}"
-                                                    class="h-3.5 w-3.5"
-                                                ></i>
-
-                                            @else
-
-                                                <i
-                                                    data-lucide="{{ $step['icon'] }}"
-                                                    class="h-3.5 w-3.5"
-                                                ></i>
-
-                                            @endif
-
-                                        </div>
-
-                                        <p
-                                            class="
-                                                mt-3 text-[10px] font-semibold leading-4
-                                                {{ $isCompleted
-                                                    ? 'text-[#1F6F5B]'
-                                                    : 'text-gray-400' }}
-                                            "
-                                        >
-                                            {{ $step['label'] }}
-                                        </p>
-
-                                    </div>
-
-                                @endforeach
-
-                            </div>
-
-                        </div>
-
-                        <div class="mt-8 rounded-xl bg-[#F8FAF8] p-4">
-
-                            <div class="flex items-start gap-3">
-
-                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#DDF3EC]">
-                                    <i
-                                        data-lucide="{{ $trackingSteps[$statusIndex]['icon'] }}"
-                                        class="h-4 w-4 text-[#1F6F5B]"
-                                    ></i>
-                                </div>
-
-                                <div>
-
-                                    <p class="text-sm font-semibold text-gray-900">
-                                        {{ $trackingSteps[$statusIndex]['label'] }}
-                                    </p>
-
-                                    <p class="mt-1 text-xs leading-5 text-gray-500">
-                                        {{ $trackingSteps[$statusIndex]['description'] }}
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    {{-- MOBILE TRACKING --}}
-                    <div class="md:hidden">
-
-                        <div class="space-y-0">
-
-                            @foreach($trackingSteps as $index => $step)
-
-                                @php
-                                    $isCompleted = $index <= $statusIndex;
-                                    $isCurrent = $index === $statusIndex;
-                                    $isLast = $index === count($trackingSteps) - 1;
-                                @endphp
-
-                                <div class="flex gap-4">
-
-                                    <div class="flex w-8 shrink-0 flex-col items-center">
-
-                                        <div
-                                            class="
-                                                flex h-9 w-9 items-center justify-center rounded-full border-4 border-white
-                                                {{ $isCompleted
-                                                    ? 'bg-[#1F6F5B] text-white'
-                                                    : 'bg-gray-200 text-gray-400' }}
-                                                {{ $isCurrent ? 'ring-4 ring-[#DDF3EC]' : '' }}
-                                            "
-                                        >
-
-                                            @if($isCompleted)
-
-                                                <i
-                                                    data-lucide="{{ $isCurrent ? $step['icon'] : 'check' }}"
-                                                    class="h-4 w-4"
-                                                ></i>
-
-                                            @else
-
-                                                <i
-                                                    data-lucide="{{ $step['icon'] }}"
-                                                    class="h-4 w-4"
-                                                ></i>
-
-                                            @endif
-
-                                        </div>
-
-                                        @if(!$isLast)
-
-                                            <div
-                                                class="
-                                                    my-1 min-h-[45px] w-0.5
-                                                    {{ $index < $statusIndex
-                                                        ? 'bg-[#1F6F5B]'
-                                                        : 'bg-gray-200' }}
-                                                "
-                                            ></div>
-
-                                        @endif
-
-                                    </div>
-
-                                    <div class="pb-6">
-
-                                        <p
-                                            class="
-                                                text-sm font-semibold
-                                                {{ $isCompleted
-                                                    ? 'text-gray-900'
-                                                    : 'text-gray-400' }}
-                                            "
-                                        >
-                                            {{ $step['label'] }}
-                                        </p>
-
-                                        <p
-                                            class="
-                                                mt-1 text-xs leading-5
-                                                {{ $isCompleted
-                                                    ? 'text-gray-500'
-                                                    : 'text-gray-400' }}
-                                            "
-                                        >
-                                            {{ $step['description'] }}
-                                        </p>
-
-                                        @if($isCurrent)
-
-                                            <span class="mt-2 inline-flex rounded-full bg-[#DDF3EC] px-2.5 py-1 text-[11px] font-semibold text-[#1F6F5B]">
-                                                Current Status
-                                            </span>
-
-                                        @endif
-
-                                    </div>
-
-                                </div>
-
-                            @endforeach
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </section>
-
-        @endif
+        <div class="mb-6">
+            @include('buyer.partials.order-tracking')
+        </div>
 
         {{-- ========================================================= --}}
         {{-- CANCELLED / FAILED / RETURNED INFORMATION --}}
@@ -501,7 +162,7 @@
                             <p class="mt-2 text-sm text-red-600">
                                 Reason:
                                 <span class="font-medium">
-                                    {{ $reasonLabels[$order['cancel_reason']] ?? $order['cancel_reason'] }}
+                                    {{ $reasonLabels[$order['cancel_reason']] ?? 'Reason not available.' }}
                                 </span>
                             </p>
 
@@ -521,7 +182,7 @@
                         @if(!empty($order['cancelled_at']))
 
                             <p class="mt-1 text-xs text-red-500">
-                                Cancelled on {{ $order['cancelled_at'] }}
+                                Cancelled on {{ \App\Support\ManilaTime::format($order['cancelled_at']) }} PHT
                             </p>
 
                         @endif
