@@ -59,14 +59,16 @@ class BuyerBuyNowTest extends TestCase
     }
     protected function tearDown(): void { $this->travelBack();parent::tearDown(); }
     private function cart(): string { return DB::table('cart_items')->orderBy('id')->get()->toJson(); }
-    private function start(array $values=[]): string
+    private function start(array $values=[], bool $preview=true): string
     {
         $this->from(route('buyer.product','direct-product'))->post(route('buyer.buy-now','direct-product'),array_replace(['variant_id'=>12,'quantity'=>2],$values))->assertRedirect();
-        return array_key_last(session('buy_now_selections'));
+        $token = array_key_last(session('buy_now_selections'));
+        if ($preview) $this->get(route('buyer.checkout', ['buy_now'=>$token]))->assertOk();
+        return $token;
     }
     private function place(string $token)
     {
-        return $this->from(route('buyer.checkout',['buy_now'=>$token]))->post(route('buyer.checkout.place-order'),['buy_now'=>$token,'address_id'=>Address::where('user_id',1)->value('id'),'payment_method'=>'cod']);
+        return $this->from(route('buyer.checkout',['buy_now'=>$token]))->post(route('buyer.checkout.place-order'),['buy_now'=>$token,'buy_now_offer'=>session('buy_now_selections.'.$token.'.offer.id'),'address_id'=>Address::where('user_id',1)->value('id'),'payment_method'=>'cod']);
     }
 
     public function test_buy_now_uses_exact_variant_and_quantity_without_changing_cart_or_cart_vouchers(): void
@@ -102,6 +104,7 @@ class BuyerBuyNowTest extends TestCase
         $page=$this->get(route('buyer.checkout',['buy_now'=>$token]))->assertOk();$this->assertEquals(238,$page->viewData('total'));
         $this->delete(route('buyer.cart.vouchers.remove','DIRECT-A'),['buy_now'=>$token])->assertSessionHasNoErrors();$this->assertSame([],session('buy_now_selections.'.$token.'.voucher_codes'));
         $this->post(route('buyer.cart.vouchers.apply'),['buy_now'=>$token,'voucher_code'=>'DIRECT-A'])->assertSessionHasNoErrors();
+        $this->get(route('buyer.checkout', ['buy_now'=>$token]))->assertOk(); // Native voucher redirects render the new offer.
         $this->place($token)->assertRedirect();$this->assertSame(23800,Order::sole()->total_minor);$this->assertSame(101,VoucherRedemption::sole()->seller_id_snapshot);$this->assertSame(1,$voucher->fresh()->used_count);$this->assertSame($before,$this->cart());
     }
 
@@ -115,7 +118,7 @@ class BuyerBuyNowTest extends TestCase
 
     public function test_stock_price_and_approval_are_revalidated_without_consuming_cart_or_usage_on_failure(): void
     {
-        $before=$this->cart();$token=$this->start();ProductVariant::findOrFail(12)->update(['price_minor'=>12345]);
+        $before=$this->cart();$token=$this->start([], false);ProductVariant::findOrFail(12)->update(['price_minor'=>12345]);
         $page=$this->get(route('buyer.checkout',['buy_now'=>$token]))->assertOk();$this->assertEquals(296.9,$page->viewData('total'));
         ProductVariant::findOrFail(12)->update(['stock'=>1]);$this->place($token)->assertSessionHasErrors('cart');$this->assertDatabaseCount('orders',0);$this->assertSame(1,ProductVariant::findOrFail(12)->stock);$this->assertSame($before,$this->cart());
         ProductVariant::findOrFail(12)->update(['stock'=>5]);Product::where('slug','direct-product')->update(['moderation_status'=>'PENDING']);$this->place($token)->assertSessionHasErrors('cart');$this->assertDatabaseCount('voucher_redemptions',0);$this->assertDatabaseCount('orders',0);
@@ -155,6 +158,7 @@ class BuyerBuyNowTest extends TestCase
         $voucher=Voucher::create(['code'=>'ATOMIC','scope'=>'SELLER','seller_id'=>101,'audience'=>'PUBLIC','per_buyer_limit'=>1,'discount_type'=>'FIXED','discount_minor'=>1000,'is_active'=>true]);
         app(\App\Services\ShopVoucherService::class)->claim($this->buyer,$voucher->id);
         $this->post(route('buyer.cart.vouchers.apply'),['buy_now'=>$token,'voucher_code'=>$voucher->code])->assertSessionHasNoErrors();
+        $this->get(route('buyer.checkout', ['buy_now'=>$token]))->assertOk(); // Follow the voucher redirect before attempting placement.
         VoucherRedemption::creating(fn()=>throw new \RuntimeException('Isolated injected redemption failure'));
         try { $this->place($token)->assertRedirect(route('buyer.checkout',['buy_now'=>$token]))->assertSessionHas('error'); }
         finally { VoucherRedemption::flushEventListeners(); }

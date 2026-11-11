@@ -52,7 +52,7 @@
                     <span>{{ count($cart) }} Cart item{{ count($cart) === 1 ? '' : 's' }}</span>
                     <button type="submit" form="cart-selection-form" name="intent" value="update" class="cart-button cart-outline" data-update-selection>Update Selection</button>
                 </div>
-                <noscript><p class="cart-notice">Tick individual items, then choose Update Selection to refresh totals or Checkout selected items to continue. Save your selection before changing quantities, removing items, moving to Wishlist or applying a voucher.</p></noscript>
+                <noscript><p class="cart-notice">Tick individual items, then choose Update Selection to refresh totals or Checkout selected items to continue. Save your selection before changing quantities or variants, removing items, moving to Wishlist or applying a voucher.</p></noscript>
                 @foreach(collect($cart)->groupBy(fn($item) => $item['seller_id'] ?? 'unavailable', true) as $storeKey => $storeItems)
                     <section class="cart-store" aria-labelledby="cart-store-{{ $storeKey }}">
                         <header class="cart-store-header">

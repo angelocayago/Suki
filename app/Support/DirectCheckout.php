@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 /** Bounded, Buyer-owned session selections. No permanent cart records. */
 class DirectCheckout
 {
+    public const REVIEW_MESSAGE = 'Your Buy Now price or order details have changed. Review the refreshed Checkout total, then place your order again.';
+
     private function buyer(Request $request): void
     {
         abort_unless($request->user()?->role === 'buyer' && $request->user()->status === 'active' && ! $request->user()->is_suspended,403);
@@ -44,6 +46,24 @@ class DirectCheckout
     public function reference(Request $request, string $token): string
     {
         return 'BN-'.strtoupper(substr(hash_hmac('sha256',$request->user()->id.'|'.$token,(string)config('app.key')),0,32));
+    }
+
+    /** Called only after the native Checkout preview has rendered successfully. */
+    public function recordOffer(Request $request, string $token, string $offerId, array $terms): void
+    {
+        $this->selection($request, $token);
+        $request->session()->put('buy_now_selections.'.$token.'.offer', ['id' => $offerId, 'terms' => $terms]);
+    }
+
+    public function offered(Request $request, string $token): array
+    {
+        $state = $this->selection($request, $token);
+        $id = $request->input('buy_now_offer');
+        if (!is_string($id) || !preg_match('/^[a-f0-9]{64}$/D', $id) || !isset($state['offer']['id']) || !is_array($state['offer']['terms'] ?? null)
+            || !hash_equals($state['offer']['id'], $id)) {
+            throw ValidationException::withMessages(['buy_now_offer' => self::REVIEW_MESSAGE]);
+        }
+        return $state['offer'] + ['buyer_id' => $state['buyer_id'], 'expires_at' => $state['expires_at']];
     }
 
     public function completed(Request $request, string $token): ?Order

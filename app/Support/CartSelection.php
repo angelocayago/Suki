@@ -51,6 +51,12 @@ final class CartSelection
         return $draft;
     }
 
+    /** A changed row keeps its membership, but older draft submissions must reconcile. */
+    public function advanceRevision(Request $request, array $draft): void
+    {
+        $request->session()->put($this->key($request), ['ids' => $draft['ids'], 'revision' => $draft['revision'] + 1]);
+    }
+
     public function token(Request $request): string
     {
         $this->key($request);

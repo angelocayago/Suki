@@ -597,6 +597,8 @@ Route::get('/cart', [CartController::class, 'index'])
     ->name('buyer.cart');
 Route::post('/cart/selection', [CartController::class, 'selection'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->block(10,10)->name('buyer.cart.selection');
+Route::post('/cart/change-variant/{cartItem}', [CartController::class, 'changeVariant'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->whereNumber('cartItem')->block(10,10)->name('buyer.cart.change-variant');
 Route::get('/my-vouchers', [\App\Http\Controllers\Buyer\VoucherController::class, 'index'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.vouchers.index');
 Route::post('/my-vouchers/{voucher}/claim', [\App\Http\Controllers\Buyer\VoucherController::class, 'claim'])->middleware(['auth','approved','not_suspended','role:buyer'])->whereNumber('voucher')->name('buyer.vouchers.claim');
 
@@ -1552,7 +1554,7 @@ Route::post(
     }
 )->name(
     'buyer.checkout.place-order.legacy'
-);
+)->block(10,10);
 
 Route::post('/product/{slug}/buy-now', [CheckoutController::class,'buyNow'])->middleware(['auth','not_suspended','approved','role:buyer'])->block(10,10)->name('buyer.buy-now');
 Route::post('/checkout/buy-now/cancel', [CheckoutController::class,'cancelBuyNow'])->middleware(['auth','not_suspended','approved','role:buyer'])->block(10,10)->name('buyer.buy-now.cancel');
@@ -1563,7 +1565,7 @@ Route::post('/checkout/place-order', [CheckoutController::class, 'store'])
 
 Route::get('/checkout', [CheckoutController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
-    ->name('buyer.checkout');
+    ->block(10,10)->name('buyer.checkout');
 
 Route::get('/shipments/{shipment}/delivery-proof', [DeliveryProofController::class, 'show'])
     ->middleware(['auth', 'not_suspended', 'approved'])

@@ -46,7 +46,7 @@ class CheckoutService
 
     public function directSummary(User $buyer, array $selection, array $voucherCodes = []): array
     {
-        return $this->selectionSummary($buyer, collect([$this->directItem($buyer,$selection)]), $voucherCodes);
+        return $this->selectionSummary($buyer, collect([$this->directItem($buyer,$selection)]), $voucherCodes, true);
     }
 
     private function directItem(User $buyer, array $selection): CartItem
@@ -58,7 +58,7 @@ class CheckoutService
         return (new CartItem())->forceFill(['id'=>0,'user_id'=>$buyer->id,'product_variant_id'=>$variant->id,'product_slug'=>$variant->product->slug,'product_name'=>$variant->product->name,'quantity'=>$selection['quantity'],'image'=>$image ?? app(ProductCatalogService::class)->thumbnail($variant->product)]);
     }
 
-    private function selectionSummary(User $buyer, Collection $selection, array $voucherCodes): array
+    private function selectionSummary(User $buyer, Collection $selection, array $voucherCodes, bool $directOffer = false): array
     {
         $items = $selection
             ->mapWithKeys(function (CartItem $cartItem) {
@@ -120,7 +120,7 @@ class CheckoutService
         $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals, $buyer);
         $discountMinor = collect($voucherPreview['redemptions'])->sum('amount');
 
-        return [
+        $summary = [
             'cart' => $items,
             'subtotal' => $subtotalMinor / 100,
             'seller_count' => $sellerCount,
@@ -135,6 +135,30 @@ class CheckoutService
                 fn (array $item) => ! $item['available']
             ),
         ];
+        if ($directOffer) $summary['buy_now_terms'] = $this->buyNowTerms($items, $subtotalMinor, $shippingMinor, $voucherCodes, $voucherPreview['redemptions']);
+        return $summary;
+    }
+
+    /** The same material terms from preview data and final locked records. No client money. */
+    private function buyNowTerms(array $items, int $subtotalMinor, int $shippingMinor, array $codes, array $redemptions): array
+    {
+        $codes = array_values(array_unique(array_filter(array_map(fn ($code) => strtoupper(trim((string) $code)), $codes))));
+        sort($codes);
+        $discounts = [];
+        foreach ($redemptions as $redemption) {
+            $voucher = $redemption['voucher'];
+            $allocation = $redemption['allocation']; ksort($allocation);
+            $discounts[$voucher->code] = [(int) $voucher->id, $voucher->scope, $voucher->seller_id === null ? null : (int) $voucher->seller_id,
+                $voucher->discount_type, (int) ($voucher->discount_type === 'PERCENTAGE' ? $voucher->discount_bps : $voucher->discount_minor),
+                (int) $voucher->minimum_spend_minor, $voucher->max_discount_minor === null ? null : (int) $voucher->max_discount_minor,
+                (int) $redemption['amount'], array_map('intval', $allocation)];
+        }
+        ksort($discounts);
+        $names = []; foreach ($items as $item) $names[(int) $item['variant_id']] = $item['variant']; ksort($names);
+        $discountMinor = (int) collect($redemptions)->sum('amount');
+        return ['items' => $this->fingerprints($items), 'variant_names' => $names, 'subtotal_minor' => $subtotalMinor,
+            'shipping_minor' => $shippingMinor, 'voucher_codes' => $codes, 'discounts' => $discounts,
+            'discount_minor' => $discountMinor, 'total_minor' => $subtotalMinor + $shippingMinor - $discountMinor];
     }
 
     public function checkout(
@@ -144,14 +168,21 @@ class CheckoutService
         array $voucherCodes = [],
         ?array $directSelection = null,
         ?string $reference = null,
-        ?array $cartSnapshot = null
+        ?array $cartSnapshot = null,
+        ?array $directOffer = null
     ): Order {
-        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference, $cartSnapshot) {
+        return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference, $cartSnapshot, $directOffer) {
             if ($cartSnapshot !== null) {
                 abort_unless((int) $cartSnapshot['buyer_id'] === (int) $buyer->id && !$directSelection, 403);
                 User::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
             }
             if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
+            if ($directSelection !== null) {
+                if (!$directOffer || ($directOffer['expires_at'] ?? 0) <= now()->timestamp) {
+                    throw ValidationException::withMessages(['buy_now_offer' => \App\Support\DirectCheckout::REVIEW_MESSAGE]);
+                }
+                abort_unless((int) $directOffer['buyer_id'] === (int) $buyer->id, 403);
+            }
             if ($cartSnapshot !== null && $cartSnapshot['expires_at'] <= now()->timestamp) throw ValidationException::withMessages(['cart_selection' => 'Your Checkout selection expired. Return to Cart and choose Checkout again.']);
             $cartItems = $directSelection ? collect([$this->directItem($buyer,$directSelection)]) : CartItem::query()
                 ->where('user_id', $buyer->id)
@@ -172,11 +203,11 @@ class CheckoutService
                 fn (CartItem $cartItem) => $this->resolveLine($cartItem)
             );
 
-            if ($cartSnapshot !== null) {
+            if ($cartSnapshot !== null || $directSelection !== null) {
                 $current = $lines->map(fn ($line) => ['id' => $line['cart_item']->id, 'variant_id' => $line['variant']->id,
                     'product_id' => $line['product']->id, 'seller_id' => $line['seller']->id,
-                    'quantity' => $line['quantity'], 'price_minor' => $line['variant']->price_minor, 'variation' => $line['variant']->options])->all();
-                if ($this->fingerprints($current) !== $cartSnapshot['fingerprints']) throw ValidationException::withMessages(['cart_selection' => 'A selected item changed in quantity, price, variant or store. Return to Cart and confirm it again.']);
+                    'quantity' => $line['quantity'], 'price_minor' => $line['variant']->price_minor, 'variation' => $line['variant']->options, 'variant' => $line['variant']->name])->all();
+                if ($cartSnapshot !== null && $this->fingerprints($current) !== $cartSnapshot['fingerprints']) throw ValidationException::withMessages(['cart_selection' => 'A selected item changed in quantity, price, variant or store. Return to Cart and confirm it again.']);
             }
 
             if ($reference && ($existing = Order::where('buyer_id',$buyer->id)->where('order_number',$reference)->first())) return $existing;
@@ -201,6 +232,10 @@ class CheckoutService
             $shippingMinor = $sellerGroups->count() * self::SHIPPING_FEE_PER_SELLER_MINOR;
             $discountMinor = collect($redemptions)->sum('amount');
             $totalMinor = $subtotalMinor + $shippingMinor - $discountMinor;
+            if ($directSelection !== null && ($directOffer['expires_at'] <= now()->timestamp
+                || $this->buyNowTerms($current, $subtotalMinor, $shippingMinor, $voucherCodes, $redemptions) !== $directOffer['terms'])) {
+                throw ValidationException::withMessages(['buy_now_offer' => \App\Support\DirectCheckout::REVIEW_MESSAGE]);
+            }
             if ($cartSnapshot !== null && $totalMinor !== $cartSnapshot['total_minor']) throw ValidationException::withMessages(['cart_selection' => 'Your selected total changed. Return to Cart and confirm it again.']);
             if ($discountMinor < 0 || $discountMinor > $subtotalMinor || $totalMinor < 0
                 || $sellerDiscounts->contains(fn ($discount, $sellerId) => $discount < 0 || $discount > $sellerSubtotals[$sellerId])
@@ -471,6 +506,88 @@ class CheckoutService
             elseif ($variant && $quantity > $variant->stock && str_starts_with($issue, 'Only ')) $issue = 'Only '.$variant->stock.' available. Please lower your quantity.';
             $key = str_contains($issue, 'shop') ? 'shop' : (str_contains($issue, 'no longer') ? 'product' : 'quantity');
             throw ValidationException::withMessages([$key => $issue])->status($key === 'quantity' && $quantity > 0 ? 409 : 422);
+        }
+    }
+
+    /** Buyer-only picker data; batch-load options without changing Checkout/API summaries. */
+    public function variantSwitchChoices(User $buyer): array
+    {
+        $rows = CartItem::where('user_id', $buyer->id)->orderBy('id')->get();
+        $products = Product::whereIn('slug', $rows->pluck('product_slug'))->with(['category', 'seller.owner', 'images', 'variants' => fn ($q) => $q->withTrashed()->orderBy('id')])->get()->keyBy('slug');
+        $choices = [];
+        foreach ($rows as $row) {
+            $product = $products->get($row->product_slug);
+            if (!$product) continue;
+            $variants = $product->variants;
+            $active = $variants->filter(fn ($v) => !$v->trashed() && $v->is_active);
+            $source = $row->product_variant_id ? $variants->firstWhere('id', $row->product_variant_id) : null;
+            if (!$row->product_variant_id) {
+                if ($active->count() !== 1) continue; // Never guess a legacy row's identity.
+                $source = $active->first();
+            }
+            if (!$source) continue;
+            foreach ($variants as $variant) {
+                if ($variant->trashed() || $variant->id === $source->id) continue;
+                $variant->setRelation('product', $product);
+                $reason = $this->cartIssue($variant, $row->quantity, $row->product_slug);
+                $duplicate = $rows->contains(fn ($other) => $other->id !== $row->id && ($other->product_variant_id === $variant->id || (!$other->product_variant_id && $other->product_slug === $row->product_slug && $active->count() === 1 && $active->first()->id === $variant->id)));
+                if ($duplicate) $reason = 'This variant is already in your Cart. Update that row or remove it before switching.';
+                $options = $variant->options ?? []; ksort($options);
+                $choices[$row->id][] = ['id' => $variant->id, 'label' => $variant->name ?: implode(' / ', array_map(fn ($key, $value) => $key.': '.$value, array_keys($options), $options)),
+                    'price_minor' => $variant->price_minor, 'stock' => $variant->stock, 'reason' => $reason, 'proof' => $this->variantSwitchProof($row, $variant, $source)];
+            }
+        }
+        return $choices;
+    }
+
+    /** Bind reviewed material terms, not a timestamp or client-supplied price. Stock is checked live. */
+    private function variantSwitchProof(CartItem $row, ProductVariant $target, ProductVariant $source): string
+    {
+        $options = $target->options ?? []; ksort($options);
+        $sourceOptions = $source->options ?? []; ksort($sourceOptions);
+        $product = $target->product;
+        $terms = [$row->user_id, $row->id, $row->product_slug, $row->product_variant_id, $row->quantity, $row->price, $row->product_name, $row->image,
+            $source->id, $source->name, $sourceOptions, $source->price_minor, $source->image_path,
+            $product->id, $product->slug, $product->name, $product->seller_id, $target->id, $target->name, $options, $target->price_minor, $target->image_path,
+            $target->is_active, $target->trashed(), $product->is_active, $product->trashed(), $product->moderation_status,
+            $product->category_id, $product->category?->is_active, $product->seller?->status, $product->seller?->owner?->status, $product->seller?->owner?->is_suspended];
+        return hash_hmac('sha256', json_encode($terms, JSON_THROW_ON_ERROR), (string) config('app.key'));
+    }
+
+    /** Replace intent only: no merge, quantity adjustment, inventory mutation or snapshot rewrite. */
+    public function changeCartVariant(User $buyer, int $rowId, int $targetId, string $proof): bool
+    {
+        try {
+            return DB::transaction(function () use ($buyer, $rowId, $targetId, $proof) {
+                User::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
+                $rows = CartItem::where('user_id', $buyer->id)->orderBy('id')->lockForUpdate()->get();
+                $row = $rows->firstWhere('id', $rowId);
+                if (!$row) throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)->setModel(CartItem::class);
+                $product = Product::withTrashed()->where('slug', $row->product_slug)->with(['category', 'seller.owner', 'images'])->lockForUpdate()->firstOrFail();
+                $variants = ProductVariant::withTrashed()->where('product_id', $product->id)->orderBy('id')->lockForUpdate()->get();
+                $source = $row->product_variant_id ? $variants->firstWhere('id', $row->product_variant_id) : null;
+                $active = $variants->filter(fn ($v) => !$v->trashed() && $v->is_active);
+                if (!$row->product_variant_id && $active->count() === 1) $source = $active->first();
+                if (!$source) throw ValidationException::withMessages(['stale_cart_item' => 'This Cart item must be reselected before its variant can be changed.'])->status(409);
+                $target = $variants->firstWhere('id', $targetId);
+                if (!$target) throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)->setModel(ProductVariant::class);
+                $target->setRelation('product', $product);
+                $this->assertCartQuantity($target, $row->quantity, $row->product_slug);
+                if (!hash_equals($this->variantSwitchProof($row, $target, $source), $proof)) {
+                    throw ValidationException::withMessages(['stale_variant_offer' => 'This Cart item or option changed. Review its current quantity, price and availability, then confirm again.'])->status(409);
+                }
+                if ($rows->contains(fn ($other) => $other->id !== $row->id && ($other->product_variant_id === $targetId || (!$other->product_variant_id && $other->product_slug === $row->product_slug && $active->count() === 1 && $active->first()->id === $targetId)))) {
+                    throw ValidationException::withMessages(['variant_already_in_cart' => 'This variant is already in your Cart. Update that row or remove it before switching.'])->status(409);
+                }
+                if ($row->product_variant_id === $targetId) return false;
+                $image = $target->image_path;
+                if ($image && !Str::startsWith($image, ['http://', 'https://']) && !Storage::disk('public')->exists($image)) $image = null;
+                $row->update(['product_variant_id' => $targetId, 'product_name' => $product->name, 'price' => number_format($target->price_minor / 100, 2, '.', ''),
+                    'image' => $image ?? app(ProductCatalogService::class)->thumbnail($product)]);
+                return true;
+            }, 3);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $error) {
+            throw ValidationException::withMessages(['variant_already_in_cart' => 'This variant is already in your Cart. Update that row or remove it before switching.'])->status(409);
         }
     }
 

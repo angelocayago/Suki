@@ -9,13 +9,14 @@ use App\Support\CartSelection;
 use App\Services\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
 class CheckoutController extends Controller
 {
-    public function index(Request $request, CheckoutService $checkout): View|RedirectResponse
+    public function index(Request $request, CheckoutService $checkout): View|Response|RedirectResponse
     {
         $direct = app(DirectCheckout::class);
         $buyNowToken = $direct->token($request);
@@ -70,8 +71,10 @@ class CheckoutController extends Controller
         $defaultAddress = $eligibleAddresses->firstWhere('id', old('address_id'))
             ?? $eligibleAddresses->firstWhere('is_default', true) ?? $eligibleAddresses->first();
 
-        return view('buyer.checkout', array_merge($summary, [
+        $buyNowOfferId = $buyNowToken ? bin2hex(random_bytes(32)) : null;
+        $view = view('buyer.checkout', array_merge($summary, [
             'buyNowToken' => $buyNowToken,
+            'buyNowOfferId' => $buyNowOfferId,
             'cartSelectionToken' => $cartToken,
             'buyNowProduct' => $state['product_slug'] ?? null,
             'addresses' => $addresses,
@@ -79,6 +82,15 @@ class CheckoutController extends Controller
             'hasEligibleAddress' => $eligibleAddresses->isNotEmpty(),
             'claimedVouchers' => app(\App\Services\ShopVoucherService::class)->claimedForCheckout($request->user(), collect($summary['cart'])->filter(fn($line)=>$line['available'] && $line['seller_id'])->groupBy('seller_id')->map(fn($lines)=>$lines->sum(fn($line)=>$line['price_minor']*$line['quantity']))),
         ]));
+        if (!$buyNowToken) return $view;
+        // Render exactly once before recording the offer. A failed render is not a reviewed offer.
+        $response = response($view);
+        try {
+            $direct->recordOffer($request, $buyNowToken, $buyNowOfferId, $summary['buy_now_terms']);
+        } catch (ValidationException $error) {
+            return redirect()->route('buyer.cart')->withErrors($error->errors());
+        }
+        return $response;
     }
 
     public function store(Request $request, CheckoutService $checkout): RedirectResponse
@@ -122,9 +134,14 @@ class CheckoutController extends Controller
         }
 
         try {
+            $directOffer = $buyNowToken ? $direct->offered($request, $buyNowToken) : null;
             $order = $checkout->checkout($buyer, $address, $validated['payment_method'], $buyNowToken ? $direct->codes($request,$buyNowToken) : $cartSnapshot['voucher_codes'], $state,
-                $buyNowToken ? $direct->reference($request,$buyNowToken) : app(CartSelection::class)->reference($request,$cartToken), $cartSnapshot);
+                $buyNowToken ? $direct->reference($request,$buyNowToken) : app(CartSelection::class)->reference($request,$cartToken), $cartSnapshot, $directOffer);
         } catch (ValidationException $exception) {
+            if ($buyNowToken && isset($exception->errors()['buy_now_offer'])) {
+                return redirect()->route('buyer.checkout', ['buy_now' => $buyNowToken])->withErrors($exception->errors())
+                    ->withInput($request->only(['address_id', 'payment_method']));
+            }
             if (!$buyNowToken && isset($exception->errors()['cart_selection'])) return redirect()->route('buyer.cart')->withErrors($exception->errors());
             throw $exception;
         } catch (Throwable $exception) {

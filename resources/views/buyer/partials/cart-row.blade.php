@@ -19,8 +19,12 @@
                 <button type="submit" class="cart-icon-button" aria-label="Remove {{ $item['name'] }}{{ $item['variant'] ? ' — '.$item['variant'] : '' }}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
             </form>
         </div>
-        @if($showVariant)<p class="cart-muted">Variant: {{ $item['variant'] }}</p>@endif
-        @if($options)<p class="cart-muted">{{ $options }}</p>@endif
+        @if(!empty($variant_choices[$cartItemId]))
+            @include('buyer.partials.cart-variant-picker', ['choices' => $variant_choices[$cartItemId]])
+        @else
+            @if($showVariant)<p class="cart-muted">Variant: {{ $item['variant'] }}</p>@endif
+            @if($options)<p class="cart-muted">{{ $options }}</p>@endif
+        @endif
         <p class="cart-unit-price">₱{{ number_format($item['price'], 2) }} <span class="cart-muted">each</span></p>
         <p id="cart-availability-{{ $cartItemId }}" class="{{ $item['available'] ? 'cart-muted' : 'cart-warning' }}" data-cart-availability>
             @if($item['available'])

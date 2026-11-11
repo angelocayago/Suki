@@ -75,6 +75,66 @@ function page() {
     return {inputs,requests,response,change,buttons,revision,status,mobileTotal,mobileCount,count,subtotal,shipping,messages,handlers,form,submit,all,storeCount,navigations:()=>navigations};
 }
 const tick = () => new Promise(resolve=>setImmediate(resolve));
+
+function variantAction(ui) {
+    const revision = {value:'0'}, proof = {value:'reviewed-proof'}, button = {type:'submit'};
+    let resets = 0, focused = false;
+    const form = {action:'https://suki.test/cart/change-variant/1',dataset:{},isConnected:true,
+        hasAttribute:name=>name==='data-cart-variant-form',
+        querySelector:selector=>selector==='[data-variant-revision]'?revision:button,
+        requestSubmit:submitter=>ui.submit(form,submitter),reset:()=>resets++};
+    button.form = form;
+    const picker = {open:true,querySelector:selector=>selector==='form'?form:{focus:()=>focused=true}};
+    const cancel = {closest:()=>picker};
+    return {form,button,revision,proof,picker,cancel,resets:()=>resets,focused:()=>focused};
+}
+
+test('variant Confirm waits for selection save, syncs revision and submits once without renewing proof', async () => {
+    const ui=page(), variant=variantAction(ui);
+    ui.change(0,true);
+    assert.equal(ui.submit(variant.form,variant.button).prevented,true);
+    assert.equal(ui.submit(variant.form,variant.button).prevented,true);
+    assert.equal(ui.navigations(),0);
+    ui.response(0,[1],true,8); await tick();
+    assert.equal(ui.navigations(),1);
+    assert.equal(variant.revision.value,8);
+    assert.equal(variant.proof.value,'reviewed-proof');
+    assert.equal(ui.buttons[0].disabled,true);
+    assert.equal(ui.submit(variant.form,variant.button).prevented,true);
+    assert.equal(ui.submit().prevented,true);
+});
+
+test('failed or expired pending selection does not submit the queued variant change', async () => {
+    const ui=page(), variant=variantAction(ui);
+    ui.change(0,true); ui.submit(variant.form,variant.button);
+    ui.response(0,[],false,9); await tick();
+    assert.equal(ui.navigations(),0);
+    assert.equal(variant.proof.value,'reviewed-proof');
+    assert.equal(ui.submit(variant.form,variant.button).prevented,true);
+    await tick();
+    assert.equal(ui.navigations(),0);
+});
+
+test('Cancel while waiting for a selection save cancels the queued variant submission', async () => {
+    const ui=page(), variant=variantAction(ui);
+    ui.change(0,true); ui.submit(variant.form,variant.button);
+    ui.handlers.click({target:{closest:()=>variant.cancel},preventDefault(){}});
+    ui.response(0,[1]); await tick();
+    assert.equal(ui.navigations(),0);
+    assert.equal(variant.picker.open,false);
+});
+
+test('Cancel resets only its picker, returns focus and makes no request', () => {
+    const ui=page(), variant=variantAction(ui);
+    const event={target:{closest:()=>variant.cancel},preventDefault(){this.prevented=true;}};
+    ui.handlers.click(event);
+    assert.equal(event.prevented,true);
+    assert.equal(variant.picker.open,false);
+    assert.equal(variant.resets(),1);
+    assert.equal(variant.focused(),true);
+    assert.equal(ui.requests.length,0);
+    assert.equal(ui.navigations(),0);
+});
 test('rapid edits are serialized with the latest revision and never overwritten by an older response', async () => {
     const ui=page();ui.change(0,true);ui.change(1,true);
     assert.equal(ui.requests.length,1);

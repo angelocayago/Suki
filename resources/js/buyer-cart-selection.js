@@ -32,7 +32,7 @@
         const revision = form.querySelector('[data-draft-revision]');
         const status = cart.querySelector('[data-cart-selection-status]');
         const rows = () => [...cart.querySelectorAll('[data-cart-select]')];
-        let dirty = false, pending = null, failed = false, replaying = false;
+        let dirty = false, pending = null, failed = false, replaying = false, variantWaiting = false, variantSubmitting = false, variantRequest = 0;
         const read = inputs => inputs.map(input => ({ eligible: input.dataset.eligible === '1', checked: input.checked }));
         const selectionKey = () => JSON.stringify(rows().filter(input => input.checked && !input.disabled).map(input => input.value));
         function preview() {
@@ -143,6 +143,18 @@
         }
         cart.querySelectorAll('.cart-enhanced-control').forEach(label => label.hidden = false);
         checkboxes();
+        cart.addEventListener('click', event => {
+            const cancel = event.target.closest('[data-cart-variant-cancel]');
+            if (!cancel) return;
+            const picker = cancel.closest('[data-cart-variant-picker]');
+            if (!picker) return;
+            event.preventDefault();
+            if (variantSubmitting) return;
+            variantRequest++; variantWaiting = false;
+            picker.querySelector('form').reset();
+            picker.open = false;
+            picker.querySelector('summary').focus();
+        });
         cart.addEventListener('change', event => {
             const input = event.target;
             if (!input.matches('[data-cart-select], [data-cart-all], [data-cart-store]')) return;
@@ -158,18 +170,29 @@
         // Native row actions keep working, but first persist any pending edits.
         cart.addEventListener('submit', event => {
             const submitted = event.target, submitter = event.submitter;
+            const changingVariant = submitted.hasAttribute?.('data-cart-variant-form');
+            if (variantSubmitting || changingVariant && variantWaiting) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+            if (changingVariant && failed && !pending && !dirty) {
+                event.preventDefault(); event.stopImmediatePropagation();
+                status.textContent = 'Review the latest selection and use Update Selection before changing a variant.';
+                return;
+            }
             if (submitted === form && form.dataset.pending) { event.preventDefault(); return; }
             const update = submitted === form && submitter?.value !== 'checkout';
             if (update && !replaying) {
                 event.preventDefault(); event.stopImmediatePropagation(); dirty = true; preview(); void save(); return;
             }
-            if (!replaying && (pending || dirty || failed && submitted === form)) {
+            if (!replaying && (pending || dirty || failed && (submitted === form || changingVariant))) {
                 event.preventDefault(); event.stopImmediatePropagation();
                 const action = submitted.action;
+                const requestId = changingVariant ? ++variantRequest : null;
+                if (changingVariant) variantWaiting = true;
                 void (async () => {
-                    if (failed && submitted === form) dirty = true;
+                    if (failed && submitted === form && !changingVariant) dirty = true;
                     await save();
-                    if (failed && submitted === form) return;
+                    if (changingVariant && requestId !== variantRequest) return;
+                    if (changingVariant) variantWaiting = false;
+                    if (failed && (submitted === form || changingVariant)) return;
                     replaying = true;
                     try {
                         const target = submitted.isConnected ? submitted : [...cart.querySelectorAll('form')].find(candidate => candidate.action === action);
@@ -180,6 +203,14 @@
                     } finally { replaying = false; }
                 })();
                 return;
+            }
+            if (changingVariant) {
+                if (failed) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+                // Flush updates only the draft revision. Never renew the reviewed option proof.
+                submitted.querySelector('[data-variant-revision]').value = revision.value;
+                variantSubmitting = true;
+                busy(true);
+                status.textContent = 'Changing variant…';
             }
             if (submitted === form) {
                 if (form.dataset.pending) { event.preventDefault(); return; }

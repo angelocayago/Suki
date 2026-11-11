@@ -145,13 +145,26 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
             ->assertSee('175.00')
             ->assertDontSee('1.00');
 
-        $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))
+        $checkout = $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))
             ->assertOk()
             ->assertSee('125.00')
-            ->assertSee('Total Shipping')
+            ->assertSee('Shipping (1 seller)')
+            ->assertSee('₱50.00')
             ->assertSee('COD Grand Total')
             ->assertSee('175.00')
             ->assertSee('Delivery Address');
+
+        $document = new \DOMDocument();
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$checkout->getContent());
+        $xpath = new \DOMXPath($document);
+        $summary = $xpath->query('//aside')->item(0);
+        $this->assertNotNull($summary);
+        $shippingRows = $xpath->query('.//*[@data-checkout-shipping]', $summary);
+        $this->assertSame(1, $shippingRows->length);
+        $this->assertSame('Shipping (1 seller) ₱50.00', preg_replace('/\s+/u', ' ', trim($shippingRows->item(0)->textContent)));
+        $this->assertSame(1, substr_count($summary->textContent, '₱50.00'));
+        $this->assertStringNotContainsString('Total Shipping', $summary->textContent);
+        $this->assertStringNotContainsString('SUKI Logistics Delivery', $summary->textContent);
     }
 
     public function test_cart_and_checkout_warn_when_a_cart_item_becomes_unavailable(): void

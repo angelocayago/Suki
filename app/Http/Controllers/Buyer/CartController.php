@@ -40,8 +40,11 @@ class CartController extends Controller
         } catch (ValidationException $error) {
             $errors = $error->errors(); $message = collect($errors)->flatten()->first();
             $code = $error->status === 409 ? (str_contains(strtolower($message), 'out of stock') ? 'out_of_stock' : 'insufficient_stock') : (isset($errors['quantity']) ? 'invalid_quantity' : (isset($errors['variant_id']) && str_contains($message, 'select') ? 'variant_required' : 'unavailable'));
+            foreach (['variant_already_in_cart', 'stale_cart_item', 'stale_variant_offer', 'draft_revision'] as $key) {
+                if (isset($errors[$key])) $code = $key === 'draft_revision' ? 'stale_selection' : $key;
+            }
             if ($request->expectsJson()) return response()->json(['success' => false, 'message' => $message, 'errors' => $errors, 'code' => $code], $error->status);
-            return $this->actionBack($request)->withErrors($errors)->withInput()->with('cart_error_line', $request->route('cartItem'));
+            return $this->actionBack($request)->withErrors($errors)->withInput()->with($request->routeIs('buyer.cart.change-variant') ? 'cart_variant_line' : 'cart_error_line', $request->route('cartItem'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $error) {
             throw $error;
         } catch (Throwable $error) {
@@ -230,7 +233,23 @@ class CartController extends Controller
     public function index(Request $request, CheckoutService $checkout)
     {
         $data = $this->selectionData($request, $checkout);
+        $data['variant_choices'] = $checkout->variantSwitchChoices($request->user());
         return $request->expectsJson() ? response()->json(['success' => true, 'message' => '', 'errors' => (object) [], 'code' => 'ok', 'data' => $data]) : view('buyer.cart', $data);
+    }
+
+    public function changeVariant(Request $request, int $cartItem, CheckoutService $checkout)
+    {
+        return $this->action($request, function () use ($request, $cartItem, $checkout) {
+            CartItem::where('user_id', $request->user()->id)->findOrFail($cartItem);
+            $data = $request->validate(['variant_id' => ['required', 'integer', 'min:1'], 'draft_revision' => ['required', 'integer', 'min:0'], 'variant_proof' => ['required', 'array'], 'variant_proof.*' => ['required', 'string', 'size:64']]);
+            $selection = app(\App\Support\CartSelection::class);
+            $draft = $selection->draft($request);
+            if ((int) $data['draft_revision'] !== $draft['revision']) throw ValidationException::withMessages(['draft_revision' => 'Your selection changed in another tab. Refresh the Cart and review the latest selection before changing a variant.'])->status(409);
+            $proof = $data['variant_proof'][$data['variant_id']] ?? '';
+            if ($checkout->changeCartVariant($request->user(), $cartItem, (int) $data['variant_id'], $proof)) $selection->advanceRevision($request, $draft);
+            if (!$request->expectsJson()) return redirect()->to(route('buyer.cart').'#cart-line-'.$cartItem)->with('success', 'Variant updated. Your quantity and selection were kept.');
+            return 'Variant updated. Your quantity and selection were kept.';
+        }, 'Variant updated.');
     }
 
     private function selectionData(Request $request, CheckoutService $checkout): array
