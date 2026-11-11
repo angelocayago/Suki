@@ -2,9 +2,7 @@
 
 @section('content')
 
-<div class="min-h-screen bg-[#F8FAF8]">
-
-    <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+<x-buyer.account-shell active="addresses">
 
         {{-- ===================================================== --}}
         {{-- HEADER --}}
@@ -392,9 +390,7 @@
 
         @endif
 
-    </div>
-
-</div>
+</x-buyer.account-shell>
 
 
 {{-- ========================================================= --}}

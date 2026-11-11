@@ -2,9 +2,11 @@
 
 @section('content')
 
-<div class="min-h-screen bg-[#F8FAF8]">
-
-    <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+@php($passwordSection = request()->query('section') === 'password')
+<x-buyer.account-shell :active="$passwordSection ? 'password' : 'profile'">
+    @if($passwordSection)
+        @include('buyer.partials.account-password')
+    @else
 
         {{-- PAGE HEADER --}}
         <div class="mb-8">
@@ -58,14 +60,14 @@
         @endif
 
 
-        <div class="grid gap-6 lg:grid-cols-3">
+        <div class="buyer-account-panels">
 
 
             {{-- ===================================================== --}}
             {{-- PROFILE CARD --}}
             {{-- ===================================================== --}}
 
-            <section class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white">
+            <section class="rounded-2xl border border-gray-200 bg-white">
 
                 {{-- PROFILE HEADER --}}
                 <div class="border-b border-gray-100 px-5 py-5 sm:px-6">
@@ -237,151 +239,7 @@
             </section>
 
 
-            {{-- ===================================================== --}}
-            {{-- QUICK ACTIONS --}}
-            {{-- ===================================================== --}}
-
-            <aside class="space-y-6">
-
-
-                {{-- ACCOUNT MENU --}}
-                <section class="rounded-2xl border border-gray-200 bg-white p-5">
-
-                    <h2 class="font-semibold text-gray-900">
-                        Account
-                    </h2>
-
-                    <div class="mt-4 space-y-1">
-
-
-                        {{-- MY ORDERS --}}
-                        <a
-                            href="{{ route('buyer.my-orders') }}"
-                            class="group flex items-center justify-between rounded-xl px-3 py-3 transition hover:bg-[#F8FAF8]"
-                        >
-
-                            <div class="flex items-center gap-3">
-
-                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF8F3]">
-
-                                    <i
-                                        data-lucide="package"
-                                        class="h-4 w-4 text-[#1F6F5B]"
-                                    ></i>
-
-                                </div>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    My Orders
-                                </span>
-
-                            </div>
-
-                            <i
-                                data-lucide="chevron-right"
-                                class="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5"
-                            ></i>
-
-                        </a>
-
-
-                        {{-- ADDRESSES --}}
-                        <a
-                            href="{{ route('buyer.addresses') }}"
-                            class="group flex items-center justify-between rounded-xl px-3 py-3 transition hover:bg-[#F8FAF8]"
-                        >
-
-                            <div class="flex items-center gap-3">
-
-                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF8F3]">
-
-                                    <i
-                                        data-lucide="map-pin"
-                                        class="h-4 w-4 text-[#1F6F5B]"
-                                    ></i>
-
-                                </div>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    My Addresses
-                                </span>
-
-                            </div>
-
-                            <i
-                                data-lucide="chevron-right"
-                                class="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5"
-                            ></i>
-
-                        </a>
-
-
-                        {{-- WISHLIST --}}
-                        <a
-                            href="{{ route('buyer.wishlist') }}"
-                            class="group flex items-center justify-between rounded-xl px-3 py-3 transition hover:bg-[#F8FAF8]"
-                        >
-
-                            <div class="flex items-center gap-3">
-
-                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF8F3]">
-
-                                    <i
-                                        data-lucide="heart"
-                                        class="h-4 w-4 text-[#1F6F5B]"
-                                    ></i>
-
-                                </div>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    Wishlist
-                                </span>
-
-                            </div>
-
-                            <i
-                                data-lucide="chevron-right"
-                                class="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5"
-                            ></i>
-
-                        </a>
-
-
-                        {{-- SECURITY --}}
-                        <button
-                            type="button"
-                            onclick="openPasswordModal()"
-                            class="group flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-[#F8FAF8]"
-                        >
-
-                            <div class="flex items-center gap-3">
-
-                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF8F3]">
-
-                                    <i
-                                        data-lucide="lock"
-                                        class="h-4 w-4 text-[#1F6F5B]"
-                                    ></i>
-
-                                </div>
-
-                                <span class="text-sm font-medium text-gray-700">
-                                    Change Password
-                                </span>
-
-                            </div>
-
-                            <i
-                                data-lucide="chevron-right"
-                                class="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5"
-                            ></i>
-
-                        </button>
-
-                    </div>
-
-                </section>
-
+            <aside class="buyer-account-opportunities">
 
                 {{-- SELLER / RIDER --}}
                 <section class="rounded-2xl border border-[#DDF3EC] bg-[#EEF8F3] p-5">
@@ -451,9 +309,8 @@
 
         </div>
 
-    </div>
-
-</div>
+    @endif
+</x-buyer.account-shell>
 
 
 {{-- ========================================================= --}}
@@ -614,138 +471,6 @@
 
 
 {{-- ========================================================= --}}
-{{-- CHANGE PASSWORD MODAL --}}
-{{-- ========================================================= --}}
-
-<div
-    id="passwordModal"
-    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4"
->
-
-    <div
-        class="w-full max-w-md rounded-2xl bg-white shadow-xl"
-        onclick="event.stopPropagation()"
-    >
-
-        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-
-            <div>
-
-                <h2 class="text-lg font-semibold text-gray-900">
-                    Change Password
-                </h2>
-
-                <p class="mt-1 text-xs text-gray-500">
-                    Keep your SUKI SHOP account secure.
-                </p>
-
-            </div>
-
-
-            <button
-                type="button"
-                onclick="closePasswordModal()"
-                class="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100"
-            >
-
-                <i
-                    data-lucide="x"
-                    class="h-5 w-5"
-                ></i>
-
-            </button>
-
-        </div>
-
-
-        <form
-            action="{{ route('buyer.account.password') }}"
-            method="POST"
-        >
-
-            @csrf
-
-            <div class="space-y-4 px-5 py-5">
-
-                <div>
-
-                    <label class="text-xs font-medium text-gray-600">
-                        Current Password
-                    </label>
-
-                    <input
-                        type="password"
-                        name="current_password"
-                        required
-                        class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                    >
-
-                </div>
-
-
-                <div>
-
-                    <label class="text-xs font-medium text-gray-600">
-                        New Password
-                    </label>
-
-                    <input
-                        type="password"
-                        name="password"
-                        required
-                        minlength="8"
-                        class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                    >
-
-                </div>
-
-
-                <div>
-
-                    <label class="text-xs font-medium text-gray-600">
-                        Confirm New Password
-                    </label>
-
-                    <input
-                        type="password"
-                        name="password_confirmation"
-                        required
-                        minlength="8"
-                        class="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#DDF3EC]"
-                    >
-
-                </div>
-
-            </div>
-
-
-            <div class="flex gap-3 border-t border-gray-100 px-5 py-4">
-
-                <button
-                    type="button"
-                    onclick="closePasswordModal()"
-                    class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="flex-1 rounded-xl bg-[#1F6F5B] px-4 py-3 text-sm font-semibold text-white hover:bg-[#155244]"
-                >
-                    Update Password
-                </button>
-
-            </div>
-
-        </form>
-
-    </div>
-
-</div>
-
-
-{{-- ========================================================= --}}
 {{-- SCRIPT --}}
 {{-- ========================================================= --}}
 
@@ -771,26 +496,6 @@
     }
 
 
-    function openPasswordModal() {
-        const modal = document.getElementById('passwordModal');
-
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-
-        document.body.classList.add('overflow-hidden');
-    }
-
-
-    function closePasswordModal() {
-        const modal = document.getElementById('passwordModal');
-
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-
-        document.body.classList.remove('overflow-hidden');
-    }
-
-
     document.getElementById('editProfileModal')?.addEventListener('click', function(event) {
 
         if (event.target === this) {
@@ -800,13 +505,7 @@
     });
 
 
-    document.getElementById('passwordModal')?.addEventListener('click', function(event) {
-
-        if (event.target === this) {
-            closePasswordModal();
-        }
-
-    });
+    if (window.location.hash === '#editProfileModal') openEditProfile();
 
 </script>
 

@@ -6,7 +6,8 @@
 @section('page-subtitle', 'Marketplace conversations and support messages')
 
 @section('content')
-<div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+<x-buyer.account-shell active="messages" :enabled="$portal['name'] === 'buyer'">
+<div class="{{ $portal['name'] === 'buyer' ? '' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6' }}">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-[#173F35]">Messages</h1>
         <p class="mt-1 text-sm text-gray-500">Your authorized marketplace conversations.</p>
@@ -82,4 +83,5 @@
         @endif
     </div>
 </div>
+</x-buyer.account-shell>
 @endsection

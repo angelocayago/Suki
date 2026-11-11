@@ -2,11 +2,11 @@
 
 @section('content')
 
-<div class="min-h-screen bg-[#F8FAF8]">
+<x-buyer.account-shell active="purchases">
 
     {{-- PAGE HEADER --}}
     <div class="border-b border-gray-200 bg-white">
-        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-6">
 
             <div class="flex items-center gap-3">
 
@@ -34,7 +34,7 @@
 
 
     {{-- CONTENT --}}
-    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div class="py-6 sm:py-8">
 
 
         {{-- SUCCESS MESSAGE --}}
@@ -393,7 +393,7 @@
 
     </div>
 
-</div>
+</x-buyer.account-shell>
 
 @include('buyer.partials.cancellation-dialog')
 @include('buyer.partials.receipt-dialog')
