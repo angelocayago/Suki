@@ -53,6 +53,7 @@ function readableLabel(control) {
 
 function initialiseWizard(form) {
     const definition = wizardDefinitions[form.dataset.wizardKind];
+    const isSeller = form.dataset.wizardKind === 'seller';
     if (!definition || form.dataset.wizardReady) return;
     form.dataset.wizardReady = 'true';
     // Reveal invalid steps before reporting errors on hidden required controls.
@@ -119,7 +120,8 @@ function initialiseWizard(form) {
         if (
             child !== mount &&
             child !== stepper &&
-            !child.matches('input[name="_token"]')
+            !child.matches('input[name="_token"]') &&
+            !(isSeller && child.hasAttribute('data-registration-feedback'))
         ) {
             child.hidden = true;
         }
@@ -172,7 +174,27 @@ function initialiseWizard(form) {
         show(Math.min(reviewIndex, active + 1));
     });
     back.addEventListener('click', () => show(Math.max(0, active - 1)));
+    let submitting = false;
+    function resetSubmission() {
+        submitting = false;
+        submit.disabled = false;
+        submit.removeAttribute('aria-busy');
+    }
+    if (isSeller) {
+        window.addEventListener('pageshow', resetSubmission);
+        form.addEventListener('invalid', resetSubmission, true);
+        form.querySelectorAll('[data-registration-error-field]').forEach(link => {
+            link.addEventListener('click', event => {
+                const name = link.dataset.registrationErrorField;
+                if (!fieldSteps.has(name)) return;
+                event.preventDefault();
+                show(fieldSteps.get(name));
+                form.querySelectorAll('[name]').find(control => control.name === name)?.focus();
+            });
+        });
+    }
     form.addEventListener('submit', event => {
+        if (isSeller && submitting) { event.preventDefault(); return; }
         if (active !== reviewIndex) { event.preventDefault(); next.click(); return; }
         const invalid = [...form.querySelectorAll('input, select, textarea')]
             .find(control => !control.disabled && !control.checkValidity());
@@ -180,9 +202,18 @@ function initialiseWizard(form) {
             event.preventDefault();
             show(fieldSteps.get(invalid.name) ?? 0);
             invalid.reportValidity();
+            return;
+        }
+        if (isSeller && !event.defaultPrevented) {
+            submitting = true;
+            submit.disabled = true;
+            submit.setAttribute('aria-busy', 'true');
+            // A later listener may cancel this native POST. Do not leave it locked.
+            queueMicrotask(() => { if (event.defaultPrevented) resetSubmission(); });
         }
     });
     show(active);
+    if (isSeller && errors.length) form.querySelector('[data-registration-feedback]')?.focus();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

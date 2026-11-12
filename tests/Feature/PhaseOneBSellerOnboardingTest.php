@@ -377,6 +377,187 @@ class PhaseOneBSellerOnboardingTest extends TestCase
         );
     }
 
+    public function test_failed_registration_shows_associated_errors_and_restores_only_safe_values(): void
+    {
+        Storage::fake('seller_documents');
+        Http::preventStrayRequests();
+        $this->fakePsgc();
+        $category = $this->category();
+        $cases = [
+            ['first_name' => ''], ['business_permit' => null],
+            ['valid_id' => UploadedFile::fake()->create('invalid.txt', 1, 'text/plain')],
+            ['valid_id' => UploadedFile::fake()->create('large.pdf', 5121, 'application/pdf')],
+            ['tin' => 'invalid'], ['region' => '999'],
+            ['phone' => '', 'business_name' => '', 'terms' => null],
+        ];
+        foreach ($cases as $override) {
+            $this->from(route('seller.register'))->post(route('seller.register.submit'), $this->validPayload($category, $override))
+                ->assertRedirect(route('seller.register'))->assertSessionHasErrors()->assertSessionMissing('success');
+            $old = session('_old_input', []);
+            foreach (['password', 'password_confirmation', 'current_password', '_token'] as $key) {
+                $this->assertFalse(array_key_exists($key, $old), 'Sensitive or file input must not be flashed: '.$key);
+            }
+            foreach (['valid_id', 'business_permit'] as $fileKey) {
+                $this->assertNull($old[$fileKey] ?? null, 'No uploaded file data may be flashed.');
+            }
+            $this->assertArrayHasKey('email', $old);
+            $response = $this->get(route('seller.register'))->assertOk()
+                ->assertSee('Your Seller Registration could not be submitted.')
+                ->assertSee('Enter your password and confirmation again');
+            $dom = new \DOMDocument();
+            @$dom->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($dom);
+            $this->assertSame(1, $xpath->query('//form/div[@data-registration-feedback]')->length);
+            foreach (array_keys($override) as $field) {
+                $this->assertSame(1, $xpath->query('//*[@id="'.$field.'-error"]')->length);
+                $this->assertSame(1, $xpath->query('//*[@name="'.$field.'" and @aria-invalid="true" and @aria-describedby="'.$field.'-error"]')->length);
+            }
+            $this->assertSame(0, $xpath->query('//input[@type="password" and @value!=""]')->length);
+            $this->assertSame(0, $xpath->query('//input[@name="terms" and @checked]')->length);
+            $this->assertDatabaseCount('applications', 0);
+            $this->assertDatabaseCount('account_verifications', 0);
+            Mail::assertNothingSent();
+        }
+        $this->post(route('seller.register.submit'), $this->validPayload($category))
+            ->assertRedirect(route('verification.contact.show'));
+        $this->assertDatabaseCount('applications', 1);
+    }
+
+    public function test_provider_and_google_validation_never_flash_credentials_or_files(): void
+    {
+        Storage::fake('seller_documents');
+        Http::preventStrayRequests();
+        $category = $this->category();
+        Http::fake(['*' => Http::response([], 503)]);
+        $this->from(route('seller.register'))->post(route('seller.register.submit'), $this->validPayload($category))
+            ->assertRedirect(route('seller.register'))->assertSessionHasErrors('region');
+        foreach (['password', 'password_confirmation', 'current_password', '_token', 'valid_id', 'business_permit'] as $key) {
+            $this->assertFalse(array_key_exists($key, session('_old_input', [])));
+        }
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::preventStrayRequests();
+        $this->fakePsgc();
+        $payload = $this->validPayload($category);
+        $this->withSession(['google_registration' => [
+            'intent' => 'seller', 'email' => $payload['email'], 'provider_user_id' => 'synthetic',
+            'issued_at' => now()->subMinutes(16)->timestamp,
+        ]])->from(route('seller.register'))->post(route('seller.register.submit'), $payload)
+            ->assertRedirect(route('seller.register'))->assertSessionHasErrors('email');
+        foreach (['password', 'password_confirmation', 'valid_id', 'business_permit'] as $key) {
+            $this->assertFalse(array_key_exists($key, session('_old_input', [])));
+        }
+        $this->assertDatabaseCount('applications', 0);
+        $this->assertDatabaseCount('account_verifications', 0);
+        Mail::assertNothingSent();
+    }
+
+    public function test_address_failure_preserves_native_redirect_even_for_json_clients(): void
+    {
+        $this->fakePsgc();
+        $this->from(route('seller.register'))->postJson(route('seller.register.submit'), $this->validPayload($this->category(), ['region' => '999']))
+            ->assertRedirect(route('seller.register'))->assertSessionHasErrors('region');
+        $this->assertFalse(array_key_exists('password', session('_old_input', [])));
+        $this->assertFalse(array_key_exists('password_confirmation', session('_old_input', [])));
+    }
+
+    public function test_seller_email_otp_approval_and_original_credentials_login_lifecycle(): void
+    {
+        Notification::fake();
+        Storage::fake('seller_documents');
+        Http::preventStrayRequests();
+        $this->fakePsgc();
+        $payload = $this->validPayload($this->category());
+        $this->from(route('seller.register'))->post(route('seller.register.submit'), $payload)
+            ->assertRedirect(route('verification.contact.show'));
+        $application = Application::firstOrFail();
+        $user = $application->user;
+        $this->get(route('verification.contact.show'))->assertOk();
+        $code = Mail::sent(AccountVerificationOtpMail::class)->sole()->code;
+        Mail::assertSent(AccountVerificationOtpMail::class, fn ($mail) => $mail->hasTo($payload['email']));
+        $this->post(route('verification.contact.verify'), ['code' => $code])->assertRedirect(route('login'))
+            ->assertSessionHas('success', 'Contact verification is complete. Your application remains pending administrator approval.');
+        $this->assertTrue($user->fresh()->hasVerifiedContacts());
+        $this->assertSame('pending', $user->fresh()->status);
+        $this->assertSame('pending', $application->fresh()->status);
+        $this->assertSame('pending', $user->sellers()->firstOrFail()->status);
+        $this->actingAs($user)->get(route('seller.dashboard'))->assertForbidden();
+        auth()->logout();
+        $this->post('/login', ['login' => $payload['email'], 'password' => $payload['password']])
+            ->assertRedirect(route('login'))->assertSessionHasErrors('login');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'is_suspended' => false]);
+        $admin->roles()->attach(Role::firstOrCreate(['name' => 'admin']));
+        $this->actingAs($admin)->from('/admin/applications')->post(route('superadmin.applications.approve', $application))
+            ->assertRedirect('/admin/applications');
+        $this->assertSame('approved', $application->fresh()->status);
+        $this->assertSame('active', $user->fresh()->status);
+        $this->assertSame('approved', $user->sellers()->firstOrFail()->status);
+        auth()->logout();
+        session()->forget('url.intended');
+        $this->get(route('login'))->assertOk();
+        $this->post('/login', ['login' => $payload['email'], 'password' => $payload['password']])
+            ->assertRedirect(route('seller.dashboard'));
+        $this->assertAuthenticatedAs($user);
+        $this->get(route('seller.dashboard'))->assertOk();
+        $this->assertDatabaseCount('applications', 1);
+        $this->assertDatabaseCount('account_verifications', 1);
+    }
+
+    public function test_wrong_expired_otp_and_rejection_never_approve_seller(): void
+    {
+        Notification::fake();
+        Storage::fake('seller_documents');
+        $this->fakePsgc();
+        $payload = $this->validPayload($this->category());
+        $this->post(route('seller.register.submit'), $payload)->assertRedirect(route('verification.contact.show'));
+        $application = Application::firstOrFail();
+        $code = Mail::sent(AccountVerificationOtpMail::class)->sole()->code;
+        $wrong = $code === '100000' ? '100001' : '100000';
+        $this->from(route('verification.contact.show'))->post(route('verification.contact.verify'), ['code' => $wrong])
+            ->assertRedirect(route('verification.contact.show'))->assertSessionHasErrors('code');
+        $this->travel(6)->minutes();
+        $this->post(route('verification.contact.verify'), ['code' => $code])
+            ->assertRedirect(route('verification.contact.show'))->assertSessionHasErrors('code');
+        $this->assertNull($application->user->fresh()->email_verified_at);
+        $this->assertSame('pending', $application->user->fresh()->status);
+        $this->assertSame('pending', $application->fresh()->status);
+        $this->travelBack();
+        $this->post(route('verification.contact.verify'), ['code' => $code])->assertRedirect(route('login'));
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'is_suspended' => false]);
+        $admin->roles()->attach(Role::firstOrCreate(['name' => 'admin']));
+        $this->actingAs($admin)->post(route('superadmin.applications.reject', $application), ['rejection_reason' => 'Incomplete requirements'])
+            ->assertRedirect();
+        $this->assertSame('rejected', $application->fresh()->status);
+        $this->assertSame('rejected', $application->user->fresh()->status);
+        $this->actingAs($application->user->fresh())->get(route('seller.dashboard'))->assertForbidden();
+        auth()->logout();
+        $this->post('/login', ['login' => $payload['email'], 'password' => $payload['password']])
+            ->assertRedirect(route('login'))->assertSessionHasErrors('login');
+        $this->assertDatabaseCount('applications', 1);
+    }
+
+    public function test_repeat_registration_does_not_create_another_application_or_email_challenge(): void
+    {
+        Storage::fake('seller_documents');
+        $this->fakePsgc();
+        $category = $this->category();
+        $this->post(route('seller.register.submit'), $this->validPayload($category))->assertRedirect(route('verification.contact.show'));
+        $this->from(route('seller.register'))->post(route('seller.register.submit'), $this->validPayload($category))
+            ->assertRedirect(route('seller.register'))->assertSessionHasErrors(['email', 'phone']);
+        $this->assertDatabaseCount('applications', 1);
+        $this->assertDatabaseCount('account_verifications', 1);
+        $this->assertDatabaseCount('seller_documents', 2);
+        Mail::assertSent(AccountVerificationOtpMail::class, 1);
+    }
+
+    public function test_seller_registration_still_rejects_missing_csrf_without_saving_or_sending_otp(): void
+    {
+        $this->app->bind(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class, SellerRegistrationEnforcedCsrf::class);
+        $this->post(route('seller.register.submit'), $this->validPayload($this->category()))->assertStatus(419);
+        $this->assertDatabaseCount('applications', 0);
+        $this->assertDatabaseCount('account_verifications', 0);
+        Mail::assertNothingSent();
+    }
+
     private function category(): Category
     {
         return Category::query()->create([
@@ -429,6 +610,14 @@ class PhaseOneBSellerOnboardingTest extends TestCase
             'terms' => '1',
             'status' => 'approved',
         ], $overrides);
+    }
+}
+
+class SellerRegistrationEnforcedCsrf extends \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken
+{
+    protected function runningUnitTests()
+    {
+        return false;
     }
 }
 

@@ -16,6 +16,51 @@
 
 @csrf
 
+@if ($errors->any())
+    @php
+        $registrationLabels = [
+            'first_name' => 'First name',
+            'last_name' => 'Last name',
+            'middle_initial' => 'Middle initial',
+            'sex' => 'Sex',
+            'birthday' => 'Birthday',
+            'email' => 'Email',
+            'phone' => 'Contact number',
+            'region' => 'Region',
+            'province' => 'Province',
+            'municipality' => 'Municipality / City',
+            'barangay' => 'Barangay',
+            'address' => 'Street address',
+            'business_name' => 'Business name',
+            'category_id' => 'Seller category',
+            'seller_type' => 'Seller type',
+            'tin' => 'TIN',
+            'valid_id' => 'Valid ID',
+            'business_permit' => 'Business permit',
+            'password' => 'Password',
+            'password_confirmation' => 'Password confirmation',
+            'terms' => 'Terms acceptance',
+        ];
+    @endphp
+    <div data-registration-feedback id="seller-registration-errors" tabindex="-1" role="alert" aria-labelledby="seller-registration-errors-title" class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p id="seller-registration-errors-title" class="font-semibold">Your Seller Registration could not be submitted. Please correct the following information:</p>
+        <ul class="mt-2 list-disc list-inside space-y-1">
+            @foreach ($errors->getMessages() as $field => $messages)
+                @foreach ($messages as $message)
+                    <li>
+                        @if (isset($registrationLabels[$field]))
+                            <a href="#{{ $field }}" data-registration-error-field="{{ $field }}" class="underline">{{ $registrationLabels[$field] }}</a>:
+                        @endif
+                        {{ $message }}
+                    </li>
+                @endforeach
+            @endforeach
+        </ul>
+        <p class="mt-3">Your other entered details have been kept where possible. Enter your password and confirmation again, select your document files again, and confirm the terms again before submitting.</p>
+    </div>
+@endif
+
+
 
 <div class="min-h-screen bg-[#F8FAF8]">
 
@@ -192,45 +237,7 @@
 
 
 
-                {{-- ==========================================
-                     VALIDATION ERRORS
-                =========================================== --}}
-                @if ($errors->any())
 
-                    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-
-                        <div class="flex gap-3">
-
-                            <i
-                                data-lucide="circle-alert"
-                                class="w-5 h-5 text-red-500 shrink-0 mt-0.5"
-                            ></i>
-
-                            <div class="min-w-0">
-
-                                <p class="text-sm font-semibold text-red-700">
-                                    Please check the following:
-                                </p>
-
-                                <ul class="mt-1 text-sm text-red-600 list-disc list-inside space-y-1">
-
-                                    @foreach ($errors->all() as $error)
-
-                                        <li>
-                                            {{ $error }}
-                                        </li>
-
-                                    @endforeach
-
-                                </ul>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                @endif
 
 
 
@@ -266,7 +273,10 @@
                 required
                 placeholder="Enter your e-mail address"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="email" @if ($errors->has('email')) aria-invalid="true" aria-describedby="email-error" @endif>
+    @error('email')
+        <p id="email-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -294,7 +304,7 @@
         aria-describedby="password-requirements"
         placeholder="Create a password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-    >
+     @if ($errors->has('password')) aria-invalid="true" aria-describedby="password-error" @endif>
 
 
     <button
@@ -315,7 +325,7 @@
 
                 <p id="password-requirements" class="mt-1 text-xs text-gray-500">Use at least 8 characters with uppercase and lowercase letters, a number, and a special character.</p>
                 @error('password')
-                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                    <p id="password-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
                 @enderror
 
             </div>
@@ -340,7 +350,7 @@
         autocomplete="new-password"
         placeholder="Confirm your password"
         class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-    >
+     @if ($errors->has('password_confirmation')) aria-invalid="true" aria-describedby="password_confirmation-error" @endif>
 
 
     <button
@@ -361,7 +371,7 @@
 </div>
 
                 @error('password_confirmation')
-                    <p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
+                    <p id="password_confirmation-error" class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>
                 @enderror
 
             </div>
@@ -407,7 +417,10 @@
                 required
                 placeholder="First name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="first_name" @if ($errors->has('first_name')) aria-invalid="true" aria-describedby="first_name-error" @endif>
+    @error('first_name')
+        <p id="first_name-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -429,7 +442,10 @@
                 required
                 placeholder="Last name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="last_name" @if ($errors->has('last_name')) aria-invalid="true" aria-describedby="last_name-error" @endif>
+    @error('last_name')
+        <p id="last_name-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -450,7 +466,10 @@
                 pattern="[A-Za-zÀ-ÿÑñ]"
                 placeholder="M"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="middle_initial" @if ($errors->has('middle_initial')) aria-invalid="true" aria-describedby="middle_initial-error" @endif>
+    @error('middle_initial')
+        <p id="middle_initial-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -467,7 +486,7 @@
                 name="sex"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="sex" @if ($errors->has('sex')) aria-invalid="true" aria-describedby="sex-error" @endif>
 
                 <option value="">
                     Select sex
@@ -482,6 +501,9 @@
                 </option>
 
             </select>
+    @error('sex')
+        <p id="sex-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -496,12 +518,17 @@
 
             <input
                 type="date"
+                id="birthday"
                 name="birthday"
                 value="{{ old('birthday') }}"
                 max="{{ now()->subYears(18)->toDateString() }}"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
+                @if ($errors->has('birthday')) aria-invalid="true" aria-describedby="birthday-error" @endif
             >
+            @error('birthday')
+                <p id="birthday-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
 
         </div>
 
@@ -548,7 +575,10 @@
             required
             placeholder="09XXXXXXXXX"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-        >
+         id="phone" @if ($errors->has('phone')) aria-invalid="true" aria-describedby="phone-error" @endif>
+    @error('phone')
+        <p id="phone-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
         <p class="mt-1 text-xs text-gray-500">Numbers only. Use 11 digits starting with 09.</p>
 
     </div>
@@ -580,12 +610,13 @@
                 name="region"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             @if ($errors->has('region')) aria-invalid="true" aria-describedby="region-error" @endif>
                 <option value="">Loading regions...</option>
             </select>
 
+            <p id="seller-address-feedback" role="status" class="mt-1 text-xs text-red-600" hidden></p>
             @error('region')
-                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                <p id="region-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
 
         </div>
@@ -603,7 +634,7 @@
                 name="province"
                 disabled
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             @if ($errors->has('province')) aria-invalid="true" aria-describedby="province-error" @endif>
 
                 <option value="">
                     Select region first
@@ -612,7 +643,7 @@
             </select>
 
             @error('province')
-                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                <p id="province-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
 
         </div>
@@ -632,7 +663,7 @@
                 required
                 disabled
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
-            >
+             @if ($errors->has('municipality')) aria-invalid="true" aria-describedby="municipality-error" @endif>
 
                 <option value="">
                     Select province first
@@ -641,7 +672,7 @@
             </select>
 
             @error('municipality')
-                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                <p id="municipality-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
 
         </div>
@@ -661,7 +692,7 @@
                 required
                 disabled
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10 disabled:bg-gray-100 disabled:text-gray-400"
-            >
+             @if ($errors->has('barangay')) aria-invalid="true" aria-describedby="barangay-error" @endif>
 
                 <option value="">
                     Select municipality/city first
@@ -670,7 +701,7 @@
             </select>
 
             @error('barangay')
-                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                <p id="barangay-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
 
         </div>
@@ -718,7 +749,10 @@
             required
             placeholder="Enter complete address"
             class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-        >
+         id="address" @if ($errors->has('address')) aria-invalid="true" aria-describedby="address-error" @endif>
+    @error('address')
+        <p id="address-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
     </div>
 
@@ -756,7 +790,10 @@
                 required
                 placeholder="Business name"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="business_name" @if ($errors->has('business_name')) aria-invalid="true" aria-describedby="business_name-error" @endif>
+    @error('business_name')
+        <p id="business_name-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -773,7 +810,7 @@
                 name="category_id"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="category_id" @if ($errors->has('category_id')) aria-invalid="true" aria-describedby="category_id-error" @endif>
 
                 <option value="">
                     Select category
@@ -786,6 +823,9 @@
                 @endforeach
 
             </select>
+    @error('category_id')
+        <p id="category_id-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
         </div>
 
@@ -804,11 +844,14 @@
                 name="seller_type"
                 required
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             @if ($errors->has('seller_type')) aria-invalid="true" aria-describedby="seller_type-error" @endif>
                 <option value="">Select seller type</option>
                 <option value="individual" @selected(old('seller_type') === 'individual')>Individual</option>
                 <option value="business" @selected(old('seller_type') === 'business')>Registered Business</option>
             </select>
+    @error('seller_type')
+        <p id="seller_type-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
         </div>
 
         <div>
@@ -824,7 +867,10 @@
                 inputmode="numeric"
                 placeholder="123-456-789-000"
                 class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-[#1F6F5B] focus:ring-2 focus:ring-[#1F6F5B]/10"
-            >
+             id="tin" @if ($errors->has('tin')) aria-invalid="true" aria-describedby="tin-error" @endif>
+    @error('tin')
+        <p id="tin-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
         </div>
 
     </div>
@@ -888,7 +934,10 @@
     accept=".jpg,.jpeg,.png,.pdf"
     class="hidden"
     onchange="showFileName(this, 'validIdName')"
->
+ @if ($errors->has('valid_id')) aria-invalid="true" aria-describedby="valid_id-error" @endif>
+    @error('valid_id')
+        <p id="valid_id-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
 
             </label>
@@ -942,7 +991,10 @@
     accept=".jpg,.jpeg,.png,.pdf"
     class="hidden"
     onchange="showFileName(this, 'permitName')"
->
+ @if ($errors->has('business_permit')) aria-invalid="true" aria-describedby="business_permit-error" @endif>
+    @error('business_permit')
+        <p id="business_permit-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
 
             </label>
@@ -1007,7 +1059,10 @@
         value="1"
         required
         class="mt-1 h-4 w-4 rounded border-gray-300 text-[#1F6F5B]"
-    >
+     id="terms" @if ($errors->has('terms')) aria-invalid="true" aria-describedby="terms-error" @endif>
+    @error('terms')
+        <p id="terms-error" class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 
 
     <p class="text-xs text-gray-500 leading-relaxed">
@@ -1222,6 +1277,14 @@ function setOptions(select, placeholder, items, selected = '') {
         select.appendChild(option);
     });
     select.disabled = items.length === 0;
+    if (selected && !items.some(item => item.code === selected)) addressRecoveryNotice();
+}
+
+function addressRecoveryNotice() {
+    const notice = document.getElementById('seller-address-feedback');
+    if (!notice) return;
+    notice.hidden = false;
+    notice.textContent = 'We could not load or restore an address selection. Select the location again, or reload this page to retry if options are unavailable.';
 }
 
 async function fetchItems(path) {
@@ -1280,6 +1343,7 @@ async function loadBarangays(cityCode, restore = false) {
     try {
         setOptions(barangaySelect, 'Select barangay', await fetchItems(`cities-municipalities/${encodeURIComponent(cityCode)}/barangays`), restore ? oldBarangay : '');
     } catch (_) {
+        addressRecoveryNotice();
         resetSelect(barangaySelect, 'Unable to load barangays. Please retry.');
     }
 }
@@ -1298,6 +1362,7 @@ async function loadMunicipalities(parentCode, isRegion = false, restore = false)
             ]);
         }
     } catch (_) {
+        addressRecoveryNotice();
         resetSelect(municipalitySelect, 'Unable to load municipalities/cities. Please retry.');
     }
 }
@@ -1320,6 +1385,7 @@ async function loadRegionChildren(regionCode, restore = false) {
         resetProvince();
         await loadMunicipalities(regionCode, true, restore);
     } catch (_) {
+        addressRecoveryNotice();
         resetSelect(provinceSelect, 'Unable to load provinces. Please retry.');
     }
 }
@@ -1330,6 +1396,7 @@ async function loadRegions() {
         setOptions(regionSelect, 'Select region', await fetchItems('regions'), oldRegion);
         if (oldRegion) await loadRegionChildren(oldRegion, true);
     } catch (_) {
+        addressRecoveryNotice();
         resetSelect(regionSelect, 'Unable to load regions. Please retry.');
         regionSelect.disabled = false;
     }
