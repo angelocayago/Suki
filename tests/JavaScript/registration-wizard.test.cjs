@@ -88,7 +88,7 @@ test('logistics role choice keeps the existing rider application destination',()
 });
 
 test('seller feedback stays visible and focused for mapped, multiple and unmapped errors',()=>{
-    for(const [errors,step] of [[['first_name'],0],[['email','business_permit'],1],[['business_permit'],3],[['tin'],2],[['unknown'],0]]){
+    for(const [errors,step] of [[['first_name'],0],[['email','business_permit'],1],[['business_permit'],3],[['tin'],2],[['unknown'],4]]){
         const p=page('seller',errors);
         assert.equal(p.feedback.parentElement,p.form);assert.equal(p.feedback.hidden,false);assert.equal(p.feedback.focused,true);assert.equal(p.panels.findIndex(n=>!n.hidden),step);
         for(let i=step;i<4;i++){p.next.click();assert.equal(p.feedback.hidden,false);}

@@ -17,7 +17,15 @@ use Tests\TestCase;
 class PhaseEightMarketplaceExtrasTest extends TestCase
 {
     use \Tests\Support\CartCheckoutIntent;
+    use \Tests\Support\FakesCheckoutLocations;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_seller_can_save_a_minimum_spend_for_a_shop_voucher(): void
     {
@@ -146,7 +154,7 @@ class PhaseEightMarketplaceExtrasTest extends TestCase
 
     private function address(User $buyer): Address
     {
-        return Address::create([
+        return Address::create($this->checkoutLocationCodes() + [
             'user_id' => $buyer->id, 'label' => 'Home', 'recipient' => $buyer->name,
             'phone' => '09171234567', 'line1' => 'Street', 'barangay' => 'Barangay',
             'city' => 'City', 'province' => 'Province', 'postal_code' => '1000', 'is_default' => true,

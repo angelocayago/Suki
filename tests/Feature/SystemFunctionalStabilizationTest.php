@@ -10,12 +10,13 @@ use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\TestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CartCheckoutIntent;
 use Tests\Support\FakesCheckoutLocations;
 use Tests\TestCase;
 
 class SystemFunctionalStabilizationTest extends TestCase
 {
-    use RefreshDatabase, FakesCheckoutLocations;
+    use RefreshDatabase, CartCheckoutIntent, FakesCheckoutLocations;
 
     protected function setUp(): void
     {
@@ -43,7 +44,7 @@ class SystemFunctionalStabilizationTest extends TestCase
         $this->actingAs($buyer)
             ->post(route('buyer.cart.add', $product->slug), ['quantity' => 1])
             ->assertRedirect(route('buyer.product', $product->slug));
-        $this->get(route('buyer.checkout'))->assertOk();
+        $this->get(route('buyer.checkout', $this->cartCheckoutIntent($buyer)))->assertOk();
         $this->actingAs($seller)->get(route('seller.dashboard'))->assertOk();
         $this->actingAs($admin)->get(route('superadmin.dashboard'))->assertOk();
         $this->actingAs($rider)->get(route('rider.dashboard'))->assertOk();
@@ -82,10 +83,10 @@ class SystemFunctionalStabilizationTest extends TestCase
             ->post(route('buyer.cart.add', $product->slug), ['quantity' => 1])
             ->assertRedirect(route('buyer.product', $product->slug));
 
-        $this->post(route('buyer.checkout.place-order'), [
+        $this->post(route('buyer.checkout.place-order'), array_merge([
             'address_id' => $address->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ], $this->cartCheckoutIntent($buyer)))->assertSessionHasNoErrors();
 
         $order = $buyer->buyerOrders()->with('sellerOrders.shipment')->sole();
         $sellerOrder = $order->sellerOrders->sole();
@@ -245,10 +246,10 @@ class SystemFunctionalStabilizationTest extends TestCase
             ->assertSee('Yes, it is available.');
 
         $this->post(route('buyer.cart.add', $product->slug), ['quantity' => 1]);
-        $this->post(route('buyer.checkout.place-order'), [
+        $this->post(route('buyer.checkout.place-order'), array_merge([
             'address_id' => $address->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ], $this->cartCheckoutIntent($buyer)))->assertSessionHasNoErrors();
 
         $sellerOrder = $buyer->buyerOrders()->sole()->sellerOrders()->sole();
 
