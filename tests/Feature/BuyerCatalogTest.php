@@ -162,7 +162,7 @@ class BuyerCatalogTest extends IsolatedStorageTestCase
         $this->assertSame([], $this->page($filters));
     }
 
-    public function test_sidebar_uses_actual_nested_categories_and_hides_only_exact_others_options(): void
+    public function test_sidebar_uses_all_actual_active_nested_categories_including_others(): void
     {
         $h = $this->hierarchy();
         $others = Category::create(['name' => '  oThErS  ', 'slug' => 'others', 'is_active' => true]);
@@ -173,11 +173,11 @@ class BuyerCatalogTest extends IsolatedStorageTestCase
         $html = $this->actingAs($this->buyer)->get(route('buyer.shop'))->assertOk()->getContent();
         $document = new \DOMDocument(); @$document->loadHTML($html); $xpath = new \DOMXPath($document);
         $list = $xpath->query('//div[@aria-label="Filter by category"]')->item(0);
-        $this->assertSame(3, $xpath->query('./div[@data-catalog-node]', $list)->length);
+        $this->assertSame(4, $xpath->query('./div[@data-catalog-node]', $list)->length);
         $this->assertSame(0, $xpath->query('.//details[@open]', $list)->length);
         $this->assertSame(1, $xpath->query('.//details[@data-catalog-branch="'.$this->category->id.'"]//input[@value="'.$h['grandchild']->id.'"]', $list)->length);
         $this->assertSame(0, $xpath->query('.//details[@data-catalog-branch="'.$h['grandchild']->id.'"]', $list)->length);
-        $this->assertSame(0, $xpath->query('//input[@data-catalog-category-input and @value="'.$others->id.'"]')->length);
+        $this->assertSame(1, $xpath->query('//input[@data-catalog-category-input and @value="'.$others->id.'"]')->length);
         $this->assertSame(0, $xpath->query('//input[@data-catalog-category-input and @value="'.$inactive->id.'"]')->length);
         $this->assertSame(1, $xpath->query('//input[@data-catalog-category-input and @value="'.$longer->id.'"]')->length);
         $this->assertSame(0, $xpath->query('//a[@data-catalog-category="'.$h['child']->slug.'"]')->length);
@@ -188,6 +188,45 @@ class BuyerCatalogTest extends IsolatedStorageTestCase
         $this->assertSame(2, $xpath->query('//details[@data-catalog-branch and @open]')->length);
         $this->assertSame(1, $xpath->query('//input[@data-catalog-category-input and @checked and @value="'.$h['grandchild']->id.'"]')->length);
         $this->assertContains($otherProduct->id, array_column($this->page(), 'id'));
+        $this->assertSame($before, Category::orderBy('id')->get()->toArray());
+    }
+
+    public function test_others_and_miscellaneous_use_the_existing_tree_and_public_visibility_rules(): void
+    {
+        $others = Category::create(['name' => 'Others', 'slug' => 'others', 'is_active' => true]);
+        $misc = Category::forceCreate(['id' => 100, 'name' => 'Miscellaneous', 'slug' => 'miscellaneous', 'parent_id' => $others->id, 'is_active' => true]);
+        $this->seller->update(['name' => 'Lahat Meron']);
+        $approved = $this->product('Demo approved', [15000], ['category_id' => $misc->id]);
+        foreach (['PENDING', 'REJECTED', 'HIDDEN'] as $status) {
+            $this->product('Demo '.$status, changes: ['category_id' => $misc->id, 'moderation_status' => $status]);
+        }
+        $this->product('Demo inactive', changes: ['category_id' => $misc->id, 'is_active' => false]);
+        $this->product('Demo archived', changes: ['category_id' => $misc->id])->delete();
+        $ordinary = $this->product('Ordinary clothing');
+        $before = Category::orderBy('id')->get()->toArray();
+
+        $html = $this->get(route('buyer.shop', ['categories' => [$misc->id]]))->assertOk()->getContent();
+        $document = new \DOMDocument(); @$document->loadHTML($html); $xpath = new \DOMXPath($document);
+        $list = $xpath->query('//div[@aria-label="Filter by category"]')->item(0);
+        $parent = $xpath->query('.//input[@data-catalog-category-input and @value="'.$others->id.'"]', $list);
+        $this->assertSame(1, $parent->length);
+        $this->assertSame('Others', $parent->item(0)->getAttribute('data-category-name'));
+        $this->assertSame('others', $parent->item(0)->getAttribute('data-category-slug'));
+        $child = $xpath->query('.//details[@data-catalog-branch="'.$others->id.'" and @open]//input[@value="'.$misc->id.'" and @checked]', $list);
+        $this->assertSame(1, $child->length);
+        $this->assertSame('Miscellaneous', $child->item(0)->getAttribute('data-category-name'));
+        $this->assertSame((string) $others->id, $child->item(0)->getAttribute('data-category-parent'));
+        $this->assertSame(1, $xpath->query('.//input[@value="100"]', $list)->length);
+        foreach ([['categories' => [$others->id]], ['categories' => [$misc->id]], ['category' => $others->slug], ['category' => $misc->slug]] as $selection) {
+            $this->assertSame([$approved->id], array_column($this->page($selection), 'id'));
+            $response = $this->getJson(route('buyer.shop', $selection))->assertOk()->assertJsonPath('count', 1);
+            $response->assertSee($approved->name)->assertDontSee($ordinary->name);
+            foreach (['PENDING', 'REJECTED', 'HIDDEN', 'inactive', 'archived'] as $hidden) $response->assertDontSee('Demo '.$hidden);
+        }
+        $this->assertSame([$ordinary->id], array_column($this->page(['categories' => [$this->category->id]]), 'id'));
+        $this->getJson(route('buyer.shop', ['categories' => [$others->id, $this->category->id], 'q' => 'Demo', 'sort' => 'price_desc', 'min_price' => 100, 'max_price' => 200, 'page' => 1]))
+            ->assertOk()->assertJsonPath('count', 1)->assertSee($approved->name);
+        $this->getJson(route('buyer.shop'))->assertOk()->assertJsonPath('count', 2);
         $this->assertSame($before, Category::orderBy('id')->get()->toArray());
     }
 
