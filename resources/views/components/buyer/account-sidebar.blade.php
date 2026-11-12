@@ -15,7 +15,7 @@
 
 <aside class="buyer-account-sidebar" aria-label="Buyer account" data-buyer-account-sidebar>
     <div class="buyer-account-identity">
-        <x-profile-avatar :user="$buyer" size="h-12 w-12 shrink-0" />
+        <x-profile-avatar :user="$buyer" size="h-12 w-12 shrink-0" :circular="true" />
         <div>
             <p class="buyer-account-name">{{ $buyer?->full_name ?: $buyer?->name }}</p>
             <a href="{{ route('buyer.account') }}#editProfileModal" class="buyer-account-edit" onclick="if (typeof openEditProfile === 'function') { event.preventDefault(); openEditProfile(); }">

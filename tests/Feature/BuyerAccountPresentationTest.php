@@ -76,8 +76,9 @@ class BuyerAccountPresentationTest extends IsolatedStorageTestCase
         $page = $this->withSession(['buyer_profile' => ['first_name' => 'Session', 'last_name' => 'Snapshot', 'email' => 'snapshot@example.test', 'phone' => '09123456789']])
             ->get(route('buyer.account'))->assertOk();
         $xpath = $this->xpath($page->getContent());
-        $this->assertSame('Session', $xpath->query('//*[@id="editProfileModal"]//input[@name="first_name"]')->item(0)->getAttribute('value'));
-        $this->assertSame('snapshot@example.test', $xpath->query('//*[@id="editProfileModal"]//input[@name="email"]')->item(0)->getAttribute('value'));
+        $this->assertSame($this->buyer->first_name, $xpath->query('//*[@id="editProfileModal"]//input[@name="first_name"]')->item(0)->getAttribute('value'));
+        $this->assertSame($this->buyer->email, $xpath->query('//*[@id="editProfileModal"]//input[@name="email"]')->item(0)->getAttribute('value'));
+        $page->assertDontSee('snapshot@example.test');
         $profileForm = $xpath->query('//*[@id="editProfileModal"]//form')->item(0);
         $passwordPage = $this->get(route('buyer.account', ['section' => 'password']))->assertOk();
         $passwordXpath = $this->xpath($passwordPage->getContent());

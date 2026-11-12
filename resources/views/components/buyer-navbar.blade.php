@@ -289,6 +289,9 @@
                                    sm:px-3"
                         >
 
+                            @if(auth()->user()?->isBuyer())
+                                <x-profile-avatar :user="auth()->user()" size="h-7 w-7 shrink-0" :circular="true" />
+                            @else
                             <span
                                 class="flex h-7 w-7
                                        items-center justify-center
@@ -303,6 +306,7 @@
                                 ></i>
 
                             </span>
+                            @endif
 
 
                             <span
@@ -406,9 +410,9 @@
                                     Messages
                                 </a>
 
-                                <a href="{{ route('buyer.vouchers.index') }}" class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]">My Vouchers</a>
-                                  <x-notification-link class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]" />
-                                <a href="{{ route('reviews.buyer-page') }}" class="block rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]">My reviews</a>
+                                <a href="{{ route('buyer.vouchers.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]"><i data-lucide="ticket" class="h-4 w-4 shrink-0" aria-hidden="true"></i> My Vouchers</a>
+                                <x-notification-link :with-icon="true" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]" />
+                                <a href="{{ route('reviews.buyer-page') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5]"><i data-lucide="star" class="h-4 w-4 shrink-0" aria-hidden="true"></i> My reviews</a>
 
 
                                 <a
