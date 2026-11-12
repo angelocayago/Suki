@@ -124,16 +124,26 @@ class DemoProductBatch
         [$seller, $category] = $this->target($categories, $lock);
         $rows = $this->dataset($category->id);
         app(DemoProductImages::class)->published(array_column($rows, 'key'));
-        $this->preflight($seller, $rows);
         $products = $seller->products()->withTrashed()->whereIn('legacy_reference', array_column($rows, 'reference'))
             ->orderBy('id')->when($lock, fn ($q) => $q->lockForUpdate())
             ->with(['variants' => fn ($q) => $q->withTrashed()->orderBy('id')->when($lock, fn ($q) => $q->lockForUpdate()),
                 'images' => fn ($q) => $q->orderBy('id')->when($lock, fn ($q) => $q->lockForUpdate())])
             ->get()->keyBy('legacy_reference');
         $this->require($products->count() === 60, 'The complete 60-product demo batch is required before bulk approval.');
+        // Approval always requires the complete existing batch. Reuse its loaded
+        // products and check all expected SKUs globally in one read, rather than
+        // repeating the importer's two database reads for every product.
+        $globalVariants = ProductVariant::withTrashed()
+            ->whereIn('sku', array_merge(...array_column($rows, 'skus')))->get();
         $pending = $approved = 0; $identity = [];
         foreach ($rows as $row) {
             $product = $products->get($row['reference']);
+            $skuRows = $globalVariants->whereIn('sku', $row['skus']);
+            $actualSkus = $skuRows->pluck('sku')->sort()->values()->all();
+            $expectedSkus = $row['skus']; sort($expectedSkus);
+            $this->require($product && str_starts_with((string) $product->description, '[SUKI-DEMO:'.$row['key'].'] ')
+                && $actualSkus === $expectedSkus && $skuRows->every(fn ($v) => (int) $v->product_id === (int) $product->id),
+                'Existing reference conflicts with demo provenance; review it individually.');
             $state = $product?->moderation_status?->value;
             $this->require($product && !$product->trashed() && in_array($state, ['PENDING','APPROVED'], true), 'Archived, rejected, hidden or missing demo products cannot be bulk approved.');
             $this->require($product->name === $row['data']['name'] && $product->description === $row['data']['description']
