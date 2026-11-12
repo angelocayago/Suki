@@ -1,4 +1,4 @@
-﻿# Lahat Meron demo importer
+# Lahat Meron demo importer
 
 Implementation baseline: `b1ca626adb3c2e019bb83f0175bdadaad826b47c`.
 This command is built/tested for disposable SQLite. No real store import has been authorized or performed.
@@ -56,13 +56,13 @@ The in-memory test runner owns its fixtures; a new shell process cannot access a
 
 Creation uses `ProductCatalogService::create()`. All new products remain `PENDING` moderation, with active product/variant flags and the existing moderation event and Admin notification-outbox behavior. Nothing auto-approves or publishes the products. Admin notification intents may fan out once per newly inserted product per eligible Admin; reruns do not repeat submission events/intents for skipped items.
 
-No product or variant image files/records are inserted. Existing catalog fallback behavior is retained. Its current generated placeholder uses `placehold.co`, so image display depends on an external placeholder service. No third-party product-photo hotlinks or private Seller media are persisted. Fully local placeholder behavior would need separately approved work.
+Phase C adds one original local WebP primary image per newly created demo product. The image manifest and all 60 files are checked before writes. Files are stored on the existing local public disk at `products/<product-id>/<demo-key>.webp`; the existing `product_images` relation records position 1. No variant image rows or remote image URLs are introduced. See `images/README.md` for provenance. These imported products do not depend on the remote placeholder. The normal public-storage URL/symlink setup remains a deployment prerequisite; this task does not change it.
 
 ## Repeat runs and failure behavior
 
 Stable `suki-demo:lmNNN` references use the existing `(seller_id, legacy_reference)` unique index. Globally unique, deterministic `DEMO-LM-LMNNN-N` SKUs identify variants. A matching reference is skipped only when its description marker and expected SKU ownership establish demo provenance. Seller-edited names, stock and prices are never overwritten. Soft-deleted demo rows are reported and skipped without restoration. Removed provenance or missing/conflicting SKU records produce a refusal, not an automatic repair.
 
-Non-demo reference/SKU collisions abort before inserts. No update/delete mode is provided. New product creation and reference assignment share one outer transaction, including moderation records/outbox intents. Preconditions are checked again inside that transaction. SQLite concurrent writer contention can fail safely and require a new preview; no automatic retry or claim of multi-process throughput is made. Existing unique constraints remain authoritative.
+Non-demo reference/SKU collisions abort before inserts. No update/delete mode is provided. Existing image records and files are not replaced on repeat runs, including previously imported image-less products. New product creation, primary-image association and reference assignment share one outer transaction, including moderation records/outbox intents. The importer tracks only newly written media for failure cleanup and refuses to overwrite a preexisting destination. A committed image is retained if an after-commit callback fails. Preconditions are checked again inside that transaction. SQLite concurrent writer contention can fail safely and require a new preview; no automatic retry or claim of multi-process throughput is made. Existing unique constraints remain authoritative.
 
 Progress marked "Prepared" is not committed until the final COMMITTED message. Unexpected exceptions produce generic operator feedback without raw SQL, credentials or internal exception text. Database rows roll back on a mid-batch failure. Existing notification delivery follows the application's normal after-commit behavior.
 
@@ -74,6 +74,6 @@ Run the new test file using the existing isolated bootstrap, which forces SQLite
 php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --bootstrap tests/Support/chat-photo-bootstrap.php --do-not-cache-result tests/Feature/ImportDemoProductsTest.php
 ```
 
-The synthetic owner User ID is 41 while Seller ID is 3, and category IDs are 17/29, proving neither User ownership nor category identifiers are guessed. Tests cover exact counts/prices/options/stocks, pending visibility, catalog and Seller presentation, read-only previews, repeat runs, edited/archived demos, non-demo and foreign records, collisions, mid-batch rollback, notification intents, target/owner/category guards and remote-driver refusal before queries.
+Phase C additionally requires GD with WebP decoding and the existing local public storage disk. Missing/corrupt/changed assets fail preflight; a failed/partial image write rolls back the batch and removes new files without deleting prior media. Tests use a temporary fake public disk. The synthetic owner User ID is 41 while Seller ID is 3, and category IDs are 17/29, proving neither User ownership nor category identifiers are guessed. Tests cover exact counts/prices/options/stocks, pending visibility, catalog and Seller presentation, read-only previews, repeat runs, edited/archived demos, non-demo and foreign records, collisions, mid-batch rollback, notification intents, target/owner/category guards and remote-driver refusal before queries.
 
 No migrations, packages, approval changes or existing production-file edits are required by this importer.

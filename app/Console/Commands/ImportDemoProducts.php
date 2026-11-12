@@ -10,9 +10,13 @@ use App\Services\ProductCatalogService;
 use App\Services\SellerCategoryService;
 use App\Services\SellerInventoryService;
 use App\Support\ProductOptions;
+use App\Support\DemoProductImages;
+use App\Support\DemoProductImageException;
+use Illuminate\Http\File;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -34,11 +38,15 @@ class ImportDemoProducts extends Command
     public function handle(ProductCatalogService $catalog, SellerCategoryService $categories): int
     {
         $previous = DB::getDefaultConnection();
+        $media = [];
+        $committed = false;
         try {
             $connection = $this->safeConnection(); // No query may precede these checks.
             DB::setDefaultConnection($connection);
             [$seller, $category] = $this->target($categories);
             $rows = $this->dataset($category->id);
+            $images = app(DemoProductImages::class)->sources(array_column($rows, 'key'));
+            $this->require(config('filesystems.disks.public.driver') === 'local', 'Demo images require the existing local public media disk.');
             $plan = $this->preflight($seller, $rows);
             $this->info('Target: sellers.id=3; Lahat Meron; owner users.id='.$seller->user_id);
             $this->line('Database: '.$connection.'; '.$this->option('confirm-database').'; environment='.app()->environment());
@@ -48,7 +56,7 @@ class ImportDemoProducts extends Command
                 $row['key'], $plan[$row['key']], $row['data']['name'], count($row['skus']),
                 min($row['prices']).'..'.max($row['prices']), array_sum($row['stocks']),
             ], $rows));
-            $this->line('New products remain PENDING. Normal moderation events/Admin notification intents are preserved. No media is imported.');
+            $this->line('60 local demo primary images validated. New products remain PENDING. Normal moderation events/Admin notification intents are preserved. Existing products/media are skipped.');
             if (! $this->option('execute')) {
                 $this->info('DRY RUN: no records created or changed. Proposed inserts: '.count(array_filter($plan, fn ($action) => $action === 'INSERT')).'; existing demo items skipped: '.count(array_filter($plan, fn ($action) => $action !== 'INSERT')).'.');
                 return self::SUCCESS;
@@ -58,7 +66,7 @@ class ImportDemoProducts extends Command
             $created = 0;
             $createdVariants = 0;
             $skipped = 0;
-            DB::transaction(function () use ($categories, $catalog, $rows, &$created, &$createdVariants, &$skipped) {
+            DB::transaction(function () use ($categories, $catalog, $rows, $images, &$media, &$created, &$createdVariants, &$skipped) {
                 // Recheck inside the batch transaction. SQLite writer contention fails
                 // safely; unique legacy-reference/SKU constraints remain authoritative.
                 [$seller, $category] = $this->target($categories, true);
@@ -68,6 +76,15 @@ class ImportDemoProducts extends Command
                     if ($plan[$row['key']] !== 'INSERT') { $skipped++; continue; }
                     $this->require($row['data']['category_id'] === $category->id, 'Category changed since preview.');
                     $product = $catalog->create($seller, $row['data']);
+                    $path = 'products/'.$product->id.'/'.$row['key'].'.webp';
+                    $disk = Storage::disk('public');
+                    $this->require(! $disk->exists($path), 'A destination demo image already exists; no existing file will be overwritten.');
+                    // Record before writing so a partial/failed write can be cleaned too.
+                    $media[] = $path;
+                    $saved = $disk->putFileAs('products/'.$product->id, new File($images[$row['key']]), $row['key'].'.webp');
+                    $this->require($saved === $path && $disk->exists($path)
+                        && hash('sha256', $disk->get($path)) === hash_file('sha256', $images[$row['key']]), 'Demo image storage failed; batch rolled back.');
+                    $product->images()->create(['path' => $path, 'position' => 1]);
                     $product->update(['legacy_reference' => $row['reference']]);
                     $this->require($product->variants->sortBy('id')->pluck('price_minor')->values()->all() === $row['prices'], 'Price conversion failed; batch rolled back.');
                     $created++;
@@ -75,17 +92,31 @@ class ImportDemoProducts extends Command
                     $this->line('Prepared '.$created.': '.$row['key'].' (not committed yet)');
                 }
             });
+            $committed = true;
             $this->info("COMMITTED: {$created} products inserted; {$skipped} existing demo products skipped. No existing products updated or deleted.");
             $this->info("Variant records inserted: {$createdVariants}.");
+            $this->info('Primary images inserted: '.count($media).'.');
             return self::SUCCESS;
         } catch (ValidationException) {
             $this->error('Demo dataset validation failed. No batch changes committed.');
         } catch (RuntimeException $error) {
             // Only our fixed guard messages are intended for the operator.
-            $this->error($error instanceof DemoImportGuard ? $error->getMessage() : 'Import failed. Inspect the isolated/application diagnostics before retrying.');
+            $this->error($error instanceof DemoImportGuard || $error instanceof DemoProductImageException ? $error->getMessage() : 'Import failed. Inspect the isolated/application diagnostics before retrying.');
         } catch (Throwable) {
             $this->error('Import failed. No automatic retry or data repair was attempted.');
         } finally {
+            if (! $committed && $media) {
+                try {
+                    foreach ($media as $path) {
+                        // An after-commit exception must not remove a committed image.
+                        if (! \App\Models\ProductImage::where('path', $path)->exists()) {
+                            if (! Storage::disk('public')->delete($path)) $this->error('A new demo image could not be cleaned up; inspect the local media disk.');
+                        }
+                    }
+                } catch (Throwable) {
+                    $this->error('Demo media cleanup could not be verified; inspect local storage before retrying.');
+                }
+            }
             DB::setDefaultConnection($previous);
         }
         return self::FAILURE;

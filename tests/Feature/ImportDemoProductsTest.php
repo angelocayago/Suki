@@ -10,11 +10,13 @@ use App\Models\Seller;
 use App\Models\User;
 use App\Services\ProductCatalogService;
 use App\Services\SellerCategoryService;
+use App\Support\DemoProductImages;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ImportDemoProductsTest extends TestCase
@@ -33,6 +35,7 @@ class ImportDemoProductsTest extends TestCase
         $this->assertSame('sqlite', config('database.default'));
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
         Http::preventStrayRequests(); Mail::fake(); Notification::fake();
+        Storage::fake('public');
         $owner = User::factory()->create(['id' => 41, 'role' => 'seller', 'status' => 'active', 'is_suspended' => false, 'verification_required_at' => now(), 'email_verified_at' => now()]);
         $root = Category::forceCreate(['id' => 17, 'name' => 'Others', 'slug' => 'others', 'is_active' => true]);
         $this->category = Category::forceCreate(['id' => 29, 'parent_id' => $root->id, 'name' => 'Miscellaneous', 'slug' => 'others--miscellaneous', 'is_active' => true]);
@@ -52,6 +55,7 @@ class ImportDemoProductsTest extends TestCase
         $this->artisan('demo:products:import', $this->importOptions())->expectsOutputToContain('DRY RUN')->expectsOutputToContain('owner users.id=41')->expectsOutputToContain('category_id=29')->assertSuccessful();
         foreach (['products', 'product_variants', 'product_images', 'product_moderation_events', 'notification_outbox'] as $table) $this->assertDatabaseCount($table, 0);
         $this->assertSame('approved', $this->seller->fresh()->status);
+        $this->assertSame([], Storage::disk('public')->allFiles());
         Mail::assertNothingSent();
     }
 
@@ -61,7 +65,8 @@ class ImportDemoProductsTest extends TestCase
         $this->assertDatabaseCount('products', 60);
         $this->assertDatabaseCount('product_variants', 102);
         $this->assertDatabaseCount('product_moderation_events', 60);
-        $this->assertDatabaseCount('product_images', 0);
+        $this->assertDatabaseCount('product_images', 60);
+        $this->assertCount(60, Storage::disk('public')->allFiles());
         $this->assertSame([3], Product::distinct()->pluck('seller_id')->all());
         $this->assertSame([29], Product::distinct()->pluck('category_id')->all());
         $this->assertTrue(app(SellerCategoryService::class)->allows($this->seller, 29));
@@ -71,6 +76,12 @@ class ImportDemoProductsTest extends TestCase
             $product = $this->seller->products()->where('legacy_reference', 'suki-demo:'.$item['key'])->with('variants')->firstOrFail();
             $this->assertSame(ProductModerationStatus::Pending, $product->moderation_status);
             $this->assertTrue($product->is_active);
+            $image = $product->images()->sole();
+            $this->assertSame('products/'.$product->id.'/'.$item['key'].'.webp', $image->path);
+            $this->assertSame(1, $image->position);
+            Storage::disk('public')->assertExists($image->path);
+            $this->assertSame(hash_file('sha256', database_path('demo-products/images/'.$item['key'].'.webp')), hash('sha256', Storage::disk('public')->get($image->path)));
+            $this->assertNotFalse(imagecreatefromstring(Storage::disk('public')->get($image->path)));
             foreach ($product->variants->sortBy('id')->values() as $i => $variant) {
                 $expected = $item['variants'][$i];
                 $this->assertSame($expected['price_minor'], $variant->price_minor);
@@ -84,6 +95,7 @@ class ImportDemoProductsTest extends TestCase
             $sellerItem = app(ProductCatalogService::class)->sellerItem($product->load('images', 'category'));
             $this->assertSame($item['variants'][0]['stock'], $sellerItem['stock']);
             $this->assertEquals($item['variants'][0]['price_minor'] / 100, $sellerItem['price']);
+            $this->assertSame(Storage::disk('public')->url($image->path), $sellerItem['image']);
         }
         // Pending products remain hidden, without changing the approval policy.
         $this->assertSame(0, app(ProductCatalogService::class)->marketplacePage([])->total());
@@ -93,6 +105,12 @@ class ImportDemoProductsTest extends TestCase
         $page = app(ProductCatalogService::class)->marketplacePage(['seller' => $this->seller->slug, 'categories' => [29], 'sort' => 'price_asc', 'in_stock' => '1']);
         $this->assertSame(1, $page->total());
         $this->assertSame($product->id, $page->items()[0]['id']);
+        $detail = app(ProductCatalogService::class)->marketplaceProduct($product->slug);
+        $this->assertSame(Storage::disk('public')->url($product->images()->sole()->path), $detail['image']);
+        $this->assertSame([$detail['image']], $detail['images']);
+        $card = view('buyer.partials.catalog-product-card', ['product' => $detail, 'wishlistSlugs' => []])->render();
+        $this->assertStringContainsString('src="'.$detail['image'].'"', $card);
+        $this->get(route('buyer.product', $product->slug))->assertOk()->assertSee($detail['image'], false);
         $this->assertSame('approved', $this->seller->fresh()->status);
         $this->assertSame('active', $this->seller->owner->fresh()->status);
     }
@@ -102,13 +120,18 @@ class ImportDemoProductsTest extends TestCase
         $this->artisan('demo:products:import', $this->importOptions(true))->assertSuccessful();
         $product = Product::firstOrFail(); $variant = $product->variants()->firstOrFail();
         $variant->update(['stock' => 2, 'price_minor' => 12345]);
+        Storage::disk('public')->put($product->images()->sole()->path, 'Synthetic Seller replacement image');
         $product->update(['name' => 'Seller edited demo']); $product->delete();
         $before = DB::table('products')->orderBy('id')->get()->toJson();
         $variantBefore = DB::table('product_variants')->orderBy('id')->get()->toJson();
+        $imagesBefore = DB::table('product_images')->orderBy('id')->get()->toJson();
+        $mediaBefore = array_map(fn ($path) => hash('sha256', Storage::disk('public')->get($path)), Storage::disk('public')->allFiles());
         $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('COMMITTED: 0 products inserted; 60 existing demo products skipped.')->assertSuccessful();
         $this->assertSame($before, DB::table('products')->orderBy('id')->get()->toJson());
         $this->assertSame($variantBefore, DB::table('product_variants')->orderBy('id')->get()->toJson());
         $this->assertDatabaseCount('product_moderation_events', 60);
+        $this->assertSame($imagesBefore, DB::table('product_images')->orderBy('id')->get()->toJson());
+        $this->assertSame($mediaBefore, array_map(fn ($path) => hash('sha256', Storage::disk('public')->get($path)), Storage::disk('public')->allFiles()));
     }
 
     public function test_foreign_seller_and_non_demo_records_are_never_changed(): void
@@ -118,6 +141,8 @@ class ImportDemoProductsTest extends TestCase
         foreach ([$this->seller, $foreign] as $seller) {
             $product = Product::create(['seller_id' => $seller->id, 'category_id' => 29, 'name' => 'Existing real item', 'slug' => 'real-'.$seller->id, 'is_active' => true]);
             $product->variants()->create(['name' => 'Default', 'sku' => 'REAL-'.$seller->id, 'stock' => 7, 'price_minor' => 12300, 'is_active' => true]);
+            Storage::disk('public')->put('existing/'.$seller->id.'.webp', 'Synthetic existing media');
+            $product->images()->create(['path' => 'existing/'.$seller->id.'.webp', 'position' => 1]);
         }
         $before = DB::table('products')->orderBy('id')->get()->toArray();
         $variants = DB::table('product_variants')->orderBy('id')->get()->toArray();
@@ -126,6 +151,8 @@ class ImportDemoProductsTest extends TestCase
         foreach ($variants as $row) $this->assertEquals($row, DB::table('product_variants')->find($row->id));
         $this->assertSame(1, $foreign->products()->count());
         $this->assertSame(61, $this->seller->products()->count());
+        $this->assertDatabaseCount('product_images', 62);
+        foreach ([$this->seller, $foreign] as $seller) $this->assertSame('Synthetic existing media', Storage::disk('public')->get('existing/'.$seller->id.'.webp'));
     }
 
     public function test_preflight_refuses_non_demo_sku_and_reference_collisions(): void
@@ -148,7 +175,8 @@ class ImportDemoProductsTest extends TestCase
         });
         $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('Import failed.')->assertFailed();
         $this->assertSame(3, $calls);
-        foreach (['products', 'product_variants', 'product_moderation_events', 'notification_outbox'] as $table) $this->assertDatabaseCount($table, 0);
+        foreach (['products', 'product_variants', 'product_images', 'product_moderation_events', 'notification_outbox'] as $table) $this->assertDatabaseCount($table, 0);
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_wrong_target_owner_and_database_confirmations_are_refused(): void
@@ -227,5 +255,104 @@ class ImportDemoProductsTest extends TestCase
         $this->assertDatabaseCount('notification_outbox', 60);
         $this->artisan('demo:products:import', $this->importOptions(true))->assertSuccessful();
         $this->assertDatabaseCount('notification_outbox', 60);
+    }
+
+    private function imageFixture(): string
+    {
+        $directory = storage_path('app/demo-source-fixture-'.bin2hex(random_bytes(6)));
+        mkdir($directory, 0700, true);
+        foreach (glob(database_path('demo-products/images/*')) as $source) {
+            if (is_file($source)) copy($source, $directory.'/'.basename($source));
+        }
+        $this->app->instance(DemoProductImages::class, new DemoProductImages($directory));
+        return $directory;
+    }
+
+    public function test_missing_corrupt_or_changed_image_fails_before_product_or_media_writes(): void
+    {
+        $directory = $this->imageFixture();
+        $path = $directory.'/lm041.webp';
+        $original = file_get_contents($path);
+        unlink($path);
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('Missing or invalid demo image for lm041')->assertFailed();
+        file_put_contents($path, 'not an image');
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('Corrupt, changed, or unsupported demo image for lm041')->assertFailed();
+        file_put_contents($path, $original);
+        $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true);
+        $manifest['lm041']['sha256'] = str_repeat('0', 64);
+        file_put_contents($directory.'/manifest.json', json_encode($manifest));
+        $this->artisan('demo:products:import', $this->importOptions(true))->assertFailed();
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseCount('product_images', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_missing_manifest_mapping_or_duplicate_filename_is_refused(): void
+    {
+        $directory = $this->imageFixture();
+        $manifest = json_decode(file_get_contents($directory.'/manifest.json'), true);
+        $invalid = $manifest; unset($invalid['lm060']);
+        file_put_contents($directory.'/manifest.json', json_encode($invalid));
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('must map every dataset key')->assertFailed();
+        $manifest['lm060']['file'] = 'lm001.webp';
+        file_put_contents($directory.'/manifest.json', json_encode($manifest));
+        $this->artisan('demo:products:import', $this->importOptions(true))->assertFailed();
+        $this->assertDatabaseCount('products', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_partial_storage_failure_rolls_back_and_removes_only_new_media(): void
+    {
+        $disk = Storage::disk('public');
+        $disk->put('existing/keep.webp', 'Existing media must survive');
+        $calls = 0;
+        $proxy = \Mockery::mock($disk);
+        $proxy->shouldReceive('putFileAs')->andReturnUsing(function ($directory, $file, $name) use ($disk, &$calls) {
+            if (++$calls === 3) {
+                $disk->put($directory.'/'.$name, 'partial write');
+                return false;
+            }
+            return $disk->putFileAs($directory, $file, $name);
+        });
+        Storage::set('public', $proxy);
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('Demo image storage failed')->assertFailed();
+        $this->assertSame(3, $calls);
+        foreach (['products', 'product_variants', 'product_images', 'product_moderation_events', 'notification_outbox'] as $table) $this->assertDatabaseCount($table, 0);
+        $this->assertSame(['existing/keep.webp'], $disk->allFiles());
+        $this->assertSame('Existing media must survive', $disk->get('existing/keep.webp'));
+    }
+
+    public function test_preexisting_destination_is_never_overwritten_or_cleaned(): void
+    {
+        Storage::disk('public')->put('products/1/lm001.webp', 'Existing orphan media');
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('no existing file will be overwritten')->assertFailed();
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseCount('product_images', 0);
+        $this->assertSame('Existing orphan media', Storage::disk('public')->get('products/1/lm001.webp'));
+    }
+
+    public function test_image_record_failure_cleans_the_written_file_and_rolls_back(): void
+    {
+        $dispatcher = \App\Models\ProductImage::getEventDispatcher();
+        \App\Models\ProductImage::setEventDispatcher(clone $dispatcher);
+        \App\Models\ProductImage::creating(fn () => throw new \RuntimeException('Synthetic metadata failure'));
+        try {
+            $this->artisan('demo:products:import', $this->importOptions(true))->assertFailed();
+            $this->assertDatabaseCount('products', 0);
+            $this->assertDatabaseCount('product_variants', 0);
+            $this->assertDatabaseCount('product_images', 0);
+            $this->assertSame([], Storage::disk('public')->allFiles());
+        } finally {
+            \App\Models\ProductImage::setEventDispatcher($dispatcher);
+        }
+    }
+
+    public function test_nonlocal_public_disk_is_refused_before_storage_writes(): void
+    {
+        config(['filesystems.disks.public.driver' => 's3']);
+        $this->artisan('demo:products:import', $this->importOptions(true))->expectsOutputToContain('existing local public media disk')->assertFailed();
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseCount('product_images', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 }
