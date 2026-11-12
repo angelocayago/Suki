@@ -21,7 +21,8 @@
     $lastMessageId = $messages->last()?->id ?? 0;
 @endphp
 
-<div class="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+<x-buyer.account-shell active="messages" :enabled="$portal['name'] === 'buyer'">
+<div class="{{ $portal['name'] === 'buyer' ? '' : 'mx-auto max-w-5xl px-4 py-6 sm:px-6' }}">
     <a href="{{ route($portal['route_prefix'].'.index') }}" class="text-sm font-semibold text-[#1F6F5B] hover:underline">
         &larr; Back to messages
     </a>
@@ -99,6 +100,7 @@
     </section>
 </div>
 
+</x-buyer.account-shell>
 @include('messages.partials.attachment-style')
 @include('messages.partials.attachment-lightbox')
 @include('messages.partials.attachment-script')

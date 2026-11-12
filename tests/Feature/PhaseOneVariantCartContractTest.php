@@ -18,6 +18,7 @@ use Tests\TestCase;
 
 class PhaseOneVariantCartContractTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
 
     protected function setUp(): void
@@ -86,23 +87,25 @@ class PhaseOneVariantCartContractTest extends TestCase
         $this->assertSame(400.03, $summary['subtotal']);
         $this->assertSame(450.03, $summary['total']);
         $rows = CartItem::where('user_id', $buyer->id)->orderBy('id')->get();
-        $cart = $this->get(route('buyer.cart'))->assertOk()->assertSee('Default')->assertSee('Large')->assertSee('125.01')->assertSee('150.01');
+        $cart = $this->get($this->selectedCartUrl())->assertOk()->assertSee('Default')->assertSee('Large')->assertSee('125.01')->assertSee('150.01');
         foreach ($rows as $row) {
             $cart->assertSee(route('buyer.cart.remove', $row->id), false);
             $cart->assertSee(route('buyer.cart.increase', $row->id), false);
         }
-        $this->get(route('buyer.checkout'))->assertOk()->assertViewHas('cart', $summary['cart'])->assertViewHas('total', $summary['total']);
+        $this->get(route('buyer.checkout', $this->cartCheckoutIntent()))->assertOk()->assertViewHas('cart', $summary['cart'])->assertViewHas('total', $summary['total']);
         $address = Address::create($this->checkoutLocationCodes() + ['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
         $other = $this->buyer();
         $otherRow = CartItem::create(['user_id' => $other->id, 'product_slug' => $product->slug, 'product_name' => $product->name, 'product_variant_id' => $first->id, 'price' => 1, 'quantity' => 1]);
-        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod', 'total' => 0])->assertSessionHasNoErrors();
+        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod', 'total' => 0] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
         $order = Order::with('items')->sole();
         $this->assertSame(45003, $order->total_minor);
         $this->assertSame([$first->id => 2, $second->id => 1], $order->items->pluck('quantity', 'product_variant_id')->all());
         $this->assertSame(3, $first->fresh()->stock);
         $this->assertSame(3, $second->fresh()->stock);
         $this->assertDatabaseHas('cart_items', ['id' => $otherRow->id, 'quantity' => 1]);
-        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasErrors('cart');
+        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())
+            ->assertRedirect(route('buyer.order-success', $order->order_number));
+        $this->assertSame(3, $second->fresh()->stock);
         $this->assertDatabaseCount('orders', 1);
         $this->get(route('buyer.order-success', $order->order_number))->assertOk()->assertSee('450.03')
             ->assertViewHas('order', fn ($viewOrder) => count($viewOrder['items']) === 2);
@@ -167,7 +170,7 @@ class PhaseOneVariantCartContractTest extends TestCase
             if ($state === 'out_of_stock') $second->update(['stock' => 0]);
             if ($state === 'inactive') $second->update(['stock' => 4, 'is_active' => false]);
             if ($state === 'deleted') { $second->update(['is_active' => true]); $second->delete(); }
-            $this->get(route('buyer.cart'))->assertOk()->assertSee('Unavailable:')->assertViewHas('has_unavailable_items', true);
+            $this->get($this->selectedCartUrl())->assertOk()->assertSee('Unavailable:')->assertViewHas('has_unavailable_items', true);
             $this->post(route('buyer.cart.increase', $row->id))->assertSessionHasErrors();
             try {
                 app(CheckoutService::class)->checkout($buyer, [], 'cod');
@@ -226,8 +229,8 @@ class PhaseOneVariantCartContractTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.cart.add', $product->slug), ['quantity' => 1]);
         $this->post(route('buyer.cart.add', $product->slug), ['variant_id' => $second->id, 'quantity' => 1]);
         $address = Address::create($this->checkoutLocationCodes() + ['user_id' => $buyer->id, 'label' => 'Home', 'recipient' => 'Buyer', 'phone' => '09123456789', 'line1' => 'Street', 'barangay' => 'B', 'city' => 'C', 'province' => 'P']);
-        $this->get(route('buyer.checkout.legacy'))->assertRedirect(route('buyer.checkout'));
-        $this->post(route('buyer.checkout.place-order.legacy'), ['address_id' => $address->id, 'payment_method' => 'cod'])->assertSessionHasNoErrors();
+        $this->get(route('buyer.checkout.legacy', $this->cartCheckoutIntent()))->assertRedirect(route('buyer.checkout', $this->cartCheckoutIntent()));
+        $this->post(route('buyer.checkout.place-order.legacy'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
         $order = Order::with('items')->sole();
         $this->assertCount(2, $order->items);
         $this->assertSame(30001, $order->total_minor);

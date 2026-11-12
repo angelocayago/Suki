@@ -15,6 +15,7 @@ use Tests\TestCase;
 
 class PhaseTwoCheckoutTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
 
     protected function setUp(): void
@@ -36,7 +37,7 @@ class PhaseTwoCheckoutTest extends TestCase
         $response = $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $address->id,
             'payment_method' => 'cod',
-        ]);
+        ] + $this->cartCheckoutIntent());
 
         $order = $buyer->buyerOrders()->with('sellerOrders.shipment', 'items')->sole();
 
@@ -83,12 +84,12 @@ class PhaseTwoCheckoutTest extends TestCase
         $address = $this->address($buyer);
         $this->cartItem($buyer, $item['product'], $item['variant'], 2);
 
-        $response = $this->actingAs($buyer)->from(route('buyer.checkout'))->post(
+        $response = $this->actingAs($buyer)->from(route('buyer.checkout', $this->cartCheckoutIntent()))->post(
             route('buyer.checkout.place-order'),
-            ['address_id' => $address->id, 'payment_method' => 'cod']
+            ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent()
         );
 
-        $response->assertRedirect(route('buyer.checkout'));
+        $response->assertRedirect(route('buyer.checkout', $this->cartCheckoutIntent()));
         $response->assertSessionHasErrors('cart');
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('seller_orders', 0);
@@ -115,7 +116,7 @@ class PhaseTwoCheckoutTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $address->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
 
         $orderItem = $buyer->buyerOrders()->sole()->items()->sole();
         $this->assertSame($item['variant']->id, $orderItem->product_variant_id);
@@ -140,7 +141,7 @@ class PhaseTwoCheckoutTest extends TestCase
 
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $address->id, 'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
 
         $order = $buyer->buyerOrders()->with('sellerOrders.shipment')->sole();
         $this->assertSame(6000, (int) round($order->subtotal * 100));
@@ -177,7 +178,7 @@ class PhaseTwoCheckoutTest extends TestCase
             ->post(route('buyer.checkout.place-order'), [
                 'address_id' => 77,
                 'payment_method' => 'cod',
-            ])
+            ] + $this->cartCheckoutIntent())
             ->assertSessionHasNoErrors();
 
         $order = $buyer->buyerOrders()->sole();

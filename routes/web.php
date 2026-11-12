@@ -593,7 +593,12 @@ Route::get('/api/psgc/cities-municipalities/{municipality}/barangays', function 
 
 Route::get('/cart', [CartController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
+    ->block(10,10)
     ->name('buyer.cart');
+Route::post('/cart/selection', [CartController::class, 'selection'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->block(10,10)->name('buyer.cart.selection');
+Route::post('/cart/change-variant/{cartItem}', [CartController::class, 'changeVariant'])
+    ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])->whereNumber('cartItem')->block(10,10)->name('buyer.cart.change-variant');
 Route::get('/my-vouchers', [\App\Http\Controllers\Buyer\VoucherController::class, 'index'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('buyer.vouchers.index');
 Route::post('/my-vouchers/{voucher}/claim', [\App\Http\Controllers\Buyer\VoucherController::class, 'claim'])->middleware(['auth','approved','not_suspended','role:buyer'])->whereNumber('voucher')->name('buyer.vouchers.claim');
 
@@ -665,14 +670,17 @@ Route::post('/wishlist/move-to-cart/{slug}', [\App\Http\Controllers\Buyer\Wishli
 $orderToViewArray = function (Order $order): array {
 
     $items = [];
-    $reviewActions = app(\App\Support\BuyerReviews::class)->forOrder($order, (int) auth()->id());
+    // Unknown historical states cannot be rendered through enum-based review
+    // eligibility. Keep recognized packages' existing review controls intact.
+    $reviewOrder = clone $order;
+    $reviewOrder->setRelation('sellerOrders', $order->sellerOrders->filter(fn ($parcel) =>
+        \App\Enums\OrderStatus::tryFrom(strtoupper((string) $parcel->getRawOriginal('workflow_status'))) !== null));
+    $reviewActions = app(\App\Support\BuyerReviews::class)->forOrder($reviewOrder, (int) auth()->id());
     $returnRequests = \App\Models\ReturnRefundRequest::query()
         ->whereIn('order_item_id', $order->items->pluck('id'))
         ->get()->keyBy('order_item_id');
     $sellerOrderStatuses = $order->sellerOrders->mapWithKeys(function ($sellerOrder) {
-        $status = $sellerOrder->workflow_status;
-
-        return [$sellerOrder->id => $status instanceof \App\Enums\OrderStatus ? $status->value : (string) $status];
+        return [$sellerOrder->id => \App\Enums\OrderStatus::tryFrom(strtoupper((string) $sellerOrder->getRawOriginal('workflow_status')))?->value];
     });
 
     foreach ($order->items as $item) {
@@ -711,7 +719,7 @@ $orderToViewArray = function (Order $order): array {
                 'review_actions' => $reviewActions['sellers'][$sellerOrder->id] ?? null,
                 'status' => $sellerOrder->status === 'cancelled'
                     ? 'cancelled'
-                    : strtolower($sellerOrder->workflow_status->value),
+                    : strtolower(\App\Support\BuyerOrderTracking::status($sellerOrder) ?? 'STATUS_UNAVAILABLE'),
             ])
             ->values()
             ->all(),
@@ -886,7 +894,7 @@ $orderToViewArray = function (Order $order): array {
 // =====================================================
 
 Route::get('/checkout-legacy', function () use ($requireBuyer) {
-    return redirect()->route('buyer.checkout');
+    return redirect()->route('buyer.checkout', request()->only(['cart_selection', 'buy_now']));
 
 
     if ($redirect = $requireBuyer()) {
@@ -1546,7 +1554,7 @@ Route::post(
     }
 )->name(
     'buyer.checkout.place-order.legacy'
-);
+)->block(10,10);
 
 Route::post('/product/{slug}/buy-now', [CheckoutController::class,'buyNow'])->middleware(['auth','not_suspended','approved','role:buyer'])->block(10,10)->name('buyer.buy-now');
 Route::post('/checkout/buy-now/cancel', [CheckoutController::class,'cancelBuyNow'])->middleware(['auth','not_suspended','approved','role:buyer'])->block(10,10)->name('buyer.buy-now.cancel');
@@ -1557,7 +1565,7 @@ Route::post('/checkout/place-order', [CheckoutController::class, 'store'])
 
 Route::get('/checkout', [CheckoutController::class, 'index'])
     ->middleware(['auth', 'not_suspended', 'approved', 'role:buyer'])
-    ->name('buyer.checkout');
+    ->block(10,10)->name('buyer.checkout');
 
 Route::get('/shipments/{shipment}/delivery-proof', [DeliveryProofController::class, 'show'])
     ->middleware(['auth', 'not_suspended', 'approved'])
@@ -1758,6 +1766,10 @@ Route::get(
         return view(
             'buyer.order-details',
             [
+
+                'tracking' => app(\App\Support\BuyerOrderTracking::class)->present(
+                    $order->load(['sellerOrders.seller', 'sellerOrders.shipment.events' => fn ($query) => $query->orderBy('id')])
+                ),
 
                 'order' =>
                     $orderToViewArray(

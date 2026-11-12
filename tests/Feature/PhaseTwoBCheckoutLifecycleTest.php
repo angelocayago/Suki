@@ -16,6 +16,7 @@ use Tests\TestCase;
 
 class PhaseTwoBCheckoutLifecycleTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use RefreshDatabase, \Tests\Support\FakesCheckoutLocations;
 
     protected function setUp(): void
@@ -38,7 +39,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
             'payment_method' => 'cod',
             'total' => 0,
             'seller_id' => 999999,
-        ])->assertSessionHasNoErrors();
+        ] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
 
         $order = Order::with('sellerOrders.items', 'items')->sole();
         $this->assertSame('PLACED', $order->status);
@@ -66,7 +67,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
             $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
                 'address_id' => $this->address($buyer)->id,
                 'payment_method' => 'cod',
-            ])->assertSessionHasErrors('cart');
+            ] + $this->cartCheckoutIntent())->assertSessionHasErrors('cart');
 
             $this->assertSame(2, $item['variant']->fresh()->stock);
             $this->assertDatabaseCount('orders', 0);
@@ -80,7 +81,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $this->address($buyer)->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasErrors('cart');
+        ] + $this->cartCheckoutIntent())->assertSessionHasErrors('cart');
         $this->assertSame(2, $item['variant']->fresh()->stock);
     }
 
@@ -93,7 +94,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $this->address($buyer)->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasErrors('cart');
+        ] + $this->cartCheckoutIntent())->assertSessionHasErrors('cart');
 
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('seller_orders', 0);
@@ -111,10 +112,23 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($other)->post(route('buyer.checkout.place-order'), [
             'address_id' => $this->address($other)->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasErrors('cart');
+        ] + $this->cartCheckoutIntent())->assertSessionHasErrors('cart_selection');
+
+        $ownedRow = $owner->cartItems()->sole();
+        $this->postJson(route('buyer.cart.selection'), [
+            'draft_revision' => 0,
+            'cart_item_ids' => [$ownedRow->id],
+            'intent' => 'checkout',
+        ])->assertStatus(422)->assertJsonValidationErrors('cart_selection')
+            ->assertJsonPath('data.selection.ids', []);
 
         $this->assertSame(3, $item['variant']->fresh()->stock);
         $this->assertSame(1, $owner->cartItems()->count());
+        $this->assertSame($ownedRow->getAttributes(), $ownedRow->fresh()->getAttributes());
+        $this->assertSame(0, $other->cartItems()->count());
+        foreach (['orders', 'order_items', 'seller_orders', 'voucher_redemptions'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
     }
 
     public function test_cart_and_checkout_render_the_authoritative_variant_price(): void
@@ -123,7 +137,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $item = $this->catalog('display-price', 12500, 3);
         $this->cart($buyer, $item['product'], $item['variant'], 1, 1.00);
 
-        $this->actingAs($buyer)->get(route('buyer.cart'))
+        $this->actingAs($buyer)->get($this->selectedCartUrl())
             ->assertOk()
             ->assertSee('125.00')
             ->assertSee('Merchandise Subtotal')
@@ -131,27 +145,45 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
             ->assertSee('175.00')
             ->assertDontSee('1.00');
 
-        $this->actingAs($buyer)->get(route('buyer.checkout'))
+        $checkout = $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))
             ->assertOk()
             ->assertSee('125.00')
-            ->assertSee('Total Shipping')
+            ->assertSee('Shipping (1 seller)')
+            ->assertSee('₱50.00')
             ->assertSee('COD Grand Total')
             ->assertSee('175.00')
             ->assertSee('Delivery Address');
+
+        $document = new \DOMDocument();
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$checkout->getContent());
+        $xpath = new \DOMXPath($document);
+        $summary = $xpath->query('//aside')->item(0);
+        $this->assertNotNull($summary);
+        $shippingRows = $xpath->query('.//*[@data-checkout-shipping]', $summary);
+        $this->assertSame(1, $shippingRows->length);
+        $this->assertSame('Shipping (1 seller) ₱50.00', preg_replace('/\s+/u', ' ', trim($shippingRows->item(0)->textContent)));
+        $this->assertSame(1, substr_count($summary->textContent, '₱50.00'));
+        $this->assertStringNotContainsString('Total Shipping', $summary->textContent);
+        $this->assertStringNotContainsString('SUKI Logistics Delivery', $summary->textContent);
     }
 
     public function test_cart_and_checkout_warn_when_a_cart_item_becomes_unavailable(): void
     {
         $buyer = $this->user('buyer');
-        $item = $this->catalog('unavailable-display', 5000, 3, 'PENDING');
+        $item = $this->catalog('unavailable-display', 5000, 3);
         $this->cart($buyer, $item['product'], $item['variant']);
+        $this->actingAs($buyer);
+        $this->cartCheckoutIntent($buyer);
+        $item['product']->update(['moderation_status' => 'PENDING']);
 
-        $this->actingAs($buyer)->get(route('buyer.cart'))
+        $this->actingAs($buyer)->get($this->selectedCartUrl())
             ->assertOk()
             ->assertSee('Unavailable: This product is no longer available.')
-            ->assertSee('aria-disabled="true" onclick="return false;"', false);
+            ->assertSee('data-cart-checkout', false)
+            ->assertSee('disabled aria-disabled="true"', false)
+            ->assertSee('Please fix 1 selected item before checkout:');
 
-        $this->actingAs($buyer)->get(route('buyer.checkout'))
+        $this->actingAs($buyer)->get(route('buyer.checkout', $this->cartCheckoutIntent()))
             ->assertOk()
             ->assertSee('This item is no longer available in the marketplace.')
             ->assertSee('disabled', false);
@@ -167,12 +199,12 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $address->id,
             'payment_method' => 'gcash',
-        ])->assertSessionHasErrors('payment_method');
+        ] + $this->cartCheckoutIntent())->assertSessionHasErrors('payment_method');
 
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order.legacy'), [
             'address_id' => $address->id,
             'payment_method' => 'gcash',
-        ])->assertSessionHasErrors('payment_method');
+        ] + $this->cartCheckoutIntent())->assertSessionHasErrors('payment_method');
 
         $this->assertDatabaseCount('orders', 0);
         $this->assertSame(3, $item['variant']->fresh()->stock);
@@ -234,7 +266,7 @@ class PhaseTwoBCheckoutLifecycleTest extends TestCase
         $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
             'address_id' => $this->address($buyer)->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ] + $this->cartCheckoutIntent())->assertSessionHasNoErrors();
     }
 
     private function user(string $role): User

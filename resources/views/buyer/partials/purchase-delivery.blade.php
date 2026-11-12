@@ -7,7 +7,7 @@
         @if($parcel['status'] === 'delivered')
             <span>{{ $parcel['auto_complete_at'] ? 'Automatic completion from '.\App\Support\ManilaTime::format($parcel['auto_complete_at']).' PHT' : 'Automatic completion unavailable: delivery timestamp missing. Please contact support.' }}</span>
         @endif
-        @if(in_array($parcel['status'], ['picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered', 'completed', 'delivery_failed', 'rts_initiated', 'rts_returning', 'rts_completed'], true))
+        @if($parcel['status'] !== 'cancelled')
             <a href="{{ route('buyer.seller-order.track', [$order['order_id'], $parcel['seller_order_id']]) }}" class="rounded-lg border border-[#1F6F5B] px-3 py-2 font-semibold text-[#1F6F5B]">Track Order · {{ $parcel['seller_name'] }}</a>
         @endif
     </div>

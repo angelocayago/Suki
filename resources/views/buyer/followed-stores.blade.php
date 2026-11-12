@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<x-buyer.account-shell active="following">
     <div class="flex items-center justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Followed stores</h1>
@@ -25,5 +25,5 @@
             @endforeach
         </div>
     @endif
-</section>
+</x-buyer.account-shell>
 @endsection

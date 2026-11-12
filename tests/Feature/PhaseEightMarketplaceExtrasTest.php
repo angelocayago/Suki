@@ -16,6 +16,7 @@ use Tests\TestCase;
 
 class PhaseEightMarketplaceExtrasTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     use RefreshDatabase;
 
     public function test_seller_can_save_a_minimum_spend_for_a_shop_voucher(): void
@@ -54,7 +55,7 @@ class PhaseEightMarketplaceExtrasTest extends TestCase
         $this->cart($buyer, $product, $variant, 1);
 
         $this->actingAs($buyer)
-            ->from(route('buyer.cart'))
+            ->from($this->selectedCartUrl())
             ->post(route('buyer.cart.vouchers.apply'), ['voucher_code' => $voucher->code])
             ->assertSessionHasErrors('voucher_code');
         $this->assertSame([], session('checkout_voucher_codes', []));
@@ -63,13 +64,13 @@ class PhaseEightMarketplaceExtrasTest extends TestCase
         $this->actingAs($buyer)
             ->post(route('buyer.cart.vouchers.apply'), ['voucher_code' => $voucher->code])
             ->assertSessionHasNoErrors();
-        $this->get(route('buyer.checkout'))
+        $this->get(route('buyer.checkout', $this->cartCheckoutIntent()))
             ->assertOk()
             ->assertSee('Voucher SHOP50')
             ->assertSee('-PHP 5.00', false);
 
         $address = $this->address($buyer);
-        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'])
+        $this->post(route('buyer.checkout.place-order'), ['address_id' => $address->id, 'payment_method' => 'cod'] + $this->cartCheckoutIntent())
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('voucher_redemptions', ['voucher_id' => $voucher->id, 'discount_minor' => 500]);
         $this->assertDatabaseHas('orders', ['buyer_id' => $buyer->id, 'total_minor' => 10500]);
@@ -94,11 +95,11 @@ class PhaseEightMarketplaceExtrasTest extends TestCase
 
         $this->cart($buyer, $secondProduct, $secondProduct->variants()->sole());
         $this->actingAs($buyer)->withSession(['checkout_voucher_codes' => ['SECONDONLY']])
-            ->get(route('buyer.cart'))
+            ->get($this->selectedCartUrl())
             ->assertOk()
-            ->assertSee('PHP 50 delivery per seller shipment')
+            ->assertSee('₱50.00 delivery per participating seller shipment.')
             ->assertSee('Voucher SECONDONLY')
-            ->assertSee('-PHP 50.00', false)
+            ->assertSee('−₱50.00', false)
             ->assertDontSee('You qualify for free shipping');
     }
 

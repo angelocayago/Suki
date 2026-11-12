@@ -1,0 +1,482 @@
+{
+    "lm001": {
+        "file": "lm001.webp",
+        "product": "Plain Rolled Oats",
+        "width": 640,
+        "height": 640,
+        "sha256": "91798a9aa643f5f423fced7702cb3ab5449970693fea9843fb0483e5bbdb1355",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm002": {
+        "file": "lm002.webp",
+        "product": "Roasted Peanut Snack",
+        "width": 640,
+        "height": 640,
+        "sha256": "8f90e2efbdc74c9a57daaaf24e6c47aa020c529287c34a338c806ad15e19d50e",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm003": {
+        "file": "lm003.webp",
+        "product": "Dried Mango Strips",
+        "width": 640,
+        "height": 640,
+        "sha256": "a3ff66a230b27343daa81021e3501ebfd61a3ee96bdaa1ed933e613d7a5cf3de",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm004": {
+        "file": "lm004.webp",
+        "product": "Whole Bean Ground Coffee",
+        "width": 640,
+        "height": 640,
+        "sha256": "02446a3a6d653e96cc11cc632dead583c44bb61badd9fbdc87d67abcab0b7f3f",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm005": {
+        "file": "lm005.webp",
+        "product": "Brown Rice Pack",
+        "width": 640,
+        "height": 640,
+        "sha256": "388335a99b2fa865807030235aba85efd69d68e06fcc09fdfd9b44860741a63b",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm006": {
+        "file": "lm006.webp",
+        "product": "Pasta Shells",
+        "width": 640,
+        "height": 640,
+        "sha256": "b5414153fe50ae5c64075213539932256c022f07d9355162b28c64ba37f72862",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm007": {
+        "file": "lm007.webp",
+        "product": "Silicone Spatula",
+        "width": 640,
+        "height": 640,
+        "sha256": "4c2b0b3b7b4056d4d3a8259b42f038fd703adefd521575c75d8516b1adf1e6e7",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm008": {
+        "file": "lm008.webp",
+        "product": "Wooden Serving Spoon",
+        "width": 640,
+        "height": 640,
+        "sha256": "1e4148824d5c2593e37651eb1778f50c24a867c2ed3dd6e97e62e1916ef3e2b7",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm009": {
+        "file": "lm009.webp",
+        "product": "Stainless Tea Strainer",
+        "width": 640,
+        "height": 640,
+        "sha256": "c42ac895af5ac833b78862a07a1477bdc6389adced5da025b549a8485044de65",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm010": {
+        "file": "lm010.webp",
+        "product": "Drawer Divider Set",
+        "width": 640,
+        "height": 640,
+        "sha256": "d0366bdd679608649dfc5f0717ed776ee35fd2ddb4a0eea3851149b58a4d14bb",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm011": {
+        "file": "lm011.webp",
+        "product": "Reusable Shopping Bag",
+        "width": 640,
+        "height": 640,
+        "sha256": "2def22e9b94d980b8a9a8e9b03c8f3a708c0296cf162c30c6ff9efde7530a1dd",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm012": {
+        "file": "lm012.webp",
+        "product": "Soap Dish",
+        "width": 640,
+        "height": 640,
+        "sha256": "5553cbfabb2997a5b3cd30ac0319adcf9867703b654dd9151e2bdbcc1d0deebc",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm013": {
+        "file": "lm013.webp",
+        "product": "Lined Notebook",
+        "width": 640,
+        "height": 640,
+        "sha256": "cce7d89c18649a91aec3f846370c4465e69ac7b2a15138d29dee0f9651da1c2d",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm014": {
+        "file": "lm014.webp",
+        "product": "Graph Paper Pad",
+        "width": 640,
+        "height": 640,
+        "sha256": "9dc1e64b85b12722cda93f012db12baf932ff22f3dd4e688f3c776effd5e025b",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm015": {
+        "file": "lm015.webp",
+        "product": "Pencil Set",
+        "width": 640,
+        "height": 640,
+        "sha256": "e6212e178ab66997b130e57e1d5ac9109fc4373699feaf89b4fe60b4e461a0e9",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm016": {
+        "file": "lm016.webp",
+        "product": "Desk Pencil Cup",
+        "width": 640,
+        "height": 640,
+        "sha256": "f819fa00d654f2b2471129b6e0aebe1840b236a5d4f53281d04f9762b6cd14c2",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm017": {
+        "file": "lm017.webp",
+        "product": "Binder Clip Pack",
+        "width": 640,
+        "height": 640,
+        "sha256": "4f9995ea65f808de100c2a72f6e9c86bc5df730207a663389e9ff530448ee4cc",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm018": {
+        "file": "lm018.webp",
+        "product": "Sticky Note Pad",
+        "width": 640,
+        "height": 640,
+        "sha256": "c4722dbee824b1ebe4de05a36a09420efbfe63e1bc1a846ec962d9f66d04b47b",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm019": {
+        "file": "lm019.webp",
+        "product": "Fabric Cable Pouch",
+        "width": 640,
+        "height": 640,
+        "sha256": "6efbe49294ef938567ccd0c430f385afb6945240fd825a662dc7d03c5b20350f",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm020": {
+        "file": "lm020.webp",
+        "product": "Key Ring Set",
+        "width": 640,
+        "height": 640,
+        "sha256": "7afd9e6d777f2aba8233983df245510fb3121d91379b549e2018b5eb70d9e795",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm021": {
+        "file": "lm021.webp",
+        "product": "Travel Shoe Bag",
+        "width": 640,
+        "height": 640,
+        "sha256": "f5d58e16427aef464ff2dbf573f3ec4e4628c1db37c09aa66a3fc07ddb18f6df",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm022": {
+        "file": "lm022.webp",
+        "product": "Luggage Tag Pair",
+        "width": 640,
+        "height": 640,
+        "sha256": "c202df0aa5ee2aa95a18a9e2955004b88016aa6b23168f523d7bcf08471952dd",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm023": {
+        "file": "lm023.webp",
+        "product": "Glasses Cleaning Cloth",
+        "width": 640,
+        "height": 640,
+        "sha256": "4d7d936e37895cd9260eec01ec8f989aeae2f22238bd8d0164279fb6c5e7bcb3",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm024": {
+        "file": "lm024.webp",
+        "product": "Card Sleeve",
+        "width": 640,
+        "height": 640,
+        "sha256": "928b785ce14a2e564f009dba1e9f7298c138248c337086fa238d97e60f61daf4",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm025": {
+        "file": "lm025.webp",
+        "product": "Pet Feeding Scoop",
+        "width": 640,
+        "height": 640,
+        "sha256": "97062ec600080551f8ff52959aedae98b006f999dc66174b96e0fa0853bc20ea",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm026": {
+        "file": "lm026.webp",
+        "product": "Pet Grooming Comb",
+        "width": 640,
+        "height": 640,
+        "sha256": "1ab40f3efb93fe96f6ac43f8dfe17e9cc3b9ec020829c6274f6edd33cdc4eeb8",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm027": {
+        "file": "lm027.webp",
+        "product": "Pet Waste Bag Holder",
+        "width": 640,
+        "height": 640,
+        "sha256": "4ed3f2688fbb4df17605191d8d2f93c37a4cd601983fe35e9a0309566bd89131",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm028": {
+        "file": "lm028.webp",
+        "product": "Cat Toy Ball Set",
+        "width": 640,
+        "height": 640,
+        "sha256": "a20270c4fe08e3804b26186d8cd8130cab0f5348db817a99bd5c9d5cec9e7126",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm029": {
+        "file": "lm029.webp",
+        "product": "Pet Food Storage Clip",
+        "width": 640,
+        "height": 640,
+        "sha256": "db6616645c192bfb182f8c06859a7f07574fb307f7628bab93a07ef3b3544dfe",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm030": {
+        "file": "lm030.webp",
+        "product": "Pet Bowl Mat",
+        "width": 640,
+        "height": 640,
+        "sha256": "b2659e84dcc90f913d07d5157c2b21ce16943487da572f795b467fad185746ca",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm031": {
+        "file": "lm031.webp",
+        "product": "Desk Phone Stand",
+        "width": 640,
+        "height": 640,
+        "sha256": "c65174f47838a00924426aa04ebaed8d99f29fb9807d93749384811665e2f97b",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm032": {
+        "file": "lm032.webp",
+        "product": "Cable Organizer Clips",
+        "width": 640,
+        "height": 640,
+        "sha256": "0fb90694283c8ecb4addf2fb6915559c9245c41333dc6a739b4219d5c69e9efa",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm033": {
+        "file": "lm033.webp",
+        "product": "Keyboard Cleaning Brush",
+        "width": 640,
+        "height": 640,
+        "sha256": "ab64802d0c27f3cd07e6bf99f1b2549f1d7d034f4de79ee536946501472a6fef",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm034": {
+        "file": "lm034.webp",
+        "product": "Mouse Wrist Rest",
+        "width": 640,
+        "height": 640,
+        "sha256": "ce9c110b69545ebfb5718f15ead389f83d025f1397d8b8d2788f7a84280f7c79",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm035": {
+        "file": "lm035.webp",
+        "product": "Tablet Sleeve",
+        "width": 640,
+        "height": 640,
+        "sha256": "5519e8bf386f10d7bd20e61b0a3528cd96f3013c6faaebf97b7a0d094d1c348d",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm036": {
+        "file": "lm036.webp",
+        "product": "Screen Cleaning Kit",
+        "width": 640,
+        "height": 640,
+        "sha256": "3971e91a981f3e7ceb97ea34f646b8168e148aa0259b50f3e157ef03339a975e",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm037": {
+        "file": "lm037.webp",
+        "product": "Cotton Crew Socks",
+        "width": 640,
+        "height": 640,
+        "sha256": "07fa150c8fc8d06615bfc3c05cc2dd8e69b96246bb331bf5b7dd0927bc9e8dba",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm038": {
+        "file": "lm038.webp",
+        "product": "Cotton Handkerchief",
+        "width": 640,
+        "height": 640,
+        "sha256": "6212f6144d75e9a92a9bac92bf33248003991b31f1a77347e9518017538ea17f",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm039": {
+        "file": "lm039.webp",
+        "product": "Canvas Tote",
+        "width": 640,
+        "height": 640,
+        "sha256": "e77b4856f69911868cf88ebc6068566126b4be2e248beb92a6ee9989640486e7",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm040": {
+        "file": "lm040.webp",
+        "product": "Travel Bottle",
+        "width": 640,
+        "height": 640,
+        "sha256": "ff48ca112b2f331289737c484e4dc43078aa83b823ec62e57233cfbe644af64a",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm041": {
+        "file": "lm041.webp",
+        "product": "Ceramic Mug",
+        "width": 640,
+        "height": 640,
+        "sha256": "5502d3b66273304f2ee5885081b61e5cc27db324cbe795d8121a76e16132d1b7",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm042": {
+        "file": "lm042.webp",
+        "product": "Pet Lead",
+        "width": 640,
+        "height": 640,
+        "sha256": "610a5683a8b3e4550e40bfe24980313a7e1d5c18b427cebb4030fcc00bcce2d9",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm043": {
+        "file": "lm043.webp",
+        "product": "USB-C Cable",
+        "width": 640,
+        "height": 640,
+        "sha256": "2b81ccb5cea639e9d3079a1e0d8ef5b98e64d13adf12126d10eed7285ad34c3a",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm044": {
+        "file": "lm044.webp",
+        "product": "Desk Mouse Pad",
+        "width": 640,
+        "height": 640,
+        "sha256": "bdd49085e4f0d539b0baabf1a0750b66e1228bbbf9d7150bb1979df063d3f857",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm045": {
+        "file": "lm045.webp",
+        "product": "Ballpoint Pen Pack",
+        "width": 640,
+        "height": 640,
+        "sha256": "4a0323c38b04a45727fd4d4b4a9fafbe0eb2dc6491a3cb748f4c3b7b239560cb",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm046": {
+        "file": "lm046.webp",
+        "product": "Document Folder",
+        "width": 640,
+        "height": 640,
+        "sha256": "fb26ca1d5d6728f694ee99b8903c8c4f7ee0cf2919226c28657a31eba16e1b17",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm047": {
+        "file": "lm047.webp",
+        "product": "Cotton Tea Towel",
+        "width": 640,
+        "height": 640,
+        "sha256": "3ff6ca2db9c7862ba3d1bfc5642a05038497056c987e4f69611d91c0c2a52ccd",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm048": {
+        "file": "lm048.webp",
+        "product": "Trail Mix Pouch",
+        "width": 640,
+        "height": 640,
+        "sha256": "0e690f03bbdde70b8c9c48222cce0813a427e8b5a5f1d68d4f375262883b6d0b",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm049": {
+        "file": "lm049.webp",
+        "product": "Plain Crew T-Shirt",
+        "width": 640,
+        "height": 640,
+        "sha256": "29ec5d533ae58b3e362a2d0c20910fa7a1202c22a3eb09bbdc0ff04da1c97389",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm050": {
+        "file": "lm050.webp",
+        "product": "Cotton Bath Towel",
+        "width": 640,
+        "height": 640,
+        "sha256": "3416a753124308f0f7cebcacff77a45a8d037258df0f772655f73f0065b605fa",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm051": {
+        "file": "lm051.webp",
+        "product": "Pet Collar",
+        "width": 640,
+        "height": 640,
+        "sha256": "fa7f813d5c3ee117aff1684e673cd030c4144d1bf542d983b9e378d442d69a38",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm052": {
+        "file": "lm052.webp",
+        "product": "Storage Container",
+        "width": 640,
+        "height": 640,
+        "sha256": "b51dc6c8de9b2857976dc0a0f9b30d73d43ae8cfcb0b6fc7fb8ac7def52bafdd",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm053": {
+        "file": "lm053.webp",
+        "product": "Sketchbook",
+        "width": 640,
+        "height": 640,
+        "sha256": "3605c480b0f5b0c8d9d9f36505644e97a55d5b793a7cb0fe0064df15522e3bd1",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm054": {
+        "file": "lm054.webp",
+        "product": "Laptop Riser",
+        "width": 640,
+        "height": 640,
+        "sha256": "03b50ef9eb13c7f159328a1679b5bcd2d6c435f8ca6583de598259b15a914da8",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm055": {
+        "file": "lm055.webp",
+        "product": "Canvas Zip Pouch",
+        "width": 640,
+        "height": 640,
+        "sha256": "e2a8f2086b95af590dc03e853f3ad5d1bd2a8be4027df7f8913649283ac22624",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm056": {
+        "file": "lm056.webp",
+        "product": "Basic Cotton Shorts",
+        "width": 640,
+        "height": 640,
+        "sha256": "5e4938342f3239af562da43acf98e6037bbb46a75cf29bc8c543280e9bed3691",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm057": {
+        "file": "lm057.webp",
+        "product": "Reusable Food Wrap",
+        "width": 640,
+        "height": 640,
+        "sha256": "b55f6a3f42b7c39a9e78c6b6959fbcd955e784909d1230c5bc45d15484e04fa1",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm058": {
+        "file": "lm058.webp",
+        "product": "Pet Bandana",
+        "width": 640,
+        "height": 640,
+        "sha256": "93a63d8059d21d480b24c6dad15456a58c947f890fc7d417e04fe303bcc0ddc4",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm059": {
+        "file": "lm059.webp",
+        "product": "Ruled Journal",
+        "width": 640,
+        "height": 640,
+        "sha256": "91ee9f1520832b7a7e8ee1a85f7e81f5ac13a213dbff009333447fad6b2000ee",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    },
+    "lm060": {
+        "file": "lm060.webp",
+        "product": "Braided Charging Cable",
+        "width": 640,
+        "height": 640,
+        "sha256": "8d3a91e4973513d3c7592933ab0952bb08adc22a12f9f019a13af6d54ff0fd59",
+        "source_method": "Original unbranded product mockup generated with OpenAI image generation"
+    }
+}

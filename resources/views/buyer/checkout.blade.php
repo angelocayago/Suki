@@ -3,6 +3,8 @@
 @section('content')
 @php
     $buyNowToken = $buyNowToken ?? null;
+    $buyNowOfferId = $buyNowOfferId ?? null;
+    $cartSelectionToken = $cartSelectionToken ?? null;
 @endphp
 
 <div class="min-h-screen bg-[#F8FAF8]">
@@ -27,6 +29,7 @@
 
                     <p class="mt-1 text-sm text-gray-500">
                         Review your order before placing it.
+                        @if($cartSelectionToken)<a href="{{ route('buyer.cart') }}" class="ml-2 font-semibold text-[#155244] underline">Edit selection / Back to cart</a>@endif
                     </p>
                 </div>
 
@@ -80,12 +83,18 @@
         @endif
 
 
-        @if($buyNowToken)<div class="mb-5 rounded-xl border border-gray-200 p-4"><p>Only your Buy Now selection is included. Your saved cart is unchanged.</p><form method="POST" action="{{ route('buyer.buy-now.cancel') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif<button type="submit" class="mt-2 underline">Cancel Buy Now and return to product</button></form></div>@endif
-        <form id="checkoutVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif</form>
-        <form id="checkoutClaimedVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif</form>
-        @foreach($voucher_codes ?? [] as $code)<form id="checkoutVoucherRemove{{ $loop->index }}" method="POST" action="{{ route('buyer.cart.vouchers.remove',$code) }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif @method('DELETE')</form>@endforeach
+        @if($buyNowToken)<div class="mb-5 rounded-xl border border-gray-200 p-4"><p>Only your Buy Now selection is included. Your saved cart is unchanged.</p><form method="POST" action="{{ route('buyer.buy-now.cancel') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif
+            @if($cartSelectionToken)<input type="hidden" name="cart_selection" value="{{ $cartSelectionToken }}">@endif<button type="submit" class="mt-2 underline">Cancel Buy Now and return to product</button></form></div>@endif
+        <form id="checkoutVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif
+            @if($cartSelectionToken)<input type="hidden" name="cart_selection" value="{{ $cartSelectionToken }}">@endif</form>
+        <form id="checkoutClaimedVoucherApply" method="POST" action="{{ route('buyer.cart.vouchers.apply') }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif
+            @if($cartSelectionToken)<input type="hidden" name="cart_selection" value="{{ $cartSelectionToken }}">@endif</form>
+        @foreach($voucher_codes ?? [] as $code)<form id="checkoutVoucherRemove{{ $loop->index }}" method="POST" action="{{ route('buyer.cart.vouchers.remove',$code) }}">@csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif
+            @if($cartSelectionToken)<input type="hidden" name="cart_selection" value="{{ $cartSelectionToken }}">@endif @method('DELETE')</form>@endforeach
         <form action="{{ route('buyer.checkout.place-order') }}" method="POST" onsubmit="if (this.dataset.submitting) return false; this.dataset.submitting = '1'; const button = this.querySelector('button[data-place-order]'); if (button) { button.disabled = true; button.textContent = 'Placing order…'; }">
+            @if($buyNowToken && $buyNowOfferId)<input type="hidden" name="buy_now_offer" value="{{ $buyNowOfferId }}">@endif
             @csrf @if($buyNowToken)<input type="hidden" name="buy_now" value="{{ $buyNowToken }}">@endif
+            @if($cartSelectionToken)<input type="hidden" name="cart_selection" value="{{ $cartSelectionToken }}">@endif
 
             <div class="grid gap-6 lg:grid-cols-3">
 
@@ -599,14 +608,9 @@
 
                             </div>
 
-                            <div class="flex items-center justify-between py-2 text-sm text-gray-600">
-                                <span>Shipping (₱{{ number_format($shipping_per_seller ?? 50, 2) }} × {{ $seller_count ?? 0 }} seller{{ ($seller_count ?? 0) === 1 ? '' : 's' }})</span>
-                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
-                            </div>
-
-                            <div class="flex items-center justify-between py-2 text-sm text-gray-600">
-                                <span>Total Shipping</span>
-                                <span>₱{{ number_format($shipping ?? 0, 2) }}</span>
+                            <div class="flex items-baseline justify-between gap-3 py-2 text-sm text-gray-600" data-checkout-shipping>
+                                <span>Shipping ({{ $seller_count ?? 0 }} seller{{ ($seller_count ?? 0) === 1 ? '' : 's' }})</span>
+                                <span class="shrink-0 whitespace-nowrap">₱{{ number_format($shipping ?? 0, 2) }}</span>
                             </div>
                             @if($voucher_error)
                                 <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{{ $voucher_error }} Remove it from your cart before placing the order.</p>
@@ -618,30 +622,6 @@
                                 </div>
                             @endforeach
 
-                            {{-- SUKI LOGISTICS DELIVERY --}}
-<div class="flex items-center justify-between gap-4 text-sm">
-
-    <span class="text-gray-500">
-        SUKI Logistics Delivery
-    </span>
-
-    <span class="font-medium text-gray-900">
-
-        @if($shipping > 0)
-
-            ₱{{ number_format($shipping, 2) }}
-
-        @else
-
-            Free
-
-        @endif
-
-    </span>
-
-</div>
-
-
                             <div class="border-t border-gray-100 pt-5">
 
                                 <div class="flex items-end justify-between">
@@ -652,8 +632,8 @@
                                         </p>
 
                                         <p class="mt-1 text-xs text-gray-400">
-    Delivery handled by SUKI Logistics
-</p>
+                                            Delivery handled by SUKI Logistics.
+                                        </p>
                                     </div>
 
                                     <span
@@ -671,7 +651,7 @@
                             {{-- PLACE ORDER --}}
                             <button data-place-order
                                 type="submit"
-                                @disabled(($has_unavailable_items ?? false) || !($hasEligibleAddress ?? false))
+                                @disabled(($has_unavailable_items ?? false) || !($hasEligibleAddress ?? false) || ($cartSelectionToken && !empty($voucher_error)))
                                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F6F5B] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#155244] focus:outline-none focus:ring-2 focus:ring-[#1F6F5B] focus:ring-offset-2"
                             >
 

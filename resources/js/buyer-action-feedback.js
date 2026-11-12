@@ -73,7 +73,7 @@
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     const document = root.document;
     if (!document) return;
-    const isAction = form => /\/(cart\/(add|increase|decrease|update|remove|clear)|wishlist\/(add|remove|toggle|move-to-cart))(\/|$)/.test(new URL(form.action, root.location.href).pathname);
+    const isAction = form => /\/(cart\/(add|change-variant|increase|decrease|update|remove|clear)|wishlist\/(add|remove|toggle|move-to-cart))(\/|$)/.test(new URL(form.action, root.location.href).pathname);
     document.addEventListener('input', event => { if (event.target.matches('[data-buyer-quantity]')) validate(event.target); });
     document.addEventListener('focusout', event => {
         const field = event.target;

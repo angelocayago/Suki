@@ -1,4 +1,5 @@
 import './buyer-action-feedback';
+import './buyer-cart-selection';
 import './bootstrap';
 import Alpine from 'alpinejs';
 

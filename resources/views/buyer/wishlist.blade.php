@@ -6,7 +6,7 @@
     $wishlistCount = count($wishlist ?? []);
 @endphp
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+<x-buyer.account-shell active="wishlist">
 
     {{-- =========================================
          PAGE HEADER
@@ -455,6 +455,6 @@
 
     @endif
 
-</section>
+</x-buyer.account-shell>
 
 @endsection

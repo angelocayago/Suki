@@ -40,8 +40,11 @@ class CartController extends Controller
         } catch (ValidationException $error) {
             $errors = $error->errors(); $message = collect($errors)->flatten()->first();
             $code = $error->status === 409 ? (str_contains(strtolower($message), 'out of stock') ? 'out_of_stock' : 'insufficient_stock') : (isset($errors['quantity']) ? 'invalid_quantity' : (isset($errors['variant_id']) && str_contains($message, 'select') ? 'variant_required' : 'unavailable'));
+            foreach (['variant_already_in_cart', 'stale_cart_item', 'stale_variant_offer', 'draft_revision'] as $key) {
+                if (isset($errors[$key])) $code = $key === 'draft_revision' ? 'stale_selection' : $key;
+            }
             if ($request->expectsJson()) return response()->json(['success' => false, 'message' => $message, 'errors' => $errors, 'code' => $code], $error->status);
-            return $this->actionBack($request)->withErrors($errors)->withInput()->with('cart_error_line', $request->route('cartItem'));
+            return $this->actionBack($request)->withErrors($errors)->withInput()->with($request->routeIs('buyer.cart.change-variant') ? 'cart_variant_line' : 'cart_error_line', $request->route('cartItem'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $error) {
             throw $error;
         } catch (Throwable $error) {
@@ -74,7 +77,9 @@ class CartController extends Controller
         return $this->action($request, function () use ($request, $slug, $checkout) {
             Product::withTrashed()->where('slug', $slug)->firstOrFail();
             $data = $this->quantityData($request, true);
-            $checkout->addCartItem($request->user(), $slug, !empty($data['variant_id']) ? (int) $data['variant_id'] : null, (int) $data['quantity']);
+            $row = $checkout->addCartItem($request->user(), $slug, !empty($data['variant_id']) ? (int) $data['variant_id'] : null, (int) $data['quantity']);
+            $variant = $row->productVariant;
+            return 'Added '.$data['quantity'].' × '.$row->product_name.($variant?->name ? ' — '.$variant->name : '').' to your Cart.';
         }, 'Item added to cart!');
     }
 
@@ -225,32 +230,90 @@ class CartController extends Controller
         return $this->action($request, fn () => CartItem::where('user_id', $request->user()->id)->delete(), 'Cart cleared.', 'buyer.cart');
     }
 
-    public function index(Request $request, CheckoutService $checkout): View
+    public function index(Request $request, CheckoutService $checkout)
     {
-        return view('buyer.cart', $checkout->cartSummary($request->user(), $request->session()->get('checkout_voucher_codes', [])));
+        $data = $this->selectionData($request, $checkout);
+        $data['variant_choices'] = $checkout->variantSwitchChoices($request->user());
+        return $request->expectsJson() ? response()->json(['success' => true, 'message' => '', 'errors' => (object) [], 'code' => 'ok', 'data' => $data]) : view('buyer.cart', $data);
+    }
+
+    public function changeVariant(Request $request, int $cartItem, CheckoutService $checkout)
+    {
+        return $this->action($request, function () use ($request, $cartItem, $checkout) {
+            CartItem::where('user_id', $request->user()->id)->findOrFail($cartItem);
+            $data = $request->validate(['variant_id' => ['required', 'integer', 'min:1'], 'draft_revision' => ['required', 'integer', 'min:0'], 'variant_proof' => ['required', 'array'], 'variant_proof.*' => ['required', 'string', 'size:64']]);
+            $selection = app(\App\Support\CartSelection::class);
+            $draft = $selection->draft($request);
+            if ((int) $data['draft_revision'] !== $draft['revision']) throw ValidationException::withMessages(['draft_revision' => 'Your selection changed in another tab. Refresh the Cart and review the latest selection before changing a variant.'])->status(409);
+            $proof = $data['variant_proof'][$data['variant_id']] ?? '';
+            if ($checkout->changeCartVariant($request->user(), $cartItem, (int) $data['variant_id'], $proof)) $selection->advanceRevision($request, $draft);
+            if (!$request->expectsJson()) return redirect()->to(route('buyer.cart').'#cart-line-'.$cartItem)->with('success', 'Variant updated. Your quantity and selection were kept.');
+            return 'Variant updated. Your quantity and selection were kept.';
+        }, 'Variant updated.');
+    }
+
+    private function selectionData(Request $request, CheckoutService $checkout): array
+    {
+        $selection = app(\App\Support\CartSelection::class);
+        $draft = $selection->draft($request);
+        $all = $checkout->cartSummary($request->user(), $request->session()->get('checkout_voucher_codes', []));
+        $selected = $checkout->cartSummary($request->user(), $request->session()->get('checkout_voucher_codes', []), $draft['ids']);
+        $data = $all + ['selection' => $draft, 'selected_summary' => $selected,
+            'selected_invalid_message' => $selected['has_unavailable_items'] ? $selection->invalidMessage($selected) : null];
+        if ($request->expectsJson()) {
+            $data['summary_html'] = view('buyer.partials.cart-summary', $data)->render();
+        }
+        return $data;
+    }
+
+    public function selection(Request $request, CheckoutService $checkout)
+    {
+        $selection = app(\App\Support\CartSelection::class);
+        try {
+            $request->validate(['intent' => ['sometimes', 'in:update,checkout']]);
+            $draft = $selection->save($request, $checkout);
+            if ($request->input('intent') === 'checkout') {
+                $summary = $checkout->cartSummary($request->user(), $request->session()->get('checkout_voucher_codes', []), $draft['ids']);
+                $token = $selection->start($request, $summary, $draft['ids']);
+                return redirect()->route('buyer.checkout', ['cart_selection' => $token]);
+            }
+            if ($request->expectsJson()) return response()->json(['success' => true, 'message' => 'Selection updated.', 'errors' => (object) [], 'code' => 'ok', 'data' => $this->selectionData($request, $checkout)]);
+            return redirect()->route('buyer.cart')->with('info', 'Selection updated.');
+        } catch (ValidationException $error) {
+            if ($request->expectsJson()) return response()->json(['success' => false, 'message' => collect($error->errors())->flatten()->first(), 'errors' => $error->errors(),
+                'code' => isset($error->errors()['draft_revision']) ? 'stale_selection' : 'invalid_selection', 'data' => $this->selectionData($request, $checkout)], $error->status);
+            return redirect()->route('buyer.cart')->withErrors($error->errors());
+        }
     }
 
     public function applyVoucher(Request $request, CheckoutService $checkout): RedirectResponse
     {
         $code = strtoupper(trim((string) $request->validate(['voucher_code'=>['required','string','max:64']])['voucher_code']));
         $direct=app(\App\Support\DirectCheckout::class);$token=$direct->token($request);
-        $codes = $direct->codes($request,$token);
+        $cartSelection = app(\App\Support\CartSelection::class);
+        $cartToken = !$token && $request->filled('cart_selection') ? $cartSelection->token($request) : null;
+        $codes = $cartToken ? $cartSelection->state($request, $cartToken)['voucher_codes'] : $direct->codes($request,$token);
         $codes = array_values(array_unique([...$codes, $code]));
-        $summary = $token ? $checkout->directSummary($request->user(),$direct->selection($request,$token),$codes) : $checkout->cartSummary($request->user(), $codes);
+        $summary = $token ? $checkout->directSummary($request->user(),$direct->selection($request,$token),$codes) : $checkout->cartSummary($request->user(), $codes, $cartToken ? $cartSelection->state($request, $cartToken)['ids'] : $cartSelection->draft($request)['ids']);
         if ($summary['voucher_error']) {
             return back()->withErrors(['voucher_code' => $summary['voucher_error']])->withInput();
         }
-        $direct->putCodes($request,$token,$codes);
+        if ($cartToken) $cartSelection->putCodes($request, $cartToken, $codes, $checkout);
+        else $direct->putCodes($request,$token,$codes);
         $addsDiscount = collect($summary['applied_vouchers'])->contains('code', $code);
         return back()->with('success', $addsDiscount
             ? 'Voucher applied. It will be revalidated when you place the order.'
             : 'Voucher saved, but other vouchers already cover its eligible merchandise. No additional discount or usage will be applied.');
     }
 
-    public function removeVoucher(Request $request, string $code): RedirectResponse
+    public function removeVoucher(Request $request, string $code, CheckoutService $checkout): RedirectResponse
     {
         $direct=app(\App\Support\DirectCheckout::class);$token=$direct->token($request);
-        $direct->putCodes($request,$token,array_values(array_filter($direct->codes($request,$token),fn($item)=>$item !== strtoupper($code))));
+        $selection = app(\App\Support\CartSelection::class);
+        $cartToken = !$token && $request->filled('cart_selection') ? $selection->token($request) : null;
+        $codes = $cartToken ? $selection->state($request,$cartToken)['voucher_codes'] : $direct->codes($request,$token);
+        $codes = array_values(array_filter($codes,fn($item)=>$item !== strtoupper($code)));
+        if ($cartToken) $selection->putCodes($request,$cartToken,$codes,$checkout); else $direct->putCodes($request,$token,$codes);
         return back()->with('success', 'Voucher removed.');
     }
 }

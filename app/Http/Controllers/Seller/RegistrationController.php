@@ -41,7 +41,7 @@ class RegistrationController extends Controller
         } catch (ValidationException $exception) {
             return back()
                 ->withErrors($exception->errors())
-                ->withInput();
+                ->withInput($request->except(['password', 'password_confirmation', 'current_password', '_token']));
         }
 
         $google->assertMatches($request, $data['email'], 'seller');

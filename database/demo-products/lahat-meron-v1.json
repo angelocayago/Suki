@@ -1,0 +1,1448 @@
+[
+  {
+    "key": "lm001",
+    "name": "Plain Rolled Oats",
+    "description": "A 500 g pouch of plain rolled oats for breakfast bowls and baking.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 8500,
+        "stock": 7,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm002",
+    "name": "Roasted Peanut Snack",
+    "description": "A 100 g resealable pack of lightly salted roasted peanuts.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 4500,
+        "stock": 14,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm003",
+    "name": "Dried Mango Strips",
+    "description": "A 100 g pouch of dried mango strips for packed snacks.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 21,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm004",
+    "name": "Whole Bean Ground Coffee",
+    "description": "A 250 g pack of ground coffee for drip preparation; demo packaging.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 18500,
+        "stock": 28,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm005",
+    "name": "Brown Rice Pack",
+    "description": "A one kilogram sealed bag of brown rice for everyday meals.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 12500,
+        "stock": 35,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm006",
+    "name": "Pasta Shells",
+    "description": "A 250 g pack of small pasta shells for soups and sauces.",
+    "group": "groceries",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 6200,
+        "stock": 42,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm007",
+    "name": "Silicone Spatula",
+    "description": "A flexible silicone spatula with a long handle for mixing and scraping.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 7900,
+        "stock": 49,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm008",
+    "name": "Wooden Serving Spoon",
+    "description": "A smooth wooden serving spoon for home cooking and serving.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 5500,
+        "stock": 56,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm009",
+    "name": "Stainless Tea Strainer",
+    "description": "A compact mesh tea strainer with a resting handle.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 6900,
+        "stock": 63,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm010",
+    "name": "Drawer Divider Set",
+    "description": "A set of four adjustable dividers for small household drawers.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 14900,
+        "stock": 70,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm011",
+    "name": "Reusable Shopping Bag",
+    "description": "A foldable fabric shopping bag with stitched carrying handles.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 3900,
+        "stock": 13,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm012",
+    "name": "Soap Dish",
+    "description": "A draining soap dish sized for a standard bar of soap.",
+    "group": "household",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 4900,
+        "stock": 20,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm013",
+    "name": "Lined Notebook",
+    "description": "An A5 notebook with 80 lined pages for class and meeting notes.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 6500,
+        "stock": 27,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm014",
+    "name": "Graph Paper Pad",
+    "description": "An A4 pad of graph paper for diagrams and calculation practice.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 5800,
+        "stock": 34,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm015",
+    "name": "Pencil Set",
+    "description": "A pack of six graphite pencils for writing and sketching.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 4200,
+        "stock": 41,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm016",
+    "name": "Desk Pencil Cup",
+    "description": "A simple desk cup for pens, pencils and small rulers.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 7500,
+        "stock": 48,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm017",
+    "name": "Binder Clip Pack",
+    "description": "A pack of twelve medium binder clips for loose paper.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 3500,
+        "stock": 55,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm018",
+    "name": "Sticky Note Pad",
+    "description": "A square pad of repositionable notes for reminders and bookmarks.",
+    "group": "stationery",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 2900,
+        "stock": 62,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm019",
+    "name": "Fabric Cable Pouch",
+    "description": "A zip pouch with elastic loops for organizing charging cables.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 11500,
+        "stock": 69,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm020",
+    "name": "Key Ring Set",
+    "description": "A set of three split key rings for keys and small tags.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 3900,
+        "stock": 12,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm021",
+    "name": "Travel Shoe Bag",
+    "description": "A drawstring travel pouch that separates shoes from clothing.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 8900,
+        "stock": 19,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm022",
+    "name": "Luggage Tag Pair",
+    "description": "Two luggage tags with blank paper inserts for travel labels.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 26,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm023",
+    "name": "Glasses Cleaning Cloth",
+    "description": "A soft microfiber cloth for cleaning everyday eyewear.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 2500,
+        "stock": 33,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm024",
+    "name": "Card Sleeve",
+    "description": "A slim card sleeve with two pockets for everyday cards.",
+    "group": "accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 5900,
+        "stock": 40,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm025",
+    "name": "Pet Feeding Scoop",
+    "description": "A lightweight scoop for measuring dry pet food portions.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 6900,
+        "stock": 47,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm026",
+    "name": "Pet Grooming Comb",
+    "description": "A small grooming comb with rounded tips for routine coat care.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 12500,
+        "stock": 54,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm027",
+    "name": "Pet Waste Bag Holder",
+    "description": "A clip-on dispenser for a standard roll of pet waste bags.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 7900,
+        "stock": 61,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm028",
+    "name": "Cat Toy Ball Set",
+    "description": "A set of three lightweight play balls for supervised cat play.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 8900,
+        "stock": 68,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm029",
+    "name": "Pet Food Storage Clip",
+    "description": "A wide clip for resealing dry pet food bags between feedings.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 4500,
+        "stock": 11,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm030",
+    "name": "Pet Bowl Mat",
+    "description": "A wipe-clean feeding mat for use beneath small pet bowls.",
+    "group": "pet items",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 13500,
+        "stock": 18,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm031",
+    "name": "Desk Phone Stand",
+    "description": "An adjustable desktop stand for a phone in portrait or landscape.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 14900,
+        "stock": 25,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm032",
+    "name": "Cable Organizer Clips",
+    "description": "A pack of six adhesive cable guides for a clean desktop.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 5500,
+        "stock": 32,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm033",
+    "name": "Keyboard Cleaning Brush",
+    "description": "A soft desktop brush for removing loose keyboard dust.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 6900,
+        "stock": 39,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm034",
+    "name": "Mouse Wrist Rest",
+    "description": "A padded wrist rest for a compact desk mouse setup.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 12900,
+        "stock": 46,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm035",
+    "name": "Tablet Sleeve",
+    "description": "A padded sleeve for a tablet up to ten inches without a bulky case.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 24900,
+        "stock": 53,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm036",
+    "name": "Screen Cleaning Kit",
+    "description": "A small pump bottle and microfiber cloth for routine screen care.",
+    "group": "electronics accessories",
+    "option_groups": [],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 60,
+        "options": {}
+      }
+    ]
+  },
+  {
+    "key": "lm037",
+    "name": "Cotton Crew Socks",
+    "description": "Everyday cotton-blend crew socks with a soft ribbed cuff.",
+    "group": "apparel",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Black",
+          "White"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 5900,
+        "stock": 4,
+        "options": {
+          "Color": "Black"
+        }
+      },
+      {
+        "price_minor": 6400,
+        "stock": 15,
+        "options": {
+          "Color": "White"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm038",
+    "name": "Cotton Handkerchief",
+    "description": "A neatly hemmed cotton handkerchief for daily carry.",
+    "group": "apparel",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Blue",
+          "Gray"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 3900,
+        "stock": 7,
+        "options": {
+          "Color": "Blue"
+        }
+      },
+      {
+        "price_minor": 4900,
+        "stock": 18,
+        "options": {
+          "Color": "Gray"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm039",
+    "name": "Canvas Tote",
+    "description": "A reusable canvas tote with a small internal pocket.",
+    "group": "accessories",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Natural",
+          "Green"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 15900,
+        "stock": 10,
+        "options": {
+          "Color": "Natural"
+        }
+      },
+      {
+        "price_minor": 17400,
+        "stock": 21,
+        "options": {
+          "Color": "Green"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm040",
+    "name": "Travel Bottle",
+    "description": "A refillable travel bottle with a screw cap.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Capacity",
+        "values": [
+          "100 ml",
+          "200 ml"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 13,
+        "options": {
+          "Capacity": "100 ml"
+        }
+      },
+      {
+        "price_minor": 10400,
+        "stock": 24,
+        "options": {
+          "Capacity": "200 ml"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm041",
+    "name": "Ceramic Mug",
+    "description": "A glazed ceramic mug with a comfortable handle.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Cream",
+          "Green"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 12900,
+        "stock": 16,
+        "options": {
+          "Color": "Cream"
+        }
+      },
+      {
+        "price_minor": 13900,
+        "stock": 27,
+        "options": {
+          "Color": "Green"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm042",
+    "name": "Pet Lead",
+    "description": "A woven pet lead with a metal clasp for supervised walks.",
+    "group": "pet items",
+    "option_groups": [
+      {
+        "name": "Length",
+        "values": [
+          "1 metre",
+          "1.5 metres"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 19900,
+        "stock": 19,
+        "options": {
+          "Length": "1 metre"
+        }
+      },
+      {
+        "price_minor": 21400,
+        "stock": 30,
+        "options": {
+          "Length": "1.5 metres"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm043",
+    "name": "USB-C Cable",
+    "description": "A USB-C to USB-C cable for compatible everyday devices.",
+    "group": "electronics accessories",
+    "option_groups": [
+      {
+        "name": "Length",
+        "values": [
+          "1 metre",
+          "2 metres"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 14900,
+        "stock": 22,
+        "options": {
+          "Length": "1 metre"
+        }
+      },
+      {
+        "price_minor": 15400,
+        "stock": 33,
+        "options": {
+          "Length": "2 metres"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm044",
+    "name": "Desk Mouse Pad",
+    "description": "A fabric mouse pad with a slip-resistant backing.",
+    "group": "electronics accessories",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Black",
+          "Blue"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 9500,
+        "stock": 25,
+        "options": {
+          "Color": "Black"
+        }
+      },
+      {
+        "price_minor": 10500,
+        "stock": 36,
+        "options": {
+          "Color": "Blue"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm045",
+    "name": "Ballpoint Pen Pack",
+    "description": "A pack of three retractable ballpoint pens.",
+    "group": "stationery",
+    "option_groups": [
+      {
+        "name": "Ink",
+        "values": [
+          "Black",
+          "Blue"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 4900,
+        "stock": 28,
+        "options": {
+          "Ink": "Black"
+        }
+      },
+      {
+        "price_minor": 6400,
+        "stock": 39,
+        "options": {
+          "Ink": "Blue"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm046",
+    "name": "Document Folder",
+    "description": "A snap-close folder for school and office documents.",
+    "group": "stationery",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Clear",
+          "Blue"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 3500,
+        "stock": 31,
+        "options": {
+          "Color": "Clear"
+        }
+      },
+      {
+        "price_minor": 4000,
+        "stock": 42,
+        "options": {
+          "Color": "Blue"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm047",
+    "name": "Cotton Tea Towel",
+    "description": "A woven tea towel for drying dishes and wiping counters.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Cream",
+          "Gray"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 7900,
+        "stock": 34,
+        "options": {
+          "Color": "Cream"
+        }
+      },
+      {
+        "price_minor": 8900,
+        "stock": 45,
+        "options": {
+          "Color": "Gray"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm048",
+    "name": "Trail Mix Pouch",
+    "description": "A sealed pouch of nuts and dried fruit for packed snacks.",
+    "group": "groceries",
+    "option_groups": [
+      {
+        "name": "Pack size",
+        "values": [
+          "100 g",
+          "200 g"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 8900,
+        "stock": 37,
+        "options": {
+          "Pack size": "100 g"
+        }
+      },
+      {
+        "price_minor": 10400,
+        "stock": 48,
+        "options": {
+          "Pack size": "200 g"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm049",
+    "name": "Plain Crew T-Shirt",
+    "description": "A basic short-sleeve crew neck shirt with a regular fit.",
+    "group": "apparel",
+    "option_groups": [
+      {
+        "name": "Size",
+        "values": [
+          "Small",
+          "Medium",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 19900,
+        "stock": 40,
+        "options": {
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 20400,
+        "stock": 51,
+        "options": {
+          "Size": "Medium"
+        }
+      },
+      {
+        "price_minor": 20900,
+        "stock": 14,
+        "options": {
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm050",
+    "name": "Cotton Bath Towel",
+    "description": "A plain cotton bath towel for daily household use.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Cream",
+          "Blue",
+          "Gray"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 24900,
+        "stock": 43,
+        "options": {
+          "Color": "Cream"
+        }
+      },
+      {
+        "price_minor": 25900,
+        "stock": 6,
+        "options": {
+          "Color": "Blue"
+        }
+      },
+      {
+        "price_minor": 26900,
+        "stock": 17,
+        "options": {
+          "Color": "Gray"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm051",
+    "name": "Pet Collar",
+    "description": "An adjustable collar with a quick-release buckle.",
+    "group": "pet items",
+    "option_groups": [
+      {
+        "name": "Size",
+        "values": [
+          "Small",
+          "Medium",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 12900,
+        "stock": 46,
+        "options": {
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 14400,
+        "stock": 9,
+        "options": {
+          "Size": "Medium"
+        }
+      },
+      {
+        "price_minor": 15900,
+        "stock": 20,
+        "options": {
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm052",
+    "name": "Storage Container",
+    "description": "A stackable household storage container with a matching lid.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Capacity",
+        "values": [
+          "500 ml",
+          "1 litre",
+          "2 litres"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 49,
+        "options": {
+          "Capacity": "500 ml"
+        }
+      },
+      {
+        "price_minor": 10400,
+        "stock": 12,
+        "options": {
+          "Capacity": "1 litre"
+        }
+      },
+      {
+        "price_minor": 10900,
+        "stock": 23,
+        "options": {
+          "Capacity": "2 litres"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm053",
+    "name": "Sketchbook",
+    "description": "A bound sketchbook with blank pages for drawing practice.",
+    "group": "stationery",
+    "option_groups": [
+      {
+        "name": "Size",
+        "values": [
+          "A6",
+          "A5",
+          "A4"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 11900,
+        "stock": 4,
+        "options": {
+          "Size": "A6"
+        }
+      },
+      {
+        "price_minor": 12900,
+        "stock": 15,
+        "options": {
+          "Size": "A5"
+        }
+      },
+      {
+        "price_minor": 13900,
+        "stock": 26,
+        "options": {
+          "Size": "A4"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm054",
+    "name": "Laptop Riser",
+    "description": "A folding laptop riser for a simple desktop setup.",
+    "group": "electronics accessories",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Silver",
+          "Black",
+          "Gray"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 34900,
+        "stock": 7,
+        "options": {
+          "Color": "Silver"
+        }
+      },
+      {
+        "price_minor": 36400,
+        "stock": 18,
+        "options": {
+          "Color": "Black"
+        }
+      },
+      {
+        "price_minor": 37900,
+        "stock": 29,
+        "options": {
+          "Color": "Gray"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm055",
+    "name": "Canvas Zip Pouch",
+    "description": "A lined canvas pouch for stationery and small accessories.",
+    "group": "accessories",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Natural",
+          "Green"
+        ]
+      },
+      {
+        "name": "Size",
+        "values": [
+          "Small",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 9900,
+        "stock": 10,
+        "options": {
+          "Color": "Natural",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 10400,
+        "stock": 21,
+        "options": {
+          "Color": "Natural",
+          "Size": "Large"
+        }
+      },
+      {
+        "price_minor": 10900,
+        "stock": 32,
+        "options": {
+          "Color": "Green",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 11400,
+        "stock": 43,
+        "options": {
+          "Color": "Green",
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm056",
+    "name": "Basic Cotton Shorts",
+    "description": "Lightweight cotton shorts with an elastic waistband.",
+    "group": "apparel",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Black",
+          "Gray"
+        ]
+      },
+      {
+        "name": "Size",
+        "values": [
+          "Medium",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 24900,
+        "stock": 13,
+        "options": {
+          "Color": "Black",
+          "Size": "Medium"
+        }
+      },
+      {
+        "price_minor": 25900,
+        "stock": 24,
+        "options": {
+          "Color": "Black",
+          "Size": "Large"
+        }
+      },
+      {
+        "price_minor": 26900,
+        "stock": 35,
+        "options": {
+          "Color": "Gray",
+          "Size": "Medium"
+        }
+      },
+      {
+        "price_minor": 27900,
+        "stock": 46,
+        "options": {
+          "Color": "Gray",
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm057",
+    "name": "Reusable Food Wrap",
+    "description": "A flexible reusable cover for bowls and packed snacks.",
+    "group": "household",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Green",
+          "Blue"
+        ]
+      },
+      {
+        "name": "Size",
+        "values": [
+          "Small",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 6900,
+        "stock": 16,
+        "options": {
+          "Color": "Green",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 8400,
+        "stock": 27,
+        "options": {
+          "Color": "Green",
+          "Size": "Large"
+        }
+      },
+      {
+        "price_minor": 9900,
+        "stock": 38,
+        "options": {
+          "Color": "Blue",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 11400,
+        "stock": 49,
+        "options": {
+          "Color": "Blue",
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm058",
+    "name": "Pet Bandana",
+    "description": "A soft tie-on bandana for supervised pet wear.",
+    "group": "pet items",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Red",
+          "Blue"
+        ]
+      },
+      {
+        "name": "Size",
+        "values": [
+          "Small",
+          "Large"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 7900,
+        "stock": 19,
+        "options": {
+          "Color": "Red",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 8400,
+        "stock": 30,
+        "options": {
+          "Color": "Red",
+          "Size": "Large"
+        }
+      },
+      {
+        "price_minor": 8900,
+        "stock": 41,
+        "options": {
+          "Color": "Blue",
+          "Size": "Small"
+        }
+      },
+      {
+        "price_minor": 9400,
+        "stock": 4,
+        "options": {
+          "Color": "Blue",
+          "Size": "Large"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm059",
+    "name": "Ruled Journal",
+    "description": "A ruled hard-cover journal for personal notes.",
+    "group": "stationery",
+    "option_groups": [
+      {
+        "name": "Color",
+        "values": [
+          "Green",
+          "Gray"
+        ]
+      },
+      {
+        "name": "Size",
+        "values": [
+          "A6",
+          "A5"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 15900,
+        "stock": 22,
+        "options": {
+          "Color": "Green",
+          "Size": "A6"
+        }
+      },
+      {
+        "price_minor": 16900,
+        "stock": 33,
+        "options": {
+          "Color": "Green",
+          "Size": "A5"
+        }
+      },
+      {
+        "price_minor": 17900,
+        "stock": 44,
+        "options": {
+          "Color": "Gray",
+          "Size": "A6"
+        }
+      },
+      {
+        "price_minor": 18900,
+        "stock": 7,
+        "options": {
+          "Color": "Gray",
+          "Size": "A5"
+        }
+      }
+    ]
+  },
+  {
+    "key": "lm060",
+    "name": "Braided Charging Cable",
+    "description": "A braided cable for compatible devices with the selected connector.",
+    "group": "electronics accessories",
+    "option_groups": [
+      {
+        "name": "Connector",
+        "values": [
+          "USB-C",
+          "Micro USB"
+        ]
+      },
+      {
+        "name": "Length",
+        "values": [
+          "1 metre",
+          "2 metres"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "price_minor": 17900,
+        "stock": 25,
+        "options": {
+          "Connector": "USB-C",
+          "Length": "1 metre"
+        }
+      },
+      {
+        "price_minor": 19400,
+        "stock": 36,
+        "options": {
+          "Connector": "USB-C",
+          "Length": "2 metres"
+        }
+      },
+      {
+        "price_minor": 20900,
+        "stock": 47,
+        "options": {
+          "Connector": "Micro USB",
+          "Length": "1 metre"
+        }
+      },
+      {
+        "price_minor": 22400,
+        "stock": 10,
+        "options": {
+          "Connector": "Micro USB",
+          "Length": "2 metres"
+        }
+      }
+    ]
+  }
+]

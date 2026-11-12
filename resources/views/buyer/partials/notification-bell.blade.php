@@ -6,7 +6,7 @@
 @endphp
 <details class="bn-bell" data-buyer-notifications data-preview-url="{{ route('notifications.preview') }}" data-csrf="{{ csrf_token() }}">
     <summary class="suki-notification-bell" aria-label="Notifications, {{ $buyerNotificationCount }} unread" title="Notifications" aria-controls="buyerNotificationPreview">
-        <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+        <x-icons.notification-bell />
         <span class="suki-notification-badge" data-buyer-notification-count aria-hidden="true" @if(!$buyerNotificationCount) hidden @endif>{{ $buyerNotificationCount > 99 ? '99+' : $buyerNotificationCount }}</span>
     </summary>
     <section id="buyerNotificationPreview" class="bn-panel" aria-label="Recent notifications">
