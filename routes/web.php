@@ -5030,6 +5030,8 @@ $registerAdminPortalRoutes = function (): void {
         Route::post('/vouchers', [VoucherController::class, 'store'])->name('vouchers.store');
         Route::patch('/vouchers/{voucher}', [VoucherController::class, 'update'])->name('vouchers.update');
         Route::delete('/vouchers/{voucher}', [VoucherController::class, 'archive'])->name('vouchers.archive');
+        Route::get('/products/demo/lahat-meron', [\App\Http\Controllers\Admin\DemoProductApprovalController::class, 'preview'])->name('products.demo.preview');
+        Route::post('/products/demo/lahat-meron/approve', [\App\Http\Controllers\Admin\DemoProductApprovalController::class, 'approve'])->name('products.demo.approve');
         Route::get('/products/{product}', [ProductModerationController::class, 'show'])->name('products.show');
         Route::post('/products/{product}/approve', [ProductModerationController::class, 'approve'])->name('products.approve');
         Route::post('/products/{product}/reject', [ProductModerationController::class, 'reject'])->name('products.reject');

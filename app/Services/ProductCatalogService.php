@@ -562,6 +562,8 @@ class ProductCatalogService
             return null;
         }
 
+        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
+
         return Str::startsWith($path, ['http://', 'https://'])
             ? $path
             : Storage::disk('public')->url($path);
@@ -572,6 +574,8 @@ class ProductCatalogService
         if (! $path) {
             return null;
         }
+
+        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
 
         if (Str::startsWith($path, ['http://', 'https://'])) {
             return $path;

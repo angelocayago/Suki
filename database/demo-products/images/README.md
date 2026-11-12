@@ -34,9 +34,13 @@ WebP decoding, matching filenames and checksums, and files no larger than 4 MiB.
 This intentionally detects accidental source edits. Regenerate the manifest through
 asset preparation after an approved image replacement; do not bypass checksums.
 
-New product imports copy the matching file onto the existing local `public` disk
-at `products/<product-id>/<key>.webp`, then create one position-1 `product_images`
-record. Normal Buyer/Seller/Admin image paths remain compatible. Existing products
-are skipped, so this phase neither backfills nor replaces prior product media.
+Phase D2 publishes checksum-matched copies under public/images/demo-products/lahat-meron/.
+New image records use images/demo-products/lahat-meron/<key>.webp at position 1.
+These committed public files travel with the repository; groupmates do not run the
+importer, copy media manually or require storage:link for this fixed demo collection.
+The reserved-path resolver serves them relative to the current application base URL.
+Ordinary uploaded media retains its existing storage behavior. Existing products are
+skipped; no previous product media is replaced or backfilled.
 
-No real product import or shared-database access is authorized by asset preparation.
+No real product import, approval or shared-database access is authorized by asset
+preparation. See ../README.md for the separate execution and approval safeguards.

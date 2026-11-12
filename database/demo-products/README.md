@@ -1,79 +1,241 @@
-# Lahat Meron demo importer
+# Lahat Meron demo importer: Phase D2
 
-Implementation baseline: `b1ca626adb3c2e019bb83f0175bdadaad826b47c`.
-This command is built/tested for disposable SQLite. No real store import has been authorized or performed.
+Implementation baseline: `77236918e6d1158dec10a130c8cf4360fe56f9c1`.
+D2 implements and tests the guarded paths only. No shared-database import,
+approval, media upload or live query was performed during D2.
 
-## Bound target and scope
+## Fixed target and dataset
 
-- `--seller-id=3` means `sellers.id`, not the owner User ID.
-- `--expect-store="Lahat Meron"` is required and must match exactly.
-- Resolve the owner using `sellers.user_id`. The preview prints its User ID; execution requires matching `--expect-owner-id`.
-- Require an active, non-suspended Seller owner with verified contacts and an approved Seller store.
-- Require the active assigned root `Others` and exactly one active direct child named `Miscellaneous`, also accepted by `SellerCategoryService`.
-- Resolve category IDs from that relationship. Never create/reassign categories, users or stores.
-- This is a CLI maintenance command for an authorized operator. Public identifiers alone do not confer authorization.
+- Explicit `--seller-id=3` means sellers.id, not users.id.
+- Exact store name: Lahat Meron. Resolve the owner through sellers.user_id.
+- Require an active, unsuspended Seller owner with verified contacts and an approved store.
+- Resolve the active assigned Others root and exactly one active direct Miscellaneous child;
+  enforce SellerCategoryService. No users, stores or categories are created or reassigned.
+- The existing JSON dataset is unchanged: 36 simple products, 12 with two variants,
+  six with three, six with four: 60 products / 102 variants.
+- JSON prices are authoritative integer minor units. ProductOptions and the existing
+  ProductCatalogService normalize options and create products; stored prices are verified.
+- Stable references: suki-demo:lm001 through suki-demo:lm060. Deterministic global SKUs:
+  DEMO-LM-LM001-1, etc. No unrelated products are overwritten or deleted.
 
-## Database guard
+The prior D1 read-only findings were point-in-time observations, not permission
+or a guarantee that the target remains eligible. Every future run checks again.
 
-An explicit connection, matching application environment, and exact database confirmation are mandatory before any importer query. Only the actual `local` and `testing` environments and the SQLite driver are supported. Connection URLs, split read/write configurations, other drivers and production are refused. The command temporarily selects the confirmed connection for Eloquent/catalog/notification work and restores the previous default when finished. It never edits `.env`.
+## SQLite compatibility
 
-`:memory:` is allowed only in `testing`, with explicit `--confirm-database=":memory:"`. File-based SQLite requires an existing file and confirmation matching its canonical real path; the command does not create a database or migrate it. The approved existing Seller record must already be present in that database.
+Explicit connection, matching environment and exact database confirmation remain
+mandatory. SQLite is permitted only in local/testing; URLs and split read/write
+connections are refused. File databases must already exist and match their canonical
+real path. :memory: is allowed only in testing with explicit confirmation. Execution
+requires the reviewed owner ID. The command never migrates or creates a database.
+It restores the previous default connection on exit and never edits .env.
 
-**PostgreSQL/shared Supabase is deliberately unsupported.** A later approval to populate a store on PostgreSQL would require a separately reviewed database-safety extension. Do not change the environment label to bypass a refusal. Real Seller 3 ownership, category and account state have not been queried in this phase.
+## PostgreSQL guards
 
-## Dataset
+The separate PostgreSQL path requires:
 
-`lahat-meron-v1.json` contains 60 original demo titles and descriptions across content groupings such as household items, groceries, stationery, apparel and pet items. These groups are descriptive metadata in this file only; every imported product uses the resolved Miscellaneous category.
+1. Explicit connection, exact application environment and database name confirmation.
+2. Exact pinned project `yzvcdrjriziejmecewci` and explicit reviewed owner ID.
+3. A direct project endpoint with postgres login, or Supabase pooler with the exact
+   postgres.<project-reference> tenant login. Alternate schemas, split routing and
+   connect-via overrides are refused.
+4. `sslmode=verify-full`, a trusted certificate chain and hostname verification.
+   Plain require/verify-ca are refused. Existing credentials/configuration are never
+   changed by this feature. A trusted CA setup is a separate operator prerequisite.
+5. Effective resolved connection configuration must match the reviewed routing,
+   protecting against stale cached connection objects. The connected server must
+   report the confirmed database, postgres session role and expected transaction mode.
+   Project routing is established through the authenticated, hostname-verified endpoint
+   and project-specific direct hostname or pooler tenant; database name alone is insufficient.
+6. All three unconditional unique indexes: products.slug,
+   products(seller_id, legacy_reference), product_variants.sku.
+7. A server-enforced REPEATABLE READ, READ ONLY preflight, bounded timeouts and rollback.
+8. Exact target eligibility, category, asset integrity, global SKU and base-slug collision
+   checks, and scoped demo-reference provenance checks.
+9. On execution, the separate typed phrase and reviewed SHA-256 plan fingerprint.
+   The fingerprint binds routing, target owner/category, dataset, manifest and actions.
+10. A fresh write transaction with owner/store/category locks, repeated server/target/
+    asset/collision checks and fingerprint comparison before creating products.
 
-- 36 simple products with one Default variant and no choices.
-- 12 products with two choices, six with three choices, six with four combinations.
-- Total: 60 products and 102 variant records.
-- Prices are JSON integer `price_minor` values; stocks are JSON integers.
-- The adapter formats exact major-unit decimal strings for the existing catalog service and verifies the resulting stored minor-unit prices within the transaction.
-- `ProductOptions::creation()` validates and normalizes the existing option combinations. No alternate variant schema is introduced.
+Configuration parsing is not itself a live verification. Connection/certificate,
+server and schema checks must succeed on the actual future run. D2 does not claim
+PostgreSQL runtime or concurrent-execution verification.
 
-## Preview and separately approved execution
+## Future commands: NOT EXECUTED
 
-The commands below are templates for review, **not instructions to run against a real/shared database now**. Replace placeholders only with a separately approved existing SQLite target. Do not invent an owner User ID.
+These are review templates, not current authorization to contact or write to Supabase.
+Replace placeholders only after separately approving the target, owner and environment.
+The configured connection must already meet the TLS requirements above; do not relabel
+an environment or bypass guards to force a run.
 
-Default read-only preview:
+Default PostgreSQL dry-run (server-enforced read-only):
 
 ```powershell
-php artisan demo:products:import --seller-id=3 --expect-store="Lahat Meron" --connection="<approved-sqlite-connection>" --expect-environment=local --confirm-database="<exact-existing-SQLite-real-path>"
+php artisan demo:products:import --seller-id=3 --expect-store="Lahat Meron" --connection=pgsql --expect-environment="<reviewed-APP_ENV>" --confirm-database=postgres --expect-project=yzvcdrjriziejmecewci --expect-owner-id="<reviewed-owner-user-id>"
 ```
 
-The preview displays the target, owner ID, category ID, product count/distribution and each product's action, name, variant count, price range in minor units and total stock. Review option-level details in the checked-in dataset. Dry-run does not call product creation and then roll back; it does not create products, variants, media, moderation events or notification intents.
-
-Only after separate approval of that preview and database:
+Review the complete 60-row table, target/category/owner, insert/skip counts and plan
+fingerprint. Review variant-level prices/options/stocks in the unchanged dataset.
+Obtain separate explicit approval for the reviewed write plan. Then, NOT EXECUTED:
 
 ```powershell
-php artisan demo:products:import --seller-id=3 --expect-store="Lahat Meron" --connection="<approved-sqlite-connection>" --expect-environment=local --confirm-database="<exact-existing-SQLite-real-path>" --expect-owner-id="<reviewed-owner-user-id>" --execute
+php artisan demo:products:import --seller-id=3 --expect-store="Lahat Meron" --connection=pgsql --expect-environment="<reviewed-APP_ENV>" --confirm-database=postgres --expect-project=yzvcdrjriziejmecewci --expect-owner-id="<reviewed-owner-user-id>" --execute --confirm-execution="IMPORT 60 LAHAT MERON DEMO PRODUCTS" --confirm-plan="<reviewed-plan-sha256>"
 ```
 
-The in-memory test runner owns its fixtures; a new shell process cannot access an already-disposed in-memory database. Do not use the real application's unconfirmed connection for testing.
+Execution includes a fresh read-only preview, compares its fingerprint and then repeats
+preflight under write locks. A changed plan aborts and requires a new review.
+Owner identity is obtained through sellers.user_id, never guessed from Seller ID 3.
+The CLI is for an authorized operator; public IDs and confirmation text are not credentials.
 
-## Existing product behavior
+## Atomicity, idempotency and moderation
 
-Creation uses `ProductCatalogService::create()`. All new products remain `PENDING` moderation, with active product/variant flags and the existing moderation event and Admin notification-outbox behavior. Nothing auto-approves or publishes the products. Admin notification intents may fan out once per newly inserted product per eligible Admin; reruns do not repeat submission events/intents for skipped items.
+All new rows, variants, image associations, references, moderation events and normal
+notification intents share the existing catalog service and outer transaction.
+New products remain PENDING. Import never approves products. Mid-batch database failure
+rolls back; there are no runtime file writes to clean up. Existing unique constraints
+remain authoritative against conflicting inserts. Bounded lock waits can abort safely;
+there is no automatic retry or promise of concurrent throughput.
 
-Phase C adds one original local WebP primary image per newly created demo product. The image manifest and all 60 files are checked before writes. Files are stored on the existing local public disk at `products/<product-id>/<demo-key>.webp`; the existing `product_images` relation records position 1. No variant image rows or remote image URLs are introduced. See `images/README.md` for provenance. These imported products do not depend on the remote placeholder. The normal public-storage URL/symlink setup remains a deployment prerequisite; this task does not change it.
+Existing references are skipped only when the description marker and expected SKUs
+establish provenance/ownership. Seller edits and archived demos are never overwritten
+or restored. Foreign SKU, reference-provenance and new-product slug collisions refuse
+execution. Existing media is never replaced or backfilled. A rerun can legitimately
+produce a changed insert/skip plan requiring a newly reviewed fingerprint.
 
-## Repeat runs and failure behavior
+Progress marked Prepared is uncommitted until COMMITTED. Errors do not print credentials,
+connection strings or raw exception text. Normal notification delivery remains governed
+by the application's existing after-commit behavior.
 
-Stable `suki-demo:lmNNN` references use the existing `(seller_id, legacy_reference)` unique index. Globally unique, deterministic `DEMO-LM-LMNNN-N` SKUs identify variants. A matching reference is skipped only when its description marker and expected SKU ownership establish demo provenance. Seller-edited names, stock and prices are never overwritten. Soft-deleted demo rows are reported and skipped without restoration. Removed provenance or missing/conflicting SKU records produce a refusal, not an automatic repair.
+## Portable committed images
 
-Non-demo reference/SKU collisions abort before inserts. No update/delete mode is provided. Existing image records and files are not replaced on repeat runs, including previously imported image-less products. New product creation, primary-image association and reference assignment share one outer transaction, including moderation records/outbox intents. The importer tracks only newly written media for failure cleanup and refuses to overwrite a preexisting destination. A committed image is retained if an after-commit callback fails. Preconditions are checked again inside that transaction. SQLite concurrent writer contention can fail safely and require a new preview; no automatic retry or claim of multi-process throughput is made. Existing unique constraints remain authoritative.
+The unchanged authoritative manifest/source images remain in images/. Published copies
+are in `public/images/demo-products/lahat-meron/`: **60 WebPs, 1,227,734 bytes total**.
+Both sets must match SHA-256 checksums, dimensions and WebP decoding. GD/WebP validation
+is required by preflight; deployment web servers only need to serve the static files.
 
-Progress marked "Prepared" is not committed until the final COMMITTED message. Unexpected exceptions produce generic operator feedback without raw SQL, credentials or internal exception text. Database rows roll back on a mid-batch failure. Existing notification delivery follows the application's normal after-commit behavior.
+New image rows store `images/demo-products/lahat-meron/lmNNN.webp`, position 1.
+The scoped resolver returns origin-relative URLs (including the current installation's
+base path). Cart/Wishlist/new order snapshots therefore need no developer hostname.
+Historical absolute URLs for this reserved namespace are normalized on presentation.
+Normal unrelated media paths retain their existing behavior.
 
-## Isolated verification
+Catalog/details, Seller galleries/listings, Admin image markup, Wishlist, Cart summary,
+purchases, reviews and reports use the same reserved-path resolver. No global URL
+rewrite or new media storage architecture is introduced. Legacy Phase C storage paths
+are not silently rewritten or backfilled.
 
-Run the new test file using the existing isolated bootstrap, which forces SQLite memory, temporary storage and fake external integrations before application startup:
+After one separately authorized import/approval, groupmates only need the same code
+and committed assets with Laravel public/ served normally. They do not run the importer,
+copy files manually, or need storage:link for these demo images. Ordinary Seller uploads
+still require their existing disk/symlink or persistent storage setup. These static
+assets are public demo media; they are not suitable for private or frequently edited uploads.
+
+## Separate Admin approval: NOT EXECUTED LIVE
+
+An authenticated eligible Admin opens Product moderation > Review Lahat Meron demo batch
+(GET /admin/products/demo/lahat-meron; mirrored under the existing Superadmin portal).
+PostgreSQL preview is read-only. The server resolves exact Seller 3 and all 60 references;
+client-supplied product/Seller IDs are prohibited. The preview lists names, references,
+variant counts and statuses; it provides a fingerprint and separate confirmation field.
+
+After separate authorization, Admin types `APPROVE LAHAT MERON DEMO` and submits.
+The transaction refreshes/locks the authorized actor, owner, store, categories and batch,
+revalidates target/provenance, exact products/variants/images and fingerprint, then calls
+ProductModerationService::approve() for each eligible PENDING entry. APPROVED entries
+are skipped. Rejected/hidden/archived/missing/conflicting entries block the entire batch.
+All approval history/outbox side effects roll back on failure. Replay skips prior approvals
+without duplicating events/notifications. Approved stock may decrease through normal sales;
+pending stock must still match the dataset. No direct status bypass or auto-approval setting.
+
+## Isolated verification and limitations
+
+Use only the existing isolated SQLite/bootstrap, synthetic accounts, fake integrations
+and disposable storage:
 
 ```powershell
-php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --bootstrap tests/Support/chat-photo-bootstrap.php --do-not-cache-result tests/Feature/ImportDemoProductsTest.php
+php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --bootstrap tests/Support/chat-photo-bootstrap.php --do-not-cache-result tests/Feature/ImportDemoProductsTest.php tests/Feature/DemoProductPhaseD2Test.php
 ```
 
-Phase C additionally requires GD with WebP decoding and the existing local public storage disk. Missing/corrupt/changed assets fail preflight; a failed/partial image write rolls back the batch and removes new files without deleting prior media. Tests use a temporary fake public disk. The synthetic owner User ID is 41 while Seller ID is 3, and category IDs are 17/29, proving neither User ownership nor category identifiers are guessed. Tests cover exact counts/prices/options/stocks, pending visibility, catalog and Seller presentation, read-only previews, repeat runs, edited/archived demos, non-demo and foreign records, collisions, mid-batch rollback, notification intents, target/owner/category guards and remote-driver refusal before queries.
+Tests cover target/category/collisions, exact counts/prices/options/stocks, rollback,
+idempotency, published integrity, portable media/snapshots, authorization, confirmation,
+moderation reuse and replay. PostgreSQL configuration/server guards are mocked; no
+independently disposable PostgreSQL server was available, so actual PostgreSQL SQL,
+TLS, locks and concurrent execution remain unverified. No browser visual verification.
 
-No migrations, packages, approval changes or existing production-file edits are required by this importer.
+The complete Admin product-detail render is blocked by the committed PHT Blade syntax
+error at line 110. The actual changed image fragment is compiled/rendered separately;
+the full-page D2 test is explicitly skipped while that baseline error exists.
+The new batch page and existing index compile/render successfully.
+
+Running the existing PhaseThreeProductModerationTest and SellerProductFormsTest produced
+36 tests / 540 assertions / six failures. An exported committed HEAD with isolated path
+plumbing produced the same six failures: legacy category/transition/selection contracts
+and the existing Admin Blade error. No unrelated baseline repairs or weakened assertions.
+
+The four existing importer test contracts changed only for static media: importer no
+longer writes runtime public-disk files, old destination files remain untouched, remote
+runtime disks are irrelevant, and media metadata uses portable paths. Database rollback,
+ownership, counts, prices and no-overwrite assertions remain in place.
+
+
+### Existing test-contract updates
+
+| Test (ImportDemoProductsTest) | Previous expectation | D2 expectation | Reason |
+| --- | --- | --- | --- |
+| test_import_creates_exact_distribution_and_reuses_catalog_inventory_and_pending_moderation | 60 runtime disk files and storage URLs | 60 matching committed public files, portable image records/URLs, zero runtime writes | Approved static publication strategy |
+| test_partial_storage_failure_rolls_back_and_removes_only_new_media ? test_static_import_never_calls_runtime_media_storage | Third media write fails and rolls back | Runtime write/delete methods are never called; records succeed and prior files survive | Runtime file-copy operation removed |
+| test_preexisting_destination_is_never_overwritten_or_cleaned ? test_legacy_runtime_destination_is_untouched_by_static_import | Existing storage destination blocks import | Import succeeds and prior storage file stays byte-for-byte intact | Static images cannot overwrite that destination |
+| test_nonlocal_public_disk_is_refused_before_storage_writes ? test_static_images_do_not_require_the_runtime_public_disk | Nonlocal runtime disk blocks import | Import succeeds without runtime storage access | Demo assets are public repository files |
+
+Final inventory coverage additionally ran SellerInventoryFunctionsTest and
+PhaseThreeInventoryUnificationTest: 17 tests / 178 assertions / one failure.
+The same failure and counts occur on exported committed HEAD:
+test_checkout_uses_stock_after_serialized_seller_adjustments omits mandatory
+cart_selection. Together with the six moderation/form baseline failures above,
+seven pre-existing failures were observed and left unchanged.
+
+
+### D2 verification results
+
+- Importer + D2 tests: 34 tests / 1,559 assertions / one explicit baseline skip.
+- After adding public-store image coverage: D2 + PublicStorefrontTest: 26 tests /
+  264 assertions / the same one baseline skip. These runs overlap; do not sum them.
+- Catalog, Seller listing, product details/Wishlist, purchases and inventory: 57 tests /
+  921 assertions / one confirmed unchanged baseline inventory failure (56 passed).
+- Existing moderation/forms: 36 tests / 540 assertions / six confirmed baseline failures.
+- Relevant JavaScript: 49 passed. Inline approval script syntax: passed.
+- Vite production build: passed (66 modules). PHP syntax and route checks: passed.
+- New approval, Admin index and public-store Blade compile/generated PHP parse: passed.
+  Admin detail full compilation retains its baseline PHT parse failure.
+- All 60 published image checksums match; unchanged source dataset/manifest/WebPs.
+- git diff --check: passed. No staged files; no protected files changed.
+- No live PostgreSQL execution, TLS handshake, concurrency or browser visual test.
+
+### Changed-file inventory
+
+Modified:
+
+- app/Console/Commands/ImportDemoProducts.php
+- app/Http/Controllers/Buyer/WishlistController.php (reserved image presentation only)
+- app/Services/CheckoutService.php (reserved image presentation only)
+- app/Services/ProductCatalogService.php
+- app/Support/BuyerPurchases.php
+- app/Support/DemoProductImages.php
+- app/Support/SellerReports.php
+- app/Support/SellerReviews.php
+- database/demo-products/README.md
+- database/demo-products/images/README.md
+- resources/views/admin/products/index.blade.php
+- resources/views/admin/products/show.blade.php
+- resources/views/buyer/store.blade.php
+- routes/web.php
+- tests/Feature/ImportDemoProductsTest.php
+
+Created:
+
+- app/Http/Controllers/Admin/DemoProductApprovalController.php
+- app/Support/DemoImportDatabase.php
+- app/Support/DemoProductBatch.php
+- resources/views/admin/products/demo-approval.blade.php
+- tests/Feature/DemoProductPhaseD2Test.php
+- public/images/demo-products/lahat-meron/lm001.webp through lm060.webp (60 assets)

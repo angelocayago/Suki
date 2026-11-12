@@ -9,6 +9,7 @@
             <h1 class="text-2xl font-bold text-[#173F35]">Product Moderation</h1>
             <p class="mt-1 text-sm text-gray-500">Review database-backed seller products before marketplace publication.</p>
         </div>
+        <a href="{{ route('admin.products.demo.preview') }}" class="rounded-xl border border-[#DCE5E0] px-4 py-2 text-sm font-semibold text-[#173F35]">Review Lahat Meron demo batch</a>
         <form method="GET" class="flex flex-wrap gap-2">
             <input name="search" value="{{ request('search') }}" placeholder="Product or seller"
                    class="rounded-xl border border-[#DCE5E0] px-3 py-2 text-sm">

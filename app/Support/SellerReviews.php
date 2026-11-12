@@ -117,6 +117,7 @@ class SellerReviews
 
     private static function image(?string $path): ?string
     {
+        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
         if (!$path) return null;
         if (str_starts_with($path,'https://') || str_starts_with($path,'http://')) return $path;
         if (str_starts_with($path,'/storage/')) return url($path);

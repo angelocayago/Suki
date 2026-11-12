@@ -12,7 +12,7 @@
 @php
     $storeUrl = route('buyer.stores.show', $seller);
     $hasFilters = trim($filters['q']) !== '' || $filters['category'] !== '' || $filters['sort'] !== 'newest';
-    $imageUrl = fn ($path) => $path ? (Str::startsWith($path, ['https://', 'http://']) ? $path : Storage::disk('public')->url($path)) : null;
+    $imageUrl = fn ($path) => \App\Support\DemoProductImages::canonical($path) ? \App\Support\DemoProductImages::url($path) : ($path ? (Str::startsWith($path, ['https://', 'http://']) ? $path : Storage::disk('public')->url($path)) : null);
 @endphp
 <div class="storefront" data-storefront>
     @if($shopVouchers->isNotEmpty())<section class="sf-notice" aria-label="Public shop vouchers"><h2>Shop Vouchers</h2>@foreach($shopVouchers as $shopVoucher)<p><strong>{{ $shopVoucher->code }}</strong> ? {{ $shopVoucher->discount_type==='PERCENTAGE' ? \App\Support\SellerVouchers::decimal($shopVoucher->discount_bps).'%' : 'PHP '.number_format($shopVoucher->discount_minor/100,2) }} off ? Min PHP {{ number_format($shopVoucher->minimum_spend_minor/100,2) }}</p>@endforeach<a class="underline" href="{{ route('buyer.vouchers.index') }}">View and claim vouchers</a></section>@endif

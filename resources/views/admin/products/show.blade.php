@@ -60,7 +60,7 @@
                 <h2 class="text-lg font-bold text-[#173F35]">Images</h2>
                 <div class="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                     @forelse($product->images as $image)
-                        <img src="{{ asset('storage/'.$image->path) }}" alt="{{ $product->name }}" class="aspect-square w-full rounded-xl border object-cover">
+                        <img src="{{ \App\Support\DemoProductImages::canonical($image->path) ? \App\Support\DemoProductImages::url($image->path) : asset('storage/'.$image->path) }}" alt="{{ $product->name }}" class="aspect-square w-full rounded-xl border object-cover">
                     @empty
                         <p class="col-span-full text-sm text-gray-500">No product images uploaded.</p>
                     @endforelse
