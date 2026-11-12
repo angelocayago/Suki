@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  */
 class SellerReports
 {
-    private const STATUS_SQL = "CASE WHEN status = 'cancelled' THEN 'cancelled' WHEN workflow_status = 'COMPLETED' THEN 'completed' WHEN workflow_status = 'RTS_COMPLETED' THEN 'returned' WHEN workflow_status = 'DELIVERY_FAILED' THEN 'failed' WHEN workflow_status IN ('RTS_INITIATED','RTS_RETURNING') THEN 'returning' WHEN workflow_status IN ('PLACED','CONFIRMED','PREPARING','READY_FOR_PICKUP','PICKED_UP','AT_SORTING_CENTER','SORTED','ASSIGNED_TO_RIDER','OUT_FOR_DELIVERY','DELIVERED') THEN 'pending' ELSE 'unavailable' END";
+    private const STATUS_SQL = "CASE WHEN status = 'cancelled' THEN 'cancelled' WHEN workflow_status = 'COMPLETED' THEN 'completed' WHEN workflow_status = 'RTS_COMPLETED' THEN 'returned' WHEN workflow_status = 'DELIVERY_FAILED' THEN 'failed' WHEN workflow_status IN ('RTS_INITIATED','RTS_RETURNING') THEN 'returning' WHEN workflow_status IN ('PLACED','CONFIRMED','PREPARING','READY_FOR_PICKUP','PICKED_UP','AT_SORTING_CENTER','SORTED','IN_TRANSIT_TO_HUB','AT_DESTINATION_HUB','ASSIGNED_TO_RIDER','OUT_FOR_DELIVERY','DELIVERED') THEN 'pending' ELSE 'unavailable' END";
     private const DATE_SQL = "CASE WHEN workflow_status = 'COMPLETED' AND status != 'cancelled' THEN completed_at ELSE updated_at END";
     private const RAW_SQL = 'order_items.unit_price_minor * order_items.quantity';
 

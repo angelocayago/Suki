@@ -16,6 +16,7 @@ class LogisticsProvider extends Model
         'name',
         'slug',
         'status',
+        'main_sorting_hub_id',
         'rejection_reason',
         'contact_phone',
         'address',
@@ -50,6 +51,16 @@ class LogisticsProvider extends Model
     public function hubs(): HasMany
     {
         return $this->hasMany(LogisticsHub::class);
+    }
+
+    public function mainSortingHub(): BelongsTo
+    {
+        return $this->belongsTo(LogisticsHub::class, 'main_sorting_hub_id');
+    }
+
+    public function sortingZones(): HasMany
+    {
+        return $this->hasMany(LogisticsSortingZone::class);
     }
 
     public function riderServiceAreas(): HasMany

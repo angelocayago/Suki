@@ -53,7 +53,7 @@ class BuyerNotifications
         }
         if ($order) {
             $status = is_string($context['status'] ?? null) ? strtoupper($context['status']) : '';
-            $tracking = in_array($status, ['PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY', 'DELIVERED'], true);
+            $tracking = in_array($status, ['PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'IN_TRANSIT_TO_HUB', 'AT_DESTINATION_HUB', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY', 'DELIVERED'], true);
             return [$parcel && $tracking
                 ? route('buyer.seller-order.track', [$order->id, $parcel->id])
                 : route('buyer.order-details', $order->order_number), $order->order_number];

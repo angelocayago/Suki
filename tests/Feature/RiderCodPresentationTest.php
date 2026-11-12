@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Models\{LogisticsProvider, Order, Rider, Seller, SellerOrder, Shipment, User, Voucher, VoucherRedemption};
+use App\Models\{LogisticsProvider, Order, Rider, Seller, SellerOrder, Shipment, ShipmentAssignment, User, Voucher, VoucherRedemption};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{DB, Mail, Notification, Storage};
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -58,6 +58,7 @@ class RiderCodPresentationTest extends IsolatedStorageTestCase
         [$rider, , , $first] = $this->fixture([10000]);
         $first->update(['workflow_status' => OrderStatus::OutForDelivery]);
         $first->shipment->update(['workflow_status' => OrderStatus::OutForDelivery, 'rider_id' => $rider->id]);
+        ShipmentAssignment::create(['shipment_id' => $first->shipment->id, 'logistics_provider_id' => $first->shipment->logistics_provider_id, 'assignment_type' => 'DELIVERY', 'status' => 'ACCEPTED', 'rider_id' => $rider->id, 'assigned_by' => $rider->logisticsProvider->user_id, 'responded_at' => now()]);
         $this->actingAs($rider->user)->get(route('rider.deliveries'))->assertOk()->assertSee('COD collected: ₱950.00')
             ->assertSee('Add Delivery Photo')->assertSee('Replace Photo')->assertSee('Remove Photo')
             ->assertSee('enctype="multipart/form-data"', false)->assertSee('name="proof_photo"', false)
@@ -81,6 +82,7 @@ class RiderCodPresentationTest extends IsolatedStorageTestCase
         [$rider, , , $first] = $this->fixture([10000]);
         $first->update(['workflow_status' => OrderStatus::OutForDelivery]);
         $first->shipment->update(['workflow_status' => OrderStatus::OutForDelivery, 'rider_id' => $rider->id]);
+        ShipmentAssignment::create(['shipment_id' => $first->shipment->id, 'logistics_provider_id' => $first->shipment->logistics_provider_id, 'assignment_type' => 'DELIVERY', 'status' => 'ACCEPTED', 'rider_id' => $rider->id, 'assigned_by' => $rider->logisticsProvider->user_id, 'responded_at' => now()]);
         // Use a real temporary upload: UploadedFile::fake() reports MIME from the
         // filename, which would hide the content mismatch this regression checks.
         $path = tempnam(storage_path(), 'invalid-proof-');

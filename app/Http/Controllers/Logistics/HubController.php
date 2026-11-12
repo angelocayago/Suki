@@ -17,9 +17,25 @@ class HubController extends Controller
     {
         $provider = $this->provider($request);
         return view('logistics.hubs.index', [
-            'hubs' => $provider->hubs()->withCount('riders')->orderByDesc('is_active')->orderBy('name')->get(),
+            'provider' => $provider->load('mainSortingHub'),
+            'hubs' => $provider->hubs()->withCount([
+                'riders', 'sortingZones',
+                'destinationShipments as incoming_shipments_count' => fn ($query) => $query->where('workflow_status', 'IN_TRANSIT_TO_HUB'),
+                'destinationShipments as ready_delivery_count' => fn ($query) => $query->where('workflow_status', 'AT_DESTINATION_HUB'),
+                'destinationShipments as out_for_delivery_count' => fn ($query) => $query->where('workflow_status', 'OUT_FOR_DELIVERY'),
+                'destinationShipments as exception_count' => fn ($query) => $query->whereNotNull('routing_exception_reason'),
+            ])->orderByDesc('is_active')->orderBy('name')->get(),
             'riders' => $provider->riders()->with(['user', 'logisticsHub'])->orderBy('id')->get(),
         ]);
+    }
+
+    public function setMainSortingHub(Request $request): RedirectResponse
+    {
+        $provider = $this->provider($request);
+        $data = $request->validate(['main_sorting_hub_id' => ['required', 'integer']]);
+        $hub = $provider->hubs()->whereKey($data['main_sorting_hub_id'])->where('is_active', true)->firstOrFail();
+        $provider->update(['main_sorting_hub_id' => $hub->id]);
+        return back()->with('success', 'Main sorting center saved.');
     }
 
     public function store(Request $request, PhilippineAddressService $addresses): RedirectResponse

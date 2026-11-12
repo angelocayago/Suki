@@ -23,6 +23,7 @@ class Rider extends Model
         'vehicle_document_path',
         'is_active',
         'availability',
+        'active_assignment_capacity',
         'approved_by',
         'approved_at',
     ];
@@ -35,6 +36,7 @@ class Rider extends Model
         return [
             'is_active' => 'boolean',
             'approved_at' => 'datetime',
+            'active_assignment_capacity' => 'integer',
         ];
     }
 
@@ -70,6 +72,11 @@ class Rider extends Model
     public function pickupShipments(): HasMany
     {
         return $this->hasMany(Shipment::class, 'pickup_rider_id');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(ShipmentAssignment::class);
     }
 
     public function complaints(): HasMany

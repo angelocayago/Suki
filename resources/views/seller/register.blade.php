@@ -197,7 +197,7 @@
                 =========================================== --}}
                 @if ($errors->any())
 
-                    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                    <div data-registration-error-summary role="alert" tabindex="-1" class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
 
                         <div class="flex gap-3">
 

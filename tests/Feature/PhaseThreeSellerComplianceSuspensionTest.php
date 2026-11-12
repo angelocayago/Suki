@@ -176,7 +176,8 @@ class PhaseThreeSellerComplianceSuspensionTest extends TestCase
         ])->assertSessionHasErrors('status');
         $this->actingAs($admin)->patch(route('superadmin.users.status', $sellerUser), [
             'status' => 'suspended',
-            'reason' => 'Generic user suspension.',
+            'reason_code' => 'other',
+            'custom_reason' => 'Generic user suspension.',
         ])->assertSessionHasErrors('status');
         $this->assertSame('active', $sellerUser->fresh()->status);
 

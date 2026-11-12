@@ -101,7 +101,7 @@ mt-2
 ">
 
 Placed
-{{ \App\Support\ManilaTime::format($order->placed_at ?? $order->created_at) PHT }}
+{{ \App\Support\ManilaTime::format($order->placed_at ?? $order->created_at) }} PHT
 
 </p>
 
@@ -137,6 +137,8 @@ font-medium
                 'PICKED_UP',
                 'AT_SORTING_CENTER',
                 'SORTED',
+                'IN_TRANSIT_TO_HUB',
+                'AT_DESTINATION_HUB',
                 'ASSIGNED_TO_RIDER',
                 'OUT_FOR_DELIVERY'
             ])
@@ -1254,7 +1256,7 @@ text-gray-500
 mt-1
 ">
 
-{{ \App\Support\ManilaTime::format($event['time']) PHT }}
+{{ \App\Support\ManilaTime::format($event['time']) }} PHT
 
 </p>
 

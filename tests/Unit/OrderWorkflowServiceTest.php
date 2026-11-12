@@ -4,6 +4,9 @@ namespace Tests\Unit;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\LogisticsHub;
+use App\Models\LogisticsSortingZone;
+use App\Models\LogisticsSortingZoneArea;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
@@ -44,9 +47,26 @@ class OrderWorkflowServiceTest extends TestCase
             'status' => 'approved',
         ]);
 
+        $mainHub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id,
+            'name' => 'Workflow Main Sorting Center',
+            'region' => 'Region', 'city' => 'City', 'barangay' => 'Seller Barangay',
+            'region_code' => '01', 'city_municipality_code' => '010101', 'barangay_code' => '010101001',
+            'is_active' => true,
+        ]);
+        $destinationHub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id,
+            'name' => 'Workflow Destination Hub',
+            'region' => 'Region', 'city' => 'Municipality', 'barangay' => 'Buyer Barangay',
+            'region_code' => '01', 'city_municipality_code' => '010101', 'barangay_code' => '010101002',
+            'is_active' => true,
+        ]);
+        $provider->update(['main_sorting_hub_id' => $mainHub->id]);
+
         $pickupRider = Rider::create([
             'user_id' => $pickupUser->id,
             'logistics_provider_id' => $provider->id,
+            'logistics_hub_id' => $mainHub->id,
             'vehicle_type' => 'Motorcycle',
             'plate_no' => 'PICKUP-1',
             'is_active' => true,
@@ -56,6 +76,7 @@ class OrderWorkflowServiceTest extends TestCase
         $deliveryRider = Rider::create([
             'user_id' => $deliveryUser->id,
             'logistics_provider_id' => $provider->id,
+            'logistics_hub_id' => $destinationHub->id,
             'vehicle_type' => 'Motorcycle',
             'plate_no' => 'DELIVERY-1',
             'is_active' => true,
@@ -96,12 +117,30 @@ class OrderWorkflowServiceTest extends TestCase
         $this->assertSame($provider->id, $sellerOrder->fresh()->shipment->logistics_provider_id);
         $this->assertSame($provider->id, $sellerOrder->fresh()->logistics_provider_id);
 
-        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, [
-            'sorting_area' => 'North Zone',
+        $zone = LogisticsSortingZone::create([
+            'logistics_provider_id' => $provider->id,
+            'logistics_hub_id' => $destinationHub->id,
+            'zone_code' => 'UNIT-DEST', 'name' => 'Unit Destination', 'is_active' => true, 'priority' => 1,
         ]);
+        LogisticsSortingZoneArea::create([
+            'logistics_sorting_zone_id' => $zone->id,
+            'region_code' => '01', 'province_code' => '0101', 'city_municipality_code' => '010101',
+            'barangay_code' => '010101002', 'area_key' => '01|0101|010101|010101002',
+        ]);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, [
+            'sorting_area' => 'UNIT-DEST — Unit Destination',
+            'sorting_zone_id' => $zone->id,
+            'logistics_hub_id' => $destinationHub->id,
+            'destination_hub_id' => $destinationHub->id,
+            'origin_hub_id' => $mainHub->id,
+        ]);
+        $workflow->assignHubTransferRider($sellerOrder, $provider, $logisticsUser, null, 'UNIT-VEHICLE');
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::InTransitToHub);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AtDestinationHub);
         $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AssignedToRider, [
             'rider' => $deliveryRider,
         ]);
+        $workflow->acceptDelivery($sellerOrder, $deliveryRider);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);
         \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
         app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, [
@@ -114,7 +153,7 @@ class OrderWorkflowServiceTest extends TestCase
         $this->assertSame('COMPLETED', $order->fresh()->status);
         $this->assertSame($pickupRider->id, $sellerOrder->fresh()->shipment->pickup_rider_id);
         $this->assertSame($deliveryRider->id, $sellerOrder->fresh()->shipment->rider_id);
-        $this->assertSame('North Zone', $sellerOrder->fresh()->shipment->sorting_area);
+        $this->assertSame('UNIT-DEST — Unit Destination', $sellerOrder->fresh()->shipment->sorting_area);
     }
 
     public function test_a_seller_cannot_update_another_sellers_order(): void
@@ -289,8 +328,8 @@ class OrderWorkflowServiceTest extends TestCase
             'province_code' => '0101',
             'municipality' => 'Municipality',
             'city_municipality_code' => '010101',
-            'barangay' => 'Barangay',
-            'barangay_code' => '010101001',
+            'barangay' => 'Buyer Barangay',
+            'barangay_code' => '010101002',
             'street_address' => 'Street',
             'shipping_address' => ['street_address' => 'Street'],
             'placed_at' => now(),

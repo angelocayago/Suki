@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
-use App\Models\{Order, Seller, SellerOrder, Shipment, User};
+use App\Models\{Order, Rider, Seller, SellerOrder, Shipment, ShipmentAssignment, User};
 use App\Notifications\DomainEventNotification;
 use App\Services\OrderWorkflowService;
 use Illuminate\Support\Facades\{DB, Http, Storage};
@@ -22,8 +22,6 @@ class BuyerNotificationsTest extends IsolatedStorageTestCase
         $this->assertStoragePathIsIsolated();
         BuyerPurchasesSchema::create();
         Storage::fake('public'); Http::preventStrayRequests();
-        // Minimal synthetic rider records for authorized ERP transitions.
-        DB::statement('CREATE TABLE riders (id INTEGER PRIMARY KEY, user_id INTEGER, is_active INTEGER, logistics_provider_id INTEGER)');
         $this->buyer = User::factory()->create(['role' => 'buyer', 'status' => 'active', 'is_suspended' => false]);
         $this->travelTo(now()->startOfSecond());
     }
@@ -137,8 +135,16 @@ class BuyerNotificationsTest extends IsolatedStorageTestCase
             $actor = $parcel->seller->owner;
         } else {
             $actor = User::factory()->create(['role' => 'rider', 'status' => 'active', 'is_suspended' => false]);
-            $rider = DB::table('riders')->insertGetId(['user_id' => $actor->id, 'is_active' => true]);
-            $parcel->shipment->update(['pickup_rider_id' => $rider, 'rider_id' => $rider, 'delivery_accepted_at' => now()]);
+            $rider = Rider::create(['user_id' => $actor->id, 'vehicle_type' => 'motorcycle', 'plate_no' => 'NOTICE-'.$actor->id, 'is_active' => true]);
+            $parcel->shipment->update(['pickup_rider_id' => $rider->id, 'rider_id' => $rider->id, 'pickup_accepted_at' => now(), 'delivery_accepted_at' => now()]);
+            ShipmentAssignment::create([
+                'shipment_id' => $parcel->shipment->id,
+                'assignment_type' => $to === 'PICKED_UP' ? 'PICKUP' : 'DELIVERY',
+                'status' => 'ACCEPTED',
+                'rider_id' => $rider->id,
+                'assigned_by' => $actor->id,
+                'responded_at' => now(),
+            ]);
         }
         $workflow = app(OrderWorkflowService::class);
         $workflow->transition($parcel, $actor, $to);

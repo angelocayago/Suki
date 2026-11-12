@@ -10,7 +10,7 @@
 <div class="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
         <div><h1 class="text-2xl font-bold text-[#173F35]">Barangay Hubs</h1><p class="mt-1 text-sm text-gray-600">Set up your provider's hubs and connect Riders to pickup coverage.</p></div>
-        <a href="{{ route('logistics.assignments') }}" class="rounded-xl border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-green-50">Delivery Assignment &rarr;</a>
+        <div class="flex flex-wrap gap-2"><a href="{{ route('logistics.sorting-zones.index') }}" class="rounded-xl border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-green-50">Sorting Zones</a><a href="{{ route('logistics.assignments') }}" class="rounded-xl border border-[#1F6F5B] px-4 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-green-50">Rider Assignments &rarr;</a></div>
     </header>
     @if(session('success'))<div role="status" class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">{{ session('success') }}</div>@endif
     @if(session('error'))<div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ session('error') }}</div>@endif
@@ -20,6 +20,13 @@
             <ul class="mt-2 list-disc space-y-1 pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
+    <section aria-labelledby="main-sorting-center-title" class="rounded-2xl border border-[#DDE6E1] bg-white p-5">
+        <h2 id="main-sorting-center-title" class="font-semibold text-[#173F35]">Main Sorting Center</h2>
+        <p class="mt-1 text-sm text-gray-600">Choose the active provider-owned facility where pickup parcels arrive before destination routing. Hub transfer cannot dispatch until this is configured.</p>
+        @if($activeHubs->isEmpty())<p role="status" class="mt-3 text-sm text-amber-800">Create and activate a hub before selecting the main sorting center.</p>
+        @else<form method="POST" action="{{ route('logistics.hubs.main-sorting-center') }}" class="mt-3 flex flex-wrap gap-2">@csrf @method('PATCH')<select name="main_sorting_hub_id" required class="min-w-[220px] rounded-lg border-gray-300 text-sm"><option value="">Select active facility</option>@foreach($activeHubs as $hub)<option value="{{ $hub->id }}" @selected($provider->main_sorting_hub_id === $hub->id)>{{ $hub->name }} · {{ $hub->barangay }}, {{ $hub->city }}</option>@endforeach</select><button class="{{ $buttonClass }}">Save Main Center</button></form>@endif
+        @if($provider->mainSortingHub)<p class="mt-2 text-xs text-[#617169]">Current: {{ $provider->mainSortingHub->name }}</p>@endif
+    </section>
     <section aria-labelledby="hub-setup-title" class="rounded-2xl border border-[#DDE6E1] bg-[#EEF8F3] p-5">
         <h2 id="hub-setup-title" class="font-semibold text-[#173F35]">Set up pickup coverage</h2>
         <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-gray-700">
@@ -27,7 +34,7 @@
             <li>Ensure the Hub is active.</li>
             <li>Assign an approved Rider to the Hub.</li>
             <li>Configure the Rider's service areas using the links below.</li>
-            <li>Return to <a href="{{ route('logistics.assignments') }}" class="font-semibold text-[#1F6F5B] underline">Delivery Assignment</a>.</li>
+            <li>Return to <a href="{{ route('logistics.assignments') }}" class="font-semibold text-[#1F6F5B] underline">Rider Assignments</a>.</li>
         </ol>
         <p class="mt-3 text-xs text-gray-600">Hub assignment does not grant service-area coverage or activate a Rider. Pickup still requires approval, activation, contact verification, online availability, and matching service-area and hub coverage.</p>
     </section>
@@ -63,6 +70,14 @@
                             <div class="min-w-0"><dt class="text-xs text-gray-500">{{ $label }}</dt><dd class="mt-1 break-words font-medium">{{ $value }}</dd></div>
                         @endforeach
                     </dl>
+                    <div class="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-[#F5F8F6] p-3 text-xs sm:grid-cols-3">
+                        <p>Linked zones <strong>{{ $hub->sorting_zones_count }}</strong></p>
+                        <p>Eligible hub riders <strong>{{ $associated->where('is_active', true)->whereNotNull('approved_at')->count() }}</strong></p>
+                        <p>Incoming <strong>{{ $hub->incoming_shipments_count }}</strong></p>
+                        <p>Ready for delivery <strong>{{ $hub->ready_delivery_count }}</strong></p>
+                        <p>Out for delivery <strong>{{ $hub->out_for_delivery_count }}</strong></p>
+                        <p>Exceptions <strong>{{ $hub->exception_count }}</strong></p>
+                    </div>
                     <div class="mt-4 border-t border-gray-100 pt-3"><p class="text-sm font-semibold">Associated Riders ({{ $hub->riders_count }})</p><ul class="mt-1 space-y-1 text-sm text-gray-600">@forelse($associated as $assignedRider)<li>{{ $assignedRider->user?->full_name ?? 'Rider' }}</li>@empty<li>No Riders assigned to this hub.</li>@endforelse</ul></div>
                     <form method="POST" action="{{ route('logistics.hubs.toggle', $hub) }}" class="mt-4">@csrf @method('PATCH')<button class="rounded-lg border border-[#1F6F5B] px-3 py-2 text-sm font-semibold text-[#1F6F5B] hover:bg-green-50">{{ $hub->is_active ? 'Deactivate' : 'Activate' }} <span class="sr-only">{{ $hub->name }}</span></button></form>
                 </article>

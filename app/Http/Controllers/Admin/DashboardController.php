@@ -140,6 +140,8 @@ class DashboardController extends Controller
                         'PICKED_UP',
                         'AT_SORTING_CENTER',
                         'SORTED',
+                        'IN_TRANSIT_TO_HUB',
+                        'AT_DESTINATION_HUB',
                         'ASSIGNED_TO_RIDER',
                         'OUT_FOR_DELIVERY'
                     ]

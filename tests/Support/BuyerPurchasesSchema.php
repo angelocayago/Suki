@@ -15,7 +15,11 @@ class BuyerPurchasesSchema
         foreach (['User', 'Order', 'OrderItem', 'Seller', 'SellerOrder', 'Shipment', 'DeliveryEvent',
             'Product', 'ProductVariant', 'ProductImage', 'Category', 'Payment', 'TransactionReview',
             'ReturnRefundRequest', 'Complaint', 'SellerWalletEntry', 'Payout', 'WishlistItem',
-            'RiderCodRemittance', 'RiderShippingFeeEarning', 'LogisticsCodRemittanceItem', 'LogisticsCodRemittance'] as $name) {
+            'Rider', 'RiderCodRemittance', 'RiderShippingFeeEarning', 'LogisticsCodRemittanceItem', 'LogisticsCodRemittance',
+            // Workflow services now preserve pickup, transfer, and delivery
+            // assignment history. This isolated fixture deliberately mirrors
+            // the current model schema instead of relying on app migrations.
+            'ShipmentAssignment'] as $name) {
             $class = 'App\\Models\\'.$name;
             $model = new $class();
             $table = $model->getTable();

@@ -28,6 +28,10 @@ class Shipment extends Model
         'status',
         'workflow_status',
         'sorting_area',
+        'sorting_zone_id',
+        'logistics_hub_id',
+        'destination_hub_id',
+        'routing_exception_reason',
         'pickup_accepted_at',
         'delivery_accepted_at',
         'rescheduled_at',
@@ -80,6 +84,14 @@ class Shipment extends Model
             'logistics_provider_id'
         );
     }
+
+    public function sortingZone(): BelongsTo { return $this->belongsTo(LogisticsSortingZone::class, 'sorting_zone_id'); }
+
+    public function logisticsHub(): BelongsTo { return $this->belongsTo(LogisticsHub::class); }
+
+    public function destinationHub(): BelongsTo { return $this->belongsTo(LogisticsHub::class, 'destination_hub_id'); }
+
+    public function assignments(): HasMany { return $this->hasMany(ShipmentAssignment::class); }
 
     /**
      * Rider assigned to this shipment.

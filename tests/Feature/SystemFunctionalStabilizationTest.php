@@ -5,15 +5,23 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Models\Conversation;
 use App\Models\LogisticsHub;
+use App\Models\LogisticsSortingZone;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\TestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\FakesCheckoutLocations;
 use Tests\TestCase;
 
 class SystemFunctionalStabilizationTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, FakesCheckoutLocations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_seeded_accounts_catalog_and_portal_pages_are_browser_ready(): void
     {
@@ -99,8 +107,18 @@ class SystemFunctionalStabilizationTest extends TestCase
             'barangay_code' => $pickupAddress->barangay_code,
             'is_active' => true,
         ]);
+        $mainHub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id, 'name' => 'Acceptance Main Sorting Center',
+            'region' => $pickupAddress->region, 'region_code' => $pickupAddress->region_code,
+            'province' => $pickupAddress->province, 'province_code' => $pickupAddress->province_code,
+            'city' => $pickupAddress->city, 'city_municipality_code' => $pickupAddress->city_municipality_code,
+            'barangay' => 'Sorting Center', 'barangay_code' => '010000002', 'is_active' => true,
+        ]);
+        $provider->update(['main_sorting_hub_id' => $mainHub->id]);
         $pickupUser->rider->update(['logistics_hub_id' => $hub->id]);
         $deliveryUser->rider->update(['logistics_hub_id' => $hub->id]);
+        $zone = LogisticsSortingZone::create(['logistics_provider_id' => $provider->id, 'logistics_hub_id' => $hub->id, 'zone_code' => 'AC-01', 'name' => 'Acceptance Area', 'is_active' => true, 'priority' => 100]);
+        $zone->areas()->create(['region_code' => $order->region_code, 'province_code' => $order->province_code, 'city_municipality_code' => $order->city_municipality_code, 'barangay_code' => $order->barangay_code, 'area_key' => implode(':', [$order->region_code, $order->province_code, $order->city_municipality_code, $order->barangay_code])]);
 
         foreach ([OrderStatus::Confirmed, OrderStatus::Preparing, OrderStatus::ReadyForPickup] as $status) {
             $this->actingAs($sellerUser)
@@ -115,22 +133,35 @@ class SystemFunctionalStabilizationTest extends TestCase
         $this->actingAs($pickupUser)
             ->post(route('rider.database.pickup.accept', $sellerOrder))
             ->assertSessionHasNoErrors();
-        foreach ([OrderStatus::PickedUp, OrderStatus::AtSortingCenter] as $status) {
-            $this->post(route('rider.database.order.status', $sellerOrder), ['status' => $status->value])
-                ->assertSessionHasNoErrors();
+        foreach ([['confirm_pickup', $pickupUser, 'pickup'], ['arrive_sorting', $pickupUser, 'sorting_center_arrival']] as [$action, $riderUser, $mode]) {
+            $this->actingAs($riderUser)
+                ->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code, 'mode' => $mode])
+                ->assertRedirect(route('rider.shipment-scanner'));
+            $this->actingAs($riderUser)
+                ->post(route('rider.shipment-scanner.action', $sellerOrder->shipment), ['action' => $action])
+                ->assertRedirect(route('rider.shipment-scanner'));
         }
 
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder))
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('shipment');
         $this->actingAs($logisticsUser)
-            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code])
-            ->assertOk();
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code, 'mode' => 'sort'])
+            ->assertRedirect(route('logistics.shipment-scanner'));
         $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.action', $sellerOrder->shipment), [
                 'action' => 'mark_sorted',
-                'sorting_area' => 'Acceptance Area',
+                'sorting_zone_id' => $zone->id,
             ])->assertRedirect(route('logistics.shipment-scanner'));
+        $deliveryUser->rider->update(['logistics_hub_id' => $provider->main_sorting_hub_id]);
+        $this->actingAs($logisticsUser)->post(route('logistics.database.hub-transfer.assign', $sellerOrder), ['rider_id' => $deliveryUser->rider->id])->assertSessionHasNoErrors();
+        foreach ([['accept_hub_transfer', 'rider.shipment-scanner'], ['dispatch_hub', 'rider.shipment-scanner']] as [$transferAction, $scannerRoute]) {
+            $this->actingAs($deliveryUser)->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code, 'mode' => 'hub_transfer_dispatch'])->assertRedirect(route('rider.shipment-scanner'));
+            $this->post(route('rider.shipment-scanner.action', $sellerOrder->shipment), ['action' => $transferAction])->assertRedirect(route('rider.shipment-scanner'));
+        }
+        $this->actingAs($logisticsUser)->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code, 'mode' => 'hub_arrival', 'hub_id' => $hub->id])->assertRedirect(route('logistics.shipment-scanner'));
+        $this->post(route('logistics.shipment-scanner.action', $sellerOrder->shipment), ['action' => 'arrive_hub'])->assertRedirect(route('logistics.shipment-scanner'));
+        $deliveryUser->rider->update(['logistics_hub_id' => $hub->id]);
         $this->post(route('logistics.database.order.status', $sellerOrder), [
             'status' => OrderStatus::AssignedToRider->value,
             'rider_id' => $deliveryUser->rider->id,
@@ -141,8 +172,11 @@ class SystemFunctionalStabilizationTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->actingAs($deliveryUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => OrderStatus::OutForDelivery->value])
-            ->assertSessionHasNoErrors();
+            ->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $sellerOrder->shipment->tracking_code, 'mode' => 'last_mile_dispatch'])
+            ->assertRedirect(route('rider.shipment-scanner'));
+        $this->actingAs($deliveryUser)
+            ->post(route('rider.shipment-scanner.action', $sellerOrder->shipment), ['action' => 'begin_delivery'])
+            ->assertRedirect(route('rider.shipment-scanner'));
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->shipment->fresh()->workflow_status);
 

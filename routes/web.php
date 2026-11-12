@@ -2370,7 +2370,13 @@ Route::post('/my-account/addresses/{address}/delete', function (
 // =====================================================
 
 Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->group(function () {
+    Route::get('/logistics/sorting-zones', [\App\Http\Controllers\Logistics\SortingZoneController::class, 'index'])->name('logistics.sorting-zones.index');
+    Route::post('/logistics/sorting-zones', [\App\Http\Controllers\Logistics\SortingZoneController::class, 'store'])->name('logistics.sorting-zones.store');
+    Route::post('/logistics/sorting-zones/{zone}/areas', [\App\Http\Controllers\Logistics\SortingZoneController::class, 'storeArea'])->name('logistics.sorting-zones.areas.store');
+    Route::delete('/logistics/sorting-zones/{zone}/areas/{area}', [\App\Http\Controllers\Logistics\SortingZoneController::class, 'deleteArea'])->name('logistics.sorting-zones.areas.delete');
+    Route::patch('/logistics/sorting-zones/{zone}/toggle', [\App\Http\Controllers\Logistics\SortingZoneController::class, 'toggle'])->name('logistics.sorting-zones.toggle');
     Route::get('/logistics/hubs', [\App\Http\Controllers\Logistics\HubController::class, 'index'])->name('logistics.hubs.index');
+    Route::patch('/logistics/hubs/main-sorting-center', [\App\Http\Controllers\Logistics\HubController::class, 'setMainSortingHub'])->name('logistics.hubs.main-sorting-center');
     Route::post('/logistics/hubs', [\App\Http\Controllers\Logistics\HubController::class, 'store'])->name('logistics.hubs.store');
     Route::patch('/logistics/hubs/{hub}/toggle', [\App\Http\Controllers\Logistics\HubController::class, 'toggle'])->name('logistics.hubs.toggle');
     Route::patch('/logistics/hubs/riders/{rider}', [\App\Http\Controllers\Logistics\HubController::class, 'assignRider'])->name('logistics.hubs.riders.assign');
@@ -4642,6 +4648,7 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
         ->name('logistics.database.orders.receive');
     Route::post('/logistics/erp-orders/{sellerOrder}/pickup-rider', [LogisticsFulfillmentController::class, 'assignPickup'])
         ->name('logistics.database.pickup-rider.assign');
+    Route::post('/logistics/erp-orders/{sellerOrder}/hub-transfer-rider', [LogisticsFulfillmentController::class, 'assignHubTransfer'])->name('logistics.database.hub-transfer.assign');
     Route::post('/logistics/erp-orders/{sellerOrder}/delivery-rider', [LogisticsFulfillmentController::class, 'reassignDelivery'])
         ->name('logistics.database.delivery-rider.reassign');
     Route::post('/logistics/erp-orders/{sellerOrder}/reschedule', [LogisticsFulfillmentController::class, 'reschedule'])->name('logistics.database.delivery.reschedule');

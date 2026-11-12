@@ -14,4 +14,6 @@ class LogisticsHub extends Model
 
     public function logisticsProvider(): BelongsTo { return $this->belongsTo(LogisticsProvider::class); }
     public function riders(): HasMany { return $this->hasMany(Rider::class); }
+    public function sortingZones(): HasMany { return $this->hasMany(LogisticsSortingZone::class); }
+    public function destinationShipments(): HasMany { return $this->hasMany(Shipment::class, 'destination_hub_id'); }
 }

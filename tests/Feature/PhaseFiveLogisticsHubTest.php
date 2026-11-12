@@ -68,7 +68,7 @@ class PhaseFiveLogisticsHubTest extends TestCase
 
     public function test_delivery_and_reassignment_require_matching_active_hub_in_addition_to_service_area(): void
     {
-        [$actor,$provider]=$this->provider('delivery'); $rider=$this->rider($provider); [$sellerOrder,$shipment]=$this->shipment($provider, OrderStatus::AssignedToRider); $this->area($rider,$provider,'010101001'); $workflow=app(OrderWorkflowService::class);
+        [$actor,$provider]=$this->provider('delivery'); $rider=$this->rider($provider); [$sellerOrder,$shipment]=$this->shipment($provider, OrderStatus::AssignedToRider); $destination=$this->hub($provider,'010101001'); $shipment->update(['destination_hub_id'=>$destination->id]); $this->area($rider,$provider,'010101001'); $workflow=app(OrderWorkflowService::class);
         $this->rejects(fn()=> $workflow->reassignDeliveryRider($sellerOrder,$provider,$actor,$rider));
         $wrong=$this->hub($provider,'999999999'); $rider->update(['logistics_hub_id'=>$wrong->id]); $rider->refresh();
         $this->rejects(fn()=> $workflow->reassignDeliveryRider($sellerOrder,$provider,$actor,$rider));
@@ -81,7 +81,7 @@ class PhaseFiveLogisticsHubTest extends TestCase
 
     public function test_delivery_assignment_requires_matching_active_hub_in_addition_to_service_area(): void
     {
-        [$actor,$provider]=$this->provider('delivery-assignment'); $rider=$this->rider($provider); [$sellerOrder,$shipment]=$this->shipment($provider, OrderStatus::Sorted); $this->area($rider,$provider,'010101001'); $workflow=app(OrderWorkflowService::class);
+        [$actor,$provider]=$this->provider('delivery-assignment'); $rider=$this->rider($provider); [$sellerOrder,$shipment]=$this->shipment($provider, OrderStatus::AtDestinationHub); $destination=$this->hub($provider,'010101001'); $shipment->update(['destination_hub_id'=>$destination->id]); $this->area($rider,$provider,'010101001'); $workflow=app(OrderWorkflowService::class);
         $this->rejects(fn()=> $workflow->transition($sellerOrder,$actor,OrderStatus::AssignedToRider,['rider'=>$rider]));
         $rider->update(['logistics_hub_id'=>$this->hub($provider,'999999999')->id]); $rider->refresh();
         $this->rejects(fn()=> $workflow->transition($sellerOrder,$actor,OrderStatus::AssignedToRider,['rider'=>$rider]));

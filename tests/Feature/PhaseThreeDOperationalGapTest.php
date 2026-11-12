@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
+use App\Models\LogisticsHub;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
@@ -51,7 +52,7 @@ class PhaseThreeDOperationalGapTest extends TestCase
     {
         extract($this->pickupContext());
         $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
-        $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-2', 'is_active' => true, 'approved_at' => now()]);
+        $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'logistics_hub_id' => $provider->main_sorting_hub_id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-2', 'is_active' => true, 'approved_at' => now()]);
         RiderServiceArea::create(['rider_id'=>$replacement->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $pickupRider->id])
@@ -101,7 +102,7 @@ class PhaseThreeDOperationalGapTest extends TestCase
     public function test_assigned_pickup_rider_can_decline_but_another_rider_cannot(): void
     {
         extract($this->pickupContext());
-        $shipment->update(['pickup_rider_id' => $pickupRider->id]);
+        $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $pickupRider->id])->assertSessionHas('success');
         $otherUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         Rider::create(['user_id' => $otherUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-OTHER', 'is_active' => true, 'approved_at' => now()]);
 
@@ -124,9 +125,9 @@ class PhaseThreeDOperationalGapTest extends TestCase
         $this->assertNotNull($shipment->fresh()->pickup_accepted_at);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'PICKUP_ACCEPTED']);
 
-        $this->actingAs($pickupRiderUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'PICKED_UP'])->assertSessionHas('success');
+        $this->actingAs($pickupRiderUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'PICKED_UP'])->assertSessionHasErrors('status');
         $this->actingAs($logisticsUser)->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $pickupRider->id])->assertSessionHasErrors('order');
-        $this->assertSame(OrderStatus::PickedUp, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::ReadyForPickup, $sellerOrder->fresh()->workflow_status);
     }
 
     public function test_only_assigned_delivery_rider_can_record_valid_issue_without_mutating_workflow(): void
@@ -171,11 +172,13 @@ class PhaseThreeDOperationalGapTest extends TestCase
         $seller = Seller::create(['user_id' => $sellerUser->id, 'name' => '3D Seller', 'slug' => 'phase-3d-seller-'.uniqid(), 'status' => 'approved']);
         $pickupAddress=Address::create(['user_id'=>$sellerUser->id,'label'=>'Pickup','recipient'=>'Seller','phone'=>'0912','line1'=>'Pickup','region'=>'Test Region','region_code'=>'010000000','province'=>'Test Province','province_code'=>'010000000','city'=>'Test City','city_municipality_code'=>'010000000','barangay'=>'Test Barangay','barangay_code'=>'010000000','is_default'=>true]); $seller->update(['pickup_address_id'=>$pickupAddress->id]);
         $provider = LogisticsProvider::create(['user_id' => $logisticsUser->id, 'name' => '3D Logistics', 'slug' => 'phase-3d-provider-'.uniqid(), 'status' => 'approved']);
-        $pickupRider = Rider::create(['user_id' => $pickupRiderUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-1', 'is_active' => true, 'approved_at' => now()]);
-        $deliveryRider = Rider::create(['user_id' => $deliveryRiderUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'DELIVERY-1', 'is_active' => true, 'approved_at' => now()]);
+        $hub = LogisticsHub::create(['logistics_provider_id' => $provider->id, 'name' => '3D Hub', 'region' => 'Test Region', 'city' => 'Test City', 'barangay' => 'Test Barangay', 'region_code' => '010000000', 'city_municipality_code' => '010000000', 'barangay_code' => '010000000', 'is_active' => true]);
+        $provider->update(['main_sorting_hub_id' => $hub->id]);
+        $pickupRider = Rider::create(['user_id' => $pickupRiderUser->id, 'logistics_provider_id' => $provider->id, 'logistics_hub_id' => $hub->id, 'vehicle_type' => 'Bike', 'plate_no' => 'PICKUP-1', 'is_active' => true, 'approved_at' => now()]);
+        $deliveryRider = Rider::create(['user_id' => $deliveryRiderUser->id, 'logistics_provider_id' => $provider->id, 'logistics_hub_id' => $hub->id, 'vehicle_type' => 'Bike', 'plate_no' => 'DELIVERY-1', 'is_active' => true, 'approved_at' => now()]);
         $order = Order::create(['order_number' => '3D-'.uniqid(), 'reference' => '3D-'.uniqid(), 'buyer_id' => $buyer->id, 'status' => $status->value, 'payment_method' => 'cod', 'payment_status' => 'UNPAID', 'subtotal' => 100, 'shipping_fee' => 0, 'discount_amount' => 0, 'total_amount' => 100, 'total_minor' => 10000, 'recipient_name' => 'Buyer', 'recipient_phone' => '0912', 'province' => 'Province','region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>'010000000', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Street', 'shipping_address' => []]);
         $sellerOrder = SellerOrder::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'logistics_provider_id' => $provider->id, 'subtotal_minor' => 10000, 'shipping_fee_minor' => 0, 'commission_minor' => 0, 'status' => $status->legacySellerStatus(), 'workflow_status' => $status]);
-        $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'rider_id' => $status === OrderStatus::OutForDelivery ? $deliveryRider->id : null, 'tracking_code' => '3D-TRACK-'.uniqid(), 'status' => $status->legacyShipmentStatus(), 'workflow_status' => $status, 'fee_minor' => 0, 'cod_amount_minor' => 10000, 'cod_collected' => false, 'attempts' => 0]);
+        $shipment = Shipment::create(['seller_order_id' => $sellerOrder->id, 'logistics_provider_id' => $provider->id, 'rider_id' => $status === OrderStatus::OutForDelivery ? $deliveryRider->id : null, 'destination_hub_id' => $hub->id, 'tracking_code' => '3D-TRACK-'.uniqid(), 'status' => $status->legacyShipmentStatus(), 'workflow_status' => $status, 'fee_minor' => 0, 'cod_amount_minor' => 10000, 'cod_collected' => false, 'attempts' => 0]);
         foreach ([$pickupRider,$deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact('buyer', 'sellerUser', 'logisticsUser', 'pickupRiderUser', 'deliveryRiderUser', 'seller', 'provider', 'pickupRider', 'deliveryRider', 'order', 'sellerOrder', 'shipment');

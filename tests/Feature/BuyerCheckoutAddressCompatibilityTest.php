@@ -76,6 +76,10 @@ class BuyerCheckoutAddressCompatibilityTest extends IsolatedStorageTestCase
         $hub = LogisticsHub::create(['logistics_provider_id' => $provider->id, 'name' => 'Address Hub', 'region' => $address->region, 'city' => $address->city, 'barangay' => $address->barangay, 'region_code' => $order->region_code, 'city_municipality_code' => $order->city_municipality_code, 'barangay_code' => $order->barangay_code, 'is_active' => true]);
         $rider = Rider::create(['user_id' => User::factory()->create(['role' => 'rider'])->id, 'logistics_provider_id' => $provider->id, 'logistics_hub_id' => $hub->id, 'vehicle_type' => 'motorcycle', 'plate_no' => 'TEST-ADDR', 'is_active' => true]);
         RiderServiceArea::create(['rider_id' => $rider->id, 'logistics_provider_id' => $provider->id, 'region_code' => $order->region_code, 'province_code' => $order->province_code, 'city_municipality_code' => $order->city_municipality_code, 'barangay_code' => $order->barangay_code, 'area_key' => RiderServiceArea::key($order->region_code, $order->province_code, $order->city_municipality_code, $order->barangay_code), 'is_active' => true]);
+        $order->sellerOrders->sole()->shipment->update([
+            'logistics_provider_id' => $provider->id,
+            'destination_hub_id' => $hub->id,
+        ]);
         app(RiderServiceAreaEligibilityService::class)->delivery($order->sellerOrders->sole(), $provider, $rider);
         app(LogisticsHubEligibilityService::class)->delivery($order->sellerOrders->sole(), $provider, $rider);
     }

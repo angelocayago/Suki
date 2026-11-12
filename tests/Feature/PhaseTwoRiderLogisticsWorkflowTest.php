@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Models\LogisticsProvider;
 use App\Models\LogisticsHub;
+use App\Models\LogisticsSortingZone;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Rider;
@@ -36,7 +37,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->assertSee('Accept Pickup')
             ->assertSee('Decline Pickup')
             ->assertDontSee('Pickup Accepted')
-            ->assertDontSee('Confirm Parcel Collection')
+            ->assertDontSee('Scan to Confirm Collection')
             ->assertSee(route('rider.database.pickup.accept', $sellerOrder), false);
 
         $this->actingAs($pickupUser)
@@ -49,15 +50,12 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->get(route('rider.deliveries'))
             ->assertOk()
             ->assertSee('Pickup Accepted')
-            ->assertSee('Confirm Parcel Collection')
+            ->assertSee('Scan to Confirm Collection')
+            ->assertSee('&amp;mode=pickup', false)
             ->assertDontSee('Accept Pickup');
 
-        $this->actingAs($pickupUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'picked_up'])
-            ->assertSessionHasNoErrors();
-        $this->actingAs($pickupUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'at_sorting_center'])
-            ->assertSessionHasNoErrors();
+        $this->scanRiderAction($pickupUser, $shipment, 'confirm_pickup');
+        $this->scanRiderAction($pickupUser, $shipment, 'arrive_sorting');
 
         $this->actingAs($logisticsUser)
             ->get(route('logistics.parcels'))
@@ -66,7 +64,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder))
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('shipment');
         $this->assertSame($provider->id, $shipment->fresh()->logistics_provider_id);
         $this->assertSame($provider->id, $sellerOrder->fresh()->logistics_provider_id);
         $this->actingAs($logisticsUser)
@@ -76,14 +74,24 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->assertDontSee('value="Area A"', false);
 
         $this->actingAs($logisticsUser)
-            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
-            ->assertOk();
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => 'sort'])
+            ->assertRedirect(route('logistics.shipment-scanner'));
         $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.action', $shipment), [
                 'action' => 'mark_sorted',
-                'sorting_area' => 'Cavinti, Laguna',
+                'sorting_zone_id' => $sortingZone->id,
             ])->assertRedirect(route('logistics.shipment-scanner'));
-        $this->assertSame('Cavinti, Laguna', $shipment->fresh()->sorting_area);
+        $this->assertSame('CV-01 — Cavinti Central', $shipment->fresh()->sorting_area);
+        $deliveryRider->update(['logistics_hub_id' => $provider->main_sorting_hub_id]);
+        $this->actingAs($logisticsUser)->post(route('logistics.database.hub-transfer.assign', $sellerOrder), ['rider_id' => $deliveryRider->id])->assertSessionHasNoErrors();
+        $this->actingAs($deliveryUser)->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => 'hub_transfer_dispatch'])->assertRedirect(route('rider.shipment-scanner'));
+        $this->post(route('rider.shipment-scanner.action', $shipment), ['action' => 'accept_hub_transfer'])->assertRedirect(route('rider.shipment-scanner'));
+        $this->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => 'hub_transfer_dispatch'])->assertRedirect(route('rider.shipment-scanner'));
+        $this->post(route('rider.shipment-scanner.action', $shipment), ['action' => 'dispatch_hub'])->assertRedirect(route('rider.shipment-scanner'));
+        $this->actingAs($logisticsUser)->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => 'hub_arrival', 'hub_id' => $hub->id])->assertRedirect(route('logistics.shipment-scanner'));
+        $this->post(route('logistics.shipment-scanner.action', $shipment), ['action' => 'arrive_hub'])->assertRedirect(route('logistics.shipment-scanner'));
+        $deliveryRider->update(['logistics_hub_id' => $hub->id]);
+
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
                 'status' => 'assigned_to_rider',
@@ -100,7 +108,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
-            ->assertForbidden();
+            ->assertSessionHasErrors('status');
         $this->assertNull($shipment->fresh()->delivery_accepted_at);
 
         $this->actingAs($deliveryUser)
@@ -110,12 +118,10 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($deliveryUser)
             ->get(route('rider.deliveries'))
             ->assertOk()
-            ->assertSee('Mark Out for Delivery')
+            ->assertSee('Scan to Start Delivery')
             ->assertDontSee('Accept Delivery');
 
-        $this->actingAs($deliveryUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
-            ->assertSessionHasNoErrors();
+        $this->scanRiderAction($deliveryUser, $shipment, 'begin_delivery');
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.delivery.failed', $sellerOrder), [
@@ -140,7 +146,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'rider_id' => $deliveryRider->id, 'scheduled_at' => now()->addDay()->toDateTimeString(),
         ])->assertSessionHasNoErrors();
         $this->actingAs($deliveryUser)->post(route('rider.database.delivery.accept', $sellerOrder))->assertSessionHasNoErrors();
-        $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])->assertSessionHasNoErrors();
+        $this->scanRiderAction($deliveryUser, $shipment, 'begin_delivery');
 
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), [
@@ -163,6 +169,97 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         app(OrderWorkflowService::class)
             ->transition($sellerOrder, $buyer, OrderStatus::Completed);
         $this->assertSame(OrderStatus::Completed, $sellerOrder->fresh()->workflow_status);
+    }
+
+    public function test_unassigned_pickup_is_clear_in_incoming_parcels_and_has_assignment_link(): void
+    {
+        extract($this->workflowContext());
+
+        $this->actingAs($logisticsUser)->get(route('logistics.parcels'))
+            ->assertOk()
+            ->assertSee('Unassigned')
+            ->assertSee('Assignment Needed')
+            ->assertSee('Assign Pickup Rider')
+            ->assertSee('href="'.route('logistics.assignments').'"', false);
+    }
+
+    public function test_pickup_assignment_states_show_real_rider_and_hide_reassignment_after_acceptance(): void
+    {
+        extract($this->workflowContext());
+        $workflow = app(OrderWorkflowService::class);
+
+        $workflow->assignPickupRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
+        $this->actingAs($logisticsUser)->get(route('logistics.assignments'))
+            ->assertOk()
+            ->assertSee($pickupUser->full_name)
+            ->assertSee('Awaiting Rider Acceptance')
+            ->assertSee('Reassign Pickup Rider');
+        $this->get(route('logistics.parcels'))->assertOk()->assertSee('Awaiting Rider Acceptance');
+
+        $workflow->acceptPickup($sellerOrder, $pickupRider);
+        $this->actingAs($logisticsUser)->get(route('logistics.assignments'))
+            ->assertOk()
+            ->assertSee($pickupUser->full_name)
+            ->assertSee('Awaiting Parcel Collection')
+            ->assertDontSee('Reassign Pickup Rider')
+            ->assertDontSee('Change Pickup Rider');
+        $this->get(route('logistics.parcels'))->assertOk()->assertSee('Awaiting Parcel Collection');
+
+        $workflow->transition($sellerOrder, $pickupUser, OrderStatus::PickedUp);
+        $this->actingAs($logisticsUser)->get(route('logistics.parcels'))
+            ->assertOk()->assertSee('En Route to Sorting Center');
+        $workflow->transition($sellerOrder, $pickupUser, OrderStatus::AtSortingCenter);
+        $this->get(route('logistics.parcels'))
+            ->assertOk()->assertSee('Ready for verified receiving/sorting');
+    }
+
+    public function test_buyer_and_rider_cannot_access_logistics_assignment_portal_or_post(): void
+    {
+        extract($this->workflowContext());
+        $assignmentPage = route('logistics.assignments');
+        $assignmentAction = route('logistics.database.pickup-rider.assign', $sellerOrder);
+
+        $this->actingAs($buyer)->get($assignmentPage)->assertForbidden();
+        $this->actingAs($pickupUser)->get($assignmentPage)->assertForbidden();
+        $this->actingAs($buyer)->post($assignmentAction, ['pickup_rider_id' => $pickupRider->id])->assertForbidden();
+        $this->actingAs($pickupUser)->post($assignmentAction, ['pickup_rider_id' => $pickupRider->id])->assertForbidden();
+        $this->actingAs($logisticsUser)->get($assignmentPage)->assertOk();
+    }
+
+    public function test_logistics_dashboard_ready_to_assign_and_rider_capacity_use_database_records(): void
+    {
+        extract($this->workflowContext());
+
+        $sortedOrder = $order->replicate();
+        $sortedOrder->order_number = 'STEP5-SORTED-'.uniqid();
+        $sortedOrder->reference = 'STEP5-SORTED-'.uniqid();
+        $sortedOrder->save();
+        $sortedSellerOrder = $sellerOrder->replicate();
+        $sortedSellerOrder->order_id = $sortedOrder->id;
+        $sortedSellerOrder->logistics_provider_id = $provider->id;
+        $sortedSellerOrder->status = 'shipped';
+        $sortedSellerOrder->workflow_status = OrderStatus::AtDestinationHub;
+        $sortedSellerOrder->save();
+        $sortedShipment = $shipment->replicate();
+        $sortedShipment->seller_order_id = $sortedSellerOrder->id;
+        $sortedShipment->logistics_provider_id = $provider->id;
+        $sortedShipment->tracking_code = 'STEP5-SORTED-'.uniqid();
+        $sortedShipment->status = 'in_transit';
+        $sortedShipment->workflow_status = OrderStatus::AtDestinationHub;
+        $sortedShipment->sorting_zone_id = $sortingZone->id;
+        $sortedShipment->destination_hub_id = $shipment->destination_hub_id;
+        $sortedShipment->rider_id = null;
+        $sortedShipment->save();
+
+        $response = $this->actingAs($logisticsUser)->withSession([
+            'orders' => [['status' => 'sorted'], ['status' => 'sorted'], ['status' => 'sorted']],
+            'rider_applications' => [1 => ['status' => 'approved'], 2 => ['status' => 'approved']],
+        ])->get(route('logistics.dashboard'));
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression('/data-metric="ready-to-assign"\s+data-value="2"/', $response->getContent());
+        $this->assertMatchesRegularExpression('/data-metric="approved-riders"\s+data-value="2"/', $response->getContent());
+        $this->assertCount(2, $response->viewData('orders'));
     }
 
     public function test_three_failed_attempts_require_reschedule_then_enter_rts_without_a_fourth_attempt(): void
@@ -218,7 +315,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $replacementUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
         $replacement = Rider::create(['user_id' => $replacementUser->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => 'Bike', 'plate_no' => 'RETRY-1', 'is_active' => true, 'approved_at' => now()]);
-        $replacement->update(['logistics_hub_id' => $provider->hubs()->sole()->id]);
+        $replacement->update(['logistics_hub_id' => $hub->id]);
         RiderServiceArea::create(['rider_id'=>$replacement->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
         $workflow = app(OrderWorkflowService::class);
         $workflow->recordFailedDelivery($sellerOrder, $deliveryUser, 'buyer_unreachable');
@@ -228,7 +325,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'attempt' => 1, 'user_id' => $deliveryUser->id]);
         $this->actingAs($deliveryUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'out_for_delivery'])
-            ->assertForbidden();
+            ->assertSessionHasErrors('status');
         $workflow->acceptDelivery($sellerOrder, $replacement);
         $workflow->transition($sellerOrder, $replacementUser, OrderStatus::OutForDelivery);
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
@@ -255,23 +352,21 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
 
         $this->actingAs($otherRiderUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'picked_up'])
-            ->assertForbidden();
+            ->assertSessionHasErrors('status');
         $this->assertSame(OrderStatus::ReadyForPickup, $sellerOrder->fresh()->workflow_status);
 
         $this->actingAs($pickupUser)
             ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'at_sorting_center'])
             ->assertSessionHasErrors('status');
 
-        $this->actingAs($pickupUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'picked_up']);
-        $this->actingAs($pickupUser)
-            ->post(route('rider.database.order.status', $sellerOrder), ['status' => 'at_sorting_center']);
+        $this->scanRiderAction($pickupUser, $shipment, 'confirm_pickup');
+        $this->scanRiderAction($pickupUser, $shipment, 'arrive_sorting');
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder));
 
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), ['status' => 'sorted'])
-            ->assertSessionHasErrors('sorting_area');
+            ->assertSessionHasErrors('status');
         $this->assertSame(OrderStatus::AtSortingCenter, $sellerOrder->fresh()->workflow_status);
 
         $this->actingAs($logisticsUser)
@@ -323,22 +418,27 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.orders.receive', $sellerOrder));
         $this->actingAs($logisticsUser)
-            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code])
-            ->assertOk();
+            ->post(route('logistics.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => 'sort'])
+            ->assertRedirect(route('logistics.shipment-scanner'));
         $this->actingAs($logisticsUser)
             ->post(route('logistics.shipment-scanner.action', $shipment), [
-                'action' => 'mark_sorted', 'sorting_area' => 'Area B',
+                'action' => 'mark_sorted', 'sorting_zone_id' => $sortingZone->id,
             ])->assertRedirect(route('logistics.shipment-scanner'));
+        $pickupRider->update(['logistics_hub_id' => $provider->main_sorting_hub_id]);
+        $workflow->assignHubTransferRider($sellerOrder, $provider, $logisticsUser, $pickupRider);
+        $workflow->acceptHubTransfer($sellerOrder, $pickupRider);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::InTransitToHub);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AtDestinationHub);
         $this->actingAs($logisticsUser)
             ->post(route('logistics.database.order.status', $sellerOrder), [
                 'status' => 'assigned_to_rider', 'rider_id' => $otherDeliveryRider->id,
             ])->assertForbidden();
 
-        $this->assertSame(OrderStatus::Sorted, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::AtDestinationHub, $sellerOrder->fresh()->workflow_status);
         $this->assertNull($shipment->fresh()->rider_id);
     }
 
-    public function test_session_fallback_remains_visible_when_no_database_shipments_exist(): void
+    public function test_rider_legacy_fallback_remains_but_logistics_ignores_session_orders(): void
     {
         $logisticsUser = User::factory()->create([
             'role' => 'logistics', 'status' => 'active', 'is_suspended' => false,
@@ -381,7 +481,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             ->withSession(['orders' => $legacyOrders])
             ->get(route('logistics.parcels'))
             ->assertOk()
-            ->assertSee('Legacy Session Buyer');
+            ->assertDontSee('Legacy Session Buyer');
     }
 
     public function test_ready_pickup_queue_excludes_cancelled_orders_and_cancellation_blocks_pickup(): void
@@ -417,9 +517,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
         extract($this->workflowContext());
-        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
-        $shipment->update(['rider_id' => $deliveryRider->id, 'logistics_provider_id' => $provider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
-        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $url = route('rider.database.order.status', $sellerOrder);
         $this->actingAs($deliveryUser)->post($url, ['status' => 'delivered'])->assertSessionHasErrors(['proof_photo', 'received_by', 'cod_collected']);
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
@@ -459,10 +557,12 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->travelTo($now);
 
         try {
+            \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
             extract($this->workflowContext());
-            $sellerOrder->update(['workflow_status' => OrderStatus::Delivered, 'delivered_at' => $now->copy()->subDays(3)->addSecond()]);
-            $shipment->update(['workflow_status' => OrderStatus::Delivered]);
-            $order->update(['status' => 'DELIVERED']);
+            $this->travelTo($now->copy()->subDays(3)->addSecond());
+            $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
+            app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, ['proof_photo' => \Tests\Support\DeliveryProofFile::image(), 'received_by' => 'Buyer', 'cod_collected' => true]);
+            $this->travelTo($now);
             $this->artisan('orders:complete-delivered')->assertSuccessful();
             $this->assertSame(OrderStatus::Delivered, $sellerOrder->fresh()->workflow_status);
 
@@ -483,8 +583,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
         extract($this->workflowContext());
-        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
-        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $order->update(['status' => 'CANCELLED']);
         $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), [
             'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image(),
@@ -503,25 +602,21 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $otherSellerOrder = $sellerOrder->replicate();
         $otherSeller = Seller::create(['user_id' => $sellerUser->id, 'name' => 'Other Store', 'slug' => 'other-cod-store', 'status' => 'approved']);
         $otherSellerOrder->seller_id = $otherSeller->id;
-        $otherSellerOrder->workflow_status = OrderStatus::OutForDelivery;
         $otherSellerOrder->save();
         $otherShipment = $shipment->replicate();
         $otherShipment->seller_order_id = $otherSellerOrder->id;
         $otherShipment->tracking_code = 'SECOND-PARCEL';
-        $otherShipment->workflow_status = OrderStatus::OutForDelivery;
         $otherShipment->save();
-        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
-        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
-        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $deliveryUser, [
             'proof_photo' => \Tests\Support\DeliveryProofFile::image(), 'received_by' => 'Buyer', 'cod_collected' => true,
         ]);
         $this->assertSame('UNPAID', $order->fresh()->payment_status);
-        $this->assertSame('OUT_FOR_DELIVERY', $order->fresh()->status);
+        $this->assertNotSame('COMPLETED', $order->fresh()->status);
         $sellerOrder->update(['delivered_at' => now()->subDays(3)]);
         $this->artisan('orders:complete-delivered')->assertSuccessful();
         $this->assertSame(OrderStatus::Completed, $sellerOrder->fresh()->workflow_status);
-        $this->assertSame('OUT_FOR_DELIVERY', $order->fresh()->status);
+        $this->assertSame('READY_FOR_PICKUP', $order->fresh()->status);
         $this->assertFalse($otherShipment->fresh()->cod_collected);
     }
 
@@ -529,9 +624,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
         extract($this->workflowContext());
-        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
-        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
-        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         \App\Models\DeliveryEvent::creating(function ($event) {
             if ($event->status === 'COD_COLLECTED') {
                 throw new \RuntimeException('Simulated database failure');
@@ -558,9 +651,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('delivery_proofs');
         extract($this->workflowContext());
-        $sellerOrder->update(['workflow_status' => OrderStatus::OutForDelivery]);
-        $shipment->update(['rider_id' => $deliveryRider->id, 'workflow_status' => OrderStatus::OutForDelivery]);
-        $order->update(['status' => 'OUT_FOR_DELIVERY']);
+        $this->moveToOutForDelivery($sellerOrder, $provider, $pickupRider, $deliveryRider, $pickupUser, $logisticsUser, $deliveryUser);
         $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), [
             'status' => 'delivered', 'proof_photo' => \Tests\Support\DeliveryProofFile::image()->size(5121),
             'received_by' => 'Buyer', 'cod_collected' => false,
@@ -568,6 +659,23 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $this->actingAs($deliveryUser)->post(route('rider.database.order.status', $sellerOrder), ['status' => 'completed'])->assertSessionHasErrors('status');
         $this->assertSame(OrderStatus::OutForDelivery, $sellerOrder->fresh()->workflow_status);
         $this->assertEmpty(\Illuminate\Support\Facades\Storage::disk('delivery_proofs')->allFiles());
+    }
+
+    private function scanRiderAction(User $riderUser, Shipment $shipment, string $action): void
+    {
+        $mode = match ($action) {
+            'confirm_pickup' => 'pickup',
+            'arrive_sorting' => 'sorting_center_arrival',
+            'begin_delivery' => 'last_mile_dispatch',
+            default => 'delivery',
+        };
+        $this->actingAs($riderUser)
+            ->post(route('rider.shipment-scanner.resolve'), ['tracking_code' => $shipment->tracking_code, 'mode' => $mode])
+            ->assertRedirect(route('rider.shipment-scanner'));
+
+        $this->actingAs($riderUser)
+            ->post(route('rider.shipment-scanner.action', $shipment), ['action' => $action])
+            ->assertRedirect(route('rider.shipment-scanner'));
     }
 
     private function workflowContext(): array
@@ -616,6 +724,7 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'vehicle_type' => 'Motorcycle',
             'plate_no' => 'DELIVERY-5',
             'is_active' => true,
+            'approved_at' => now(),
         ]);
         $order = Order::create([
             'order_number' => 'STEP5-ORDER',
@@ -663,6 +772,8 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'attempts' => 0,
             'status_changed_at' => now(),
         ]);
+        $sortingZone = LogisticsSortingZone::create(['logistics_provider_id' => $provider->id, 'zone_code' => 'CV-01', 'name' => 'Cavinti Central', 'is_active' => true, 'priority' => 100]);
+        $sortingZone->areas()->create(['region_code' => '010000000', 'province_code' => '010000000', 'city_municipality_code' => '010000000', 'barangay_code' => '010000000', 'area_key' => '010000000:010000000:010000000:010000000']);
         $hub = LogisticsHub::create([
             'logistics_provider_id' => $provider->id,
             'name' => 'Step Five Barangay Hub',
@@ -676,13 +787,21 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
             'barangay_code' => '010000000',
             'is_active' => true,
         ]);
+        $sortingZone->update(['logistics_hub_id' => $hub->id]);
+        $mainHub = LogisticsHub::create([
+            'logistics_provider_id' => $provider->id, 'name' => 'Step Five Main Sorting Center',
+            'region' => 'Test Region', 'region_code' => '010000000', 'province' => 'Test Province', 'province_code' => '010000000',
+            'city' => 'Test City', 'city_municipality_code' => '010000000', 'barangay' => 'Sorting Center', 'barangay_code' => '010000002', 'is_active' => true,
+        ]);
+        $provider->update(['main_sorting_hub_id' => $mainHub->id]);
+        $shipment->update(['sorting_zone_id' => $sortingZone->id, 'destination_hub_id' => $hub->id, 'logistics_hub_id' => $hub->id]);
         $pickupRider->update(['logistics_hub_id' => $hub->id]);
         $deliveryRider->update(['logistics_hub_id' => $hub->id]);
         foreach ([$pickupRider, $deliveryRider] as $rider) RiderServiceArea::create(['rider_id'=>$rider->id,'logistics_provider_id'=>$provider->id,'region_code'=>'010000000','province_code'=>'010000000','city_municipality_code'=>'010000000','barangay_code'=>null,'area_key'=>\App\Models\RiderServiceArea::key('010000000','010000000','010000000',null),'is_active'=>true]);
 
         return compact(
             'buyer', 'sellerUser', 'logisticsUser', 'pickupUser', 'deliveryUser',
-            'seller', 'provider', 'pickupRider', 'deliveryRider', 'order', 'sellerOrder', 'shipment'
+            'seller', 'provider', 'pickupRider', 'deliveryRider', 'order', 'sellerOrder', 'shipment', 'sortingZone', 'hub', 'mainHub'
         );
     }
 
@@ -693,8 +812,14 @@ class PhaseTwoRiderLogisticsWorkflowTest extends TestCase
         $workflow->acceptPickup($sellerOrder, $pickupRider);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::PickedUp);
         $workflow->transition($sellerOrder, $pickupUser, OrderStatus::AtSortingCenter);
-        $workflow->receiveAtSortingCenter($sellerOrder, $provider, $logisticsUser);
-        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, ['sorting_area' => 'Area A']);
+        $zone = $sellerOrder->shipment->sortingZone;
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::Sorted, ['sorting_area' => $zone->zone_code.' — '.$zone->name, 'sorting_zone_id' => $zone->id, 'logistics_hub_id' => $zone->logistics_hub_id, 'destination_hub_id' => $zone->logistics_hub_id, 'origin_hub_id' => $provider->main_sorting_hub_id]);
+        $deliveryRider->update(['logistics_hub_id' => $provider->main_sorting_hub_id]);
+        $workflow->assignHubTransferRider($sellerOrder, $provider, $logisticsUser, $deliveryRider);
+        $workflow->acceptHubTransfer($sellerOrder, $deliveryRider);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::InTransitToHub);
+        $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AtDestinationHub);
+        $deliveryRider->update(['logistics_hub_id' => $sellerOrder->shipment->destination_hub_id]);
         $workflow->transition($sellerOrder, $logisticsUser, OrderStatus::AssignedToRider, ['rider' => $deliveryRider]);
         $workflow->acceptDelivery($sellerOrder, $deliveryRider);
         $workflow->transition($sellerOrder, $deliveryUser, OrderStatus::OutForDelivery);

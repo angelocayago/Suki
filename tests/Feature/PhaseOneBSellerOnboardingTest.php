@@ -111,6 +111,18 @@ class PhaseOneBSellerOnboardingTest extends TestCase
 
         $response->assertRedirect(route('seller.register'));
         $response->assertSessionHasErrors(['birthday', 'phone', 'tin', 'valid_id']);
+        $this->assertSame('Sela', session()->getOldInput('first_name'));
+        $this->assertSame('new-seller@example.com', session()->getOldInput('email'));
+
+        $this->get(route('seller.register'))
+            ->assertOk()
+            ->assertSee('data-registration-error-summary', false)
+            ->assertSee('role="alert"', false)
+            ->assertSee('Please check the following:', false)
+            ->assertSee('Sellers must be at least 18 years old.')
+            ->assertSee('value="Sela"', false)
+            ->assertSee('value="new-seller@example.com"', false);
+
         $this->assertDatabaseMissing('users', ['email' => 'new-seller@example.com']);
         $this->assertSame(0, SellerDocument::query()->count());
         $this->assertSame([], Storage::disk('seller_documents')->allFiles());

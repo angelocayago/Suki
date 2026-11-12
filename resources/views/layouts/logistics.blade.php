@@ -410,6 +410,17 @@
         </a>
 
 
+        {{-- SORTING ZONES --}}
+        <a
+            href="{{ route('logistics.sorting-zones.index') }}"
+            @if(request()->routeIs('logistics.sorting-zones.*')) aria-current="page" @endif
+            class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition
+                {{ request()->routeIs('logistics.sorting-zones.*') ? 'bg-white text-[#173F35]' : 'text-white/62 hover:bg-white/[0.07] hover:text-white' }}"
+        >
+            <i data-lucide="map-pinned" class="h-[17px] w-[17px]" aria-hidden="true"></i>
+            Sorting Zones
+        </a>
+
         {{-- ASSIGNMENTS --}}
         <a
             href="{{ route('logistics.assignments') }}"
@@ -434,7 +445,7 @@
                 class="h-[17px] w-[17px]"
             ></i>
 
-            Delivery Assignment
+            Rider Assignments
 
         </a>
 

@@ -11,6 +11,8 @@ enum OrderStatus: string
     case PickedUp = 'PICKED_UP';
     case AtSortingCenter = 'AT_SORTING_CENTER';
     case Sorted = 'SORTED';
+    case InTransitToHub = 'IN_TRANSIT_TO_HUB';
+    case AtDestinationHub = 'AT_DESTINATION_HUB';
     case AssignedToRider = 'ASSIGNED_TO_RIDER';
     case OutForDelivery = 'OUT_FOR_DELIVERY';
     case Delivered = 'DELIVERED';
@@ -29,7 +31,9 @@ enum OrderStatus: string
             self::ReadyForPickup => self::PickedUp,
             self::PickedUp => self::AtSortingCenter,
             self::AtSortingCenter => self::Sorted,
-            self::Sorted => self::AssignedToRider,
+            self::Sorted => self::InTransitToHub,
+            self::InTransitToHub => self::AtDestinationHub,
+            self::AtDestinationHub => self::AssignedToRider,
             self::AssignedToRider => self::OutForDelivery,
             self::OutForDelivery => self::Delivered,
             self::Delivered => self::Completed,
@@ -47,6 +51,7 @@ enum OrderStatus: string
             self::PickedUp => 'picked_up_at',
             self::AtSortingCenter => 'at_sorting_center_at',
             self::Sorted => 'sorted_at',
+            self::InTransitToHub, self::AtDestinationHub => null,
             self::AssignedToRider => 'assigned_to_rider_at',
             self::OutForDelivery => 'out_for_delivery_at',
             self::Delivered => 'delivered_at',
@@ -65,6 +70,8 @@ enum OrderStatus: string
             self::PickedUp,
             self::AtSortingCenter,
             self::Sorted,
+            self::InTransitToHub,
+            self::AtDestinationHub,
             self::AssignedToRider,
             self::OutForDelivery => 'shipped',
             self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => 'shipped',
@@ -82,7 +89,9 @@ enum OrderStatus: string
             self::ReadyForPickup => 'unassigned',
             self::PickedUp => 'picked_up',
             self::AtSortingCenter,
-            self::Sorted => 'in_transit',
+            self::Sorted,
+            self::InTransitToHub,
+            self::AtDestinationHub => 'in_transit',
             self::AssignedToRider => 'assigned',
             self::OutForDelivery => 'out_for_delivery',
             self::DeliveryFailed, self::RtsInitiated, self::RtsReturning => 'failed',
@@ -95,8 +104,19 @@ enum OrderStatus: string
     public function rank(): int
     {
         return match ($this) {
-            self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => 8,
-            default => array_search($this, self::cases(), true),
+            self::Placed => 0,
+            self::Confirmed => 1,
+            self::Preparing => 2,
+            self::ReadyForPickup => 3,
+            self::PickedUp => 4,
+            self::AtSortingCenter => 5,
+            self::Sorted => 6,
+            self::InTransitToHub => 7,
+            self::AtDestinationHub => 8,
+            self::AssignedToRider => 9,
+            self::OutForDelivery, self::DeliveryFailed, self::RtsInitiated, self::RtsReturning, self::RtsCompleted => 10,
+            self::Delivered => 11,
+            self::Completed => 12,
         };
     }
 }

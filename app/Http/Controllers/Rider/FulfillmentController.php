@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Rider;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
+use App\Models\ShipmentAssignment;
 use App\Models\DeliveryEvent;
 use App\Models\RiderShippingFeeEarning;
 use App\Services\OrderWorkflowService;
@@ -59,6 +60,7 @@ class FulfillmentController extends Controller
             'riderId' => $rider->id,
             'riderName' => $rider->user->full_name,
             'availability' => $rider->availability,
+            'hubTransferAssignments' => ShipmentAssignment::query()->with(['shipment.sellerOrder.order', 'shipment.sellerOrder.seller.pickupAddress', 'originHub', 'destinationHub'])->where('rider_id', $rider->id)->where('assignment_type', 'HUB_TRANSFER')->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->latest()->get(),
         ]);
     }
 
@@ -123,6 +125,13 @@ class FulfillmentController extends Controller
         if (strtoupper($validated['status']) === 'DELIVERED') {
             app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $request->user(), $request->all());
             return back()->with('success', 'Delivery proof saved and COD collection recorded. Awaiting buyer receipt.');
+        }
+
+        if ($sellerOrder->shipment()->exists()
+            && in_array(strtoupper($validated['status']), ['PICKED_UP', 'AT_SORTING_CENTER', 'OUT_FOR_DELIVERY'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => 'Database-backed pickup, sorting-center arrival, and delivery dispatch must be confirmed through the Shipment Scanner.',
+            ]);
         }
 
         $workflow->transition(

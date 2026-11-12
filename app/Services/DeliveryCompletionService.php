@@ -28,6 +28,10 @@ class DeliveryCompletionService
                 if (in_array($locked->workflow_status, [OrderStatus::Delivered, OrderStatus::Completed], true) && $shipment->proof_path) {
                     return $locked;
                 }
+                $deliveryAssignment = $shipment->assignments()->where('assignment_type', 'DELIVERY')->where('rider_id', $shipment->rider_id)->where('status', 'ACCEPTED')->first();
+                if (! $deliveryAssignment) {
+                    throw ValidationException::withMessages(['order' => 'Delivery requires an accepted active last-mile assignment.']);
+                }
                 if ($locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::OutForDelivery || $shipment->workflow_status !== OrderStatus::OutForDelivery) {
                     throw ValidationException::withMessages(['order' => 'Only an out-for-delivery parcel can be delivered.']);
                 }
@@ -54,6 +58,7 @@ class DeliveryCompletionService
                     app(CodRemittanceService::class)->createLiability($shipment->fresh(['rider']));
                 }
                 $result = app(OrderWorkflowService::class)->transition($locked, $actor, OrderStatus::Delivered);
+                $deliveryAssignment->update(['status' => 'COMPLETED', 'responded_at' => now()]);
                 app(RiderShippingFeeService::class)->creditDelivered($shipment->fresh());
                 $shipment->events()->where('status', 'DELIVERED')->where('attempt', 0)->update([
                     'photo_path' => $path,

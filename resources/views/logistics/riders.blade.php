@@ -322,7 +322,7 @@
 
                     </div>
 
-                    <span>Delivery Assignment</span>
+                    <span>Rider Assignments</span>
 
                 </a>
 
@@ -377,7 +377,7 @@
 
                 <!-- SETTINGS -->
                 <a
-                    href="#"
+                    href="{{ route('logistics.profile') }}"
                     class="group mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-gray-600 transition hover:bg-[#F4F8F6] hover:text-[#1F6F5B]"
                 >
 

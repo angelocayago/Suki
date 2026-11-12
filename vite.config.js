@@ -13,6 +13,8 @@ export default defineConfig({
                 'resources/js/landing.js',
                 'resources/css/registration-wizard.css',
                 'resources/js/registration-wizard.js',
+                'resources/js/shipment-scanner.js',
+                'resources/js/sorting-zone-address.js',
             ],
             refresh: true,
         }),

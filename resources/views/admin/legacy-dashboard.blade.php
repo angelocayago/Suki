@@ -891,7 +891,7 @@
                                     </p>
 
                                     <p class="mt-1 text-[10px] text-[#9AA19C]">
-                                        {{ \App\Support\ManilaTime::format($order->created_at, 'M d, H:i') PHT }}
+                                        {{ \App\Support\ManilaTime::format($order->created_at, 'M d, H:i') }} PHT
                                     </p>
 
                                 </td>

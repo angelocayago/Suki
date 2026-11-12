@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Models\DeliveryEvent;
 use App\Models\LogisticsProvider;
+use App\Models\LogisticsSortingZone;
 use App\Models\Order;
 use App\Models\Rider;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
+use App\Models\ShipmentAssignment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +100,7 @@ class OrderWorkflowService
             }
             app(RiderServiceAreaEligibilityService::class)->pickup($lockedOrder, $provider, $rider);
             app(LogisticsHubEligibilityService::class)->pickup($lockedOrder, $provider, $rider);
+            $this->assertRiderCapacity($rider, $shipment->id);
 
             if ($shipment->pickup_accepted_at) {
                 throw ValidationException::withMessages(['order' => 'The pickup rider cannot be changed after accepting this parcel.']);
@@ -113,6 +116,8 @@ class OrderWorkflowService
                 'logistics_provider_id' => $provider->id,
                 'pickup_rider_id' => $rider->id,
             ]);
+            $shipment->assignments()->where('assignment_type', 'PICKUP')->active()->update(['status' => 'CANCELLED', 'close_reason' => 'Reassigned by Logistics.']);
+            $shipment->assignments()->create(['logistics_provider_id' => $provider->id, 'assignment_type' => 'PICKUP', 'status' => 'ASSIGNED', 'rider_id' => $rider->id, 'assigned_by' => $actor->id]);
             $lockedOrder->update(['logistics_provider_id' => $provider->id]);
             DeliveryEvent::create([
                 'shipment_id' => $shipment->id,
@@ -134,6 +139,83 @@ class OrderWorkflowService
             }
 
             return $shipment->fresh(['pickupRider.user', 'events']);
+        });
+    }
+
+    public function assignHubTransferRider(SellerOrder $sellerOrder, LogisticsProvider $provider, User $actor, ?Rider $rider, ?string $vehicleReference = null, ?string $batchReference = null): Shipment
+    {
+        return DB::transaction(function () use ($sellerOrder, $provider, $actor, $rider, $vehicleReference, $batchReference) {
+            $order = SellerOrder::with(['order', 'shipment.destinationHub'])->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::whereKey($order->shipment?->id)->lockForUpdate()->firstOrFail();
+            $mainHub = $provider->mainSortingHub;
+            if (! $actor->hasRole('logistics') || $actor->id !== $provider->user_id || $provider->status !== 'approved' || $shipment->logistics_provider_id !== $provider->id || $order->workflow_status !== OrderStatus::Sorted || ! $shipment->destinationHub?->is_active || ! $mainHub?->is_active || (int) $mainHub->logistics_provider_id !== (int) $provider->id) {
+                throw new AuthorizationException('Hub transfer can only be assigned by the owning provider after sorting to an active destination hub.');
+            }
+            if (! $rider && ! filled($vehicleReference) && ! filled($batchReference)) {
+                throw ValidationException::withMessages(['rider_id' => 'Select a transfer rider, vehicle reference, or transfer batch.']);
+            }
+            if ($rider) {
+                $rider->loadMissing(['user', 'logisticsProvider', 'logisticsHub']);
+                if ($rider->logistics_provider_id !== $provider->id || ! $rider->isOperationallyAvailable() || ! $rider->approved_at) {
+                    throw ValidationException::withMessages(['rider_id' => 'Select an approved, active and available rider from this provider.']);
+                }
+                if (! $rider->logisticsHub?->is_active || (int) $rider->logisticsHub->logistics_provider_id !== (int) $provider->id || (int) $rider->logistics_hub_id !== (int) $mainHub->id) {
+                    throw ValidationException::withMessages(['rider_id' => 'The hub-transfer rider must be assigned to this provider\'s active main sorting center.']);
+                }
+                $this->assertRiderCapacity($rider, $shipment->id);
+            }
+            $assignment = $shipment->assignments()->where('assignment_type', 'HUB_TRANSFER')->active()->first();
+            $previous = $assignment ?: $shipment->assignments()->where('assignment_type', 'HUB_TRANSFER')->latest('id')->first();
+            if (! $previous) throw ValidationException::withMessages(['shipment' => 'The shipment has no hub-transfer route record.']);
+            if ($assignment?->rider_id === $rider?->id && $assignment?->vehicle_reference === $vehicleReference && $assignment?->batch_reference === $batchReference) return $shipment->fresh();
+            $assignment?->update(['status' => 'CANCELLED', 'close_reason' => 'Transfer carrier reassigned before dispatch.']);
+            $shipment->assignments()->create([
+                'logistics_provider_id' => $provider->id, 'assignment_type' => 'HUB_TRANSFER', 'status' => 'ASSIGNED',
+                'rider_id' => $rider?->id, 'origin_hub_id' => $previous->origin_hub_id,
+                'destination_hub_id' => $previous->destination_hub_id, 'assigned_by' => $actor->id,
+                'vehicle_reference' => filled($vehicleReference) ? trim($vehicleReference) : null,
+                'batch_reference' => filled($batchReference) ? trim($batchReference) : null,
+            ]);
+            DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => 'HUB_TRANSFER_CARRIER_ASSIGNED', 'attempt' => 0, 'user_id' => $actor->id, 'note' => 'Hub transfer assigned to '.($rider?->user?->full_name ?? ($vehicleReference ? 'vehicle '.$vehicleReference : 'batch '.$batchReference)).'.', 'occurred_at' => now()]);
+            return $shipment->fresh();
+        });
+    }
+
+    public function acceptHubTransfer(SellerOrder $sellerOrder, Rider $rider): ShipmentAssignment
+    {
+        return DB::transaction(function () use ($sellerOrder, $rider) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $order = SellerOrder::with('shipment')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()->where('seller_order_id', $order->id)->lockForUpdate()->firstOrFail();
+            $assignment = $shipment->assignments()->where('assignment_type', 'HUB_TRANSFER')->where('status', 'ASSIGNED')->where('rider_id', $rider->id)->lockForUpdate()->first();
+            $rider->loadMissing(['user', 'logisticsProvider', 'logisticsHub']);
+            if ($order->workflow_status !== OrderStatus::Sorted || ! $assignment || ! $rider->isOperationallyAvailable()
+                || $assignment->logistics_provider_id !== $rider->logistics_provider_id
+                || ! $rider->logisticsHub?->is_active
+                || (int) $rider->logistics_hub_id !== (int) $assignment->origin_hub_id
+                || (int) $rider->logisticsHub->logistics_provider_id !== (int) $assignment->logistics_provider_id) {
+                throw new AuthorizationException('Only the assigned active transfer rider at the origin sorting center may accept this assignment.');
+            }
+            $assignment->update(['status' => 'ACCEPTED', 'responded_at' => now()]);
+            DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => 'HUB_TRANSFER_ACCEPTED', 'attempt' => 0, 'user_id' => $rider->user_id, 'note' => 'Hub transfer accepted by '.$rider->user->full_name.'.', 'occurred_at' => now()]);
+            return $assignment->fresh();
+        });
+    }
+
+    public function declineHubTransfer(SellerOrder $sellerOrder, Rider $rider, string $reason): ShipmentAssignment
+    {
+        return DB::transaction(function () use ($sellerOrder, $rider, $reason) {
+            Order::whereKey($sellerOrder->order_id)->lockForUpdate()->firstOrFail();
+            $order = SellerOrder::with('shipment')->lockForUpdate()->findOrFail($sellerOrder->id);
+            $shipment = Shipment::query()->where('seller_order_id', $order->id)->lockForUpdate()->firstOrFail();
+            $assignment = $shipment->assignments()->where('assignment_type', 'HUB_TRANSFER')->where('status', 'ASSIGNED')->where('rider_id', $rider->id)->lockForUpdate()->first();
+            $rider->loadMissing(['user', 'logisticsProvider']);
+            if ($order->workflow_status !== OrderStatus::Sorted || ! $assignment || ! $rider->isOperationallyEligible() || $assignment->logistics_provider_id !== $rider->logistics_provider_id) {
+                throw new AuthorizationException('Only the assigned active transfer rider may decline before dispatch.');
+            }
+            $assignment->update(['status' => 'DECLINED', 'responded_at' => now(), 'close_reason' => mb_substr(trim($reason), 0, 500)]);
+            DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => 'HUB_TRANSFER_DECLINED', 'attempt' => 0, 'user_id' => $rider->user_id, 'note' => 'Hub transfer declined: '.trim($reason), 'occurred_at' => now()]);
+            return $assignment->fresh();
         });
     }
 
@@ -165,6 +247,7 @@ class OrderWorkflowService
                 throw new AuthorizationException('Only an active rider may decline a pickup.');
             }
 
+            $shipment->assignments()->where('assignment_type', 'PICKUP')->active()->where('rider_id', $rider->id)->update(['status' => 'DECLINED', 'responded_at' => now()]);
             $shipment->update(['pickup_rider_id' => null]);
             DeliveryEvent::create([
                 'shipment_id' => $shipment->id,
@@ -228,6 +311,40 @@ class OrderWorkflowService
 
             $this->authorizeTransition($lockedOrder, $actor, $currentStatus, $nextStatus);
 
+            if ($nextStatus === OrderStatus::PickedUp) {
+                $assignment = $lockedOrder->shipment?->assignments()->where('assignment_type', 'PICKUP')->where('rider_id', $lockedOrder->shipment->pickup_rider_id)->active()->first();
+                if (! $lockedOrder->shipment?->pickup_accepted_at || ! $assignment || $assignment->status !== 'ACCEPTED') {
+                    throw ValidationException::withMessages(['status' => 'Pickup requires an accepted active pickup assignment.']);
+                }
+                if ($assignment) $assignment->update(['status' => 'COMPLETED', 'responded_at' => now()]);
+            }
+
+            if ($nextStatus === OrderStatus::OutForDelivery) {
+                $delivery = $lockedOrder->shipment?->assignments()->where('assignment_type', 'DELIVERY')->where('rider_id', $lockedOrder->shipment->rider_id)->active()->first();
+                if (! $lockedOrder->shipment?->delivery_accepted_at || ! $delivery || $delivery->status !== 'ACCEPTED') {
+                    throw ValidationException::withMessages(['status' => 'Last-mile dispatch requires an accepted delivery assignment.']);
+                }
+                if ($delivery) $delivery->update(['status' => 'ACCEPTED', 'dispatched_at' => now()]);
+            }
+
+            if ($nextStatus === OrderStatus::InTransitToHub) {
+                $transfer = $lockedOrder->shipment?->assignments()->where('assignment_type', 'HUB_TRANSFER')->active()->first();
+                $carrierAccepted = $transfer?->rider_id ? $transfer->status === 'ACCEPTED' : (filled($transfer?->vehicle_reference) || filled($transfer?->batch_reference));
+                if (! $transfer || ! $carrierAccepted || ! $lockedOrder->shipment?->destinationHub?->is_active) {
+                    throw ValidationException::withMessages(['status' => 'Hub dispatch requires a valid destination hub and an accepted transfer rider or assigned vehicle/batch.']);
+                }
+                $transfer->update(['dispatched_at' => now()]);
+            }
+
+            if ($nextStatus === OrderStatus::AtDestinationHub) {
+                $hub = $lockedOrder->shipment?->destinationHub;
+                $transfer = $lockedOrder->shipment?->assignments()->where('assignment_type', 'HUB_TRANSFER')->active()->first();
+                if (! $hub?->is_active || (int) $hub->logistics_provider_id !== (int) $lockedOrder->shipment?->logistics_provider_id || ! $transfer?->dispatched_at) {
+                    throw ValidationException::withMessages(['status' => 'Only the assigned active destination hub may receive a dispatched shipment.']);
+                }
+                $transfer->update(['status' => 'COMPLETED', 'arrived_at' => now()]);
+            }
+
             if ($nextStatus === OrderStatus::Completed && ($lockedOrder->status === 'cancelled' || $lockedOrder->shipment?->status === 'cancelled')) {
                 throw ValidationException::withMessages(['order' => 'A cancelled parcel cannot be marked received.']);
             }
@@ -251,17 +368,41 @@ class OrderWorkflowService
 
             if ($nextStatus === OrderStatus::Sorted) {
                 $area = trim((string) ($context['sorting_area'] ?? ''));
-
-                if ($area === '') {
+                $zoneId = $context['sorting_zone_id'] ?? null;
+                $hubId = $context['destination_hub_id'] ?? $context['logistics_hub_id'] ?? null;
+                $zone = $zoneId ? LogisticsSortingZone::query()->with('hub')->where('logistics_provider_id', $lockedOrder->shipment?->logistics_provider_id)->where('is_active', true)->find($zoneId) : null;
+                $provider = LogisticsProvider::query()->with('mainSortingHub')->find($lockedOrder->shipment?->logistics_provider_id);
+                $originHub = $context['origin_hub_id'] ?? null;
+                if ($area === '' || ! $zone || ! $zone->hub || ! $zone->hub->is_active || (int) $zone->hub->logistics_provider_id !== (int) $lockedOrder->shipment?->logistics_provider_id || (int) $zone->hub->id !== (int) $hubId
+                    || ! $provider?->mainSortingHub?->is_active || (int) $provider->mainSortingHub->logistics_provider_id !== (int) $provider->id || (int) $provider->main_sorting_hub_id !== (int) $originHub) {
                     throw ValidationException::withMessages([
-                        'sorting_area' => 'A sorting area is required.',
+                        'sorting_zone_id' => 'Sorting requires an active destination hub and a configured provider-owned main sorting center.',
                     ]);
                 }
 
-                $lockedOrder->shipment->update(['sorting_area' => $area]);
+                $lockedOrder->shipment->update([
+                    'sorting_area' => $area,
+                    'sorting_zone_id' => $zoneId,
+                    'logistics_hub_id' => $context['logistics_hub_id'] ?? null,
+                    'destination_hub_id' => $hubId,
+                    'routing_exception_reason' => null,
+                ]);
+                if (! $lockedOrder->shipment->assignments()->active()->where('assignment_type', 'HUB_TRANSFER')->exists()) {
+                    $lockedOrder->shipment->assignments()->create([
+                        'logistics_provider_id' => $lockedOrder->shipment->logistics_provider_id,
+                        'assignment_type' => 'HUB_TRANSFER', 'status' => 'ASSIGNED',
+                        'origin_hub_id' => $context['origin_hub_id'] ?? null,
+                        'destination_hub_id' => $hubId, 'assigned_by' => $actor->id,
+                        'vehicle_reference' => $context['vehicle_reference'] ?? null,
+                        'batch_reference' => $context['batch_reference'] ?? null,
+                    ]);
+                }
             }
 
             if ($nextStatus === OrderStatus::AssignedToRider) {
+                if ($currentStatus !== OrderStatus::AtDestinationHub || ! $lockedOrder->shipment?->destination_hub_id || ! $lockedOrder->shipment->destinationHub?->is_active) {
+                    throw ValidationException::withMessages(['rider_id' => 'Delivery assignment requires receipt at an active destination hub.']);
+                }
                 $rider = $context['rider'] ?? null;
 
                 if ($rider instanceof Rider) {
@@ -281,8 +422,15 @@ class OrderWorkflowService
                 $provider = LogisticsProvider::query()->findOrFail($lockedOrder->shipment->logistics_provider_id);
                 app(RiderServiceAreaEligibilityService::class)->delivery($lockedOrder, $provider, $rider);
                 app(LogisticsHubEligibilityService::class)->delivery($lockedOrder, $provider, $rider);
+                $this->assertRiderCapacity($rider, $lockedOrder->shipment->id);
 
                 $lockedOrder->shipment->update(['rider_id' => $rider->id]);
+                $lockedOrder->shipment->assignments()->where('assignment_type', 'DELIVERY')->active()->update(['status' => 'CANCELLED', 'close_reason' => 'Replaced by Logistics.']);
+                $lockedOrder->shipment->assignments()->create([
+                    'logistics_provider_id' => $lockedOrder->shipment->logistics_provider_id,
+                    'assignment_type' => 'DELIVERY', 'status' => 'ASSIGNED', 'rider_id' => $rider->id,
+                    'destination_hub_id' => $lockedOrder->shipment->destination_hub_id, 'assigned_by' => $actor->id,
+                ]);
             }
 
             $now = now();
@@ -311,7 +459,7 @@ class OrderWorkflowService
                     $actor,
                     $nextStatus === OrderStatus::AssignedToRider
                         ? 'Assigned to delivery rider '.$lockedOrder->shipment->rider?->user?->full_name.'.'
-                        : null
+                        : ($nextStatus === OrderStatus::Sorted ? ($context['sorting_event_note'] ?? null) : ($context['workflow_event_note'] ?? null))
                 );
             }
 
@@ -364,12 +512,19 @@ class OrderWorkflowService
             if (! $shipment || $locked->order->status === 'CANCELLED' || $locked->workflow_status !== OrderStatus::AssignedToRider || $shipment->rider_id !== $rider->id) {
                 throw new AuthorizationException('Only the assigned rider may accept this delivery before dispatch.');
             }
+            $assignment = $shipment->assignments()
+                ->where('assignment_type', 'DELIVERY')
+                ->where('rider_id', $rider->id)
+                ->whereIn('status', ['ASSIGNED', 'ACCEPTED'])
+                ->first();
+            if (! $assignment) throw new AuthorizationException('This rider has no pending active delivery assignment.');
             $rider->loadMissing(['user', 'logisticsProvider']);
             if (! $rider->isOperationallyAvailable()) {
                 throw new AuthorizationException('Only an online active rider may accept a delivery.');
             }
-            if (! $shipment->delivery_accepted_at) {
+            if (! $shipment->delivery_accepted_at && $assignment->status === 'ASSIGNED') {
                 $shipment->update(['delivery_accepted_at' => now()]);
+                $assignment->update(['status' => 'ACCEPTED', 'responded_at' => now()]);
                 $this->recordEvent($shipment, 'DELIVERY_ACCEPTED', $rider->user);
                 if ($rider->logisticsProvider?->user_id) {
                     app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Delivery accepted', 'A rider accepted an assigned delivery.', ['shipment_id' => $shipment->id]);
@@ -397,7 +552,10 @@ class OrderWorkflowService
             }
             app(RiderServiceAreaEligibilityService::class)->delivery($locked, $provider, $rider);
             app(LogisticsHubEligibilityService::class)->delivery($locked, $provider, $rider);
+            $this->assertRiderCapacity($rider, $shipment->id);
             $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null]);
+            $shipment->assignments()->where('assignment_type', 'DELIVERY')->active()->update(['status' => 'CANCELLED', 'close_reason' => 'Reassigned before dispatch.']);
+            $shipment->assignments()->create(['logistics_provider_id' => $provider->id, 'assignment_type' => 'DELIVERY', 'status' => 'ASSIGNED', 'rider_id' => $rider->id, 'destination_hub_id' => $shipment->destination_hub_id, 'assigned_by' => $actor->id]);
             $this->recordEvent($shipment, 'DELIVERY_RIDER_REASSIGNED', $actor, 'Delivery rider assigned to '.$rider->user->full_name.'.');
             app(DomainNotificationService::class)->afterCommit($rider->user_id, 'Delivery assignment', 'A delivery has been assigned to you.', ['shipment_id' => $shipment->id]);
             return $shipment->fresh();
@@ -419,6 +577,7 @@ class OrderWorkflowService
                 throw new AuthorizationException('An inactive rider cannot decline operational work.');
             }
             $shipment->update(['rider_id' => null]);
+            $shipment->assignments()->where('assignment_type', 'DELIVERY')->active()->where('rider_id', $rider->id)->update(['status' => 'DECLINED', 'responded_at' => now()]);
             $this->recordEvent($shipment, 'DELIVERY_DECLINED', $rider->user, 'Delivery declined; parcel requeued for logistics reassignment.');
             if ($rider->logisticsProvider?->user_id) {
                 app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Delivery declined', 'A delivery requires reassignment.', ['shipment_id' => $shipment->id]);
@@ -488,8 +647,12 @@ class OrderWorkflowService
 
             $shipment = $lockedOrder->shipment;
 
+            $assignment = $shipment->assignments()->where('assignment_type', 'PICKUP')->where('rider_id', $rider->id)->where('status', 'ASSIGNED')->first();
+            if (! $assignment) throw new AuthorizationException('This rider has no pending active pickup assignment.');
+
             $firstAcceptance = ! $shipment->pickup_accepted_at;
             $shipment->update(['pickup_accepted_at' => $shipment->pickup_accepted_at ?: now()]);
+            $assignment->update(['status' => 'ACCEPTED', 'responded_at' => now()]);
 
             $this->recordEvent($shipment, 'PICKUP_ACCEPTED', $rider->user);
             if ($firstAcceptance && $shipment->provider?->user_id) {
@@ -523,9 +686,9 @@ class OrderWorkflowService
                 ? $lockedOrder->workflow_status
                 : OrderStatus::tryFrom(strtoupper((string) $lockedOrder->workflow_status));
 
-            if (! $shipment || $status !== OrderStatus::AtSortingCenter) {
+            if (! $shipment || $status !== OrderStatus::PickedUp) {
                 throw ValidationException::withMessages([
-                    'order' => 'Only parcels at the sorting center can be received.',
+                    'order' => 'Only a picked-up parcel may be received at the sorting center.',
                 ]);
             }
 
@@ -598,6 +761,7 @@ class OrderWorkflowService
             $attempt = $shipment->attempts + 1;
             $next = $reason === 'buyer_refused' || $attempt >= 3 ? OrderStatus::RtsInitiated : OrderStatus::DeliveryFailed;
             $shipment->update(['attempts' => $attempt, 'workflow_status' => $next, 'status' => $next->legacyShipmentStatus(), 'status_changed_at' => now()]);
+            $shipment->assignments()->where('assignment_type', 'DELIVERY')->active()->update(['status' => 'CANCELLED', 'close_reason' => 'Delivery attempt failed; Logistics must explicitly reassign.']);
             $lockedOrder->update(['workflow_status' => $next, 'status' => $next->legacySellerStatus(), 'status_changed_at' => now()]);
             $this->synchronizeParentOrder($lockedOrder->order);
 
@@ -640,8 +804,11 @@ class OrderWorkflowService
             }
             app(RiderServiceAreaEligibilityService::class)->delivery($order, $provider, $rider);
             app(LogisticsHubEligibilityService::class)->delivery($order, $provider, $rider);
+            $this->assertRiderCapacity($rider, $shipment->id);
             $oldRider = $shipment->rider;
+            $shipment->assignments()->where('assignment_type', 'DELIVERY')->active()->update(['status' => 'CANCELLED', 'close_reason' => 'Replaced during delivery reschedule.']);
             $shipment->update(['rider_id' => $rider->id, 'delivery_accepted_at' => null, 'rescheduled_at' => $scheduledAt, 'workflow_status' => OrderStatus::AssignedToRider, 'status' => 'assigned', 'status_changed_at' => now()]);
+            $shipment->assignments()->create(['logistics_provider_id' => $provider->id, 'assignment_type' => 'DELIVERY', 'status' => 'ASSIGNED', 'rider_id' => $rider->id, 'destination_hub_id' => $shipment->destination_hub_id, 'assigned_by' => $actor->id]);
             $order->update(['workflow_status' => OrderStatus::AssignedToRider, 'status' => 'shipped', 'status_changed_at' => now()]);
             DeliveryEvent::create(['shipment_id' => $shipment->id, 'status' => 'DELIVERY_RESCHEDULED', 'attempt' => $shipment->attempts, 'user_id' => $actor->id, 'note' => 'Scheduled for '.$scheduledAt, 'occurred_at' => now()]);
             $this->synchronizeParentOrder($order->order);
@@ -742,15 +909,23 @@ class OrderWorkflowService
             [OrderStatus::Preparing, OrderStatus::ReadyForPickup] =>
                 $actor->hasRole('seller') && $sellerOrder->seller->user_id === $actor->id,
 
-            [OrderStatus::ReadyForPickup, OrderStatus::PickedUp],
-            [OrderStatus::PickedUp, OrderStatus::AtSortingCenter] =>
+            [OrderStatus::ReadyForPickup, OrderStatus::PickedUp] =>
                 $actor->hasRole('rider')
                 && $sellerOrder->shipment?->pickupRider?->user_id === $actor->id,
 
+            [OrderStatus::PickedUp, OrderStatus::AtSortingCenter] =>
+                ($actor->hasRole('rider') && $sellerOrder->shipment?->pickupRider?->user_id === $actor->id)
+                || ($actor->hasRole('logistics') && $sellerOrder->shipment?->provider?->user_id === $actor->id),
+
             [OrderStatus::AtSortingCenter, OrderStatus::Sorted],
-            [OrderStatus::Sorted, OrderStatus::AssignedToRider] =>
+            [OrderStatus::InTransitToHub, OrderStatus::AtDestinationHub],
+            [OrderStatus::AtDestinationHub, OrderStatus::AssignedToRider] =>
                 $actor->hasRole('logistics')
                 && $sellerOrder->shipment?->provider?->user_id === $actor->id,
+
+            [OrderStatus::Sorted, OrderStatus::InTransitToHub] =>
+                ($actor->hasRole('logistics') && $sellerOrder->shipment?->provider?->user_id === $actor->id)
+                || ($actor->hasRole('rider') && $sellerOrder->shipment?->assignments()->where('assignment_type', 'HUB_TRANSFER')->where('status', 'ACCEPTED')->whereHas('rider', fn ($query) => $query->where('user_id', $actor->id))->exists()),
 
             [OrderStatus::AssignedToRider, OrderStatus::OutForDelivery] =>
                 $actor->hasRole('rider')
@@ -795,6 +970,15 @@ class OrderWorkflowService
         }
 
         $order->update($updates);
+    }
+
+    private function assertRiderCapacity(Rider $rider, int $shipmentId): void
+    {
+        $capacity = max(1, (int) ($rider->active_assignment_capacity ?: 5));
+        $active = ShipmentAssignment::query()->active()->where('rider_id', $rider->id)->where('shipment_id', '!=', $shipmentId)->count();
+        if ($active >= $capacity) {
+            throw ValidationException::withMessages(['rider_id' => 'This rider has reached their active assignment capacity.']);
+        }
     }
 
     private function recordEvent(Shipment $shipment, string $status, ?User $actor, ?string $note = null): void

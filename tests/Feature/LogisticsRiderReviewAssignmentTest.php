@@ -173,7 +173,7 @@ class LogisticsRiderReviewAssignmentTest extends IsolatedStorageTestCase
             'inactive-hub' => $rider->logisticsHub->update(['is_active' => false]),
             'wrong-hub' => $rider->logisticsHub->update(['barangay_code' => 'OTHER']),
         };
-        $this->get(route('logistics.assignments'))->assertOk()->assertSee('No eligible pickup riders.')->assertDontSee('name="pickup_rider_id"', false);
+        $this->get(route('logistics.assignments'))->assertOk()->assertSee('No eligible pickup rider covers the Seller')->assertDontSee('name="pickup_rider_id"', false);
         $this->post(route('logistics.database.pickup-rider.assign', $sellerOrder), ['pickup_rider_id' => $rider->id])->assertStatus($case === 'foreign' ? 404 : 302);
         $this->assertNull($shipment->fresh()->pickup_rider_id);
         $this->assertSame('PICKUP-TRACK', $shipment->fresh()->tracking_code);

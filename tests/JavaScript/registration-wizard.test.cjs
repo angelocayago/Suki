@@ -12,11 +12,12 @@ class Node {
     removeChild(node){this.children=this.children.filter(child=>child!==node);node.parentElement=null;}
     replaceChildren(){this.children=[];}
     setAttribute(key,value){this[key]=value;}
+    removeAttribute(key){delete this[key];}
     addEventListener(type,fn){this.handlers[type]=fn;}
     focus(){this.focused=true;}
     checkValidity(){return this.valid;}
     reportValidity(){this.reported=true;return this.valid;}
-    matches(selector){return selector==='input[name="_token"]'?this.tag==='input'&&this.name==='_token':selector.startsWith('.')?this.className.split(' ').includes(selector.slice(1)):selector==='[name]'?!!this.name:selector==='[name="registration_role_choice"]:checked'?this.name==='registration_role_choice'&&this.checked:selector.split(', ').includes(this.tag);}
+    matches(selector){return selector==='input[name="_token"]'?this.tag==='input'&&this.name==='_token':selector==='[data-registration-error-summary]'?!!this.dataset.registrationErrorSummary:selector.startsWith('.')?this.className.split(' ').includes(selector.slice(1)):selector==='[name]'?!!this.name:selector==='[name="registration_role_choice"]:checked'?this.name==='registration_role_choice'&&this.checked:selector.split(', ').includes(this.tag);}
     querySelectorAll(selector){return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}
     querySelector(selector){return this.querySelectorAll(selector)[0]||null;}
     click(){this.handlers.click?.();}
@@ -33,11 +34,12 @@ function page(kind='seller',errors=[]){
     const names={buyer:['first_name','last_name','email','phone','government_id','password','password_confirmation','terms'],seller:['first_name','last_name','email','phone','password','password_confirmation','business_name','category_id','valid_id','business_permit','terms'],rider:['first_name','last_name','email','phone','password','address','vehicle_type','plate_number','government_id','terms'],logistics:['first_name','last_name','email','phone','password','business_name','government_id','terms']}[kind];
     const token=new Node('input');token.name='_token';token.type='hidden';token.value='original-csrf';form.append(token);
     const legacy=new Node();form.append(legacy);const controls={};
+    if(errors.length){const summary=new Node('div');summary.dataset.registrationErrorSummary='true';summary.textContent='Please check the highlighted registration details.';legacy.append(summary);}
     for(const name of names){const control=new Node('input');control.name=name;if(/password/.test(name))control.type='password';if(/government_id|valid_id|business_permit/.test(name))control.type='file';const label=new Node('label');label.append(control);legacy.append(label);controls[name]=control;}
     let initialise,redirect;
     const sandbox={CSS:{escape:value=>value},window:{location:{assign:value=>{redirect=value;}}},document:{createElement:tag=>new Node(tag),querySelector:()=>null,querySelectorAll:()=>[form],addEventListener(type,fn){initialise=fn;}}};
     vm.runInNewContext(source,sandbox);initialise();
-    return {form,controls,initialise,get redirect(){return redirect;},panels:form.querySelectorAll('.registration-panel'),next:form.querySelector('.registration-actions__next'),back:form.querySelector('.registration-actions__back')};
+    return {form,controls,initialise,get redirect(){return redirect;},panels:form.querySelectorAll('.registration-panel'),stepper:form.querySelector('.registration-stepper'),next:form.querySelector('.registration-actions__next'),back:form.querySelector('.registration-actions__back')};
 }
 
 test('all role wizards retain original fields, CSRF, endpoints and a single initialization',()=>{
@@ -58,6 +60,22 @@ test('server errors on a later step reveal earlier required fields before native
     assert.equal(p.form.noValidate,true,'wizard must control validation of hidden required fields');
     let prevented=false;p.form.handlers.submit({preventDefault(){prevented=true;}});
     assert.equal(prevented,true);assert.equal(p.panels[1].hidden,false);assert.equal(p.controls.password.reported,true);
+});
+
+test('server validation summary remains visible and wizard opens the mapped error step',()=>{
+    const p=page('seller',['valid_id.0','tin']);
+    const summary=p.form.querySelector('[data-registration-error-summary]');
+    assert.equal(summary.parentElement.className,'registration-wizard-mount');
+    assert.equal(p.panels[3].hidden,false,'array-style document errors map to the verification step');
+    assert.equal(p.stepper.querySelectorAll('.registration-step')[3]['aria-current'],'step');
+    assert.equal(summary.hidden,false);
+    assert.equal(p.controls.first_name.value,'value','existing values stay in their controls when the wizard moves them');
+});
+
+test('unmapped server errors stay visible on the review step instead of misleadingly opening step one',()=>{
+    const p=page('seller',['unexpected_backend_key']);
+    assert.equal(p.panels.at(-1).hidden,false);
+    assert.equal(p.stepper.querySelectorAll('.registration-step').at(-1)['aria-current'],'step');
 });
 
 test('logistics role choice keeps the existing rider application destination',()=>{

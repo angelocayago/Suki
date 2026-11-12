@@ -21,6 +21,20 @@
     <button class="rounded-lg bg-[#173F35] px-3 py-2 text-xs font-semibold text-white">Update</button>
 </form>
 
+@if(($hubTransferAssignments ?? collect())->isNotEmpty())
+    <section class="mb-5 rounded-xl border border-[#DDE6E1] bg-white p-4">
+        <h2 class="font-semibold text-[#173F35]">Pending Hub-Transfer Assignments</h2>
+        <div class="mt-3 space-y-3">
+            @foreach($hubTransferAssignments as $assignment)
+                <article class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E5ECE8] p-3">
+                    <div><p class="text-sm font-semibold">{{ $assignment->shipment?->sellerOrder?->order?->order_number }} · {{ $assignment->shipment?->tracking_code }}</p><p class="text-xs text-[#617169]">{{ $assignment->originHub?->name ?? 'Main Sorting Center' }} → {{ $assignment->destinationHub?->name ?? 'Destination hub unavailable' }} · {{ $assignment->status }}</p><p class="text-xs text-[#617169]">Destination: {{ collect([$assignment->shipment?->sellerOrder?->order?->barangay, $assignment->shipment?->sellerOrder?->order?->municipality, $assignment->shipment?->sellerOrder?->order?->province])->filter()->implode(', ') }}</p></div>
+                    <a href="{{ route('rider.shipment-scanner', ['tracking_code' => $assignment->shipment?->tracking_code, 'mode' => 'hub_transfer_dispatch']) }}" class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-xs font-semibold text-white">{{ $assignment->status === 'ACCEPTED' ? 'Scan to Dispatch' : 'Scan to Accept Transfer' }}</a>
+                </article>
+            @endforeach
+        </div>
+    </section>
+@endif
+
 @php
     /*
     |--------------------------------------------------------------------------
@@ -435,7 +449,11 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                 </form>
 
                             @elseif ($status === 'ready_for_pickup')
-
+                                @if(($order['source'] ?? '') === 'database')
+                                    <a href="{{ route('rider.shipment-scanner', !empty($order['tracking_code']) ? ['tracking_code' => $order['tracking_code'], 'mode' => 'pickup'] : ['mode' => 'pickup']) }}" class="inline-flex w-full items-center justify-center rounded-lg bg-[#1F6F5B] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#155244] lg:w-auto">
+                                        Scan to Confirm Collection
+                                    </a>
+                                @else
                                 <form method="POST" action="{{ ($order['source'] ?? 'session') === 'database'
                                     ? route('rider.database.order.status', $orderId)
                                     : route('rider.order.status', $orderId) }}">
@@ -445,6 +463,7 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                         Confirm Parcel Collection
                                     </button>
                                 </form>
+                                @endif
                             @elseif ($status === 'assigned_to_rider')
 
                                 @if(($order['source'] ?? '') === 'database' && empty($order['delivery_accepted_at']))
@@ -459,6 +478,11 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                 @endif
 
                                 @if(($order['source'] ?? '') !== 'database' || !empty($order['delivery_accepted_at']))
+                                    @if(($order['source'] ?? '') === 'database')
+                                        <a href="{{ route('rider.shipment-scanner', !empty($order['tracking_code']) ? ['tracking_code' => $order['tracking_code'], 'mode' => 'last_mile_dispatch'] : ['mode' => 'last_mile_dispatch']) }}" class="inline-flex w-full items-center justify-center rounded-lg bg-[#1F6F5B] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#155244] lg:w-auto">
+                                            Scan to Start Delivery
+                                        </a>
+                                    @else
                                     <form
                                         method="POST"
                                         action="{{ ($order['source'] ?? 'session') === 'database'
@@ -480,11 +504,16 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                             Mark Out for Delivery
                                         </button>
                                     </form>
+                                    @endif
                                 @endif
 
 
                             @elseif ($status === 'picked_up')
-
+                                @if(($order['source'] ?? '') === 'database')
+                                    <a href="{{ route('rider.shipment-scanner', !empty($order['tracking_code']) ? ['tracking_code' => $order['tracking_code'], 'mode' => 'sorting_center_arrival'] : ['mode' => 'sorting_center_arrival']) }}" class="inline-flex w-full items-center justify-center rounded-lg bg-[#1F6F5B] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#155244] lg:w-auto">
+                                        Scan Arrival at Sorting Center
+                                    </a>
+                                @else
                                 <form
                                     method="POST"
                                     action="{{ ($order['source'] ?? 'session') === 'database'
@@ -506,7 +535,7 @@ document.querySelectorAll('[data-copy-address]').forEach(button => button.addEve
                                         Send to Sorting Center
                                     </button>
                                 </form>
-
+                                @endif
 
                             @elseif ($status === 'at_sorting_center')
 

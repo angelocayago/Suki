@@ -8,17 +8,57 @@ use Illuminate\Validation\ValidationException;
 class PhilippineAddressService
 {
     private const BASE = 'https://psgc.cloud/api/v2/';
+    private array $locationCache = [];
 
     public function locations(string $path): ?array
     {
+        if (array_key_exists($path, $this->locationCache)) return $this->locationCache[$path];
         try {
             $response = Http::acceptJson()->timeout(5)->get(self::BASE.$path);
         } catch (\Throwable) {
-            return null;
+            return $this->locationCache[$path] = null;
         }
         $items = $response->successful() ? $response->json('data') : null;
-        if (! is_array($items)) return null;
-        return array_values(array_filter($items, fn ($item) => is_array($item) && is_string($item['code'] ?? null) && is_string($item['name'] ?? null)));
+        if (! is_array($items)) return $this->locationCache[$path] = null;
+        return $this->locationCache[$path] = array_values(array_filter($items, fn ($item) => is_array($item) && is_string($item['code'] ?? null) && is_string($item['name'] ?? null)));
+    }
+
+    /** Resolve a zone mapping from PSGC codes, validating every parent/child relationship. */
+    public function resolveArea(array $area, bool $cityWide = false): array
+    {
+        $get = function (string $path, string $field): array {
+            $items = $this->locations($path);
+            if ($items === null) throw ValidationException::withMessages([$field => 'Address data could not be verified. Please try again later.']);
+            return $items;
+        };
+        $pick = static function (array $items, ?string $code, string $field): array {
+            foreach ($items as $item) if (($item['code'] ?? null) === $code) return $item;
+            throw ValidationException::withMessages([$field => 'Select a location belonging to the selected parent location.']);
+        };
+
+        $region = $pick($get('regions', 'region_code'), $area['region'] ?? null, 'region_code');
+        $provinces = $get('regions/'.rawurlencode($region['code']).'/provinces', 'province_code');
+        $province = null;
+        $citiesPath = 'regions/'.rawurlencode($region['code']).'/cities-municipalities';
+        if ($provinces !== []) {
+            $province = $pick($provinces, $area['province'] ?? null, 'province_code');
+            $citiesPath = 'provinces/'.rawurlencode($province['code']).'/cities-municipalities';
+        } elseif (filled($area['province'] ?? null)) {
+            throw ValidationException::withMessages(['province_code' => 'This region does not have provinces.']);
+        }
+        $city = $pick($get($citiesPath, 'city_municipality_code'), $area['municipality'] ?? null, 'city_municipality_code');
+        $barangay = $cityWide ? null : $pick(
+            $get('cities-municipalities/'.rawurlencode($city['code']).'/barangays', 'barangay_code'),
+            $area['barangay'] ?? null,
+            'barangay_code'
+        );
+
+        return [
+            'region' => $region['name'], 'province' => $province['name'] ?? null,
+            'municipality' => $city['name'], 'barangay' => $barangay['name'] ?? null,
+            'region_code' => $region['code'], 'province_code' => $province['code'] ?? null,
+            'city_municipality_code' => $city['code'], 'barangay_code' => $barangay['code'] ?? null,
+        ];
     }
 
     public function postalCode(?string $cityMunicipalityCode): ?string

@@ -220,9 +220,6 @@
                             Password
                         </label>
 
-                        <a href="#">
-                            Forgot Password?
-                        </a>
 
                     </div>
 

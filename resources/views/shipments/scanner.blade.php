@@ -24,19 +24,26 @@
             </div>
         </div>
 
-        <div id="camera-status" data-state="idle" role="status" aria-live="polite" class="mt-4 flex items-center gap-3 rounded-lg border border-[#E5ECE8] bg-[#FAFCFB] p-3">
-            <span id="camera-state-icon" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEF5F1] text-[#1F6F5B]"><i data-lucide="camera" class="h-4 w-4" aria-hidden="true"></i></span>
+        <div id="camera-status" data-state="{{ $shipmentVerified ? 'verified' : 'idle' }}" role="status" aria-live="polite" class="mt-4 flex items-center gap-3 rounded-lg border border-[#E5ECE8] bg-[#FAFCFB] p-3">
+            <span id="camera-state-icon" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEF5F1] text-[#1F6F5B]"><i data-lucide="{{ $shipmentVerified ? 'check' : 'camera' }}" class="h-4 w-4" aria-hidden="true"></i></span>
             <span id="camera-spinner" class="hidden h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[#DDE6E1] border-t-[#1F6F5B]" aria-hidden="true"></span>
-            <div class="min-w-0"><p id="camera-status-title" class="text-sm font-semibold text-[#34483F]">Ready to scan</p><p id="camera-message" class="mt-0.5 text-xs text-[#728078]">Start the camera or enter the tracking code manually below.</p></div>
+            <div class="min-w-0"><p id="camera-status-title" class="text-sm font-semibold text-[#34483F]">{{ $shipmentVerified ? 'Shipment verified' : 'Ready to scan' }}</p><p id="camera-message" class="mt-0.5 text-xs text-[#728078]">{{ $shipmentVerified ? 'QR verified successfully. Review the shipment details below.' : 'Start the camera or enter the tracking code manually below.' }}</p></div>
         </div>
 
         <div id="camera-preview" class="relative mt-4 hidden overflow-hidden rounded-lg bg-[#10201B]">
             <video id="scanner-video" class="hidden aspect-video max-h-[440px] w-full object-cover" playsinline muted aria-label="Live camera preview for scanning a shipment QR code"></video>
             <div id="scanner-target" class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true">
-                <div class="relative aspect-square w-[min(58vw,240px)] rounded-xl border border-[#DDF3EC]/70 shadow-[0_0_0_999px_rgba(8,20,16,0.24)]">
-                    <span class="absolute inset-x-2 top-1/2 h-px animate-pulse bg-[#DDF3EC]/80"></span>
+                <div class="relative aspect-square w-[min(58vw,240px)] rounded-xl shadow-[0_0_0_999px_rgba(8,20,16,0.24)]">
+                    <span class="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#DDF3EC]/80"></span>
+                    <span class="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#DDF3EC]/80"></span>
+                    <span class="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#DDF3EC]/80"></span>
+                    <span class="absolute bottom-0 right-0 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#DDF3EC]/80"></span>
+                    <span id="scanner-scan-line" class="absolute inset-x-2 top-1/2 h-px animate-pulse bg-[#DDF3EC]/80"></span>
                 </div>
             </div>
+            <svg id="qr-detection-overlay" class="pointer-events-none absolute inset-0 hidden h-full w-full" aria-hidden="true">
+                <polygon id="qr-detection-polygon" points="" fill="rgba(31,111,91,0.16)" stroke="#1F6F5B" stroke-width="5" vector-effect="non-scaling-stroke"></polygon>
+            </svg>
         </div>
     </section>
 
@@ -44,7 +51,10 @@
         <h2 class="font-semibold text-[#173F35]">Manual fallback</h2>
         <form id="shipment-resolve-form" method="POST" action="{{ route($actorType === 'logistics' ? 'logistics.shipment-scanner.resolve' : 'rider.shipment-scanner.resolve') }}" class="mt-3 flex flex-col gap-3 sm:flex-row">
             @csrf
-            <input id="scan-payload" name="tracking_code" value="{{ $prefillTrackingCode ?? '' }}" class="flex-1 rounded-lg border-[#DDE6E1] text-sm" placeholder="Paste QR payload or enter tracking code" autofocus>
+            <input type="hidden" name="mode" value="{{ $scannerMode ?? '' }}">
+            <input type="hidden" name="hub_id" value="{{ request()->query('hub_id', '') }}">
+            <input id="qr-payload" type="hidden" name="payload" value="">
+            <input id="scan-payload" name="tracking_code" value="{{ $prefillTrackingCode ?? '' }}" class="flex-1 rounded-lg border-[#DDE6E1] text-sm" placeholder="Enter tracking code" autofocus>
             <button id="resolve-shipment" class="rounded-lg bg-[#1F6F5B] px-4 py-2 text-sm font-semibold text-white">Find shipment</button>
         </form>
     </section>
@@ -74,9 +84,72 @@
                 <form method="POST" action="{{ route($actorType === 'logistics' ? 'logistics.shipment-scanner.action' : 'rider.shipment-scanner.action', $shipment) }}" class="mt-5 flex flex-wrap items-end gap-3">
                     @csrf
                     <input type="hidden" name="action" value="{{ $allowedAction }}">
-                    @if($allowedAction === 'mark_sorted')<label class="text-sm font-medium text-[#24312C]">Sorting area<input required name="sorting_area" class="mt-1 block rounded-lg border-[#DDE6E1] text-sm" placeholder="Sorting area"></label>@endif
-                    <button class="rounded-lg bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">{{ ['accept_pickup' => 'Accept pickup', 'confirm_pickup' => 'Confirm parcel pickup', 'arrive_sorting' => 'Confirm arrival at sorting center', 'receive_sorting' => 'Receive at sorting center', 'mark_sorted' => 'Confirm Sorting', 'accept_delivery' => 'Accept delivery assignment', 'begin_delivery' => 'Mark out for delivery'][$allowedAction] }}</button>
+                    @if($allowedAction === 'mark_sorted')
+                        @php($recommendation = $sortingResolution['zone'] ?? null)
+                        <div class="w-full rounded-lg border border-[#DDE6E1] bg-[#FAFCFB] p-4 text-left sm:basis-full">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-[#728078]">Destination</p>
+                            <p class="mt-1 text-sm font-medium text-[#24312C]">{{ collect([$destinationOrder->barangay, $destinationOrder->municipality, $destinationOrder->province])->filter()->implode(', ') ?: 'Location codes unavailable' }}</p>
+                            <p class="mt-3 text-[10px] font-semibold uppercase tracking-wide text-[#728078]">Assigned Sorting Zone</p>
+                            @if($recommendation)
+                                <p class="mt-1 text-sm font-semibold text-[#173F35]">{{ $recommendation->hub?->name ?? 'Destination hub not configured' }}</p>
+                                <p class="text-sm text-[#52635B]">{{ $recommendation->zone_code }} — {{ $recommendation->name }}</p>
+                                <p class="mt-1 text-xs text-[#1F6F5B]">✓ Automatically determined from {{ $sortingResolution['specificity'] }} destination codes.</p>
+                            @elseif(($sortingResolution['ambiguous'] ?? false))
+                                <p role="status" class="mt-1 text-sm text-amber-800">⚠ Multiple zones match at the same specificity and priority. Choose a zone manually.</p>
+                            @else
+                                <p role="status" class="mt-1 text-sm text-amber-800">⚠ No configured sorting zone matches this destination.</p>
+                            @endif
+                            @if($sortingZones->isNotEmpty())
+                                @if($recommendation)
+                                    <details class="mt-3 rounded-lg border border-[#DDE6E1] bg-white p-3">
+                                        <summary class="cursor-pointer text-sm font-semibold text-[#1F6F5B]">Change Zone</summary>
+                                        <label class="mt-3 block text-xs font-medium text-[#34483F]">Select active provider zone
+                                            <select required name="sorting_zone_id" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm">
+                                                @foreach($sortingZones as $zone)
+                                                    <option value="{{ $zone->id }}" @selected($recommendation->id === $zone->id)>{{ $zone->zone_code }} — {{ $zone->name }}{{ $zone->hub ? ' · '.$zone->hub->name : '' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </label>
+                                        <label class="mt-3 block text-xs font-medium text-[#34483F]">Override reason <span class="font-normal text-[#728078]">(required if you change the zone)</span>
+                                            <select name="override_reason" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm">
+                                                <option value="">No override</option>
+                                                <option value="temporary_route_change">Temporary route change</option>
+                                                <option value="hub_capacity">Hub capacity</option>
+                                                <option value="area_reassignment">Area reassignment</option>
+                                                <option value="operational_exception">Operational exception</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </label>
+                                        <label class="mt-3 block text-xs font-medium text-[#34483F]">Other reason note
+                                            <input name="override_note" maxlength="250" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm" placeholder="Short operational note">
+                                        </label>
+                                    </details>
+                                @else
+                                    <label class="mt-3 block text-xs font-medium text-[#34483F]">Choose active provider zone
+                                        <select required name="sorting_zone_id" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm"><option value="">Select a provider zone</option>@foreach($sortingZones as $zone)<option value="{{ $zone->id }}">{{ $zone->zone_code }} — {{ $zone->name }}{{ $zone->hub ? ' · '.$zone->hub->name : '' }}</option>@endforeach</select>
+                                    </label>
+                                    <label class="mt-3 block text-xs font-medium text-[#34483F]">Override reason (required)
+                                        <select required name="override_reason" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm"><option value="">Select reason</option><option value="temporary_route_change">Temporary route change</option><option value="hub_capacity">Hub capacity</option><option value="area_reassignment">Area reassignment</option><option value="operational_exception">Operational exception</option><option value="other">Other</option></select>
+                                    </label>
+                                    <label class="mt-3 block text-xs font-medium text-[#34483F]">Other reason note (required for Other)
+                                        <input name="override_note" maxlength="250" class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm" placeholder="Short operational note">
+                                    </label>
+                                @endif
+                            @else
+                                <p class="mt-2 text-xs text-amber-800">No active zones are configured. <a class="font-semibold underline" href="{{ route('logistics.sorting-zones.index') }}">Configure sorting zones</a> before confirming.</p>
+                            @endif
+                        </div>
+                    @endif
+                    @if($allowedAction !== 'mark_sorted' || ($sortingZones->isNotEmpty() && (!$recommendation || $recommendation->hub?->is_active)))<button class="rounded-lg bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">{{ ['accept_pickup' => 'Accept pickup', 'confirm_pickup' => 'Confirm parcel pickup', 'arrive_sorting' => 'Confirm arrival at sorting center', 'receive_sorting' => 'Receive at sorting center', 'mark_sorted' => 'Sort to '.($recommendation?->hub?->name ?? 'Destination Hub'), 'dispatch_hub' => 'Dispatch to destination hub', 'arrive_hub' => 'Confirm arrival at destination hub', 'accept_hub_transfer' => 'Accept hub-transfer assignment', 'accept_delivery' => 'Accept delivery assignment', 'begin_delivery' => 'Start last-mile delivery', 'receive_sorting' => 'Receive at sorting center'][$allowedAction] }}</button>@endif
                 </form>
+                @if($actorType === 'rider' && $allowedAction === 'accept_hub_transfer')
+                    <form method="POST" action="{{ route('rider.shipment-scanner.action', $shipment) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                        @csrf
+                        <input type="hidden" name="action" value="decline_hub_transfer">
+                        <label class="min-w-[220px] flex-1 text-xs font-medium text-[#34483F]">Reason for declining<input name="transfer_decline_reason" minlength="3" maxlength="250" required class="mt-1 block w-full rounded-lg border-[#DDE6E1] text-sm" placeholder="Short operational reason"></label>
+                        <button class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900">Decline Transfer</button>
+                    </form>
+                @endif
             @else
                 <p class="mt-5 rounded-lg bg-[#F5F8F6] p-3 text-sm text-[#52635B]">No scan action is available for your role at this shipment stage.</p>
             @endif
@@ -84,218 +157,5 @@
     @endif
 </div>
 
-<script>
-(() => {
-    const startButton = document.getElementById('start-camera');
-    const stopButton = document.getElementById('stop-camera');
-    const video = document.getElementById('scanner-video');
-    const preview = document.getElementById('camera-preview');
-    const target = document.getElementById('scanner-target');
-    const status = document.getElementById('camera-status');
-    const statusIcon = document.getElementById('camera-state-icon');
-    const spinner = document.getElementById('camera-spinner');
-    const title = document.getElementById('camera-status-title');
-    const message = document.getElementById('camera-message');
-    const form = document.getElementById('shipment-resolve-form');
-    const resolveButton = document.getElementById('resolve-shipment');
-    const input = document.getElementById('scan-payload');
-    if (!startButton || !stopButton || !video || !form || !input) return;
-
-    let stream = null;
-    let detector = null;
-    let animationId = null;
-    let isStarting = false;
-    let isScanning = false;
-    let isDetecting = false;
-    let isSubmitting = false;
-    let detected = false;
-    let pageLeaving = false;
-    let detectDelay = null;
-    let submitDelay = null;
-
-    const showIcon = (name) => {
-        statusIcon.innerHTML = `<i data-lucide="${name}" class="h-4 w-4" aria-hidden="true"></i>`;
-        window.lucide?.createIcons();
-    };
-    const setState = (state, heading, detail, icon, loading = false) => {
-        status.dataset.state = state;
-        title.textContent = heading;
-        message.textContent = detail;
-        spinner.classList.toggle('hidden', !loading);
-        statusIcon.classList.toggle('hidden', loading);
-        if (icon) showIcon(icon);
-    };
-    const cancelDetection = () => {
-        isScanning = false;
-        if (animationId !== null) cancelAnimationFrame(animationId);
-        animationId = null;
-    };
-    const stopTracks = () => {
-        cancelDetection();
-        if (stream) stream.getTracks().forEach((track) => track.stop());
-        stream = null;
-        video.pause();
-        video.srcObject = null;
-        video.classList.add('hidden');
-        preview.classList.add('hidden');
-        target.classList.add('hidden');
-        target.classList.remove('flex');
-        stopButton.classList.add('hidden');
-        stopButton.disabled = false;
-        startButton.classList.remove('hidden');
-        startButton.disabled = isSubmitting;
-    };
-    const resetCamera = () => {
-        if (isStarting || isSubmitting) return;
-        detected = false;
-        detector = null;
-        stopTracks();
-        startButton.disabled = false;
-        setState('idle', 'Ready to scan', 'Start the camera or enter the tracking code manually below.', 'camera');
-    };
-    const previewOnly = () => {
-        detector = null;
-        cancelDetection();
-        target.classList.add('hidden');
-        target.classList.remove('flex');
-        startButton.classList.add('hidden');
-        setState('preview-only', 'Camera preview is active', 'Automatic QR recognition is not supported by this browser. Use manual tracking entry.', 'camera');
-    };
-    const cameraError = (error) => {
-        const name = error?.name;
-        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'No camera device was found.';
-        if (window.isSecureContext === false) return 'Camera access is unavailable in this browser context. Use manual tracking entry.';
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') return 'Camera permission was denied. Allow camera access or use manual tracking entry.';
-        if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') return 'Unable to start the camera. Close other apps using the camera or use manual tracking entry.';
-        return 'Unable to start the camera. Close other apps using the camera or use manual tracking entry.';
-    };
-    const submitResolvedPayload = (value) => {
-        if (detected || isSubmitting || !value) return;
-        detected = true;
-        input.value = value;
-        stopTracks();
-        startButton.disabled = true;
-        setState('detected', 'QR Code Detected', 'The QR code was read. Preparing to verify the shipment.', 'check');
-        detectDelay = setTimeout(() => {
-            if (isSubmitting) return;
-            setState('processing', 'Verifying shipment...', 'The server is validating the shipment and your access.', null, true);
-            submitDelay = setTimeout(() => {
-                if (isSubmitting) return;
-                if (typeof form.requestSubmit === 'function') form.requestSubmit();
-                else {
-                    isSubmitting = true;
-                    resolveButton.disabled = true;
-                    HTMLFormElement.prototype.submit.call(form);
-                }
-            }, 350);
-        }, 550);
-    };
-    const scanFrame = async () => {
-        if (!isScanning || !detector || isDetecting) return;
-        if (video.readyState >= 2) {
-            isDetecting = true;
-            try {
-                const codes = await detector.detect(video);
-                if (!isScanning) return;
-                const value = codes.find((code) => typeof code.rawValue === 'string' && code.rawValue.trim())?.rawValue;
-                if (value) {
-                    cancelDetection();
-                    submitResolvedPayload(value);
-                    return;
-                }
-            } catch (_) {
-                cancelDetection();
-                setState('error', 'QR recognition stopped', 'The camera could not read this frame. Stop and retry, or use manual tracking entry.', 'triangle-alert');
-                return;
-            } finally {
-                isDetecting = false;
-            }
-        }
-        if (isScanning) animationId = requestAnimationFrame(scanFrame);
-    };
-    const startCamera = async () => {
-        if (isStarting || stream || isSubmitting) return;
-        isStarting = true;
-        detected = false;
-        startButton.disabled = true;
-        stopButton.classList.add('hidden');
-        setState('starting', 'Opening camera...', 'Please allow camera access when your browser asks.', null, true);
-
-        if (!navigator.mediaDevices?.getUserMedia) {
-            isStarting = false;
-            startButton.disabled = false;
-            setState('error', 'Camera unavailable', window.isSecureContext === false ? 'Camera access is unavailable in this browser context. Use manual tracking entry.' : 'Camera scanning is not supported by this browser. Use manual tracking entry.', 'triangle-alert');
-            return;
-        }
-
-        try {
-            const cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-            if (pageLeaving || isSubmitting) {
-                cameraStream.getTracks().forEach((track) => track.stop());
-                return;
-            }
-            stream = cameraStream;
-            video.srcObject = stream;
-            await video.play();
-            if (pageLeaving || isSubmitting || stream !== cameraStream) {
-                cameraStream.getTracks().forEach((track) => track.stop());
-                return;
-            }
-            preview.classList.remove('hidden');
-            video.classList.remove('hidden');
-            stopButton.classList.remove('hidden');
-            startButton.disabled = true;
-
-            if (typeof window.BarcodeDetector !== 'function') {
-                previewOnly();
-                return;
-            }
-            try {
-                detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-            } catch (_) {
-                previewOnly();
-                return;
-            }
-
-            target.classList.remove('hidden');
-            target.classList.add('flex');
-            startButton.classList.add('hidden');
-            isScanning = true;
-            setState('scanning', 'Scanning QR code...', 'Hold the waybill QR code inside the frame.', 'scan-line');
-            animationId = requestAnimationFrame(scanFrame);
-        } catch (error) {
-            stopTracks();
-            startButton.disabled = false;
-            setState('error', 'Camera could not start', cameraError(error), 'triangle-alert');
-        } finally {
-            isStarting = false;
-        }
-    };
-
-    startButton.addEventListener('click', startCamera);
-    stopButton.addEventListener('click', resetCamera);
-    form.addEventListener('submit', (event) => {
-        if (isSubmitting) {
-            event.preventDefault();
-            return;
-        }
-        isSubmitting = true;
-        if (detectDelay !== null) clearTimeout(detectDelay);
-        if (submitDelay !== null) clearTimeout(submitDelay);
-        stopTracks();
-        startButton.disabled = true;
-        stopButton.disabled = true;
-        resolveButton.disabled = true;
-        setState('processing', 'Verifying shipment...', 'The server is validating the shipment and your access.', null, true);
-    });
-    const cleanupOnLeave = () => {
-        pageLeaving = true;
-        if (detectDelay !== null) clearTimeout(detectDelay);
-        if (submitDelay !== null) clearTimeout(submitDelay);
-        stopTracks();
-    };
-    window.addEventListener('pagehide', cleanupOnLeave);
-    window.addEventListener('beforeunload', cleanupOnLeave);
-})();
-</script>
+@vite('resources/js/shipment-scanner.js')
 @endsection

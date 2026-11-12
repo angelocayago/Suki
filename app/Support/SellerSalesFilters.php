@@ -17,7 +17,7 @@ class SellerSalesFilters
     private const AMOUNT_SQL = '(COALESCE(seller_orders.subtotal_minor, 0) + COALESCE(seller_orders.shipping_fee_minor, 0) - COALESCE((SELECT SUM(discount_minor) FROM voucher_redemptions WHERE voucher_redemptions.seller_order_id = seller_orders.id), 0))';
     private const COMPLETED = ['DELIVERED', 'COMPLETED'];
     private const EXCLUDED = ['CANCELLED', 'RTS_COMPLETED', 'DELIVERY_FAILED'];
-    private const PENDING = ['PLACED', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY', 'RTS_INITIATED', 'RTS_RETURNING'];
+    private const PENDING = ['PLACED', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'IN_TRANSIT_TO_HUB', 'AT_DESTINATION_HUB', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY', 'RTS_INITIATED', 'RTS_RETURNING'];
     private const COLLECTED_SQL = "EXISTS (SELECT 1 FROM orders WHERE orders.id = seller_orders.order_id AND LOWER(orders.payment_method) = 'cod') AND EXISTS (SELECT 1 FROM shipments WHERE shipments.seller_order_id = seller_orders.id AND shipments.cod_collected = TRUE)";
 
     public static function groups(): array
@@ -82,7 +82,7 @@ class SellerSalesFilters
         if (isset($criteria['fulfillment'])) {
             $stages = match ($criteria['fulfillment']) {
                 'to_ship'=>['PLACED', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP'],
-                'shipped'=>['PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'],
+                'shipped'=>['PICKED_UP', 'AT_SORTING_CENTER', 'SORTED', 'IN_TRANSIT_TO_HUB', 'AT_DESTINATION_HUB', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'],
                 'delivered'=>self::COMPLETED, 'returned'=>['RTS_COMPLETED'],
             };
             $query->whereRaw(self::STATUS_SQL." != 'CANCELLED'")->where(function ($fulfillment) use ($stages, $criteria) {

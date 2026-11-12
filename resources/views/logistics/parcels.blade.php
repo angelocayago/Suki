@@ -218,47 +218,20 @@
             }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | LEGACY FALLBACK
-            |--------------------------------------------------------------------------
-            */
-
-            $legacyRider =
-                $order['rider']
-                ?? [];
-
-
-            if (
-                is_array($legacyRider)
-            ) {
-
-                $name =
-                    trim(
-                        (
-                            $legacyRider['first_name']
-                            ?? ''
-                        )
-                        . ' ' .
-                        (
-                            $legacyRider['last_name']
-                            ?? ''
-                        )
-                    );
-
-
-                if ($name !== '') {
-
-                    return $name;
-
-                }
-
-            }
-
-
-            return 'Pickup Rider';
+            return 'Unassigned';
 
         };
+
+    $pickupWorkflowLabel = function ($order, string $status): string {
+        return match ($status) {
+            'ready_for_pickup' => empty($order['pickup_rider_id'])
+                ? 'Assignment Needed'
+                : (empty($order['pickup_accepted_at']) ? 'Awaiting Rider Acceptance' : 'Awaiting Parcel Collection'),
+            'picked_up' => 'En Route to Sorting Center',
+            'at_sorting_center' => 'Ready for verified receiving/sorting',
+            default => 'Unassigned',
+        };
+    };
 
 
     /*
@@ -1419,7 +1392,10 @@
                             {{-- STATUS --}}
                             <td class="px-5 py-4">
 
-                                @if(
+                                @if($status === 'ready_for_pickup')
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[9px] font-semibold text-amber-800">{{ $pickupWorkflowLabel($order, $status) }}</span>
+
+                                @elseif(
                                     $status ===
                                     'picked_up'
                                 )
@@ -1443,7 +1419,7 @@
                                             class="h-3 w-3"
                                         ></i>
 
-                                        En Route
+                                        {{ $pickupWorkflowLabel($order, $status) }}
 
                                     </span>
 
@@ -1472,7 +1448,7 @@
                                             class="h-3 w-3"
                                         ></i>
 
-                                        At Sorting Center
+                                        {{ $pickupWorkflowLabel($order, $status) }}
 
                                     </span>
 
@@ -1521,6 +1497,8 @@
                                     </a>
 
 
+                                @elseif($status === 'ready_for_pickup' && empty($order['pickup_rider_id']))
+                                    <a href="{{ route('logistics.assignments') }}" class="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#173F35] px-3 text-[9px] font-semibold text-white transition hover:bg-[#1F6F5B]">Assign Pickup Rider</a>
                                 @else
 
                                     <span
@@ -1543,7 +1521,7 @@
                                             class="h-3 w-3"
                                         ></i>
 
-                                        Awaiting Arrival
+                                        {{ $pickupWorkflowLabel($order, $status) }}
 
                                     </span>
 
@@ -1720,7 +1698,10 @@
                         </div>
 
 
-                        @if(
+                        @if($status === 'ready_for_pickup')
+                            <span class="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[8px] font-semibold text-amber-800">{{ $pickupWorkflowLabel($order, $status) }}</span>
+
+                        @elseif(
                             $status ===
                             'picked_up'
                         )
@@ -1739,7 +1720,7 @@
                                     text-cyan-700
                                 "
                             >
-                                En Route
+                                {{ $pickupWorkflowLabel($order, $status) }}
                             </span>
 
 
@@ -1759,7 +1740,7 @@
                                     text-emerald-700
                                 "
                             >
-                                Received
+                                {{ $pickupWorkflowLabel($order, $status) }}
                             </span>
 
                         @endif
@@ -1923,6 +1904,9 @@
                             </a>
 
 
+                        @elseif($status === 'ready_for_pickup' && empty($order['pickup_rider_id']))
+                            <a href="{{ route('logistics.assignments') }}" class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#173F35] text-[10px] font-semibold text-white transition hover:bg-[#1F6F5B]">Assign Pickup Rider</a>
+
                         @else
 
                             <div
@@ -1944,7 +1928,7 @@
                                     class="h-4 w-4"
                                 ></i>
 
-                                Waiting for Rider Arrival
+                                {{ $pickupWorkflowLabel($order, $status) }}
 
                             </div>
 

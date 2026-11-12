@@ -57,13 +57,6 @@
         ->count();
 
 
-    $areas = $areas ?? [
-        'Area A',
-        'Area B',
-        'Area C'
-    ];
-
-
     $riders = $riders ?? [];
 
 
@@ -96,6 +89,20 @@
 
 @endphp
 
+@if(($routingExceptions ?? collect())->isNotEmpty())
+    <section aria-labelledby="routing-exceptions-heading" class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <h2 id="routing-exceptions-heading" class="font-semibold text-amber-950">Routing Exceptions ({{ $routingExceptions->count() }})</h2>
+        <p class="mt-1 text-xs text-amber-900">These parcels remain at the sorting center until a valid destination zone and hub are selected.</p>
+        <div class="mt-3 space-y-2">
+            @foreach($routingExceptions as $exception)
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white p-3 text-sm">
+                    <div><p class="font-semibold text-[#24312C]">{{ $exception['order_number'] ?? 'Shipment' }} · {{ $exception['tracking_code'] }}</p><p class="text-xs text-[#52635B]">{{ $exception['destination'] ?: 'Destination unavailable' }} — {{ $exception['reason'] }}</p></div>
+                    <a class="font-semibold text-[#1F6F5B] underline" href="{{ route('logistics.shipment-scanner', ['tracking_code' => $exception['tracking_code'], 'mode' => 'sort']) }}">Review routing</a>
+                </div>
+            @endforeach
+        </div>
+    </section>
+@endif
 
 {{-- HEADER --}}
 
@@ -153,14 +160,13 @@
                    leading-6
                    text-[#728078]"
         >
-            Sort incoming parcels according to destination
-            area and prepare them for rider assignment.
+            Review code-based destination zones and prepare sorted parcels for rider assignment.
         </p>
 
     </div>
 
 
-    <div
+    <a href="{{ route('logistics.sorting-zones.index') }}"
         class="inline-flex
                h-10
                items-center gap-2
@@ -178,9 +184,8 @@
             class="h-4 w-4 text-[#1F6F5B]"
         ></i>
 
-        Sorting Center
-
-    </div>
+        Manage Sorting Zones
+    </a>
 
 </div>
 
@@ -613,6 +618,7 @@
                         >
 
                             {{ $area }}
+                            @if(!empty($parcel['sorting_hub_name']))<span class="mt-1 block text-[9px] font-normal text-[#728078]">Hub: {{ $parcel['sorting_hub_name'] }}</span>@endif
 
                         </span>
 
@@ -659,59 +665,15 @@
 
                             @if($isDatabase && !empty($parcel['logistics_provider_id']))
                                 <span class="mr-2 text-[10px] text-[#52635B]">Destination area: {{ $parcel['destination_sorting_area'] }}</span>
-                                <a href="{{ route('logistics.shipment-scanner', ['tracking_code' => $parcel['tracking_code']]) }}"
+                                <a href="{{ route('logistics.shipment-scanner', ['tracking_code' => $parcel['tracking_code'], 'mode' => 'sort']) }}"
                                    class="inline-flex h-9 items-center gap-2 rounded-xl bg-[#173F35] px-4 text-[10px] font-semibold text-white hover:bg-[#1F6F5B]">
                                     <i data-lucide="scan-line" class="h-3.5 w-3.5"></i>
                                     Scan to Sort
                                 </a>
+                            @elseif($isDatabase)
+                                <form method="POST" action="{{ route('logistics.database.orders.receive', $parcelId) }}">@csrf<button type="submit" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#173F35] px-4 text-[10px] font-semibold text-white hover:bg-[#1F6F5B]">Receive Parcel</button></form>
                             @else
-
-                            <form method="POST" action="{{ $isDatabase
-                                ? (empty($parcel['logistics_provider_id'])
-                                    ? route('logistics.database.orders.receive', $parcelId)
-                                    : route('logistics.database.order.status', $parcelId))
-                                : route('logistics.order.status', $parcelId) }}">
-
-                                @csrf
-
-                                @if(!$isDatabase || !empty($parcel['logistics_provider_id']))
-                                    <input type="hidden" name="status" value="sorted">
-                                    @if($isDatabase)
-                                        <input type="hidden" name="sorting_area" value="{{ $parcel['destination_sorting_area'] }}">
-                                        <span class="mr-2 text-[10px] text-[#52635B]">Destination area: {{ $parcel['destination_sorting_area'] }}</span>
-                                    @else
-                                        <select name="area" required class="mr-2 rounded-lg border border-gray-200 px-2 py-2 text-[10px]">
-                                            <option value="">Area</option>
-                                            @foreach($areas as $sortingArea)<option value="{{ $sortingArea }}">{{ $sortingArea }}</option>@endforeach
-                                        </select>
-                                    @endif
-                                @endif
-                                <button
-                                    type="submit"
-                                    class="inline-flex
-                                           h-9
-                                           items-center
-                                           gap-2
-                                           rounded-xl
-                                           bg-[#173F35]
-                                           px-4
-                                           text-[10px]
-                                           font-semibold
-                                           text-white
-                                           hover:bg-[#1F6F5B]"
-                                >
-
-                                    <i
-                                        data-lucide="scan-line"
-                                        class="h-3.5 w-3.5"
-                                    ></i>
-
-                                    {{ $isDatabase && empty($parcel['logistics_provider_id']) ? 'Receive Parcel' : 'Sort Parcel' }}
-
-                                </button>
-
-                            </form>
-
+                                <a href="{{ route('logistics.shipment-scanner', !empty($parcel['tracking_code']) ? ['tracking_code' => $parcel['tracking_code'], 'mode' => 'sort'] : ['mode' => 'sort']) }}" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#173F35] px-4 text-[10px] font-semibold text-white hover:bg-[#1F6F5B]">Scan to Sort</a>
                             @endif
 
 

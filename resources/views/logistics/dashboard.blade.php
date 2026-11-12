@@ -17,7 +17,7 @@
     |
     */
 
-    $orders = collect($orders ?? session('orders', []));
+    $orders = collect($orders ?? []);
 
 
     /*
@@ -26,13 +26,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $riders =
-        collect(
-            session(
-                'rider_applications',
-                []
-            )
-        )
+    $riders = collect($riders ?? [])
         ->filter(
             fn ($rider) =>
                 is_array($rider)
@@ -69,6 +63,16 @@
                     === 'sorted'
             )
             ->count();
+
+    $unassignedPickups = $orders
+        ->filter(fn ($order) => strtolower($order['status'] ?? '') === 'ready_for_pickup' && empty($order['pickup_rider_id']))
+        ->count();
+
+    $sortedAwaitingDeliveryRider = $orders
+        ->filter(fn ($order) => strtolower($order['status'] ?? '') === 'at_destination_hub' && empty($order['rider_index']))
+        ->count();
+
+    $readyToAssign = $unassignedPickups + $sortedAwaitingDeliveryRider;
 
 
     $assigned =
@@ -142,30 +146,10 @@
             ->count();
 
 
-    $approvedRiders =
-        $riders
-            ->filter(
-                fn ($rider) =>
-                    strtolower(
-                        $rider['status']
-                        ?? ''
-                    )
-                    === 'approved'
-            )
-            ->count();
+    $approvedRiders = (int) ($approvedRiders ?? 0);
 
 
-    $disapprovedRiders =
-        $riders
-            ->filter(
-                fn ($rider) =>
-                    strtolower(
-                        $rider['status']
-                        ?? ''
-                    )
-                    === 'disapproved'
-            )
-            ->count();
+    $disapprovedRiders = (int) ($disapprovedRiders ?? 0);
 
 
     /*
@@ -174,40 +158,8 @@
     |--------------------------------------------------------------------------
     */
 
-    $busyRiderIndexes =
-        $orders
-            ->filter(
-                fn ($order) =>
-                    in_array(
-                        strtolower(
-                            $order['status']
-                            ?? ''
-                        ),
-                        [
-                            'assigned_to_rider',
-                            'out_for_delivery',
-                        ]
-                    )
-            )
-            ->pluck('rider_index')
-            ->filter(
-                fn ($index) =>
-                    $index !== null
-            )
-            ->unique();
-
-
-    $busyRiders =
-        $busyRiderIndexes
-            ->count();
-
-
-    $availableRiders =
-        max(
-            0,
-            $approvedRiders
-            - $busyRiders
-        );
+    $busyRiders = (int) ($busyRiders ?? 0);
+    $availableRiders = (int) ($availableRiders ?? 0);
 
 
     /*
@@ -624,13 +576,28 @@
                 class="h-4 w-4"
             ></i>
 
-            Assign Deliveries
+            Rider Assignments
 
         </a>
 
     </div>
 
 </div>
+
+@if(isset($workflowCounters))
+    <section aria-label="Shipment workflow counters" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        @foreach([
+            'Ready for Pickup' => 'ready_for_pickup', 'Pickup Rider Assigned' => 'pickup_rider_assigned',
+            'Picked Up / En Route to Sorting Center' => 'picked_up_en_route', 'At Sorting Center' => 'at_sorting_center',
+            'Sorted / Ready for Hub Transfer' => 'ready_for_hub_transfer', 'In Transit to Barangay Hub' => 'in_transit_to_hub',
+            'At Destination Hub' => 'at_destination_hub', 'Ready for Delivery Rider' => 'ready_for_delivery_rider',
+            'Delivery Rider Assigned' => 'delivery_rider_assigned', 'Out for Delivery' => 'out_for_delivery',
+            'Delivered' => 'delivered', 'Routing / Delivery Exceptions' => 'routing_exceptions',
+        ] as $label => $key)
+            <div class="rounded-xl border border-[#E1E8E4] bg-white p-3"><p class="text-[10px] font-semibold uppercase tracking-wide text-[#728078]">{{ $label }}</p><p class="mt-2 text-xl font-semibold text-[#173F35]">{{ $workflowCounters[$key] }}</p></div>
+        @endforeach
+    </section>
+@endif
 
 
 {{-- =========================================================
@@ -640,7 +607,7 @@
 @if(
     $failed > 0 ||
     $pendingRiders > 0 ||
-    $sorted > 0
+    $readyToAssign > 0
 )
 
     <div
@@ -651,7 +618,7 @@
         "
     >
 
-        @if($sorted > 0)
+        @if($readyToAssign > 0)
 
             <a
                 href="{{ route('logistics.assignments') }}"
@@ -707,9 +674,9 @@
                             text-amber-700
                         "
                     >
-                        {{ $sorted }}
-                        sorted parcel{{ $sorted === 1 ? '' : 's' }}
-                        waiting for a delivery rider.
+                        @if($unassignedPickups > 0){{ $unassignedPickups }} unassigned pickup{{ $unassignedPickups === 1 ? '' : 's' }}@endif
+                        @if($unassignedPickups > 0 && $sortedAwaitingDeliveryRider > 0) and @endif
+                        @if($sortedAwaitingDeliveryRider > 0){{ $sortedAwaitingDeliveryRider }} sorted parcel{{ $sortedAwaitingDeliveryRider === 1 ? '' : 's' }} waiting for a delivery rider.@endif
                     </p>
 
                 </div>
@@ -1050,6 +1017,8 @@
 
 
                 <p
+                    data-metric="ready-to-assign"
+                    data-value="{{ $readyToAssign }}"
                     class="
                         mt-3
                         text-2xl
@@ -1058,7 +1027,7 @@
                         text-[#24312C]
                     "
                 >
-                    {{ $sorted }}
+                    {{ $readyToAssign }}
                 </p>
 
             </div>
@@ -1094,7 +1063,7 @@
                 text-[#87948E]
             "
         >
-            Sorted by destination
+            Unassigned pickups + parcels received at a destination hub needing a delivery rider
         </p>
 
     </a>
@@ -2259,6 +2228,8 @@
 
 
                         <span
+                            data-metric="approved-riders"
+                            data-value="{{ $approvedRiders }}"
                             class="
                                 text-xs
                                 font-semibold

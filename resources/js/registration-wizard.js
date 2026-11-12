@@ -68,6 +68,8 @@ function initialiseWizard(form) {
     const mount = document.createElement('div');
     mount.className = 'registration-wizard-mount';
     form.prepend(mount);
+    const errorSummary = form.querySelector('[data-registration-error-summary]');
+    if (errorSummary) mount.append(errorSummary);
     panels.forEach(panel => mount.append(panel));
 
     const fieldSteps = new Map();
@@ -129,10 +131,16 @@ function initialiseWizard(form) {
     const next = actions.querySelector('.registration-actions__next');
     const submit = actions.querySelector('.registration-actions__submit');
     const errors = JSON.parse(form.dataset.errorFields || '[]');
-    const errorStep = errors
-        .map(name => fieldSteps.get(name))
-        .find(Number.isInteger);
-    let active = errorStep ?? 0;
+    const normalizedErrors = new Set(errors.map(name => String(name)
+        .replace(/\[(\d+)\]/g, '.$1')
+        .replace(/\.\d+$/, '')));
+    const errorSteps = errors
+        .map(name => {
+            const normalizedName = String(name).replace(/\[(\d+)\]/g, '.$1').replace(/\.\d+$/, '');
+            return fieldSteps.get(normalizedName);
+        })
+        .filter(Number.isInteger);
+    let active = errors.length ? (errorSteps[0] ?? reviewIndex) : 0;
 
     function buildReview() {
         review.replaceChildren();
@@ -153,13 +161,20 @@ function initialiseWizard(form) {
     function show(index) {
         active = index;
         panels.forEach((panel, i) => { panel.hidden = i !== active; });
-        stepper.querySelectorAll('.registration-step').forEach((step, i) => step.classList.toggle('is-active', i === active));
-        stepper.querySelectorAll('.registration-step').forEach((step, i) => step.classList.toggle('is-complete', i < active));
+        stepper.querySelectorAll('.registration-step').forEach((step, i) => {
+            step.classList.toggle('is-active', i === active);
+            step.classList.toggle('is-complete', i < active);
+            if (i === active) step.setAttribute('aria-current', 'step');
+            else step.removeAttribute('aria-current');
+        });
         back.hidden = active === 0;
         next.hidden = active === reviewIndex;
         submit.hidden = active !== reviewIndex;
         if (active === reviewIndex) buildReview();
-        panels[active].querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
+        const activeError = [...panels[active].querySelectorAll('input, select, textarea')]
+            .find(control => normalizedErrors.has(control.name));
+        if (activeError) activeError.setAttribute('aria-invalid', 'true');
+        (activeError || panels[active].querySelector('input, select, textarea, button'))?.focus({ preventScroll: true });
     }
 
     next.addEventListener('click', () => {

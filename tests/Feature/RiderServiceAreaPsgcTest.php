@@ -78,18 +78,18 @@ class RiderServiceAreaPsgcTest extends TestCase
         [$providerUser, $provider, $matching] = $this->actors();
         [$sellerOrder, $shipment] = $this->shipment($provider, true);
         $this->area($matching, $provider, '010000000'); // City-wide coverage is valid delivery coverage.
+        $destinationHub = \App\Models\LogisticsHub::findOrFail($matching->logistics_hub_id);
+        $sellerOrder->update(['workflow_status' => OrderStatus::AtDestinationHub, 'status' => OrderStatus::AtDestinationHub->legacySellerStatus()]);
+        $sellerOrder->order->update(['status' => OrderStatus::AtDestinationHub->value]);
+        $shipment->update(['workflow_status' => OrderStatus::AtDestinationHub, 'status' => OrderStatus::AtDestinationHub->legacyShipmentStatus(), 'destination_hub_id' => $destinationHub->id]);
         $wrongArea = $this->rider($provider, 'wrong-delivery-area'); $this->area($wrongArea, $provider, '020000000');
         $noArea = $this->rider($provider, 'no-delivery-area');
         [$otherUser, $otherProvider, $otherRider] = $this->actors('delivery-other'); $this->area($otherRider, $otherProvider, '010000000');
 
-        $sellerOrder->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacySellerStatus()]);
-        $sellerOrder->order->update(['status' => OrderStatus::Sorted->value]);
-        $shipment->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacyShipmentStatus()]);
-
-        $this->actingAs($providerUser)->get(route('logistics.sorting'))
+        $this->actingAs($providerUser)->get(route('logistics.assignments'))
             ->assertOk()
-            ->assertSee('Provider Rider Pool')
-            ->assertSee('Delivery eligibility is shown per parcel.')
+            ->assertSee('Rider Assignments')
+            ->assertSee('Assign Delivery Rider')
             ->assertSee('value="'.$matching->id.'"', false)
             ->assertDontSee('value="'.$wrongArea->id.'"', false)
             ->assertDontSee('value="'.$noArea->id.'"', false)
@@ -98,7 +98,7 @@ class RiderServiceAreaPsgcTest extends TestCase
         $this->actingAs($providerUser)
             ->post(route('logistics.database.order.status', $sellerOrder), ['status' => 'assigned_to_rider', 'rider_id' => $wrongArea->id])
             ->assertSessionHasErrors('rider_id');
-        $this->assertSame(OrderStatus::Sorted, $sellerOrder->fresh()->workflow_status);
+        $this->assertSame(OrderStatus::AtDestinationHub, $sellerOrder->fresh()->workflow_status);
 
         $this->actingAs($providerUser)
             ->post(route('logistics.database.order.status', $sellerOrder), ['status' => 'assigned_to_rider', 'rider_id' => $matching->id])
@@ -111,14 +111,15 @@ class RiderServiceAreaPsgcTest extends TestCase
     {
         [$providerUser, $provider] = $this->actors();
         [$sellerOrder, $shipment] = $this->shipment($provider, true);
-        $sellerOrder->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacySellerStatus()]);
-        $sellerOrder->order->update(['status' => OrderStatus::Sorted->value]);
-        $shipment->update(['workflow_status' => OrderStatus::Sorted, 'status' => OrderStatus::Sorted->legacyShipmentStatus()]);
+        $sellerOrder->update(['workflow_status' => OrderStatus::AtDestinationHub, 'status' => OrderStatus::AtDestinationHub->legacySellerStatus()]);
+        $sellerOrder->order->update(['status' => OrderStatus::AtDestinationHub->value]);
+        $shipment->update(['workflow_status' => OrderStatus::AtDestinationHub, 'status' => OrderStatus::AtDestinationHub->legacyShipmentStatus()]);
 
-        $this->actingAs($providerUser)->get(route('logistics.sorting'))
+        $this->actingAs($providerUser)->get(route('logistics.assignments'))
             ->assertOk()
-            ->assertSee('No eligible riders for this delivery area')
-            ->assertSee('disabled');
+            ->assertSee('No eligible delivery rider covers this destination and sorting hub.')
+            ->assertSee(route('logistics.riders'), false)
+            ->assertSee(route('logistics.hubs.index'), false);
     }
 
     public function test_buyer_verified_address_edit_persists_codes_and_preserves_order_snapshot(): void

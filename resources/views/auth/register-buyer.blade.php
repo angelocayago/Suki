@@ -713,7 +713,7 @@
                             I agree to SUKI SHOP's
 
                             <a
-                                href="#"
+                                href="{{ route('policies.show', 'terms-of-service') }}"
                                 class="text-[#1F6F5B] font-medium hover:underline"
                             >
                                 Terms & Conditions
@@ -722,7 +722,7 @@
                             and
 
                             <a
-                                href="#"
+                                href="{{ route('policies.show', 'privacy-policy') }}"
                                 class="text-[#1F6F5B] font-medium hover:underline"
                             >
                                 Privacy Policy
