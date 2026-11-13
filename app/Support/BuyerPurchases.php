@@ -7,6 +7,7 @@ class BuyerPurchases
     /** Order snapshots contain both public-disk paths and already resolved URLs. */
     public static function image(?string $path): ?string
     {
+        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
         $path = trim((string) $path);
         if ($path === '') return null;
         if (preg_match('~^https?://~i', $path)) return $path;

@@ -368,7 +368,7 @@ class ProductController extends Controller
             ])->header('Cache-Control', 'private, no-store');
         }
         $filterOptions = [
-            'categories' => $categoryOptions->reject(fn ($category) => strcasecmp(trim($category->name), 'Others') === 0),
+            'categories' => $categoryOptions,
             'sellers' => \App\Models\Seller::query()
                 ->where('status', 'approved')
                 ->whereHas('owner', fn ($query) => $query->where('status', 'active')->where('is_suspended', false))

@@ -31,7 +31,7 @@ class WishlistController extends Controller
             $wishlist = $request->user()->wishlistItems()->get()->mapWithKeys(function ($item) use ($catalog) {
                 $current = $catalog[$item->product_slug] ?? null;
                 $inStock = $current && collect($current['variants'])->contains(fn ($variant) => $variant['stock'] > 0);
-                return [$item->product_slug => ['name' => $item->product_name, 'price' => (float) $item->price, 'image' => $item->image,
+                return [$item->product_slug => ['name' => $item->product_name, 'price' => (float) $item->price, 'image' => \App\Support\DemoProductImages::canonical($item->image) ? \App\Support\DemoProductImages::url($item->image) : $item->image,
                     'availability' => !$current ? 'unavailable' : ($inStock ? 'in_stock' : 'out_of_stock'),
                     'availability_message' => !$current ? 'This product is no longer available.' : (!$inStock ? 'This item is out of stock.' : 'In stock'),
                     'choose_variant' => $current && count($current['variants']) > 1]];

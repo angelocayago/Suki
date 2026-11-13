@@ -80,6 +80,8 @@ class CheckoutService
                 $image ??= $product ? app(ProductCatalogService::class)->thumbnail($product)
                     : ($cartItem->image && ! Str::startsWith($cartItem->image, ['http://', 'https://']) ? Storage::disk('public')->url($cartItem->image) : $cartItem->image);
 
+                if (\App\Support\DemoProductImages::canonical($image)) $image = \App\Support\DemoProductImages::url($image);
+
                 return [
                     $cartItem->id => [
                         'id' => $cartItem->id,

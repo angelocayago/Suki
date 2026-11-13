@@ -5,7 +5,45 @@ namespace App\Support;
 /** Local assets for the fixed demo pack, not a general product media pipeline. */
 class DemoProductImages
 {
+    public const PUBLIC_PREFIX = 'images/demo-products/lahat-meron/';
+
     public function __construct(private readonly ?string $directory = null) {}
+
+    public static function path(string $key): string
+    {
+        if (! preg_match('/^lm(00[1-9]|0[1-5][0-9]|060)$/D', $key)) throw new DemoProductImageException('Unknown demo image key.');
+        return self::PUBLIC_PREFIX.$key.'.webp';
+    }
+
+    /** Recognize only reserved demo assets, including historical host-specific URLs. */
+    public static function canonical(?string $value): ?string
+    {
+        if (! $value || str_contains($value, '..') || str_contains($value, '\\')) return null;
+        $path = preg_match('~^https?://~i', $value) ? parse_url($value, PHP_URL_PATH) : $value;
+        if (! is_string($path) || ! preg_match('~(?:^|/)images/demo-products/lahat-meron/(lm(?:00[1-9]|0[1-5][0-9]|060))\.webp$~D', $path, $match)) return null;
+        return self::path($match[1]);
+    }
+
+    /** Origin-relative, including the current installation's base path. */
+    public static function url(?string $value): ?string
+    {
+        $path = self::canonical($value);
+        if (! $path || ! is_file(public_path($path))) return null;
+        // These committed files belong to this app, not an optional asset CDN.
+        return parse_url(url($path), PHP_URL_PATH) ?: null;
+    }
+
+    public function published(array $keys): array
+    {
+        $sources = $this->sources($keys);
+        foreach ($sources as $key => $source) {
+            $copy = public_path(self::path($key));
+            if (! is_file($copy) || is_link($copy) || hash_file('sha256', $copy) !== hash_file('sha256', $source)) {
+                throw new DemoProductImageException('Missing or changed published demo image for '.$key.'.');
+            }
+        }
+        return $sources;
+    }
 
     public function sources(array $keys): array
     {
