@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Enums\ComplaintStatus;
+use App\Models\Complaint;
 use App\Models\DeliveryEvent;
 use App\Models\LogisticsProvider;
 use App\Models\LogisticsSortingZone;
 use App\Models\Order;
 use App\Models\Rider;
+use App\Models\ReturnRefundRequest;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\ShipmentAssignment;
@@ -31,6 +34,9 @@ class OrderWorkflowService
             }
             if (strtoupper($locked->status) !== 'DELIVERED') {
                 throw ValidationException::withMessages(['order' => 'Only a delivered purchase can be marked received.']);
+            }
+            if (! $buyer) {
+                $this->assertNoActiveAutomaticCompletionException($locked);
             }
             $parcels = $locked->sellerOrders()->orderBy('id')->lockForUpdate()->get();
             if ($parcels->isNotEmpty()) {
@@ -307,6 +313,10 @@ class OrderWorkflowService
                         $nextStatus->value
                     ),
                 ]);
+            }
+
+            if ($actor === null && $currentStatus === OrderStatus::Delivered && $nextStatus === OrderStatus::Completed) {
+                $this->assertNoActiveAutomaticCompletionException($lockedOrder->order);
             }
 
             $this->authorizeTransition($lockedOrder, $actor, $currentStatus, $nextStatus);
@@ -944,6 +954,33 @@ class OrderWorkflowService
 
         if (! $allowed) {
             throw new AuthorizationException('You are not authorized for this ERP status transition.');
+        }
+    }
+
+    /**
+     * Automatic completion must not close a delivered purchase while a linked
+     * customer exception remains actionable. Manual buyer receipt intentionally
+     * follows its existing policy and does not call this automatic-only guard.
+     */
+    private function assertNoActiveAutomaticCompletionException(Order $order): void
+    {
+        $hasActiveReturnOrRefund = ReturnRefundRequest::query()
+            ->where('order_id', $order->id)
+            ->whereIn('status', ReturnRefundRequest::ACTIVE_STATUSES)
+            ->exists();
+
+        $hasActiveComplaint = Complaint::query()
+            ->where(function ($query) use ($order) {
+                $query->where('order_id', $order->id)
+                    ->orWhereIn('seller_order_id', $order->sellerOrders()->select('id'));
+            })
+            ->whereNotIn('status', [ComplaintStatus::Resolved->value, ComplaintStatus::Dismissed->value])
+            ->exists();
+
+        if ($hasActiveReturnOrRefund || $hasActiveComplaint) {
+            throw ValidationException::withMessages([
+                'order' => 'Automatic completion is blocked while a linked return, refund, or complaint remains unresolved.',
+            ]);
         }
     }
 

@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ComplaintStatus;
 use App\Enums\OrderStatus;
-use App\Models\{DeliveryEvent, Order, Seller, SellerOrder, Shipment, User};
+use App\Models\{Complaint, DeliveryEvent, Order, ReturnRefundRequest, Seller, SellerOrder, Shipment, User};
 use Illuminate\Support\Facades\{DB, Http, Mail, Notification, Storage};
 use Tests\Support\IsolatedStorageTestCase;
 
@@ -44,6 +45,45 @@ class BuyerPurchasesTest extends IsolatedStorageTestCase
                 'product_name' => 'Receipt Product', 'variant_name' => 'Pack of 6', 'unit_price' => 100, 'unit_price_minor' => 10000, 'quantity' => 1, 'line_total' => 100]);
         }
         return [$buyer, $order];
+    }
+
+    private function returnOrRefund(Order $order, string $type, string $status): ReturnRefundRequest
+    {
+        $sellerOrder = $order->sellerOrders()->firstOrFail();
+        $item = $order->items()->where('seller_order_id', $sellerOrder->id)->firstOrFail();
+
+        return ReturnRefundRequest::create([
+            'buyer_id' => $order->buyer_id,
+            'order_id' => $order->id,
+            'seller_order_id' => $sellerOrder->id,
+            'order_item_id' => $item->id,
+            'seller_id' => $sellerOrder->seller_id,
+            'type' => $type,
+            'status' => $status,
+            'quantity' => $item->quantity,
+            'buyer_reason' => 'Damaged on arrival',
+            'buyer_description' => 'The buyer requested a review.',
+        ]);
+    }
+
+    private function complaint(Order $order, ComplaintStatus $status): Complaint
+    {
+        $sellerOrder = $order->sellerOrders()->firstOrFail();
+
+        return Complaint::create([
+            'reference' => 'CMP-RECEIPT-'.$order->id.'-'.strtolower($status->value),
+            'complainant_id' => $order->buyer_id,
+            'complainant_role' => 'BUYER',
+            'order_id' => $order->id,
+            'seller_order_id' => $sellerOrder->id,
+            'buyer_id' => $order->buyer_id,
+            'seller_id' => $sellerOrder->seller_id,
+            'category' => 'OTHER',
+            'status' => $status->value,
+            'subject' => 'Delivery dispute',
+            'description' => 'A linked delivery complaint remains under review.',
+            'context_snapshot' => [],
+        ]);
     }
 
     public function test_manual_receipt_updates_every_parcel_and_seller_pages_once(): void
@@ -133,6 +173,50 @@ class BuyerPurchasesTest extends IsolatedStorageTestCase
         $this->travel(1)->seconds();
         $this->artisan('orders:complete-delivered')->assertExitCode(1);
         $this->assertSame('COMPLETED', $early->fresh()->status);
+    }
+
+    public function test_automatic_completion_is_blocked_by_active_return_or_refund_until_finalized(): void
+    {
+        [, $returnOrder] = $this->purchase('ACTIVE-RETURN');
+        $return = $this->returnOrRefund($returnOrder, 'RETURN', 'SUBMITTED');
+        [, $refundOrder] = $this->purchase('ACTIVE-REFUND');
+        $refund = $this->returnOrRefund($refundOrder, 'REFUND', 'UNDER_REVIEW');
+
+        $this->artisan('orders:complete-delivered')
+            ->expectsOutputToContain('Automatic completion is blocked')
+            ->assertExitCode(1);
+
+        $this->assertSame('DELIVERED', $returnOrder->fresh()->status);
+        $this->assertSame('DELIVERED', $refundOrder->fresh()->status);
+
+        $return->update(['status' => 'ADMIN_REJECTED']);
+        $refund->update(['status' => 'ADMIN_APPROVED']);
+
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $this->assertSame('COMPLETED', $returnOrder->fresh()->status);
+        $this->assertSame('COMPLETED', $refundOrder->fresh()->status);
+    }
+
+    public function test_automatic_completion_is_blocked_by_an_active_complaint_until_closed_and_manual_receipt_remains_available(): void
+    {
+        [$buyer, $order] = $this->purchase('ACTIVE-COMPLAINT');
+        $complaint = $this->complaint($order, ComplaintStatus::UnderReview);
+
+        $this->artisan('orders:complete-delivered')
+            ->expectsOutputToContain('Automatic completion is blocked')
+            ->assertExitCode(1);
+        $this->assertSame('DELIVERED', $order->fresh()->status);
+
+        $this->actingAs($buyer)
+            ->post(route('order.status.update', $order->order_number), ['status' => 'completed'])
+            ->assertSessionHas('success');
+        $this->assertSame('COMPLETED', $order->fresh()->status);
+
+        [, $closedOrder] = $this->purchase('CLOSED-COMPLAINT');
+        $this->complaint($closedOrder, ComplaintStatus::Resolved);
+        $this->artisan('orders:complete-delivered')->assertSuccessful();
+        $this->assertSame('COMPLETED', $closedOrder->fresh()->status);
+        $this->assertSame(ComplaintStatus::UnderReview, $complaint->fresh()->status);
     }
 
     public function test_mixed_parcels_roll_back_manual_receipt_but_automatic_completion_is_per_delivery(): void
