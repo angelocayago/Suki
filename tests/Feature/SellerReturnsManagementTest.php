@@ -20,6 +20,7 @@ class SellerReturnsManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['returns.backend_enabled'=>true]);
         $this->assertSame('sqlite', config('database.default'));
         $this->assertSame(':memory:', DB::connection()->getDatabaseName());
         $this->assertEmpty(config('database.connections.sqlite.url'));

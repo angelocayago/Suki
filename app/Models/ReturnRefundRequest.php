@@ -4,6 +4,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class ReturnRefundRequest extends Model {
+    public const FINANCIAL = 'FINANCIAL';
+    public const ADMIN_REVIEW = 'ADMIN_REVIEW';
+    public function isAdminReview(): bool { return $this->workflow_mode === self::ADMIN_REVIEW; }
+    public function scopeFinancial(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        // Older installations have only financial records; do not require rollout
+        // of the additive discriminator merely to keep existing wallet reads safe.
+        if (\Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'workflow_mode')) {
+            $query->where($this->qualifyColumn('workflow_mode'), self::FINANCIAL);
+        }
+    }
+    public function statusLabel(): string
+    {
+        if ($this->isAdminReview()) return match ($this->status) {
+            'ADMIN_APPROVED' => 'Approved — Contact Seller',
+            'ADMIN_REJECTED' => 'Rejected',
+            default => 'Pending Admin Review',
+        };
+        return $this->status === 'ADMIN_APPROVED' ? 'Approved — Refund Due' : str_replace('_', ' ', $this->status);
+    }
     public const ACTIVE_STATUSES = ['SUBMITTED', 'SELLER_RESPONDED', 'UNDER_REVIEW'];
     public function walletAdjustment(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(SellerWalletEntry::class,'return_refund_request_id')->where('type','REFUND_ADJUSTMENT'); }
     protected $fillable=['buyer_id','order_id','seller_order_id','order_item_id','seller_id','type','status','quantity','buyer_reason','buyer_description','seller_recommendation','seller_note','seller_responded_at','reviewed_by','admin_decision','admin_reason','decided_at','refund_minor'];

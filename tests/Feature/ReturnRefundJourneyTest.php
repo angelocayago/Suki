@@ -16,7 +16,7 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         if(getenv('DB_CONNECTION')!=='sqlite'||getenv('DB_DATABASE')!==':memory:'||getenv('DB_URL'))throw new \RuntimeException('Disposable SQLite required.');
         parent::setUp();$this->assertStoragePathIsIsolated();$this->assertSame(':memory:',DB::connection()->getDatabaseName());
         Mail::fake();Notification::fake();Http::preventStrayRequests();Storage::fake('local');Storage::fake('public');
-        config(['returns.backend_enabled'=>true,'returns.earning_release_enabled'=>false]);
+        config(['returns.backend_enabled'=>true,'returns.admin_review_enabled'=>true,'returns.earning_release_enabled'=>false]);
     }
     private function purchase(): array
     {
@@ -40,8 +40,11 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
     }
     private function submit(array $f): ReturnRefundRequest
     {
-        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.store',$f['item']),['type'=>'RETURN','quantity'=>2,'reason'=>'Damaged item','description'=>'Packaging and item were damaged.','confirmed'=>1,'file'=>UploadedFile::fake()->image('concern.png')])->assertSessionHasNoErrors()->assertRedirect();
-        return ReturnRefundRequest::sole();
+        // Preserve historical parcel fixtures; the Buyer POST now always creates ADMIN_REVIEW.
+        $r=app(\App\Services\ReturnRefundWorkflowService::class)->submit($f['buyer'],$f['item'],['type'=>'RETURN','quantity'=>2,'reason'=>'Damaged item','description'=>'Packaging and item were damaged.']);
+        $this->assertSame('FINANCIAL',$r->fresh()->workflow_mode);
+        $this->actingAs($f['buyer'])->post(route('return-refunds.evidence.store',$r),['file'=>UploadedFile::fake()->image('concern.png'),'description'=>'Buyer submission photo'])->assertSessionHasNoErrors()->assertRedirect();
+        return $r;
     }
     private function destination(string $status='PENDING'): array
     {
@@ -169,6 +172,8 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         $this->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Cannot prove workflow'])->assertUnprocessable();
         $this->actingAs($f['buyer'])->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'REJECTED','reason'=>'Wrong role'])->assertForbidden();
         config(['returns.backend_enabled'=>false]);
+        $this->actingAs($f['admin'])->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'REJECTED','reason'=>'Historical workflow cannot be verified.'])->assertUnprocessable();
+        config(['returns.backend_enabled'=>true]);
         $this->actingAs($f['admin'])->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'REJECTED','reason'=>'Historical workflow cannot be verified.'])->assertOk();
         $this->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'REJECTED','reason'=>'Repeated'])->assertOk();
         $this->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Conflicting decision'])->assertUnprocessable();

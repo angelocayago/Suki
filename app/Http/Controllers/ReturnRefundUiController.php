@@ -18,13 +18,12 @@ class ReturnRefundUiController extends Controller
         if($existing)return redirect()->route('buyer.return-refunds.show',$existing);
         $workflow=app(\App\Services\ReturnRefundWorkflowService::class);$available=$workflow->available();$calculation=null;$eligibility=null;
         try{$calculation=app(\App\Services\ReturnRefundService::class)->inspectPurchase($request->user(),$item);}catch(\Illuminate\Validation\ValidationException $e){$eligibility=collect($e->errors())->flatten()->first();}
-        if(!$workflow->returnAddress($item))$eligibility='The Seller must complete the approved pickup/return address. Contact support before shipping any parcel.';
         return view('buyer.returns.create',compact('item','available','calculation','eligibility'));
     }
 
     private function journey(ReturnRefundRequest $r,string $role): array
     {
-        $service=app(\App\Services\ReturnRefundWorkflowService::class);$workflow=$service->find($r);$ready=$service->available();$approvable=false;
+        $service=app(\App\Services\ReturnRefundWorkflowService::class);$workflow=$service->find($r);$ready=$service->available($r->isAdminReview() ? ReturnRefundRequest::ADMIN_REVIEW : ReturnRefundRequest::FINANCIAL);$approvable=false;
         if($ready){try{$service->assertApprovable($r,true);$approvable=true;}catch(\Illuminate\Validation\ValidationException $e){}}
         $refundQuote=null;
         if($r->item){try{$refundQuote=app(\App\Services\ReturnRefundAllocationService::class)->calculate($r->item,(int)$r->quantity)['buyer_refund_due_minor'];}catch(\Illuminate\Validation\ValidationException $e){}}
@@ -97,7 +96,7 @@ class ReturnRefundUiController extends Controller
     {
         $returnRefundRequest = $this->requests()->findOrFail($returnRefundRequest->id);
         $evidence = $this->evidence($returnRefundRequest);
-        $accounting = DB::table('return_refund_accounting')->where('return_refund_request_id', $returnRefundRequest->id)->first();
+        $accounting = $returnRefundRequest->isAdminReview() ? null : DB::table('return_refund_accounting')->where('return_refund_request_id', $returnRefundRequest->id)->first();
 
         return response()->view('admin.returns.show', compact('returnRefundRequest', 'evidence', 'accounting')+$this->journey($returnRefundRequest,'admin'))->header('Cache-Control','private, no-store');
     }

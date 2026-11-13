@@ -11,12 +11,22 @@ use Illuminate\Validation\ValidationException;
 /** Item-scoped obligations only. No cash transfer, voucher reversal or restocking. */
 class ReturnRefundService
 {
-    private function enabled(): void
+    private function enabled(string $mode = ReturnRefundRequest::FINANCIAL): void
     {
-        if (config('returns.backend_enabled', false) !== true) $this->invalid('request', 'New return/refund submission and approval are disabled pending financial and migration review.');
+        $this->requireGate($mode);
         if (!app(FinancialSchemaReadiness::class)->inspect()['ready']) {
             $this->invalid('request','Required refund integrity migrations have not been verified. Processing remains unavailable.');
         }
+    }
+
+    private function requireGate(string $mode): void
+    {
+        $flag = match ($mode) {
+            ReturnRefundRequest::ADMIN_REVIEW => 'returns.admin_review_enabled',
+            ReturnRefundRequest::FINANCIAL => 'returns.backend_enabled',
+            default => null,
+        };
+        if (!$flag || config($flag, false) !== true) $this->invalid('request', 'This return/refund workflow is disabled pending activation review.');
     }
 
     private function invalid(string $field, string $message): never
@@ -126,16 +136,36 @@ class ReturnRefundService
 
     public function submit(User $buyer, OrderItem $item, array $data): ReturnRefundRequest
     {
-        $this->enabled();
-        return DB::transaction(function () use ($buyer, $item, $data) {
+        return $this->submitPurchase($buyer, $item, $data, ReturnRefundRequest::FINANCIAL);
+    }
+
+    public function submitForAdmin(User $buyer, OrderItem $item, array $data): ReturnRefundRequest
+    {
+        if (!app(ReturnRefundWorkflowService::class)->available()
+            || !Schema::hasColumn('return_refund_requests', 'workflow_mode')) {
+            $this->invalid('request', 'Return/refund submission is unavailable until activation and schema readiness are verified.');
+        }
+        return $this->submitPurchase($buyer, $item, $data, ReturnRefundRequest::ADMIN_REVIEW);
+    }
+
+    private function submitPurchase(User $buyer, OrderItem $item, array $data, string $mode): ReturnRefundRequest
+    {
+        $this->enabled($mode);
+        return DB::transaction(function () use ($buyer, $item, $data, $mode) {
             [$item, $so, $shipment] = $this->lockedPurchase($item->id);
             abort_unless($buyer->isBuyer() && $buyer->status === 'active' && !$buyer->is_suspended && (int)$so->order->buyer_id === (int)$buyer->id, 403);
             if (ReturnRefundRequest::where('order_item_id',$item->id)->exists()) $this->invalid('item','A lifetime request already exists for this item. View the existing request; resubmission and appeals are not supported.');
             if ((int)$data['quantity'] !== (int)$item->quantity) $this->invalid('quantity','Only the full purchased quantity is supported; partial returns are unavailable.');
             if (!in_array($data['type'], ['RETURN','REFUND'],true)) $this->invalid('type','Choose RETURN or REFUND.');
-            $this->validatePurchase($item, $so, $shipment);
-            $r = ReturnRefundRequest::create(['buyer_id'=>$buyer->id,'order_id'=>$so->order_id,'seller_order_id'=>$so->id,'order_item_id'=>$item->id,'seller_id'=>$so->seller_id,'type'=>$data['type'],'status'=>'SUBMITTED','quantity'=>$item->quantity,'buyer_reason'=>$data['reason'],'buyer_description'=>$data['description']]);
+            $quote = $this->validatePurchase($item, $so, $shipment);
+            $r = new ReturnRefundRequest(['buyer_id'=>$buyer->id,'order_id'=>$so->order_id,'seller_order_id'=>$so->id,'order_item_id'=>$item->id,'seller_id'=>$so->seller_id,'type'=>$data['type'],'status'=>'SUBMITTED','quantity'=>$item->quantity,'buyer_reason'=>$data['reason'],'buyer_description'=>$data['description']]);
+            if (Schema::hasColumn('return_refund_requests', 'workflow_mode')) $r->workflow_mode = $mode;
+            if ($mode === ReturnRefundRequest::ADMIN_REVIEW) $r->refund_minor = $quote['buyer_refund_due_minor'];
+            $r->save();
             $this->event($r,$buyer,'SUBMITTED');
+            if ($mode === ReturnRefundRequest::ADMIN_REVIEW) {
+                app(DomainNotificationService::class)->adminsAfterCommit('Return/refund awaiting review', 'A Buyer submitted a request for Admin review.', ['return_refund_request_id'=>$r->id]);
+            }
             app(DomainNotificationService::class)->afterCommit($so->seller->user_id,'Return/refund request','A buyer submitted a request.',['return_refund_request_id'=>$r->id]);
             return $r;
         },3);
@@ -152,6 +182,8 @@ class ReturnRefundService
         return DB::transaction(function () use ($request,$seller,$data) {
             $r = ReturnRefundRequest::with('seller')->lockForUpdate()->findOrFail($request->id);
             abort_unless((int)$r->seller->user_id === (int)$seller->id,403);
+            if ($r->isAdminReview()) $this->invalid('request','This request is reviewed by Admin. Use Chat to coordinate after approval.');
+            $this->requireGate(ReturnRefundRequest::FINANCIAL);
             if ($r->status !== 'SUBMITTED') $this->invalid('request','Request is no longer awaiting seller response.');
             $r->update(['status'=>'SELLER_RESPONDED','seller_recommendation'=>$data['recommendation'],'seller_note'=>$data['note'],'seller_responded_at'=>now()]);
             $this->event($r,$seller,'SELLER_RESPONDED');
@@ -175,6 +207,26 @@ class ReturnRefundService
                 return $r;
             }
             if (!in_array($r->status,ReturnRefundRequest::ACTIVE_STATUSES,true)) $this->invalid('request','Request cannot be finalized.');
+            if ($r->isAdminReview()) {
+                if (!app(ReturnRefundWorkflowService::class)->available()) $this->invalid('request','Return/refund review is unavailable until activation and schema readiness are verified.');
+                $amount = $r->refund_minor;
+                if ($decision === 'APPROVED') {
+                    $quote = $this->validatePurchase($item, $so, $shipment);
+                    if ((int)$r->quantity !== (int)$item->quantity) $this->invalid('quantity','The request must match the full purchased quantity.');
+                    $amount = $quote['buyer_refund_due_minor'];
+                }
+                $r->fill(['status'=>'ADMIN_'.$decision,'admin_decision'=>$decision,'admin_reason'=>trim($reason),
+                    'reviewed_by'=>$admin->id,'decided_at'=>now(),'refund_minor'=>$amount])->save();
+                $this->event($r,$admin,$r->status);
+                foreach ([$r->buyer_id, $so->seller->user_id] as $recipient) {
+                    app(DomainNotificationService::class)->afterCommit($recipient, 'Return/refund decision',
+                        $decision === 'APPROVED' ? 'Admin approved the request. Contact the other party through Chat; approval does not confirm payment.' : 'Admin rejected the request. View the decision reason.', ['return_refund_request_id'=>$r->id]);
+                }
+                return $r->fresh();
+            }
+            if ($r->workflow_mode !== null && $r->workflow_mode !== ReturnRefundRequest::FINANCIAL) $this->invalid('request','Unsupported request workflow. Contact support.');
+            // Includes rejection: it must not enter reconciliation via the other gate.
+            $this->requireGate(ReturnRefundRequest::FINANCIAL);
             if ($decision === 'APPROVED') {
                 $this->enabled();
                 app(ReturnRefundWorkflowService::class)->assertApprovable($r);

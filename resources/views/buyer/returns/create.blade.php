@@ -12,7 +12,7 @@
     @if($errors->any())<div role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     <form method="POST" enctype="multipart/form-data" action="{{ route('buyer.return-refunds.store',$item) }}" class="space-y-4 rounded-xl border bg-white p-5">
         @csrf <input type="hidden" name="type" value="RETURN"><input type="hidden" name="quantity" value="{{ $item->quantity }}">
-        <p>This workflow requires a physical return and Admin review. It does not transfer money or restore stock automatically.</p>
+        <p>Admin will review your request. If approved, contact the Seller through Chat to arrange the refund and any item return. Approval does not confirm payment.</p>
         <fieldset @disabled(!$available || $eligibility) class="space-y-4">
             <label class="block">Reason<select name="reason" required class="block w-full rounded border">@foreach(['Damaged item','Incorrect item','Missing parts','Not as described','Other'] as $reason)<option @selected(old('reason')===$reason)>{{ $reason }}</option>@endforeach</select></label>
             <label class="block">Description<textarea name="description" required maxlength="5000" rows="4" class="block w-full rounded border">{{ old('description') }}</textarea></label>

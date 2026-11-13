@@ -2,6 +2,9 @@
 @section('title', 'Return / Refund Request')
 @section('page-title', 'Return / Refund Request')
 @section('content')
+@if($returnRefundRequest->isAdminReview())
+    @include('partials.admin-review-return')
+@else
 @include('seller.returns.style')
 @php($return = $returnRefundRequest)
 <div class="seller-returns">
@@ -29,11 +32,13 @@
             @if($return->status === 'SUBMITTED')
                 <form id="rrRecommendation" method="POST" action="{{ route('seller.return-refunds.respond', $return) }}" class="rr-recommendation">
                     @csrf @method('PATCH')
+                    <fieldset @disabled(!$ready)>
                     <label for="rrRecommendationValue">Recommendation <span aria-hidden="true">*</span></label><select id="rrRecommendationValue" name="recommendation" required><option value="APPROVE" @selected(old('recommendation') === 'APPROVE')>Confirm willingness to proceed</option><option value="REJECT" @selected(old('recommendation') === 'REJECT')>Dispute/Decline</option></select>
                     <label for="rrNote">Explanation <span aria-hidden="true">*</span></label><textarea id="rrNote" name="note" required maxlength="5000" rows="4" placeholder="Explain your recommendation for Admin review.">{{ old('note') }}</textarea>
                     <p id="rrSubmitStatus" role="status" aria-live="polite" hidden></p><div id="rrSubmitError" class="rr-feedback" role="alert" hidden></div>
                     <button id="rrSubmit" class="rr-button" type="submit">Review recommendation</button>
                     <noscript><p>Submitting records your recommendation for Admin review.</p><label><input type="checkbox" required> I confirm this recommendation.</label></noscript>
+                    </fieldset>
                 </form>
                 <dialog id="rrConfirm" class="rr-confirm" aria-labelledby="rrConfirmTitle" aria-describedby="rrConfirmDescription"><h2 id="rrConfirmTitle">Submit recommendation?</h2><p id="rrConfirmDescription">This records your recommendation for Admin review. It cannot be submitted again.</p><strong id="rrConfirmChoice"></strong><div class="rr-actions"><button type="button" id="rrCancel" class="rr-button rr-secondary">Go back</button><button type="button" id="rrConfirmSubmit" class="rr-button">Submit recommendation</button></div></dialog>
             @elseif(!$return->seller_recommendation)<p class="rr-muted rr-divider">No seller recommendation was submitted. This request is no longer awaiting your response.</p>@endif
@@ -47,4 +52,5 @@
 </div>
 @include('seller.returns.script')
 @include('partials.return-journey')
+@endif
 @endsection

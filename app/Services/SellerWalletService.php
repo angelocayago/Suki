@@ -98,7 +98,7 @@ class SellerWalletService
             foreach ($adjustments as $adjustment) {
                 $requestId = $adjustment->return_refund_request_id;
                 if (!$requestId && preg_match('/\ARR-([1-9][0-9]*)\z/',(string)$adjustment->reference,$match)) $requestId = (int)$match[1];
-                $request = $requestId ? ReturnRefundRequest::find($requestId) : null;
+                $request = $requestId ? ReturnRefundRequest::financial()->find($requestId) : null;
                 $accounting = $request ? DB::table('return_refund_accounting')->where('return_refund_request_id',$request->id)->first() : null;
                 if (!$request || !$accounting || $request->status !== 'ADMIN_APPROVED' || (int)$request->seller_order_id !== (int)$order->id
                     || (int)$request->seller_id !== (int)$seller->id || (int)$adjustment->seller_id !== (int)$seller->id
@@ -120,7 +120,7 @@ class SellerWalletService
             }
             // An approved obligation must also have its own corresponding debit;
             // missing legacy accounting is never reconstructed or silently ignored.
-            $approved = ReturnRefundRequest::where('seller_order_id',$order->id)->where('status','ADMIN_APPROVED')->pluck('id');
+            $approved = ReturnRefundRequest::financial()->where('seller_order_id',$order->id)->where('status','ADMIN_APPROVED')->pluck('id');
             foreach ($approved as $id) if (!$adjustments->contains(fn($row)=>(int)$row->return_refund_request_id===(int)$id || $row->reference==='RR-'.$id)) return false;
             SellerWalletEntry::create(['seller_id'=>$seller->id,'seller_order_id'=>$order->id,'source_wallet_entry_id'=>$entry->id,
                 'type'=>'EARNING_RELEASE','status'=>'POSTED','amount_minor'=>$entry->amount_minor,'reference'=>'ER-'.$entry->id,
@@ -259,7 +259,7 @@ class SellerWalletService
 
     private function hasActiveReturn(int $sellerOrderId): bool
     {
-        return ReturnRefundRequest::query()->where('seller_order_id', $sellerOrderId)->whereIn('status', ReturnRefundRequest::ACTIVE_STATUSES)->exists();
+        return ReturnRefundRequest::financial()->where('seller_order_id', $sellerOrderId)->whereIn('status', ReturnRefundRequest::ACTIVE_STATUSES)->exists();
     }
 
     /** Conservative seller-wide payout pause, including pre-existing requests.
@@ -272,7 +272,7 @@ class SellerWalletService
 
     public function payoutRestriction(int $sellerId): ?string
     {
-        if (ReturnRefundRequest::where('seller_id',$sellerId)->whereIn('status',ReturnRefundRequest::ACTIVE_STATUSES)->exists()) {
+        if (ReturnRefundRequest::financial()->where('seller_id',$sellerId)->whereIn('status',ReturnRefundRequest::ACTIVE_STATUSES)->exists()) {
             return 'Payouts are paused while an active return/refund request requires financial review.';
         }
         if (Complaint::whereIn('status',self::ACTIVE_COMPLAINT_STATUSES)->whereHas('sellerOrder',fn($q)=>$q->where('seller_id',$sellerId))->exists()) {

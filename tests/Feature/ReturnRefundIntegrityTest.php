@@ -143,6 +143,7 @@ class ReturnRefundIntegrityTest extends IsolatedStorageTestCase
 
     public function test_full_quantity_wrong_buyer_and_wrong_seller_are_validated_server_side(): void
     {
+        config(['returns.admin_review_enabled'=>true]);
         $f=$this->fixture();$item=$f['items']->first();
         $this->actingAs($f['buyer'])->postJson(route('buyer.return-refunds.store',$item),['type'=>'REFUND','quantity'=>1,'reason'=>'Damage','description'=>'Detail'])->assertUnprocessable()->assertJsonValidationErrors('quantity');
         $other=User::factory()->create(['role'=>'buyer','status'=>'active']);

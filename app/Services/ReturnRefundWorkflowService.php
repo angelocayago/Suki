@@ -17,14 +17,17 @@ class ReturnRefundWorkflowService
         }
         return true;
     }
-    public function available(): bool
+    public function available(string $mode = ReturnRefundRequest::ADMIN_REVIEW): bool
     {
-        return config('returns.backend_enabled',false) === true && $this->schemaReady()
+        if (!in_array($mode, [ReturnRefundRequest::ADMIN_REVIEW, ReturnRefundRequest::FINANCIAL], true)) return false;
+        $flag = $mode === ReturnRefundRequest::ADMIN_REVIEW ? 'returns.admin_review_enabled' : 'returns.backend_enabled';
+        return config($flag,false) === true && $this->schemaReady()
+            && ($mode === ReturnRefundRequest::FINANCIAL || Schema::hasColumn('return_refund_requests','workflow_mode'))
             && app(FinancialSchemaReadiness::class)->inspect()['ready'];
     }
     private function requireAvailable(): void
     {
-        if (!$this->available()) throw ValidationException::withMessages(['request'=>'Return/refund actions are unavailable pending schema and financial activation review.']);
+        if (!$this->available(ReturnRefundRequest::FINANCIAL)) throw ValidationException::withMessages(['request'=>'Return/refund actions are unavailable pending schema and financial activation review.']);
     }
     public function returnAddress(OrderItem $item): ?string
     {
@@ -86,6 +89,7 @@ class ReturnRefundWorkflowService
     }
     public function assertApprovable(ReturnRefundRequest $r,bool $requireWorkflow=false): void
     {
+        if ($r->isAdminReview()) return;
         $w=$this->find($r);
         if (!$w && !$requireWorkflow) return; // historical internal accounting remains separately reviewable
         if (!$w || $r->seller_recommendation!=='APPROVE' || $w->parcel_status!=='RECEIVED' || !$w->destination

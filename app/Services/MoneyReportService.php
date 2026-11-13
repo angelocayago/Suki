@@ -110,6 +110,8 @@ class MoneyReportService
         $commission = (int) $sellerOrders->sum(fn (SellerOrder $order) => (int) $order->items->sum('commission_minor'));
         $refundAccounting = DB::table('return_refund_accounting')
             ->join('return_refund_requests', 'return_refund_requests.id', '=', 'return_refund_accounting.return_refund_request_id')
+            ->when(\Illuminate\Support\Facades\Schema::hasColumn('return_refund_requests', 'workflow_mode'),
+                fn ($q) => $q->where('return_refund_requests.workflow_mode', \App\Models\ReturnRefundRequest::FINANCIAL))
             ->when($filters['seller_id'] ?? null, fn ($q, $id) => $q->where('return_refund_requests.seller_id', $id))
             ->when($from, fn ($q) => $q->where('return_refund_accounting.created_at', '>=', $from))
             ->when($to, fn ($q) => $q->where('return_refund_accounting.created_at', '<=', $to))
