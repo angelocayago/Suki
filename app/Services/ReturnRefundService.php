@@ -91,7 +91,7 @@ class ReturnRefundService
             || (int)$liability->rider_id !== (int)$rider->id || (int)$shipment->rider_id !== (int)$rider->id
             || (int)$liability->logistics_provider_id !== (int)$shipment->logistics_provider_id
             || (int)$rider->logistics_provider_id !== (int)$shipment->logistics_provider_id
-            || (int)$liability->expected_minor !== $expected || !in_array($liability->status, ['OUTSTANDING','SUBMITTED','ACCEPTED'], true)
+            || (int)$liability->expected_minor !== $expected || !in_array($liability->status, ['PENDING','OUTSTANDING','SUBMITTED','VERIFIED','ACCEPTED'], true)
             || ($liability->submitted_minor !== null && (int)$liability->submitted_minor !== $expected)
             || ($liability->accepted_minor !== null && (int)$liability->accepted_minor !== $expected)
             || !$shipment->events()->where('status','COD_COLLECTED')->where('user_id',$shipment->delivered_by)->exists()) {
@@ -104,12 +104,12 @@ class ReturnRefundService
         if ($upstream->count() > 1) $this->invalid('payment','Duplicated COD settlement linkage requires support review.');
         foreach ($upstream as $allocation) {
             $remittance = $allocation->logisticsRemittance;
-            if (!$remittance || $liability->status !== 'ACCEPTED' || $allocation->amount_minor !== $expected
+            if (!$remittance || !in_array($liability->status,['VERIFIED','ACCEPTED'],true) || $allocation->amount_minor !== $expected
                 || (int)$remittance->logistics_provider_id !== (int)$shipment->logistics_provider_id
-                || !in_array($remittance->status,['SUBMITTED','ACCEPTED'],true)
+                || !in_array($remittance->status,['VERIFIED','SUBMITTED','ACCEPTED'],true)
                 || (int)$remittance->expected_minor !== (int)$remittance->items->sum('amount_minor')
                 || (int)$remittance->submitted_minor !== (int)$remittance->expected_minor
-                || ($remittance->status === 'ACCEPTED' && (int)$remittance->accepted_minor !== (int)$remittance->expected_minor)) {
+                || (in_array($remittance->status,['VERIFIED','ACCEPTED'],true) && (int)$remittance->accepted_minor !== (int)$remittance->expected_minor)) {
                 $this->invalid('payment','Upstream COD settlement is inconsistent; contact support.');
             }
         }
@@ -202,6 +202,23 @@ class ReturnRefundService
             ReturnRefundEvent::create(['return_refund_request_id'=>$locked->id,'actor_id'=>$admin->id,'action'=>'RETURN_AUTHORIZED','data'=>['reason'=>trim($reason),'return_reference'=>$reference,'hub_id'=>$hub->id]]);
             return $locked->fresh();
         }, 3);
+    }
+
+    public function recordOfflineCodRefund(ReturnRefundRequest $request, User $actor, string $reference, string $note): void
+    {
+        DB::transaction(function()use($request,$actor,$reference,$note){
+            if(!$actor->isLogistics()||$actor->status!=='active'||$actor->is_suspended)abort(403);
+            $r=ReturnRefundRequest::lockForUpdate()->findOrFail($request->id);
+            if($r->status!=='ADMIN_APPROVED')$this->invalid('request','Only a financially approved refund can be recorded as paid.');
+            if($r->type==='RETURN' && ReturnRefundWorkflow::where('return_refund_request_id',$r->id)->whereNotNull('inspected_at')->where('logistics_state','INSPECTED')->doesntExist())$this->invalid('request','A physical return must be inspected before its COD refund can be recorded.');
+            $shipment=Shipment::where('seller_order_id',$r->seller_order_id)->lockForUpdate()->firstOrFail();
+            if((int)$shipment->logistics_provider_id!==(int)$actor->logisticsProvider?->id)abort(403);
+            $accounting=DB::table('return_refund_accounting')->where('return_refund_request_id',$r->id)->lockForUpdate()->first();
+            if(!$accounting||$accounting->refund_status==='PAID')return;
+            if($accounting->refund_status!=='REFUND_DUE'||!filled($reference)||!filled($note))$this->invalid('refund','Offline refund reference and proof note are required.');
+            DB::table('return_refund_accounting')->where('id',$accounting->id)->update(['refund_status'=>'PAID','refund_paid_by'=>$actor->id,'refund_paid_at'=>now(),'refund_paid_reference'=>trim($reference),'refund_paid_note'=>trim($note),'updated_at'=>now()]);
+            ReturnRefundEvent::create(['return_refund_request_id'=>$r->id,'actor_id'=>$actor->id,'action'=>'COD_REFUND_PAID','data'=>['reference'=>trim($reference),'note'=>trim($note)]]);
+        },3);
     }
 
     private function recordAdminReviewAction(ReturnRefundRequest $request, User $admin, string $action, string $reason): ReturnRefundRequest

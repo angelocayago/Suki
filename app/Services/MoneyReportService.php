@@ -31,9 +31,9 @@ class MoneyReportService
             // The liability is always the full persisted COD collection. A
             // rider's separate shipping fee earning is never netted here.
             'cod_liability_minor' => (int) $cod->sum('expected_minor'),
-            'cod_outstanding_minor' => (int) $cod->whereIn('status', ['OUTSTANDING', 'SUBMITTED', 'REJECTED'])->sum('expected_minor'),
-            'cod_remitted_minor' => (int) $cod->where('status', 'ACCEPTED')->sum('accepted_minor'),
-            'cod_accepted_minor' => (int) $cod->where('status', 'ACCEPTED')->sum('accepted_minor'),
+            'cod_outstanding_minor' => (int) $cod->whereIn('status', ['PENDING','OUTSTANDING', 'SUBMITTED', 'DISCREPANCY','REJECTED'])->sum('expected_minor'),
+            'cod_remitted_minor' => (int) $cod->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor'),
+            'cod_accepted_minor' => (int) $cod->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor'),
             'earnings_available_minor' => (int) $earnings->sum('amount_minor'),
             'earnings_pending_minor' => 0,
             // There is no rider payout ledger in the current schema. Do not
@@ -48,8 +48,8 @@ class MoneyReportService
             ->with(['rider.user', 'shipment', 'sellerOrder.order'])->latest('id')->get();
         $upstream = LogisticsCodRemittance::query()->where('logistics_provider_id', $provider->id)
             ->with(['items.riderRemittance.shipment'])->latest('id')->get();
-        $received = (int) $riderRemittances->where('status', 'ACCEPTED')->sum('accepted_minor');
-        $remitted = (int) $upstream->where('status', 'ACCEPTED')->sum('accepted_minor');
+        $received = (int) $riderRemittances->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
+        $remitted = (int) $upstream->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
 
         return compact('riderRemittances', 'upstream') + [
             'received_from_riders_minor' => $received,
@@ -116,18 +116,18 @@ class MoneyReportService
             ->selectRaw('COALESCE(SUM(return_refund_accounting.commission_reversal_minor), 0) AS commission_reversal_minor')
             ->selectRaw('COALESCE(SUM(return_refund_accounting.seller_adjustment_minor), 0) AS seller_adjustment_minor')
             ->first();
-        $received = (int) $riderCod->where('status', 'ACCEPTED')->sum('accepted_minor');
-        $remitted = (int) $upstream->where('status', 'ACCEPTED')->sum('accepted_minor');
+        $received = (int) $riderCod->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
+        $remitted = (int) $upstream->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
 
         $providerRows = $riderCod->groupBy('logistics_provider_id')->map(function ($rows, $providerId) use ($upstream) {
-            $accepted = (int) $rows->where('status', 'ACCEPTED')->sum('accepted_minor');
-            $toAdmin = (int) $upstream->where('logistics_provider_id', $providerId)->where('status', 'ACCEPTED')->sum('accepted_minor');
+            $accepted = (int) $rows->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
+            $toAdmin = (int) $upstream->where('logistics_provider_id', $providerId)->whereIn('status', ['VERIFIED','ACCEPTED'])->sum('accepted_minor');
             return ['provider' => $rows->first()->provider?->name ?? 'Unknown', 'rider_received_minor' => $accepted, 'remitted_minor' => $toAdmin, 'outstanding_minor' => max(0, $accepted - $toAdmin)];
         })->values();
 
         return compact('shipments', 'riderCod', 'upstream', 'earnings', 'wallet', 'providerRows') + [
             'total_cod_collected_minor' => (int) $shipments->sum('cod_collected_minor'),
-            'cod_held_by_riders_minor' => (int) $riderCod->whereIn('status', ['OUTSTANDING', 'SUBMITTED', 'REJECTED'])->sum('expected_minor'),
+            'cod_held_by_riders_minor' => (int) $riderCod->whereIn('status', ['PENDING','OUTSTANDING', 'SUBMITTED', 'DISCREPANCY','REJECTED'])->sum('expected_minor'),
             'cod_held_by_logistics_minor' => max(0, $received - $remitted),
             'cod_remitted_to_admin_minor' => $remitted,
             'rider_earnings_minor' => (int) $earnings->sum('amount_minor'),

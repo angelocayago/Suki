@@ -23,11 +23,13 @@
         @endforeach
     </div>
     <section class="wallet-card wallet-request" aria-labelledby="walletRequestHeading">
-        <div><h2 id="walletRequestHeading">Request Payout</h2><p>Available balance: <strong>&#8369;{{ $money($available) }}</strong></p><p>Requests are reviewed before payment.</p></div>
+        <div><h2 id="walletRequestHeading">COD Settlement Balance</h2><p>Available balance: <strong>&#8369;{{ $money($available) }}</strong></p><p>Verified COD proceeds are settled offline by Logistics. There is no online withdrawal.</p></div>
         @if(!empty($payoutRestriction))
             <p class="wallet-error" role="status">{{ $payoutRestriction }} Your recorded balance has not been changed.</p>
         @else
-        <form id="walletPayoutForm" method="POST" action="{{ route('seller.payouts.store') }}" data-available-minor="{{ $available }}">
+        {{-- Seller-entered withdrawal requests are intentionally unavailable. Historical settlements remain below. --}}
+        <div class="wallet-no-funds">Awaiting an authorized Logistics offline settlement when funds are available.</div>
+        {{-- <form id="walletPayoutForm" method="POST" action="{{ route('seller.payouts.store') }}" data-available-minor="{{ $available }}">
             @csrf
             <div class="wallet-amount-field"><label for="walletPayoutAmount">Payout amount (PHP) <span aria-hidden="true">*</span></label>
                 <input id="walletPayoutAmount" name="amount" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required value="{{ old('amount') }}" placeholder="0.00" aria-describedby="walletAmountHelp{{ $errors->has('amount') ? ' walletAmountError' : '' }}" @if($errors->has('amount')) aria-invalid="true" @endif>
@@ -36,7 +38,7 @@
             </div>
             <button id="walletPayoutSubmit" class="wallet-primary" type="submit" @disabled($available < 1)>Request Payout</button>
             @if($available < 1)<p class="wallet-no-funds">No balance available for a payout request.</p>@endif
-        </form>
+        </form> --}}
         @endif
     </section>
     <section class="wallet-card wallet-history" aria-labelledby="walletHistoryHeading">

@@ -53,8 +53,8 @@ class PhaseSevenMoneyReportingTest extends TestCase
 
         $this->actingAs($fixture['riderUser'])->get(route('rider.money'))->assertOk()->assertSee($fixture['shipment']->tracking_code)->assertDontSee($other['shipment']->tracking_code);
         $this->actingAs($fixture['providerUser'])->get(route('logistics.money'))->assertOk()->assertSee($fixture['shipment']->tracking_code)->assertDontSee($other['shipment']->tracking_code);
-        $this->actingAs($other['providerUser'])->patch(route('logistics.cod-remittances.review', $row), ['status' => 'ACCEPTED'])->assertForbidden();
-        $this->actingAs($fixture['riderUser'])->post(route('rider.cod-remittances.submit', $row), ['amount' => 999999])->assertRedirect();
+        $this->actingAs($other['providerUser'])->patch(route('logistics.cod-remittances.review', $row), ['status' => 'VERIFIED'])->assertForbidden();
+        $this->actingAs($fixture['riderUser'])->post(route('rider.cod-remittances.submit', $row), ['amount_minor' => 15000, 'reference' => 'R-1'])->assertRedirect();
         $this->assertSame(15000, $row->fresh()->submitted_minor);
     }
 
@@ -62,7 +62,7 @@ class PhaseSevenMoneyReportingTest extends TestCase
     {
         $fixture = $this->fixture(); $service = app(CodRemittanceService::class);
         $service->createLiability($fixture['shipment']); $row = RiderCodRemittance::sole();
-        $service->submitRider($row, $fixture['riderUser']); $service->reviewRider($row, $fixture['providerUser'], 'ACCEPTED', null);
+        $service->submitRider($row, $fixture['riderUser']); $service->reviewRider($row, $fixture['providerUser'], 'VERIFIED', null);
         app(RiderShippingFeeService::class)->creditDelivered($fixture['shipment']);
 
         $data = app(MoneyReportService::class)->logistics($fixture['provider']);

@@ -19,10 +19,7 @@ class PayoutController extends Controller
 
     public function request(Request $request, SellerWalletService $wallet): RedirectResponse
     {
-        $seller = $request->user()->sellers()->where('status', 'approved')->firstOrFail();
-        $amount = $request->validate(['amount'=>['required','regex:/\A[0-9]+(?:\.[0-9]{1,2})?\z/']])['amount'];
-        $wallet->request($seller, $this->toMinor((string) $amount));
-        return back()->with('success', 'Payout requested.');
+        throw \Illuminate\Validation\ValidationException::withMessages(['payout'=>'Seller withdrawals are not available. Logistics records verified offline COD settlements.']);
     }
 
     public function admin(): View { return view('admin.payouts.index', ['payouts'=>Payout::query()->with('seller')->latest()->paginate(30)]); }

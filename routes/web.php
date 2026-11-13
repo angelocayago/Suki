@@ -2499,7 +2499,8 @@ Route::get('/logistics/cod-remittances', [CodRemittanceController::class, 'logis
 Route::patch('/logistics/cod-remittances/{remittance}', [CodRemittanceController::class, 'logisticsReview'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.review');
 Route::get('/logistics/money', [MoneyReportController::class, 'logistics'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.money');
 Route::post('/logistics/cod-remittances', [CodRemittanceController::class, 'logisticsSubmit'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-remittances.submit');
-Route::post('/seller/wallet/payouts', [PayoutController::class, 'request'])->middleware(['auth','not_suspended','approved','role:seller'])->name('seller.payouts.store');
+Route::post('/logistics/cod-settlements/{seller}', [\App\Http\Controllers\CodSettlementController::class, 'settle'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-settlements.store');
+Route::post('/logistics/return-refunds/{returnRefundRequest}/cod-refund-paid', [\App\Http\Controllers\CodSettlementController::class, 'refund'])->middleware(['auth','not_suspended','approved','role:logistics'])->name('logistics.cod-refunds.paid');
 Route::post('/seller/vouchers', [\App\Http\Controllers\Seller\VoucherController::class, 'store'])->middleware(['auth','not_suspended','approved','role:seller'])->block(10,10)->name('seller.vouchers.store');
 Route::patch('/seller/vouchers/{voucher}', [\App\Http\Controllers\Seller\VoucherController::class, 'update'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.update');
 Route::delete('/seller/vouchers/{voucher}', [\App\Http\Controllers\Seller\VoucherController::class, 'archive'])->middleware(['auth','not_suspended','approved','role:seller'])->whereNumber('voucher')->name('seller.vouchers.archive');
@@ -5031,9 +5032,6 @@ $registerAdminPortalRoutes = function (): void {
         Route::get('/vouchers', [VoucherController::class, 'adminIndex'])->name('vouchers.index');
         Route::get('/payouts', [PayoutController::class, 'admin'])->name('payouts.index');
         Route::get('/cod-remittances', [CodRemittanceController::class, 'admin'])->name('cod-remittances.index');
-        Route::patch('/cod-remittances/{remittance}', [CodRemittanceController::class, 'adminReview'])->name('cod-remittances.review');
-        Route::patch('/payouts/{payout}', [PayoutController::class, 'review'])->name('payouts.review');
-        Route::post('/payouts/{payout}/paid', [PayoutController::class, 'paid'])->name('payouts.paid');
         Route::post('/vouchers', [VoucherController::class, 'store'])->name('vouchers.store');
         Route::patch('/vouchers/{voucher}', [VoucherController::class, 'update'])->name('vouchers.update');
         Route::delete('/vouchers/{voucher}', [VoucherController::class, 'archive'])->name('vouchers.archive');

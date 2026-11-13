@@ -30,7 +30,7 @@ class SellerWalletService
             // shipment retain their historical wallet behavior. A real COD custody
             // hold applies only once a shipment has recorded COD collection.
             $requiresCodReconciliation = (bool) ($order->shipment?->cod_collected);
-            $reconciled = ! $requiresCodReconciliation || \App\Models\LogisticsCodRemittanceItem::query()->whereHas('riderRemittance', fn($q)=>$q->where('seller_order_id',$order->id)->where('shipment_id',$order->shipment->id)->where('status','ACCEPTED'))->whereHas('logisticsRemittance', fn($q)=>$q->where('status','ACCEPTED'))->exists();
+            $reconciled = ! $requiresCodReconciliation || \App\Models\LogisticsCodRemittanceItem::query()->whereHas('riderRemittance', fn($q)=>$q->where('seller_order_id',$order->id)->where('shipment_id',$order->shipment->id)->whereIn('status',['VERIFIED','ACCEPTED']))->whereHas('logisticsRemittance', fn($q)=>$q->whereIn('status',['VERIFIED','ACCEPTED']))->exists();
             if ($requiresCodReconciliation && $reconciled) {
                 $order->loadMissing(['seller','order','shipment']);
                 try { $reconciled = app(ReturnRefundService::class)->verifiedCompletedEarning($order) === max(0,$earning); }
@@ -91,8 +91,8 @@ class SellerWalletService
             if ($expected !== (int)$entry->amount_minor) return false;
             // Collection is not upstream settlement. The shared purchase proof
             // validates amounts/ownership; a valid accepted upstream row is required.
-            if (!\App\Models\LogisticsCodRemittanceItem::whereHas('riderRemittance',fn($q)=>$q->where('seller_order_id',$order->id)->where('shipment_id',$shipment->id)->where('status','ACCEPTED'))
-                ->whereHas('logisticsRemittance',fn($q)=>$q->where('status','ACCEPTED'))->exists()) return false;
+            if (!\App\Models\LogisticsCodRemittanceItem::whereHas('riderRemittance',fn($q)=>$q->where('seller_order_id',$order->id)->where('shipment_id',$shipment->id)->whereIn('status',['VERIFIED','ACCEPTED']))
+                ->whereHas('logisticsRemittance',fn($q)=>$q->whereIn('status',['VERIFIED','ACCEPTED']))->exists()) return false;
             $adjustments = SellerWalletEntry::where('seller_order_id',$order->id)->where('type','REFUND_ADJUSTMENT')->orderBy('id')->lockForUpdate()->get();
             $debit = 0;
             foreach ($adjustments as $adjustment) {
