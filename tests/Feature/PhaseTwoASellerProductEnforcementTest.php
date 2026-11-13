@@ -18,11 +18,11 @@ class PhaseTwoASellerProductEnforcementTest extends TestCase
 
     public function test_seller_can_create_products_in_assigned_root_and_descendant_categories(): void
     {
-        [$root, , $leaf] = $this->categoryTree();
+        [$root, $child, $leaf] = $this->categoryTree();
         [$user, $seller] = $this->seller('tree-seller', $root);
 
         $this->actingAs($user)
-            ->post(route('seller.products.store'), $this->payload($root, ['name' => 'Root Product', 'sku' => 'ROOT-001']))
+            ->post(route('seller.products.store'), $this->payload($child, ['name' => 'Child Product', 'sku' => 'CHILD-001']))
             ->assertRedirect(route('seller.products'));
 
         $this->actingAs($user)
@@ -39,11 +39,11 @@ class PhaseTwoASellerProductEnforcementTest extends TestCase
             ]))
             ->assertRedirect(route('seller.products'));
 
-        $rootProduct = Product::where('name', 'Root Product')->firstOrFail();
+        $rootProduct = Product::where('name', 'Child Product')->firstOrFail();
         $leafProduct = Product::where('name', 'Leaf Product')->firstOrFail();
 
         $this->assertSame($seller->id, $rootProduct->seller_id);
-        $this->assertSame($root->id, $rootProduct->category_id);
+        $this->assertSame($child->id, $rootProduct->category_id);
         $this->assertSame($leaf->id, $leafProduct->category_id);
         $this->assertSame(ProductModerationStatus::Pending, $leafProduct->moderation_status);
         $this->assertCount(2, $leafProduct->variants);
@@ -100,9 +100,10 @@ class PhaseTwoASellerProductEnforcementTest extends TestCase
 
     public function test_legacy_product_can_keep_current_category_but_cannot_move_to_an_unrelated_one(): void
     {
-        $legacyCategory = $this->category('Legacy');
+        $legacyRoot = $this->category('Legacy Root');
+        $legacyCategory = $this->category('Legacy', $legacyRoot);
         $otherCategory = $this->category('Other');
-        [$user, $seller] = $this->seller('legacy-owner');
+        [$user, $seller] = $this->seller('legacy-owner', $legacyRoot);
         $product = $this->product($seller, $legacyCategory, 'Legacy Product', 'LEGACY-SKU');
 
         $this->actingAs($user)

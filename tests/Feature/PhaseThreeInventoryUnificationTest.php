@@ -15,7 +15,15 @@ use Tests\TestCase;
 
 class PhaseThreeInventoryUnificationTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
+    use \Tests\Support\FakesCheckoutLocations;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_seller_can_increase_and_decrease_only_the_selected_variant(): void
     {
@@ -147,10 +155,10 @@ class PhaseThreeInventoryUnificationTest extends TestCase
             'quantity' => 2,
         ]);
 
-        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
+        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), array_merge([
             'address_id' => $address->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ], $this->cartCheckoutIntent($buyer)))->assertSessionHasNoErrors();
 
         $this->assertSame(1, $variant->fresh()->stock);
         $this->actingAs($sellerUser)->from(route('seller.inventory'))
@@ -255,7 +263,7 @@ class PhaseThreeInventoryUnificationTest extends TestCase
 
     private function address(User $buyer): Address
     {
-        return Address::create([
+        return Address::create($this->checkoutLocationCodes() + [
             'user_id' => $buyer->id,
             'label' => 'Home',
             'recipient' => $buyer->name,

@@ -17,7 +17,15 @@ use Tests\TestCase;
 
 class PhaseFourProductCommissionTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
+    use \Tests\Support\FakesCheckoutLocations;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeCheckoutLocations();
+    }
 
     public function test_admin_sets_per_product_rate_and_rejects_out_of_range_values(): void
     {
@@ -105,14 +113,14 @@ class PhaseFourProductCommissionTest extends TestCase
 
     private function checkout(User $buyer): void
     {
-        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), [
-            'address_id' => Address::firstOrCreate(['user_id' => $buyer->id], [
+        $this->actingAs($buyer)->post(route('buyer.checkout.place-order'), array_merge([
+            'address_id' => Address::firstOrCreate(['user_id' => $buyer->id], $this->checkoutLocationCodes() + [
                 'label' => 'Home', 'recipient' => $buyer->name, 'phone' => '09123456789',
                 'line1' => '123 Test Street', 'barangay' => 'Barangay', 'city' => 'City',
                 'province' => 'Province', 'postal_code' => '4000', 'is_default' => true,
             ])->id,
             'payment_method' => 'cod',
-        ])->assertSessionHasNoErrors();
+        ], $this->cartCheckoutIntent($buyer)))->assertSessionHasNoErrors();
     }
 
     private function cart(User $buyer, array $catalog, int $quantity): void

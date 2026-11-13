@@ -21,8 +21,9 @@ class PhaseThreeProductUnificationTest extends TestCase
     {
         Storage::fake('public');
         [$user, $seller] = $this->seller('database-seller');
-        $category = $this->category('Electronics');
-        $seller->update(['category_id' => $category->id]);
+        $root = $this->category('Electronics');
+        $category = Category::create(['parent_id' => $root->id, 'name' => 'Audio', 'slug' => 'audio', 'is_active' => true]);
+        $seller->update(['category_id' => $root->id]);
 
         $this->actingAs($user)->post(route('seller.products.store'), [
             'name' => 'Database Headphones',
@@ -39,7 +40,6 @@ class PhaseThreeProductUnificationTest extends TestCase
             'height' => '8.5',
             'variation_name' => ['Color'],
             'variation_value' => ['Black'],
-            'shipping_options' => ['suki_rider'],
             'images' => [UploadedFile::fake()->create('headphones.jpg', 100, 'image/jpeg')],
         ])->assertRedirect(route('seller.products'));
 
@@ -48,7 +48,7 @@ class PhaseThreeProductUnificationTest extends TestCase
 
         $this->assertSame($category->id, $product->category_id);
         $this->assertSame('SUKI Audio', $product->brand);
-        $this->assertSame(['suki_rider'], $product->shipping_options);
+        $this->assertSame([], $product->shipping_options);
         $this->assertSame(89950, $variant->price_minor);
         $this->assertSame(500, $variant->weight_grams);
         $this->assertSame(205, $variant->length_mm);
@@ -62,8 +62,9 @@ class PhaseThreeProductUnificationTest extends TestCase
     {
         [$owner, $seller] = $this->seller('owner-seller');
         [$otherUser] = $this->seller('other-seller');
-        $category = $this->category('Fashion');
-        $seller->update(['category_id' => $category->id]);
+        $root = $this->category('Fashion');
+        $category = Category::create(['parent_id' => $root->id, 'name' => 'Fashion Items', 'slug' => 'fashion-items', 'is_active' => true]);
+        $seller->update(['category_id' => $root->id]);
         $product = $this->product($seller, $category, 'Owned Product', 'OWNED-001');
 
         $payload = [
@@ -132,7 +133,7 @@ class PhaseThreeProductUnificationTest extends TestCase
         ]);
     }
 
-    public function test_legacy_session_products_remain_read_only_fallback_without_import(): void
+    public function test_legacy_session_products_are_not_mixed_into_database_product_listings(): void
     {
         [$user, $seller] = $this->seller('fallback-seller');
         $legacyProduct = [
@@ -150,7 +151,7 @@ class PhaseThreeProductUnificationTest extends TestCase
             ->withSession(['seller_products' => $legacyProduct])
             ->get(route('seller.products'))
             ->assertOk()
-            ->assertSee('Legacy Session Product');
+            ->assertDontSee('Legacy Session Product');
 
         $this->assertSame(0, Product::where('seller_id', $seller->id)->count());
     }

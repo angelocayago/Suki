@@ -14,6 +14,7 @@ use App\Models\SellerOrder;
 use App\Models\User;
 use App\Services\ProductCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PhaseOneCatalogCriticalFixesTest extends TestCase
@@ -22,8 +23,11 @@ class PhaseOneCatalogCriticalFixesTest extends TestCase
 
     public function test_uploaded_media_is_used_and_placeholder_is_only_used_without_media(): void
     {
+        Storage::fake('public');
         $withImage = $this->product('With image');
-        ProductImage::create(['product_id' => $withImage->id, 'path' => 'products/'.$withImage->id.'/photo.webp', 'position' => 1, 'color' => 'Green']);
+        $path = 'products/'.$withImage->id.'/photo.webp';
+        Storage::disk('public')->put($path, 'fixture image');
+        ProductImage::create(['product_id' => $withImage->id, 'path' => $path, 'position' => 1, 'color' => 'Green']);
         $withoutImage = $this->product('Without image');
 
         $items = app(ProductCatalogService::class)->marketplaceProducts();

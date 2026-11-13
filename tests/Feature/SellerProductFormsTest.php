@@ -12,6 +12,7 @@ use Tests\TestCase;
 /** Minimal in-memory fixture schema; application migrations are never invoked. */
 class SellerProductFormsTest extends TestCase
 {
+    use \Tests\Support\CartCheckoutIntent;
     private User $seller;
 
     protected function setUp(): void
@@ -242,7 +243,7 @@ class SellerProductFormsTest extends TestCase
         $this->assertCount(2,$summary['cart']);
         $this->assertSame(165,$summary['subtotal']);
         $this->get(route('buyer.cart'))->assertOk()->assertSee('Flavor: Chocolate')->assertSee('Pack Size: Pack of 6');
-        $this->get(route('buyer.checkout'))->assertOk()->assertViewHas('total',215);
+        $this->get(route('buyer.checkout',$this->cartCheckoutIntent($buyer)))->assertOk()->assertViewHas('total',215);
         $order=app(\App\Services\CheckoutService::class)->checkout($buyer,['recipient_name'=>'Buyer','recipient_phone'=>'0912','province'=>'P','municipality'=>'C','barangay'=>'B','street_address'=>'Street'],'cod');
         $this->assertSame(21500,$order->total_minor);
         $this->assertSame([$first->id=>1,$last->id=>2],$order->items->pluck('quantity','product_variant_id')->all());
