@@ -43,6 +43,7 @@ use App\Http\Controllers\CodRemittanceController;
 use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\ReviewPageController;
 use App\Http\Controllers\ShoppingAssistantController;
+use App\Http\Controllers\ShipmentSmsLogController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\ApplicationDocumentController;
 use App\Http\Controllers\Admin\BuyerManagementController;
@@ -4664,6 +4665,8 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::post('/logistics/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.resolve');
     Route::post('/logistics/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.action');
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
+    Route::get('/logistics/sms-notifications', [ShipmentSmsLogController::class, 'logistics'])->name('logistics.sms-notifications.index');
+    Route::post('/logistics/sms-notifications/{notification}/retry', [ShipmentSmsLogController::class, 'retry'])->name('logistics.sms-notifications.retry');
     Route::post('/logistics/erp-orders/{sellerOrder}/receive', [LogisticsFulfillmentController::class, 'receive'])
         ->name('logistics.database.orders.receive');
     Route::post('/logistics/erp-orders/{sellerOrder}/pickup-rider', [LogisticsFulfillmentController::class, 'assignPickup'])
@@ -5098,6 +5101,7 @@ $registerAdminPortalRoutes = function (): void {
         Route::patch('/settings/announcements/{announcement}/deactivate', [SettingController::class, 'deactivateAnnouncement'])->name('settings.announcement.deactivate');
 
         Route::get('/financial-report', [MoneyReportController::class, 'admin'])->name('financial-report');
+        Route::get('/sms-notifications', [ShipmentSmsLogController::class, 'admin'])->name('sms-notifications.index');
 };
 
 Route::prefix('admin')

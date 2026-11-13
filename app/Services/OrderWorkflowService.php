@@ -508,6 +508,13 @@ class OrderWorkflowService
                 }
             }
 
+            if ($lockedOrder->shipment && $nextStatus === OrderStatus::OutForDelivery) {
+                app(ShipmentSmsService::class)->queue($lockedOrder->shipment, ShipmentSmsService::OUT_FOR_DELIVERY, $actor);
+            }
+            if ($lockedOrder->shipment && $nextStatus === OrderStatus::Delivered) {
+                app(ShipmentSmsService::class)->queue($lockedOrder->shipment, ShipmentSmsService::DELIVERED, $actor);
+            }
+
             return $lockedOrder->fresh(['order', 'seller', 'shipment']);
         });
     }
@@ -539,6 +546,7 @@ class OrderWorkflowService
                 if ($rider->logisticsProvider?->user_id) {
                     app(DomainNotificationService::class)->afterCommit($rider->logisticsProvider->user_id, 'Delivery accepted', 'A rider accepted an assigned delivery.', ['shipment_id' => $shipment->id]);
                 }
+                app(ShipmentSmsService::class)->queue($shipment, ShipmentSmsService::DELIVERY_ACCEPTED, $rider->user);
             }
             return $shipment->fresh();
         });
@@ -792,6 +800,7 @@ class OrderWorkflowService
             if ($next === OrderStatus::RtsInitiated && $lockedOrder->seller?->user_id) {
                 $notifications->afterCommit($lockedOrder->seller->user_id, 'Return initiated', 'A shipment is being returned to your store.', $context);
             }
+            app(ShipmentSmsService::class)->queue($shipment, ShipmentSmsService::DELIVERY_ATTEMPT_FAILED, $actor);
             return $event;
         });
     }

@@ -10,11 +10,12 @@ use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\TestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\CartCheckoutIntent;
 use Tests\Support\FakesCheckoutLocations;
-use Tests\TestCase;
+use Tests\Support\IsolatedStorageTestCase;
 
-class SystemFunctionalStabilizationTest extends TestCase
+class SystemFunctionalStabilizationTest extends IsolatedStorageTestCase
 {
     use RefreshDatabase, CartCheckoutIntent, FakesCheckoutLocations;
 
@@ -26,7 +27,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
     public function test_seeded_accounts_catalog_and_portal_pages_are_browser_ready(): void
     {
-        $this->seed(TestAccountsSeeder::class);
+        $this->seedAcceptanceAccounts();
 
         $buyer = User::where('email', 'buyer@test.com')->sole();
         $seller = User::where('email', 'seller@test.com')->sole();
@@ -53,7 +54,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
     public function test_seeded_roles_cannot_cross_portal_boundaries(): void
     {
-        $this->seed(TestAccountsSeeder::class);
+        $this->seedAcceptanceAccounts();
 
         $buyer = User::where('email', 'buyer@test.com')->sole();
         $seller = User::where('email', 'seller@test.com')->sole();
@@ -68,7 +69,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
     public function test_seeded_accounts_complete_the_database_erp_lifecycle_consistently(): void
     {
-        $this->seed(TestAccountsSeeder::class);
+        $this->seedAcceptanceAccounts();
 
         $buyer = User::where('email', 'buyer@test.com')->sole();
         $sellerUser = User::where('email', 'seller@test.com')->sole();
@@ -200,7 +201,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
     public function test_seeded_admin_can_render_existing_management_areas(): void
     {
-        $this->seed(TestAccountsSeeder::class);
+        $this->seedAcceptanceAccounts();
         $admin = User::where('email', 'admin@test.com')->sole();
 
         $this->actingAs($admin)->get(route('superadmin.users'))->assertOk();
@@ -213,7 +214,7 @@ class SystemFunctionalStabilizationTest extends TestCase
 
     public function test_seeded_buyer_and_seller_can_message_from_product_and_seller_order_contexts(): void
     {
-        $this->seed(TestAccountsSeeder::class);
+        $this->seedAcceptanceAccounts();
 
         $buyer = User::where('email', 'buyer@test.com')->sole();
         $sellerUser = User::where('email', 'seller@test.com')->sole();
@@ -267,5 +268,16 @@ class SystemFunctionalStabilizationTest extends TestCase
         $this->assertSame(2, Conversation::count());
         $this->assertDatabaseCount('conversation_participants', 4);
         $this->assertDatabaseCount('messages', 2);
+    }
+
+    private function seedAcceptanceAccounts(): void
+    {
+        $this->seed(TestAccountsSeeder::class);
+        $product = Product::where('slug', 'acceptance-product')->sole();
+        Storage::disk('public')->put('products/acceptance-product.webp', 'acceptance product fixture image');
+        $product->images()->firstOrCreate(
+            ['path' => 'products/acceptance-product.webp'],
+            ['position' => 1],
+        );
     }
 }

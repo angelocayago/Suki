@@ -8,6 +8,9 @@
         <a href="{{ route('buyer.seller-order.track', [$order, $sellerOrder]) }}" class="rounded py-2 focus-visible:outline focus-visible:outline-2">Refresh tracking</a>
     </nav>
     <h1 class="text-2xl font-bold text-gray-900">Package tracking</h1>
+    @if($smsNotice ?? null)
+        <p class="rounded-lg bg-[#eef5ed] p-3 text-sm text-[#234438]">A SUKI delivery SMS notice is {{ strtolower($smsNotice->status) }} for your saved mobile number.</p>
+    @endif
     <div id="package-tracking">@include('buyer.partials.order-tracking')</div>
     <section class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5" aria-label="Selected package location">
         <h2 class="font-bold text-gray-900">Live delivery tracking</h2>

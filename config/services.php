@@ -63,4 +63,14 @@ return [
         'timeout' => env('SHOPPING_ASSISTANT_TIMEOUT', 3),
     ],
 
+    'transactional_sms' => [
+        // Safe by default: log/test records an auditable non-network send.
+        'enabled' => env('TRANSACTIONAL_SMS_ENABLED', false),
+        'driver' => env('TRANSACTIONAL_SMS_DRIVER', 'log'),
+        'sender' => env('TRANSACTIONAL_SMS_SENDER', 'SUKI SHOP'),
+        'endpoint' => env('TRANSACTIONAL_SMS_ENDPOINT'),
+        'api_key' => env('TRANSACTIONAL_SMS_API_KEY'),
+        'timeout' => (int) env('TRANSACTIONAL_SMS_TIMEOUT', 4),
+    ],
+
 ];

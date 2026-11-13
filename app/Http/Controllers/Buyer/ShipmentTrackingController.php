@@ -6,10 +6,12 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\SellerOrder;
+use App\Models\ShipmentSmsNotification;
 use App\Support\BuyerOrderTracking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Schema;
 
 class ShipmentTrackingController extends Controller
 {
@@ -19,8 +21,11 @@ class ShipmentTrackingController extends Controller
         $order->load(['sellerOrders.seller', 'sellerOrders.shipment.events' => fn ($query) => $query->orderBy('id')]);
         $sellerOrder = $order->sellerOrders->firstWhere('id', $sellerOrder->id);
 
+        $smsNotice = Schema::hasTable('shipment_sms_notifications') && $sellerOrder?->shipment
+            ? ShipmentSmsNotification::where('shipment_id', $sellerOrder->shipment->id)->whereIn('status', ['PENDING', 'PROCESSING', 'SENT'])->latest()->first()
+            : null;
         return view('buyer.tracking', ['order' => $order, 'sellerOrder' => $sellerOrder,
-            'tracking' => app(BuyerOrderTracking::class)->present($order)]);
+            'tracking' => app(BuyerOrderTracking::class)->present($order), 'smsNotice' => $smsNotice]);
     }
 
     public function latest(Request $request, Order $order, SellerOrder $sellerOrder): JsonResponse

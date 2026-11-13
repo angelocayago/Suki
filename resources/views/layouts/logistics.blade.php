@@ -459,6 +459,12 @@
             Return Hub Operations
         </a>
 
+        <a href="{{ route('logistics.sms-notifications.index') }}" @if(request()->routeIs('logistics.sms-notifications.*')) aria-current="page" @endif
+           class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition {{ request()->routeIs('logistics.sms-notifications.*') ? 'bg-white text-[#173F35]' : 'text-white/62 hover:bg-white/[0.07] hover:text-white' }}">
+            <i data-lucide="message-square-text" class="h-[17px] w-[17px]" aria-hidden="true"></i>
+            Shipment SMS
+        </a>
+
 
         {{-- MESSAGES --}}
         <a

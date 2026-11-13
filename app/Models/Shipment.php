@@ -124,4 +124,9 @@ class Shipment extends Model
     {
         return $this->hasMany(Conversation::class);
     }
+
+    public function smsNotifications(): HasMany
+    {
+        return $this->hasMany(ShipmentSmsNotification::class);
+    }
 }

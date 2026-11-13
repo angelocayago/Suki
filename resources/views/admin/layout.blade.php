@@ -146,7 +146,7 @@
             ],
             'finance' => [
                 'label' => 'Finance & Analytics', 'icon' => 'chart-no-axes-combined',
-                'active' => request()->routeIs('admin.commission*', 'admin.reports*'),
+                'active' => request()->routeIs('admin.commission*', 'admin.reports*', 'admin.sms-notifications.*'),
             ],
             'system' => [
                 'label' => 'System', 'icon' => 'settings-2',
@@ -187,6 +187,7 @@
                 @elseif($groupKey === 'finance')
                     <a href="{{ route('admin.commission') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.commission*')]) @if(request()->routeIs('admin.commission*')) aria-current="page" @endif>Commission</a>
                     <a href="{{ route('admin.reports') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.reports*')]) @if(request()->routeIs('admin.reports*')) aria-current="page" @endif>Reports</a>
+                    <a href="{{ route('admin.sms-notifications.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.sms-notifications.*')]) @if(request()->routeIs('admin.sms-notifications.*')) aria-current="page" @endif>SMS Delivery Log</a>
                 @elseif($groupKey === 'system')
                     <a href="{{ route('admin.settings') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.settings*')]) @if(request()->routeIs('admin.settings*')) aria-current="page" @endif>Platform Settings</a>
                 @endif
