@@ -21,7 +21,8 @@ class ProductCatalogService
 {
     public function __construct(
         private readonly SellerInventoryService $inventory,
-        private readonly ProductModerationService $moderation
+        private readonly ProductModerationService $moderation,
+        private readonly ProductMediaService $media
     ) {}
 
     public function marketplaceProducts(): array
@@ -30,6 +31,7 @@ class ProductCatalogService
             ->withSum($this->completedSalesRelation(), 'quantity')
             ->orderByDesc('products.created_at')
             ->get()
+            ->filter(fn (Product $product) => $this->media->hasUsableImage($product))
             ->mapWithKeys(fn (Product $product) => [
                 $product->slug => $this->marketplaceItem($product),
             ])
@@ -43,7 +45,7 @@ class ProductCatalogService
             ->where('products.slug', $slug)
             ->first();
 
-        return $product ? $this->marketplaceItem($product) : null;
+        return $product && $this->media->hasUsableImage($product) ? $this->marketplaceItem($product) : null;
     }
 
     /**
@@ -105,10 +107,21 @@ class ProductCatalogService
             default => $query->orderByDesc('products.created_at'),
         };
 
-        return $query->orderByDesc('products.id')->paginate(min(max($perPage, 1), 48))
-            ->withQueryString()
-            ->through(fn (Product $product) => $this->marketplaceItem($product, $product->variants->sortBy([['price_minor', 'asc'], ['id', 'asc']])->first())
-                + ['price_from' => $product->variants->pluck('price_minor')->unique()->count() > 1]);
+        $perPage = min(max($perPage, 1), 48);
+        // Storage existence cannot be expressed safely in SQL. Resolve files before
+        // slicing so totals and pagination never advertise an unusable product.
+        $visible = $query->orderByDesc('products.id')->get()
+            ->filter(fn (Product $product) => $this->media->hasUsableImage($product))
+            ->values();
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $items = $visible->forPage($page, $perPage)->map(fn (Product $product) =>
+            $this->marketplaceItem($product, $product->variants->sortBy([['price_minor', 'asc'], ['id', 'asc']])->first())
+            + ['price_from' => $product->variants->pluck('price_minor')->unique()->count() > 1]);
+
+        return new LengthAwarePaginator($items, $visible->count(), $perPage, $page, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+            'query' => request()->query(),
+        ]);
     }
 
     public function sellerProducts(Seller $seller): array
@@ -261,7 +274,11 @@ class ProductCatalogService
             ->where('products.is_active', true)
             ->where('products.moderation_status', ProductModerationStatus::Approved->value)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))
-            ->whereHas('variants', fn ($query) => $query->where('is_active', true))
+            ->whereHas('variants', fn ($query) => $query->where('is_active', true)->where('stock', '>', 0))
+            ->where(function ($query) {
+                $query->whereHas('images', fn ($images) => $images->whereNotNull('path')->where('path', '!=', ''))
+                    ->orWhereHas('variants', fn ($variants) => $variants->where('is_active', true)->where('stock', '>', 0)->whereNotNull('image_path')->where('image_path', '!=', ''));
+            })
             ->whereHas('seller', function ($query) {
                 $query->where('status', 'approved')
                     ->whereHas('owner', function ($owner) {
@@ -292,8 +309,7 @@ class ProductCatalogService
             ->filter()
             ->values()
             ->all();
-        $fallbackImage = 'https://placehold.co/800x800?text='.rawurlencode($product->name);
-        $images = $images ?: [$this->thumbnail($product) ?? $fallbackImage];
+        $images = $images ?: array_values(array_filter([$this->thumbnail($product)]));
 
         return [
             'id' => $product->id,
@@ -309,7 +325,7 @@ class ProductCatalogService
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'category' => $product->category?->name ?? 'Uncategorized',
             'stock' => $variant?->stock ?? 0,
-            'image' => $images[0],
+            'image' => $images[0] ?? null,
             'images' => $images,
             'video' => $this->marketplaceImageUrl($product->video_path),
             'video_mime' => $product->video_mime,
@@ -330,7 +346,7 @@ class ProductCatalogService
             'media_by_color' => $product->images->filter(fn ($image) => filled($image->color))->groupBy('color')->map(fn ($images) => $images->map(fn ($image) => $this->marketplaceImageUrl($image->path))->filter()->values()->all())->all(),
             'seller' => $product->seller?->name ?? 'SUKI Seller',
             'seller_slug' => $product->seller?->slug,
-            'seller_logo' => $this->imageUrl($product->seller?->logo_path),
+            'seller_logo' => $this->profileImageUrl($product->seller?->logo_path),
             'seller_rating' => $product->seller?->visible_reviews_count ? number_format((float) $product->seller->visible_reviews_avg_rating, 1).'/5' : 'New',
             'seller_products' => $product->seller?->products()
                 ->where('is_active', true)
@@ -562,28 +578,21 @@ class ProductCatalogService
             return null;
         }
 
-        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
-
-        return Str::startsWith($path, ['http://', 'https://'])
-            ? $path
-            : Storage::disk('public')->url($path);
+        return $this->media->url($path);
     }
 
     private function marketplaceImageUrl(?string $path): ?string
     {
-        if (! $path) {
-            return null;
-        }
+        return $this->media->url($path);
+    }
 
-        if (\App\Support\DemoProductImages::canonical($path)) return \App\Support\DemoProductImages::url($path);
-
-        if (Str::startsWith($path, ['http://', 'https://'])) {
-            return $path;
-        }
-
-        return Storage::disk('public')->exists($path)
-            ? Storage::disk('public')->url($path)
-            : null;
+    /** Store branding retains its existing profile-media behavior; catalog product
+     * media itself always goes through ProductMediaService. */
+    private function profileImageUrl(?string $path): ?string
+    {
+        if (! $path) return null;
+        if (filter_var($path, FILTER_VALIDATE_URL) && in_array(parse_url($path, PHP_URL_SCHEME), ['http', 'https'], true)) return $path;
+        return Storage::disk('public')->exists($path) ? Storage::disk('public')->url($path) : null;
     }
 
     private function normalisedOptions(array $options): ?array

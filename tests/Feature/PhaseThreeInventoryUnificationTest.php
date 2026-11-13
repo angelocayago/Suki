@@ -6,12 +6,14 @@ use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\Seller;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Storage;
 
 class PhaseThreeInventoryUnificationTest extends TestCase
 {
@@ -23,6 +25,7 @@ class PhaseThreeInventoryUnificationTest extends TestCase
     {
         parent::setUp();
         $this->fakeCheckoutLocations();
+        Storage::fake('public');
     }
 
     public function test_seller_can_increase_and_decrease_only_the_selected_variant(): void
@@ -238,7 +241,7 @@ class PhaseThreeInventoryUnificationTest extends TestCase
 
     private function product(Seller $seller, string $name, ?Category $category = null): Product
     {
-        return Product::create([
+        $product = Product::create([
             'seller_id' => $seller->id,
             'category_id' => ($category ?? $this->category())->id,
             'name' => $name,
@@ -247,6 +250,10 @@ class PhaseThreeInventoryUnificationTest extends TestCase
             'is_active' => true,
             'moderation_status' => 'APPROVED',
         ]);
+        $path = 'inventory-fixtures/'.$product->id.'.webp';
+        Storage::disk('public')->put($path, 'inventory catalog fixture');
+        ProductImage::create(['product_id' => $product->id, 'path' => $path, 'position' => 1]);
+        return $product;
     }
 
     private function variant(Product $product, string $sku, int $stock, string $name = 'Default'): ProductVariant

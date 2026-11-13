@@ -7,6 +7,7 @@ use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\Seller;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\SellerSalesService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Storage;
 
 class PhaseFourProductCommissionTest extends TestCase
 {
@@ -25,6 +27,7 @@ class PhaseFourProductCommissionTest extends TestCase
     {
         parent::setUp();
         $this->fakeCheckoutLocations();
+        Storage::fake('public');
     }
 
     public function test_admin_sets_per_product_rate_and_rejects_out_of_range_values(): void
@@ -139,6 +142,9 @@ class PhaseFourProductCommissionTest extends TestCase
         $category = Category::firstOrCreate(['slug' => 'commission-category'], ['name' => 'Commission', 'is_active' => true]);
         $product = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'name' => $slug, 'slug' => $slug, 'is_active' => true, 'moderation_status' => 'APPROVED']);
         $variant = ProductVariant::create(['product_id' => $product->id, 'sku' => strtoupper($slug), 'name' => 'Default', 'price_minor' => $priceMinor, 'stock' => 20, 'is_active' => true]);
+        $path = 'commission-fixtures/'.$product->id.'.webp';
+        Storage::disk('public')->put($path, 'commission catalog fixture');
+        ProductImage::create(['product_id' => $product->id, 'path' => $path, 'position' => 1]);
 
         return compact('seller', 'product', 'variant');
     }

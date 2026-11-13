@@ -10,6 +10,7 @@ use App\Models\Seller;
 use App\Models\User;
 use App\Services\ProductCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PhaseFiveCatalogTest extends TestCase
@@ -18,6 +19,7 @@ class PhaseFiveCatalogTest extends TestCase
 
     public function test_database_catalog_filters_visible_products_across_shared_category_and_sorts(): void
     {
+        Storage::fake('public');
         $root=Category::create(['name'=>'Apparel','slug'=>'apparel','is_active'=>true]); $child=Category::create(['name'=>'Tops','slug'=>'tops','parent_id'=>$root->id,'is_active'=>true]);
         $one=$this->seller('one'); $two=$this->seller('two');
         $this->product($one,$child,'Blue Top',2000,3,'APPROVED'); $this->product($two,$child,'Red Top',1000,2,'APPROVED'); $this->product($one,$child,'Hidden Top',500,5,'PENDING');
@@ -38,5 +40,8 @@ class PhaseFiveCatalogTest extends TestCase
     {
         $product=Product::create(['seller_id'=>$seller->id,'category_id'=>$category->id,'name'=>$name,'slug'=>strtolower(str_replace(' ','-',$name)).'-'.$seller->id.'-'.$status,'is_active'=>true,'moderation_status'=>$status]);
         ProductVariant::create(['product_id'=>$product->id,'sku'=>uniqid('sku',true),'name'=>'Default','price_minor'=>$price,'stock'=>$stock,'is_active'=>true]);
+        $path = 'catalog-fixtures/'.$product->id.'.webp';
+        Storage::disk('public')->put($path, 'catalog image fixture');
+        $product->images()->create(['path' => $path, 'position' => 1]);
     }
 }

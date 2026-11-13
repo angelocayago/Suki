@@ -256,7 +256,7 @@ class DemoProductPhaseD2Test extends TestCase
 
     public function test_slug_collision_aborts_without_changing_the_existing_product(): void
     {
-        $product=Product::create(['seller_id'=>3,'category_id'=>29,'name'=>'Existing unrelated item','slug'=>'demo-plain-rolled-oats','description'=>'Keep unchanged']);
+        $product=Product::create(['seller_id'=>3,'category_id'=>29,'name'=>'Existing unrelated item','slug'=>'plain-rolled-oats','description'=>'Keep unchanged']);
         $this->artisan('demo:products:import',['--seller-id'=>'3','--expect-store'=>'Lahat Meron','--connection'=>'sqlite','--expect-environment'=>'testing','--confirm-database'=>':memory:','--expect-owner-id'=>'41','--execute'=>true])->expectsOutputToContain('slug collides')->assertFailed();
         $this->assertDatabaseCount('products',1);$this->assertDatabaseCount('product_variants',0);$this->assertDatabaseCount('product_images',0);
         $this->assertSame('Keep unchanged',$product->fresh()->description);

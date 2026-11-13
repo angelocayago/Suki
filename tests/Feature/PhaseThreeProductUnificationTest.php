@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\Seller;
@@ -16,6 +17,12 @@ use Tests\TestCase;
 class PhaseThreeProductUnificationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('public');
+    }
 
     public function test_seller_creation_persists_product_variant_and_images(): void
     {
@@ -214,6 +221,11 @@ class PhaseThreeProductUnificationTest extends TestCase
             'stock' => 10,
             'is_active' => $active,
         ]);
+        if ($active) {
+            $path = 'product-unification/'.$product->id.'.webp';
+            Storage::disk('public')->put($path, 'public catalog fixture');
+            ProductImage::create(['product_id' => $product->id, 'path' => $path, 'position' => 1]);
+        }
 
         return $product;
     }

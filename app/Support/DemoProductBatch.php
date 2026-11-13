@@ -66,6 +66,7 @@ class DemoProductBatch
         $this->require($distribution === [1 => 36, 2 => 12, 3 => 6, 4 => 6], 'Dataset must contain exactly 36/12/6/6 products with 1/2/3/4 variants.');
         $rows = [];
         foreach ($items as $item) {
+            $this->require(! $this->containsCustomerFacingDemoLabel($item['name']) && ! $this->containsCustomerFacingDemoLabel($item['description']), 'Importer source text contains a demo, sample, lorem ipsum, or test label.');
             $prices = $stocks = $variants = $skus = [];
             foreach ($item['variants'] as $i => $variant) {
                 $this->require(is_int($variant['price_minor']) && is_int($variant['stock']), 'Price and stock must be JSON integers.');
@@ -77,7 +78,9 @@ class DemoProductBatch
             $simple = count($variants) === 1;
             $this->require(! $simple || ($item['option_groups'] === [] && $variants[0]['options'] === []), 'Simple products must have no option choices.');
             $data = [
-                'name' => 'Demo '.$item['name'], 'description' => '[SUKI-DEMO:'.$item['key'].'] '.$item['description'].' Sample catalog entry for demonstrations.',
+                // legacy_reference preserves importer provenance. Customer-facing text
+                // deliberately remains the reviewed dataset text.
+                'name' => $item['name'], 'description' => $item['description'],
                 'category_id' => $categoryId, 'status' => 'active', 'shipping_options' => [],
                 'product_mode' => $simple ? 'simple' : 'variants',
                 'option_groups' => array_map(fn ($g) => ['name' => $g['name'], 'values' => implode(',', $g['values'])], $item['option_groups']),
@@ -99,8 +102,7 @@ class DemoProductBatch
             if ($existing) {
                 $actualSkus = $skuRows->pluck('sku')->sort()->values()->all();
                 $expectedSkus = $row['skus']; sort($expectedSkus);
-                $this->require(str_starts_with((string) $existing->description, '[SUKI-DEMO:'.$row['key'].'] ')
-                    && $actualSkus === $expectedSkus && $skuRows->every(fn ($v) => (int) $v->product_id === (int) $existing->id), 'Existing reference conflicts with demo provenance; no records will be overwritten.');
+                $this->require($actualSkus === $expectedSkus && $skuRows->every(fn ($v) => (int) $v->product_id === (int) $existing->id), 'Existing reference conflicts with demo provenance; no records will be overwritten.');
                 $plan[$row['key']] = $existing->trashed() ? 'SKIP archived demo' : 'SKIP existing demo';
             } else {
                 $this->require($skuRows->isEmpty(), 'A demo SKU is already assigned to another/non-demo record.');
@@ -141,8 +143,7 @@ class DemoProductBatch
             $skuRows = $globalVariants->whereIn('sku', $row['skus']);
             $actualSkus = $skuRows->pluck('sku')->sort()->values()->all();
             $expectedSkus = $row['skus']; sort($expectedSkus);
-            $this->require($product && str_starts_with((string) $product->description, '[SUKI-DEMO:'.$row['key'].'] ')
-                && $actualSkus === $expectedSkus && $skuRows->every(fn ($v) => (int) $v->product_id === (int) $product->id),
+            $this->require($product && $actualSkus === $expectedSkus && $skuRows->every(fn ($v) => (int) $v->product_id === (int) $product->id),
                 'Existing reference conflicts with demo provenance; review it individually.');
             $state = $product?->moderation_status?->value;
             $this->require($product && !$product->trashed() && in_array($state, ['PENDING','APPROVED'], true), 'Archived, rejected, hidden or missing demo products cannot be bulk approved.');
@@ -176,5 +177,10 @@ class DemoProductBatch
     private function require(mixed $condition, string $message): void
     {
         if (! $condition) throw ValidationException::withMessages(['demo_batch' => $message]);
+    }
+
+    private function containsCustomerFacingDemoLabel(string $value): bool
+    {
+        return (bool) preg_match('/\b(?:demo|sample|test|lorem\s+ipsum)\b/i', $value);
     }
 }

@@ -41,6 +41,9 @@ class BuyerCatalogTest extends IsolatedStorageTestCase
         $product = Product::create($changes + ['seller_id' => $this->seller->id, 'category_id' => $this->category->id,
             'name' => $name, 'slug' => str($name)->slug().'-'.Product::count(), 'description' => 'Everyday cotton item', 'is_active' => true, 'moderation_status' => 'APPROVED']);
         foreach ($prices as $index => $price) $product->variants()->create(['sku' => 'CAT-'.$product->id.'-'.$index, 'name' => 'Option '.$index, 'price_minor' => $price, 'stock' => 5, 'is_active' => true]);
+        $path = 'catalog-fixtures/'.$product->id.'.webp';
+        Storage::disk('public')->put($path, 'catalog image fixture');
+        $product->images()->create(['path' => $path, 'position' => 1]);
         return $product;
     }
 
@@ -280,7 +283,7 @@ class BuyerCatalogTest extends IsolatedStorageTestCase
         $out = $this->product('Sold out'); $out->variants()->update(['stock' => 0]);
         $rows = $this->page(['category' => 'clothing', 'in_stock' => '1', 'seller' => 'catalog-shop']);
         $this->assertSame([$shirt->id], array_column($rows, 'id'));
-        $this->assertSame(3, count($this->page()));
+        $this->assertSame(2, count($this->page()));
         $this->assertSame([], $this->page(['category' => 'unknown']));
         $this->assertSame([], $this->page(['seller' => 'another-store']));
         $this->get(route('buyer.shop', ['category' => 'shirts', 'in_stock' => '1']))->assertOk()->assertSee('1 category selected')->assertSee('name="in_stock" value="1" checked', false);

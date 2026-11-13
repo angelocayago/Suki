@@ -230,6 +230,9 @@ class SellerProductFormsTest extends TestCase
         $payload=$this->universal([['name'=>'Flavor','values'=>'Chocolate, Vanilla'],['name'=>'Pack Size','values'=>'Single, Pack of 6']]);
         $this->post(route('seller.products.store'),$payload)->assertSessionHasNoErrors();
         $product=Product::with('variants')->sole();
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/variant-checkout-cover.webp', 'approved product image fixture');
+        $product->images()->create(['path'=>'products/variant-checkout-cover.webp','position'=>1]);
         $buyer=User::forceCreate(['id'=>33,'name'=>'Buyer','role'=>'buyer','status'=>'active']);
         $admin=User::forceCreate(['id'=>44,'name'=>'Admin','role'=>'admin','status'=>'active']);
         $this->actingAs($buyer)->get(route('buyer.product',$product->slug))->assertNotFound();
@@ -280,6 +283,7 @@ class SellerProductFormsTest extends TestCase
     public function test_forms_render_with_real_manifest_actions_values_and_owned_images(): void
     {
         $this->product(1); $this->product(2, 202);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/blue.webp', 'existing blue image fixture');
         DB::table('product_images')->insert(['id'=>1,'product_id'=>1,'path'=>'products/blue.webp','color'=>'Blue','position'=>0]);
         DB::table('product_variants')->insert(['id'=>12,'product_id'=>1,'sku'=>'EXISTING-RED','name'=>'Red','price_minor'=>10025,'stock'=>1,'is_active'=>1,'options'=>'{"Color":"Red"}']);
         $this->actingAs($this->seller)->get(route('seller.products.create'))->assertOk()
@@ -345,6 +349,7 @@ class SellerProductFormsTest extends TestCase
     {
         $this->product(1);
         DB::table('products')->where('id',1)->update(['shipping_options'=>'["suki_rider"]']);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/saved.webp', 'existing saved image fixture');
         DB::table('product_images')->insert(['id'=>1,'product_id'=>1,'path'=>'products/saved.webp','color'=>'Blue','position'=>0]);
         DB::table('product_variants')->insert(['id'=>12,'product_id'=>1,'sku'=>'RED-SKU','name'=>'Red','price_minor'=>20000,'stock'=>11,'is_active'=>1,'options'=>'{"Color":"Red"}']);
         $data=$this->payload(['name'=>'Owned Product 1','description'=>'Saved description','price'=>100,'stock'=>10,'variants'=>[
@@ -405,6 +410,7 @@ class SellerProductFormsTest extends TestCase
         // A dedicated temporary public disk, never the application's upload disk.
         $root=sys_get_temp_dir().'/suki-form-images-'.bin2hex(random_bytes(8));
         config(['filesystems.disks.public.root'=>$root]);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/saved.webp', 'existing saved image fixture');
         $image=\Illuminate\Http\UploadedFile::fake()->createWithContent('red.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
         $this->actingAs($this->seller)->put(route('seller.products.update',1),$this->payload([
             'name'=>'Owned Product 1','description'=>'Saved description','price'=>100,
@@ -581,7 +587,7 @@ class SellerProductFormsTest extends TestCase
         );
     }
 
-    public function test_marketplace_exposes_existing_media_and_falls_back_when_local_files_are_missing(): void
+    public function test_marketplace_exposes_existing_media_and_excludes_missing_local_media(): void
     {
         $this->product(1);
 
@@ -631,12 +637,7 @@ class SellerProductFormsTest extends TestCase
 
         $item=$catalog->marketplaceProduct('product-1');
 
-        $this->assertNotNull($item);
-        $this->assertStringStartsWith(
-            'https://placehold.co/800x800?text=',
-            $item['image']
-        );
-        $this->assertNull($item['video']);
+        $this->assertNull($item);
     }
 
 
@@ -727,6 +728,8 @@ class SellerProductFormsTest extends TestCase
         \Illuminate\Support\Facades\Storage::fake('public');
         $this->product(8);
         $product=Product::with('variants')->findOrFail(8);$variant=$product->variants->sole();
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/foreign/cover.png','cover');
+        $product->images()->create(['path'=>'products/foreign/cover.png','position'=>1]);
         $variant->update(['image_path'=>'products/foreign/keep.png']);
         $this->assertNull(app(ProductCatalogService::class)->marketplaceProduct($product->slug)['variants'][0]['image']);
         \Illuminate\Support\Facades\Storage::disk('public')->put('products/foreign/keep.png','unrelated');
@@ -776,7 +779,7 @@ class SellerProductFormsTest extends TestCase
         $this->assertSame($disk->url('second.png'),$catalog->thumbnail($product->fresh(['images','variants'])));
         DB::table('product_variants')->whereIn('id',[12,13])->update(['deleted_at'=>now()]);
         $this->assertNull($catalog->thumbnail($product->fresh(['images','variants'])));
-        $this->assertStringStartsWith('https://placehold.co/',$catalog->marketplaceProduct('product-1')['image']);
+        $this->assertNull($catalog->marketplaceProduct('product-1'));
         $this->assertNull($catalog->sellerItem($product->fresh(['images','variants']))['image']);
         $product->update(['moderation_status'=>'PENDING']);$this->assertNull($catalog->marketplaceProduct('product-1'));
     }

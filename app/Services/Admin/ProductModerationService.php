@@ -19,7 +19,10 @@ class ProductModerationService
         'HIDDEN' => ['APPROVED'],
     ];
 
-    public function __construct(private readonly SellerCategoryService $categories) {}
+    public function __construct(
+        private readonly SellerCategoryService $categories,
+        private readonly \App\Services\ProductMediaService $media
+    ) {}
 
     public function approve(Product $product, User $actor): Product
     {
@@ -105,7 +108,7 @@ class ProductModerationService
     ): Product {
         return DB::transaction(function () use ($product, $next, $actor, $reason) {
             $this->ensureAdmin($actor);
-            $locked = Product::query()->with('seller.category')->lockForUpdate()->findOrFail($product->id);
+            $locked = Product::query()->with(['seller.category', 'images', 'variants'])->lockForUpdate()->findOrFail($product->id);
             $current = $locked->moderation_status;
 
             if (! in_array($next->value, self::ADMIN_TRANSITIONS[$current->value] ?? [], true)) {
@@ -123,6 +126,12 @@ class ProductModerationService
             if ($next === ProductModerationStatus::Approved && ! $this->categories->allows($locked->seller, (int) $locked->category_id)) {
                 throw ValidationException::withMessages([
                     'category' => 'This product category is not approved for the seller.',
+                ]);
+            }
+
+            if ($next === ProductModerationStatus::Approved && ! $this->media->hasUsableImage($locked)) {
+                throw ValidationException::withMessages([
+                    'images' => 'A usable locally stored product image is required before marketplace approval.',
                 ]);
             }
 

@@ -21,7 +21,7 @@ class PhaseOneCatalogCriticalFixesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_uploaded_media_is_used_and_placeholder_is_only_used_without_media(): void
+    public function test_public_catalog_requires_uploaded_media_and_never_uses_a_placeholder(): void
     {
         Storage::fake('public');
         $withImage = $this->product('With image');
@@ -34,12 +34,16 @@ class PhaseOneCatalogCriticalFixesTest extends TestCase
 
         $this->assertStringContainsString('/storage/products/'.$withImage->id.'/photo.webp', $items[(string) $withImage->slug]['image']);
         $this->assertStringNotContainsString('placehold.co', $items[(string) $withImage->slug]['image']);
-        $this->assertStringContainsString('placehold.co', $items[(string) $withoutImage->slug]['image']);
+        $this->assertArrayNotHasKey((string) $withoutImage->slug, $items);
     }
 
     public function test_sold_count_includes_placed_items_and_excludes_cancelled_orders(): void
     {
+        Storage::fake('public');
         $product = $this->product('Sold product');
+        $path = 'products/'.$product->id.'/sold.webp';
+        Storage::disk('public')->put($path, 'fixture image');
+        ProductImage::create(['product_id' => $product->id, 'path' => $path, 'position' => 1]);
         $this->assertSame(0, app(ProductCatalogService::class)->marketplaceProducts()[(string) $product->slug]['sold']);
         $order = $this->orderFor($product, 3, 'PLACED', 'pending');
         $this->assertSame(3, app(ProductCatalogService::class)->marketplaceProducts()[(string) $product->slug]['sold']);

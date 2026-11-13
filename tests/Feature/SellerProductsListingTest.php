@@ -105,6 +105,9 @@ class SellerProductsListingTest extends TestCase
         DB::table('product_variants')->where('id',61)->update(['is_active'=>0]);
         $this->actingAs($this->seller)->get('/seller/products?status=active')->assertOk()->assertViewHas('paginator',fn($p)=>$p->total()===6)->assertSee('Review: PENDING')->assertSee('Review: APPROVED')->assertSee('Review: REJECTED')->assertSee('Review: HIDDEN');
         $this->get('/seller/products?status=inactive')->assertOk()->assertViewHas('paginator',fn($p)=>$p->pluck('id')->all()===[5]);
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/approved.webp', 'fixture image');
+        DB::table('product_images')->insert(['id'=>1,'product_id'=>2,'path'=>'products/approved.webp','position'=>1]);
         $catalog=app(ProductCatalogService::class);$visible=$catalog->marketplaceProducts();
         $this->assertSame([2],array_values(array_map(fn($p)=>$p['id'],$visible)));
         DB::table('sellers')->where('id',101)->update(['status'=>'pending']);$this->assertSame([],$catalog->marketplaceProducts());
@@ -113,6 +116,8 @@ class SellerProductsListingTest extends TestCase
     public function test_existing_add_edit_and_archive_contracts_remain_accessible(): void
     {
         $this->product(1);$this->product(2,202);
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('products/preserved.webp', 'existing preserved image fixture');
         DB::table('product_images')->insert(['id'=>1,'product_id'=>1,'path'=>'products/preserved.webp','color'=>'Blue','position'=>0]);
         $this->actingAs($this->seller)->get('/seller/products')->assertOk()->assertSee(route('seller.products.create'))->assertSee(route('seller.products.edit',1))->assertSee(route('seller.products.archive',1))->assertSee('name="_token"',false)->assertSee('value="DELETE"',false);
         $this->get('/seller/products/create')->assertOk();
