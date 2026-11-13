@@ -116,6 +116,16 @@ class ReturnRefundService
         return app(ReturnRefundAllocationService::class)->calculate($item, (int)$item->quantity);
     }
 
+    private function assertSubmissionWindow(?Shipment $shipment): void
+    {
+        $days = (int) config('returns.request_window_days', 7);
+        $deliveredAt = $shipment?->proof_delivered_at;
+
+        if ($days < 1 || ! $deliveredAt || $deliveredAt->lt(now()->subDays($days))) {
+            $this->invalid('item', 'Return/refund requests must be submitted within '.$days.' days of verified delivery.');
+        }
+    }
+
     /** Shared read-only proof for earning reconciliation; no processing activation. */
     public function verifiedCompletedEarning(SellerOrder $so): int
     {
@@ -134,6 +144,7 @@ class ReturnRefundService
             if ((int)$data['quantity'] !== (int)$item->quantity) $this->invalid('quantity','Only the full purchased quantity is supported; partial returns are unavailable.');
             if (!in_array($data['type'], ['RETURN','REFUND'],true)) $this->invalid('type','Choose RETURN or REFUND.');
             $this->validatePurchase($item, $so, $shipment);
+            $this->assertSubmissionWindow($shipment);
             $r = ReturnRefundRequest::create(['buyer_id'=>$buyer->id,'order_id'=>$so->order_id,'seller_order_id'=>$so->id,'order_item_id'=>$item->id,'seller_id'=>$so->seller_id,'type'=>$data['type'],'status'=>'SUBMITTED','quantity'=>$item->quantity,'buyer_reason'=>$data['reason'],'buyer_description'=>$data['description']]);
             $this->event($r,$buyer,'SUBMITTED');
             app(DomainNotificationService::class)->afterCommit($so->seller->user_id,'Return/refund request','A buyer submitted a request.',['return_refund_request_id'=>$r->id]);
@@ -144,20 +155,62 @@ class ReturnRefundService
     public function inspectPurchase(User $buyer,OrderItem $item): array
     {
         $so=$item->sellerOrder;abort_unless($buyer->isBuyer() && $so && (int)$so->order->buyer_id===(int)$buyer->id,403);
-        $so->load(['seller','order','items','shipment']);return $this->validatePurchase($item,$so,$so->shipment);
+        $so->load(['seller','order','items','shipment']);
+        $calculation = $this->validatePurchase($item,$so,$so->shipment);
+        $this->assertSubmissionWindow($so->shipment);
+        return $calculation;
     }
 
     public function sellerRespond(ReturnRefundRequest $request, User $seller, array $data): ReturnRefundRequest
     {
         return DB::transaction(function () use ($request,$seller,$data) {
             $r = ReturnRefundRequest::with('seller')->lockForUpdate()->findOrFail($request->id);
-            abort_unless((int)$r->seller->user_id === (int)$seller->id,403);
+            abort_unless($seller->isSeller() && $seller->status === 'active' && ! $seller->is_suspended && (int)$r->seller->user_id === (int)$seller->id,403);
             if ($r->status !== 'SUBMITTED') $this->invalid('request','Request is no longer awaiting seller response.');
             $r->update(['status'=>'SELLER_RESPONDED','seller_recommendation'=>$data['recommendation'],'seller_note'=>$data['note'],'seller_responded_at'=>now()]);
             $this->event($r,$seller,'SELLER_RESPONDED');
             app(DomainNotificationService::class)->afterCommit($r->buyer_id,'Return/refund response','The seller responded; Admin review is required.',['return_refund_request_id'=>$r->id]);
             return $r;
         },3);
+    }
+
+    public function requestMoreEvidence(ReturnRefundRequest $request, User $admin, string $reason): ReturnRefundRequest
+    {
+        return $this->recordAdminReviewAction($request, $admin, 'EVIDENCE_REQUESTED', $reason);
+    }
+
+    public function escalate(ReturnRefundRequest $request, User $admin, string $reason): ReturnRefundRequest
+    {
+        return $this->recordAdminReviewAction($request, $admin, 'ESCALATED', $reason);
+    }
+
+    private function recordAdminReviewAction(ReturnRefundRequest $request, User $admin, string $action, string $reason): ReturnRefundRequest
+    {
+        abort_unless($admin->isAdmin() && $admin->status === 'active' && ! $admin->is_suspended, 403);
+        if (! filled($reason)) $this->invalid('reason', 'A review reason is required.');
+
+        return DB::transaction(function () use ($request, $admin, $action, $reason) {
+            $locked = ReturnRefundRequest::lockForUpdate()->findOrFail($request->id);
+            if (! in_array($locked->status, ReturnRefundRequest::ACTIVE_STATUSES, true)) {
+                $this->invalid('request', 'A final request cannot be reviewed again.');
+            }
+
+            $locked->update(['status' => 'UNDER_REVIEW']);
+            ReturnRefundEvent::create([
+                'return_refund_request_id' => $locked->id,
+                'actor_id' => $admin->id,
+                'action' => $action,
+                'data' => ['reason' => trim($reason)],
+            ]);
+            app(DomainNotificationService::class)->afterCommit(
+                $locked->buyer_id,
+                $action === 'EVIDENCE_REQUESTED' ? 'More return/refund evidence requested' : 'Return/refund request escalated',
+                trim($reason),
+                ['return_refund_request_id' => $locked->id]
+            );
+
+            return $locked->fresh();
+        }, 3);
     }
 
     public function decide(ReturnRefundRequest $request, User $admin, string $decision, string $reason): ReturnRefundRequest

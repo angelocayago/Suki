@@ -5732,4 +5732,5 @@ Route::middleware(['auth','not_suspended','approved','role:admin,superadmin'])->
     Route::get('/admin/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'adminIndex'])->name('admin.return-refunds.index');
     Route::get('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'adminShow'])->name('admin.return-refunds.show');
     Route::patch('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'decide'])->name('admin.return-refunds.decide');
+    Route::patch('/admin/return-refunds/{returnRefundRequest}/review',[\App\Http\Controllers\ReturnRefundController::class,'review'])->name('admin.return-refunds.review');
 });

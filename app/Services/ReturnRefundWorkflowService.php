@@ -65,8 +65,7 @@ class ReturnRefundWorkflowService
             abort_unless($buyer->isBuyer() && (int)$r->buyer_id===(int)$buyer->id,403);
             if ($r->seller_recommendation!=='APPROVE' || $w->parcel_status==='RECEIVED') throw ValidationException::withMessages(['request'=>'Seller confirmation is required; received parcels cannot be edited.']);
             if ($w->parcel_status==='SHIPPED' && $data['parcel_status']!=='SHIPPED') throw ValidationException::withMessages(['parcel_status'=>'A shipped return cannot revert to shipping pending.']);
-            $w->fill(['destination'=>array_intersect_key($data,array_flip(['method','holder','account','bank'])),
-                'parcel_status'=>$data['parcel_status'],'courier'=>$data['parcel_status']==='SHIPPED'?$data['courier']:null,
+            $w->fill(['parcel_status'=>$data['parcel_status'],'courier'=>$data['parcel_status']==='SHIPPED'?$data['courier']:null,
                 'tracking_number'=>$data['parcel_status']==='SHIPPED'?$data['tracking_number']:null,'shipped_on'=>$data['shipped_on'] ?? null])->save();
             ReturnRefundEvent::create(['return_refund_request_id'=>$r->id,'actor_id'=>$buyer->id,'action'=>$data['parcel_status']==='SHIPPED'?'RETURN_SHIPPED':'RETURN_DETAILS_SUBMITTED']);
             app(DomainNotificationService::class)->afterCommit($r->seller->user_id,'Return parcel update','The Buyer updated return parcel details. Review the official request.',['return_refund_request_id'=>$r->id]);
@@ -88,9 +87,9 @@ class ReturnRefundWorkflowService
     {
         $w=$this->find($r);
         if (!$w && !$requireWorkflow) return; // historical internal accounting remains separately reviewable
-        if (!$w || $r->seller_recommendation!=='APPROVE' || $w->parcel_status!=='RECEIVED' || !$w->destination
+        if (!$w || $r->seller_recommendation!=='APPROVE' || $w->parcel_status!=='RECEIVED'
             || !$w->received_at || (int)$w->received_by!==(int)$r->seller->user_id || !$w->inspection_result || !$w->courier || !$w->tracking_number) {
-            throw ValidationException::withMessages(['request'=>'Seller confirmation, private refund destination, shipped parcel and Seller receipt/inspection are required before approval. Legacy requests require support review.']);
+            throw ValidationException::withMessages(['request'=>'Seller confirmation, shipped parcel and Seller receipt/inspection are required before approval. Legacy requests require support review.']);
         }
     }
 }

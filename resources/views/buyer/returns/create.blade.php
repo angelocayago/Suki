@@ -16,7 +16,7 @@
         <fieldset @disabled(!$available || $eligibility) class="space-y-4">
             <label class="block">Reason<select name="reason" required class="block w-full rounded border">@foreach(['Damaged item','Incorrect item','Missing parts','Not as described','Other'] as $reason)<option @selected(old('reason')===$reason)>{{ $reason }}</option>@endforeach</select></label>
             <label class="block">Description<textarea name="description" required maxlength="5000" rows="4" class="block w-full rounded border">{{ old('description') }}</textarea></label>
-            <label class="block">Optional private photo (JPG/PNG, up to 5 MiB)<input type="file" name="file" accept="image/jpeg,image/png"></label>
+            <label class="block">Optional private photo or video (JPG/PNG/MP4/WebM, up to 25 MiB)<input type="file" name="file" accept="image/jpeg,image/png,video/mp4,video/webm"></label>
             <label class="block"><input type="checkbox" name="confirmed" value="1" required> I confirm the purchased item, full quantity and refund amount above and want to submit this request.</label>
             <button class="rounded bg-[#173F35] px-4 py-2 text-white">Confirm and Submit Return / Refund</button>
         </fieldset>

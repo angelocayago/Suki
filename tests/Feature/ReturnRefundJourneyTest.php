@@ -43,9 +43,9 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.store',$f['item']),['type'=>'RETURN','quantity'=>2,'reason'=>'Damaged item','description'=>'Packaging and item were damaged.','confirmed'=>1,'file'=>UploadedFile::fake()->image('concern.png')])->assertSessionHasNoErrors()->assertRedirect();
         return ReturnRefundRequest::sole();
     }
-    private function destination(string $status='PENDING'): array
+    private function returnDetails(string $status='PENDING'): array
     {
-        return ['method'=>'GCASH','holder'=>'Private recipient name','account'=>'09123456789','parcel_status'=>$status,'courier'=>$status==='SHIPPED'?'Test courier':null,'tracking_number'=>$status==='SHIPPED'?'RETURN-123':null];
+        return ['parcel_status'=>$status,'courier'=>$status==='SHIPPED'?'Test courier':null,'tracking_number'=>$status==='SHIPPED'?'RETURN-123':null];
     }
     public function test_visible_buyer_seller_admin_journey_preserves_privacy_and_financial_snapshots(): void
     {
@@ -58,23 +58,20 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         $this->actingAs($f['sellerUser'])->get(route('seller.return-refunds.index'))->assertOk()->assertSee('Pending review')->assertSee('View details');
         $this->get(route('seller.return-refunds.show',$r))->assertOk()->assertSee('Confirm willingness to proceed')->assertSee('Dispute/Decline')->assertSee('Chat with Buyer');
         $this->patchJson(route('seller.return-refunds.respond',$r),['recommendation'=>'APPROVE','note'=>'Please return the item for inspection.'])->assertOk();
-        $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.show',$r))->assertOk()->assertSee('Submit Refund &amp; Return Details',false);
-        $this->post(route('buyer.return-refunds.details',$r),array_replace($this->destination(),['account'=>'bad']))->assertSessionHasErrors('account');
-        $this->assertNull(ReturnRefundWorkflow::sole()->destination);$this->assertNull(session()->get('_old_input.account'));
-        $this->post(route('buyer.return-refunds.details',$r),array_replace($this->destination('SHIPPED'),['courier'=>null]))->assertSessionHasErrors('courier');
-        $this->post(route('buyer.return-refunds.details',$r),$this->destination())->assertSessionHasNoErrors()->assertRedirect();
+        $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.show',$r))->assertOk()->assertSee('Submit Return Parcel Details',false);
+        $this->post(route('buyer.return-refunds.details',$r),array_replace($this->returnDetails('SHIPPED'),['courier'=>null]))->assertSessionHasErrors('courier');
+        $this->post(route('buyer.return-refunds.details',$r),$this->returnDetails())->assertSessionHasNoErrors()->assertRedirect();
         $w=ReturnRefundWorkflow::sole();$this->assertSame('PENDING',$w->parcel_status);$this->assertNull($w->tracking_number);
-        $this->assertStringNotContainsString('09123456789',DB::table('return_refund_workflows')->value('destination'));$this->assertArrayNotHasKey('destination',$w->toArray());
-        $this->actingAs($f['sellerUser'])->get(route('seller.return-refunds.show',$r))->assertOk()->assertDontSee('09123456789')->assertDontSee('Private recipient name');
+        $this->assertNull($w->destination);
         $this->actingAs($f['admin'])->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Too early'])->assertUnprocessable();
-        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.details',$r),$this->destination('SHIPPED'))->assertSessionHasNoErrors();
+        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.details',$r),$this->returnDetails('SHIPPED'))->assertSessionHasNoErrors();
         $this->get(route('buyer.return-refunds.show',$r))->assertOk()->assertSee('Track Return')->assertSee('RETURN-123');
         $this->actingAs($f['sellerUser'])->get(route('seller.return-refunds.show',$r))->assertOk()->assertSee('Confirm Returned Parcel');
         $this->post(route('seller.return-refunds.receive',$r),['inspection_result'=>'ACCEPTED','inspection_note'=>'Correct item received.'])->assertSessionHasNoErrors();
         $this->post(route('seller.return-refunds.evidence.store',$r),['file'=>UploadedFile::fake()->image('inspection.png'),'description'=>'Seller inspection'])->assertSessionHasNoErrors()->assertRedirect();
         $this->assertSame(2,\App\Models\ReturnRefundEvidence::count());
         $this->actingAs($f['admin'])->get(route('admin.return-refunds.index'))->assertOk()->assertSee('RR-'.$r->id);
-        $this->get(route('admin.return-refunds.show',$r))->assertOk()->assertSee('09123456789')->assertSee('Returned parcel received');
+        $this->get(route('admin.return-refunds.show',$r))->assertOk()->assertDontSee('09123456789')->assertSee('Returned parcel received');
         $r->update(['status'=>'UNDER_REVIEW']);
         $this->get(route('admin.return-refunds.show',$r))->assertOk()->assertSee('Finalize decision');
         $this->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Purchase and return evidence verified.'])->assertOk();
@@ -90,8 +87,8 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         $this->actingAs($other)->get(route('buyer.return-refunds.create',$f['item']))->assertForbidden();
         $r=$this->submit($f);$this->actingAs($f['buyer'])->get(route('buyer.return-refunds.create',$f['item']))->assertRedirect(route('buyer.return-refunds.show',$r));
         $this->actingAs($other)->get(route('buyer.return-refunds.show',$r))->assertNotFound();
-        $this->post(route('buyer.return-refunds.details',$r),$this->destination())->assertForbidden();
-        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.details',$r),$this->destination())->assertSessionHasErrors('request');
+        $this->post(route('buyer.return-refunds.details',$r),$this->returnDetails())->assertForbidden();
+        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.details',$r),$this->returnDetails())->assertSessionHasErrors('request');
         $this->assertNull(ReturnRefundWorkflow::sole()->destination);
         $this->actingAs($f['sellerUser'])->patchJson(route('seller.return-refunds.respond',$r),['recommendation'=>'REJECT','note'=>'Item differs from described condition; Admin review requested.'])->assertOk();
         $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.show',$r))->assertOk()->assertSee('Admin review required')->assertDontSee('name="account"',false);
@@ -141,24 +138,32 @@ class ReturnRefundJourneyTest extends IsolatedStorageTestCase
         $this->assertSame(['existing.txt'],Storage::disk('local')->allFiles());$this->assertSame($before,DB::table('notification_outbox')->count());
     }
 
-    public function test_bank_destination_rejects_meaningless_identifiers_without_flashing_private_inputs(): void
+    public function test_payment_destination_fields_are_rejected_for_cod_only_requests(): void
     {
         $f=$this->purchase();$r=$this->submit($f);
         $this->actingAs($f['sellerUser'])->patchJson(route('seller.return-refunds.respond',$r),['recommendation'=>'APPROVE','note'=>'Please return.'])->assertOk();
         $this->actingAs($f['buyer']);
-        foreach(['----','    ','ABCD','1---','@1234'] as $account){
-            $this->post(route('buyer.return-refunds.details',$r),array_replace($this->destination(),['method'=>'BANK','bank'=>'Test bank','account'=>$account]))->assertSessionHasErrors('account');
-            $this->assertNull(session()->get('_old_input.account'));$this->assertNull(ReturnRefundWorkflow::sole()->destination);
-        }
-        foreach([['bank'=>null],['bank'=>'---'],['holder'=>'---'],['method'=>'OTHER']] as $invalid){
-            $this->post(route('buyer.return-refunds.details',$r),array_replace($this->destination(),['method'=>'BANK','bank'=>'Test bank','account'=>'0012-3456'],$invalid))->assertSessionHasErrors(array_key_first($invalid));
-        }
-        foreach(['0012345678','0012-3456 7890','GB82 WEST 1234 5698 7654 32'] as $account){
-            $this->post(route('buyer.return-refunds.details',$r),array_replace($this->destination(),['method'=>'BANK','bank'=>'Test bank','account'=>$account]))->assertSessionHasNoErrors()->assertRedirect();
-            $this->assertSame($account,ReturnRefundWorkflow::sole()->destination['account']);
-            $this->assertStringNotContainsString($account,DB::table('return_refund_workflows')->value('destination'));
-        }
-        $this->actingAs($f['sellerUser'])->get(route('seller.return-refunds.show',$r))->assertOk()->assertDontSee('GB82 WEST');
+        $this->post(route('buyer.return-refunds.details',$r),$this->returnDetails()+['method'=>'GCASH','account'=>'09123456789'])->assertSessionHasErrors(['method','account']);
+        $this->post(route('buyer.return-refunds.details',$r),$this->returnDetails())->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertNull(ReturnRefundWorkflow::sole()->destination);
+    }
+
+    public function test_request_window_video_evidence_and_admin_review_actions_are_enforced(): void
+    {
+        $f=$this->purchase();
+        $f['shipment']->update(['proof_delivered_at'=>now()->subDays(8)]);
+        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.store',$f['item']),['type'=>'RETURN','quantity'=>2,'reason'=>'Damaged item','description'=>'Late request','confirmed'=>1])
+            ->assertSessionHasErrors('item');
+        $f['shipment']->update(['proof_delivered_at'=>now()]);$r=$this->submit($f);
+        $this->actingAs($f['buyer'])->postJson(route('return-refunds.evidence.store',$r),['file'=>UploadedFile::fake()->create('concern.mp4',1024,'video/mp4'),'description'=>'Unboxing video'])->assertCreated();
+        $this->assertSame('video/mp4',\App\Models\ReturnRefundEvidence::latest('id')->firstOrFail()->mime);
+        $this->actingAs($f['admin'])->patchJson(route('admin.return-refunds.review',$r),['action'=>'EVIDENCE_REQUESTED','reason'=>'Please add a clear item photo.'])->assertOk();
+        $this->assertSame('UNDER_REVIEW',$r->fresh()->status);
+        $this->assertDatabaseHas('return_refund_events',['return_refund_request_id'=>$r->id,'action'=>'EVIDENCE_REQUESTED']);
+        $this->patchJson(route('admin.return-refunds.review',$r),['action'=>'ESCALATED','reason'=>'Escalated for marketplace review.'])->assertOk();
+        $this->assertDatabaseHas('return_refund_events',['return_refund_request_id'=>$r->id,'action'=>'ESCALATED']);
+        $r->update(['status'=>'ADMIN_REJECTED']);
+        $this->patchJson(route('admin.return-refunds.review',$r),['action'=>'ESCALATED','reason'=>'Replay'])->assertUnprocessable();
     }
 
     public function test_under_review_legacy_request_needs_review_for_approval_but_admin_can_explicitly_reject(): void

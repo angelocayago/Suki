@@ -6,7 +6,7 @@ class ReturnRefundController extends Controller {
  public function store(Request $q,OrderItem $item,ReturnRefundService $service){
      $this->buyer($q);abort_unless((int)$item->order->buyer_id===(int)$q->user()->id,403);
      if(!app(\App\Services\ReturnRefundWorkflowService::class)->available())throw \Illuminate\Validation\ValidationException::withMessages(['request'=>'Return/refund actions are unavailable pending schema and financial activation review.']);
-     $d=$q->validate(['type'=>'required|in:RETURN,REFUND','quantity'=>'required|integer|in:'.$item->quantity,'reason'=>'required|string|max:100','description'=>'required|string|max:5000','confirmed'=>'accepted','file'=>'nullable|file|image|mimes:jpg,jpeg,png|extensions:jpg,jpeg,png|max:5120']);$path=null;
+     $d=$q->validate(['type'=>'required|in:RETURN,REFUND','quantity'=>'required|integer|in:'.$item->quantity,'reason'=>'required|string|max:100','description'=>'required|string|max:5000','confirmed'=>'accepted','file'=>'nullable|file|mimes:jpg,jpeg,png,mp4,webm|mimetypes:image/jpeg,image/png,video/mp4,video/webm|extensions:jpg,jpeg,png,mp4,webm|max:25600']);$path=null;
      try{$r=\Illuminate\Support\Facades\DB::transaction(function()use($q,$item,$d,&$path){
          $r=app(\App\Services\ReturnRefundWorkflowService::class)->submit($q->user(),$item,$d);
          if($q->hasFile('file')){$f=$q->file('file');$path=$f->store('return-refund-evidence/'.$r->id,'local');if(!$path)throw new \RuntimeException('Evidence upload failed.');ReturnRefundEvidence::create(['return_refund_request_id'=>$r->id,'uploaded_by'=>$q->user()->id,'path'=>$path,'mime'=>$f->getMimeType(),'size'=>$f->getSize(),'description'=>'Buyer submission photo']);}
@@ -22,18 +22,19 @@ class ReturnRefundController extends Controller {
  }
  public function sellerRespond(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){$d=$q->validate(['recommendation'=>'required|in:APPROVE,REJECT','note'=>'required|string|max:5000']);$r=$service->sellerRespond($returnRefundRequest,$q->user(),$d);return $q->expectsJson()?response()->json($r):back()->with('success','Seller confirmation/dispute recorded for Admin review.');}
  public function decide(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){$d=$q->validate(['decision'=>'required|in:APPROVED,REJECTED','reason'=>'required|string|max:5000']);abort_unless($q->user()->isAdmin(),403);if($d['decision']==='APPROVED' && config('returns.backend_enabled',false)===true)app(\App\Services\ReturnRefundWorkflowService::class)->assertApprovable($returnRefundRequest,true);$r=$service->decide($returnRefundRequest,$q->user(),$d['decision'],$d['reason']);return $q->expectsJson()?response()->json($r):back()->with('success','Admin decision recorded. Approval is Refund Due, not payment.');}
+ public function review(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){$d=$q->validate(['action'=>'required|in:EVIDENCE_REQUESTED,ESCALATED','reason'=>'required|string|max:5000']);abort_unless($q->user()->isAdmin(),403);$r=$d['action']==='EVIDENCE_REQUESTED'?$service->requestMoreEvidence($returnRefundRequest,$q->user(),$d['reason']):$service->escalate($returnRefundRequest,$q->user(),$d['reason']);return $q->expectsJson()?response()->json($r):back()->with('success','Return/refund review status updated.');}
  public function details(Request $q,ReturnRefundRequest $returnRefundRequest){
      $this->access($q,$returnRefundRequest);abort_unless((int)$returnRefundRequest->buyer_id===(int)$q->user()->id,403);
-     $validator=\Illuminate\Support\Facades\Validator::make($q->all(),['method'=>'required|in:GCASH,BANK','holder'=>['required','string','max:100','regex:/[\p{L}\p{N}]/u'],'account'=>['required','string','max:34','regex:/^(?:[ -]*[A-Za-z0-9]){4,}[ -]*$/','regex:/[0-9]/'],'bank'=>['required_if:method,BANK','nullable','string','max:100','regex:/[\p{L}\p{N}]/u'],'parcel_status'=>'required|in:PENDING,SHIPPED','courier'=>'required_if:parcel_status,SHIPPED|nullable|string|max:100','tracking_number'=>'required_if:parcel_status,SHIPPED|nullable|string|max:100','shipped_on'=>'nullable|date|before_or_equal:today']);
+     $validator=\Illuminate\Support\Facades\Validator::make($q->all(),['method'=>'prohibited','holder'=>'prohibited','account'=>'prohibited','bank'=>'prohibited','parcel_status'=>'required|in:PENDING,SHIPPED','courier'=>'required_if:parcel_status,SHIPPED|nullable|string|max:100','tracking_number'=>'required_if:parcel_status,SHIPPED|nullable|string|max:100','shipped_on'=>'nullable|date|before_or_equal:today']);
      if($validator->fails())return back()->withErrors($validator);
-     $d=$validator->validated();if($d['method']==='GCASH' && !preg_match('/^09[0-9]{9}$/',$d['account']))return back()->withErrors(['account'=>'Enter an 11-digit GCash mobile number beginning 09.']);
+     $d=$validator->validated();
      try{app(\App\Services\ReturnRefundWorkflowService::class)->details($q->user(),$returnRefundRequest,$d);}catch(\Illuminate\Validation\ValidationException $e){return back()->withErrors($e->errors());}
      return back()->with('success','Private refund destination and return parcel details saved. No payment has been made.');
  }
  public function receive(Request $q,ReturnRefundRequest $returnRefundRequest){$d=$q->validate(['inspection_result'=>'required|in:ACCEPTED,MISSING,INCORRECT,DAMAGED','inspection_note'=>'required|string|max:2000']);app(\App\Services\ReturnRefundWorkflowService::class)->receive($q->user(),$returnRefundRequest,$d);return back()->with('success','Returned parcel receipt and inspection recorded; refund remains subject to Admin review.');}
  public function evidence(Request $q,ReturnRefundRequest $returnRefundRequest){
      $this->access($q,$returnRefundRequest);
-     $d=$q->validate(['file'=>'required|file|image|mimes:jpg,jpeg,png|mimetypes:image/jpeg,image/png|extensions:jpg,jpeg,png|max:5120','description'=>'nullable|string|max:500']);
+     $d=$q->validate(['file'=>'required|file|mimes:jpg,jpeg,png,mp4,webm|mimetypes:image/jpeg,image/png,video/mp4,video/webm|extensions:jpg,jpeg,png,mp4,webm|max:25600','description'=>'nullable|string|max:500']);
      $path=null;
      try {
          $evidence=\Illuminate\Support\Facades\DB::transaction(function()use($q,$returnRefundRequest,$d,&$path){
