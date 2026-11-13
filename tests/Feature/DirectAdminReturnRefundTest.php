@@ -34,7 +34,7 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
         config(['returns.backend_enabled'=>false, 'returns.admin_review_enabled'=>true, 'returns.earning_release_enabled'=>false]);
     }
 
-    private function purchase(bool $discounted = false): array
+    public function purchase(bool $discounted = false): array
     {
         $buyer = User::factory()->create(['role'=>'buyer','status'=>'active']);
         $admin = User::factory()->create(['role'=>'admin','status'=>'active']);
@@ -69,8 +69,10 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
 
     private function submit(array $f): ReturnRefundRequest
     {
-        $this->actingAs($f['buyer'])->post(route('buyer.return-refunds.store',$f['item']), $this->data(['workflow_mode'=>'FINANCIAL','file'=>UploadedFile::fake()->image('evidence.png')]))->assertSessionHasNoErrors()->assertRedirect();
-        return ReturnRefundRequest::sole();
+        // Explicit historical fixture: new HTTP submissions now belong to the Seller.
+        $r=app(\App\Services\ReturnRefundService::class)->submitForAdmin($f['buyer'],$f['item'],$this->data());
+        $this->actingAs($f['buyer'])->post(route('return-refunds.evidence.store',$r),['file'=>UploadedFile::fake()->image('evidence.png')])->assertSessionHasNoErrors()->assertRedirect();
+        return $r;
     }
 
     private function financialSnapshot(): array
@@ -82,19 +84,39 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
         return $snapshot;
     }
 
-    public function test_direct_approval_is_private_idempotent_and_has_no_financial_or_inventory_effects(): void
+    private function assertApprovedAccounting(array $f, ReturnRefundRequest $r, array $before): void
+    {
+        $debit = max(0, $f['item']->unit_price_minor * $f['item']->quantity - $f['item']->seller_funded_discount_minor - $f['item']->commission_minor);
+        $entry = \App\Models\SellerWalletEntry::where('type','REFUND_ADJUSTMENT')->sole();
+        $this->assertSame($f['seller']->id,(int)$entry->seller_id);
+        $this->assertSame($f['so']->id,(int)$entry->seller_order_id);
+        $this->assertSame($r->id,(int)$entry->return_refund_request_id);
+        $this->assertSame(-$debit,$entry->amount_minor);
+        $this->assertSame('AVAILABLE',$entry->status);
+        $this->assertSame($f['item']->id,$entry->refundRequest->order_item_id);
+        $accounting = DB::table('return_refund_accounting')->sole();
+        $this->assertSame($r->id,(int)$accounting->return_refund_request_id);
+        $this->assertSame($debit,(int)$accounting->seller_adjustment_minor);
+        $this->assertSame('REFUND_DUE',$accounting->refund_status);
+        $this->assertDatabaseMissing('seller_wallet_entries',['type'=>'EARNING_RELEASE']);
+        $after = $this->financialSnapshot();
+        foreach (['seller_wallet_entries','return_refund_accounting'] as $table) { unset($before[$table],$after[$table]); }
+        $this->assertSame($before,$after);
+    }
+
+    public function test_direct_approval_is_private_idempotent_and_records_one_wallet_adjustment_without_payment_or_restock(): void
     {
         $f = $this->purchase();
         $before = $this->financialSnapshot();
-        $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.create',$f['item']))->assertOk()->assertSee('Admin will review')->assertDontSee('approved pickup/return address');
+        $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.create',$f['item']))->assertOk()->assertSee('Seller will review')->assertDontSee('approved pickup/return address');
         $r = $this->submit($f);
         $this->assertTrue($r->isAdminReview());
         $this->assertSame(20000, $r->refund_minor);
         $this->assertDatabaseCount('return_refund_workflows',0);
         $this->assertSame(0,ReturnRefundRequest::financial()->count());
         $wallet = app(SellerWalletService::class);
-        $this->assertFalse((new \ReflectionMethod($wallet,'hasActiveReturn'))->invoke($wallet,$f['so']->id));
-        $this->assertNull($wallet->payoutRestriction($f['seller']->id));
+        $this->assertTrue((new \ReflectionMethod($wallet,'hasActiveReturn'))->invoke($wallet,$f['so']->id));
+        $this->assertNotNull($wallet->payoutRestriction($f['seller']->id));
         $this->assertSame($before,$this->financialSnapshot());
         $this->actingAs($f['admin'])->get(route('admin.return-refunds.show',$r))->assertOk()->assertSee('Pending Admin Review')->assertSee('Finalize decision')->assertSee('Purchased option');
         $this->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Purchase evidence reviewed.'])->assertOk();
@@ -115,7 +137,15 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
             $this->get(route($role.'.return-refunds.index'))->assertOk()->assertSee('Contact Seller');
             $this->post(route($role.'.messages.context.seller-order.store',$f['so']))->assertRedirect();
         }
-        $this->assertSame($before,$this->financialSnapshot());
+        $this->assertApprovedAccounting($f,$r,$before);
+        $this->assertSame(-18000,$wallet->summary($f['seller'])['available_minor']);
+        $this->get(route('seller.wallet'))->assertOk()->assertSee('Wallet Transactions')->assertSee('Approved refund adjustment')->assertSee('Request RR-'.$r->id)->assertSee('Purchased option');
+        $report = app(\App\Services\MoneyReportService::class)->seller($f['seller']);
+        $this->assertSame(-18000,$report['wallet']['available_minor']);
+        $this->assertSame([$r->id],$report['rows']->pluck('entry')->where('type','REFUND_ADJUSTMENT')->pluck('return_refund_request_id')->all());
+        $otherOwner = User::factory()->create(['role'=>'seller','status'=>'active']);
+        Seller::create(['user_id'=>$otherOwner->id,'name'=>'Other wallet','slug'=>'other-wallet','status'=>'approved']);
+        $this->actingAs($otherOwner)->get(route('seller.wallet'))->assertOk()->assertDontSee('Request RR-'.$r->id)->assertDontSee('Purchased option')->assertSee('No wallet transactions yet.');
         $this->assertSame(1,\App\Models\Conversation::where('seller_order_id',$f['so']->id)->count());
         $evidence = \App\Models\ReturnRefundEvidence::sole();
         $this->actingAs($f['buyer'])->get(route('return-refunds.evidence.show',[$r,$evidence]))->assertOk();
@@ -179,7 +209,7 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
         $this->assertGreaterThan(0,$f['so']->shipping_fee_minor);
         $this->actingAs($f['admin'])->patchJson(route('admin.return-refunds.decide',$r),['decision'=>'APPROVED','reason'=>'Verified purchase discounts.'])->assertOk();
         $this->assertSame(19698,$r->fresh()->refund_minor);
-        $this->assertSame($before,$this->financialSnapshot());
+        $this->assertApprovedAccounting($f,$r,$before);
     }
 
     public function test_additive_migration_preserves_historical_identity_and_refuses_loss_of_direct_mode(): void
@@ -235,13 +265,11 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
         config(['returns.backend_enabled'=>$financial,'returns.admin_review_enabled'=>$direct]);
         $html = $this->actingAs($f['buyer'])->get(route('buyer.return-refunds.create',$f['item']))->assertOk()->getContent();
         $this->assertSame(!$direct,str_contains($html,'fieldset disabled'));
-        $response = $this->postJson(route('buyer.return-refunds.store',$f['item']),$this->data(['workflow_mode'=>'FINANCIAL']));
         if ($direct) {
-            $response->assertCreated();
-            $r = ReturnRefundRequest::sole();
+            $r = $this->submit($f);
             $this->assertSame('ADMIN_REVIEW',$r->workflow_mode);
         } else {
-            $response->assertUnprocessable(); $this->assertDatabaseCount('return_refund_requests',0);
+            $this->postJson(route('buyer.return-refunds.store',$f['item']),$this->data(['workflow_mode'=>'FINANCIAL']))->assertUnprocessable(); $this->assertDatabaseCount('return_refund_requests',0);
             // Existing simplified records remain readable even when their gate is off.
             config(['returns.admin_review_enabled'=>true]); $r = $this->submit($f);
             config(['returns.admin_review_enabled'=>false]);
@@ -254,7 +282,8 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
         foreach (['buyer'=>$f['buyer'],'seller'=>$f['sellerUser']] as $role=>$actor) {
             $this->actingAs($actor)->get(route($role.'.return-refunds.show',$r))->assertOk();
         }
-        $this->assertSame($before,$this->financialSnapshot());
+        if ($direct && $choice === 'APPROVED') $this->assertApprovedAccounting($f,$r,$before);
+        else $this->assertSame($before,$this->financialSnapshot());
         $this->assertSame(0,ReturnRefundRequest::financial()->count());
     }
 

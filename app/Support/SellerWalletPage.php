@@ -20,6 +20,7 @@ class SellerWalletPage
             'status'=>['nullable', Rule::in(array_merge(['all'], array_keys(self::STATUSES)))],
             'date'=>['nullable', Rule::in(array_keys(self::DATES))],
             'page'=>['nullable', 'integer', 'min:1'],
+            'ledger_page'=>['nullable', 'integer', 'min:1'],
         ]);
         $criteria = [];
         if (!empty($validated['status']) && $validated['status'] !== 'all') $criteria['status'] = $validated['status'];
@@ -33,7 +34,10 @@ class SellerWalletPage
                 ->where('created_at', '<', $today->addDay()->setTimezone(config('app.timezone')));
         }
         $payouts = $query->orderByDesc('created_at')->orderByDesc('id')->paginate(15)->appends($criteria);
-        return compact('payouts', 'criteria') + ['statuses'=>self::STATUSES, 'dates'=>self::DATES];
+        $entries = \App\Models\SellerWalletEntry::where('seller_id',$seller->id)
+            ->with(['refundRequest'=>fn($q)=>$q->where('seller_id',$seller->id)->with('item')])
+            ->orderByDesc('created_at')->orderByDesc('id')->paginate(15,['*'],'ledger_page')->withQueryString();
+        return compact('payouts', 'criteria', 'entries') + ['statuses'=>self::STATUSES, 'dates'=>self::DATES];
     }
 
     public static function decimal(int $minor): string

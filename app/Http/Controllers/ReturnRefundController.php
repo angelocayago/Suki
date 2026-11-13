@@ -8,7 +8,7 @@ class ReturnRefundController extends Controller {
      if(!app(\App\Services\ReturnRefundWorkflowService::class)->available())throw \Illuminate\Validation\ValidationException::withMessages(['request'=>'Return/refund actions are unavailable pending schema and financial activation review.']);
      $d=$q->validate(['type'=>'required|in:RETURN,REFUND','quantity'=>'required|integer|in:'.$item->quantity,'reason'=>'required|string|max:100','description'=>'required|string|max:5000','confirmed'=>'accepted','file'=>'nullable|file|image|mimes:jpg,jpeg,png|extensions:jpg,jpeg,png|max:5120']);$path=null;
      try{$r=\Illuminate\Support\Facades\DB::transaction(function()use($q,$item,$d,&$path){
-         $r=app(ReturnRefundService::class)->submitForAdmin($q->user(),$item,$d);
+         $r=app(ReturnRefundService::class)->submitForSeller($q->user(),$item,$d);
          if($q->hasFile('file')){$f=$q->file('file');$path=$f->store('return-refund-evidence/'.$r->id,'local');if(!$path)throw new \RuntimeException('Evidence upload failed.');ReturnRefundEvidence::create(['return_refund_request_id'=>$r->id,'uploaded_by'=>$q->user()->id,'path'=>$path,'mime'=>$f->getMimeType(),'size'=>$f->getSize(),'description'=>'Buyer submission photo']);}
          return $r;
      });}catch(\Throwable $e){
@@ -21,6 +21,11 @@ class ReturnRefundController extends Controller {
      return $q->expectsJson()?response()->json($r,201):redirect()->route('buyer.return-refunds.show',$r)->with('success','Return / Refund request submitted.');
  }
  public function sellerRespond(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){$d=$q->validate(['recommendation'=>'required|in:APPROVE,REJECT','note'=>'required|string|max:5000']);$r=$service->sellerRespond($returnRefundRequest,$q->user(),$d);return $q->expectsJson()?response()->json($r):back()->with('success','Seller confirmation/dispute recorded for Admin review.');}
+ public function sellerDecide(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){
+     $d=$q->validate(['decision'=>'required|in:APPROVED,REJECTED','reason'=>'required|string|max:5000']);
+     $r=$service->sellerDecide($returnRefundRequest,$q->user(),$d['decision'],$d['reason']);
+     return $q->expectsJson()?response()->json($r):back()->with('success','Seller decision recorded. Approval does not confirm payment; use Chat to coordinate.');
+ }
  public function decide(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundService $service){$d=$q->validate(['decision'=>'required|in:APPROVED,REJECTED','reason'=>'required|string|max:5000']);abort_unless($q->user()->isAdmin(),403);if(!$returnRefundRequest->isAdminReview() && $d['decision']==='APPROVED' && config('returns.backend_enabled',false)===true)app(\App\Services\ReturnRefundWorkflowService::class)->assertApprovable($returnRefundRequest,true);$r=$service->decide($returnRefundRequest,$q->user(),$d['decision'],$d['reason']);return $q->expectsJson()?response()->json($r):back()->with('success',$r->isAdminReview() ? 'Admin decision recorded. Approval does not confirm payment; use Chat to coordinate.' : 'Admin decision recorded. Approval is Refund Due, not payment.');}
  public function details(Request $q,ReturnRefundRequest $returnRefundRequest){
      $this->access($q,$returnRefundRequest);abort_unless((int)$returnRefundRequest->buyer_id===(int)$q->user()->id,403);
@@ -55,6 +60,10 @@ class ReturnRefundController extends Controller {
          throw $exception;
      }
  }
- public function showEvidence(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundEvidence $evidence){$this->access($q,$returnRefundRequest);abort_unless($evidence->return_refund_request_id===$returnRefundRequest->id,404);return Storage::disk('local')->download($evidence->path);}
+ public function showEvidence(Request $q,ReturnRefundRequest $returnRefundRequest,ReturnRefundEvidence $evidence){
+     $this->access($q,$returnRefundRequest);abort_unless($evidence->return_refund_request_id===$returnRefundRequest->id,404);
+     if($returnRefundRequest->isSellerReview())return Storage::disk('local')->response($evidence->path,null,['Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff']);
+     return Storage::disk('local')->download($evidence->path);
+ }
  private function buyer(Request $q):void{abort_unless($q->user()?->isBuyer(),403);} private function access(Request $q,ReturnRefundRequest $r):void{$u=$q->user();abort_unless($u&&((int)$r->buyer_id===(int)$u->id||((int)$r->seller->user_id===(int)$u->id)||$u->isAdmin()),403);}
 }

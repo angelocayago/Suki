@@ -12,6 +12,92 @@ use Tests\Support\IsolatedStorageTestCase;
 
 class HeldEarningReconciliationTest extends IsolatedStorageTestCase
 {
+    public static function simplifiedReviewModes(): array { return ['historical Admin'=>[false],'new Seller'=>[true]]; }
+
+    private function adminRequest(array $f, ?OrderItem $item=null, bool $seller=false): ReturnRefundRequest
+    {
+        config(['returns.backend_enabled'=>false,'returns.admin_review_enabled'=>true]);
+        $item ??= $f['items']->first();
+        $method=$seller?'submitForSeller':'submitForAdmin';
+        return app(ReturnRefundService::class)->$method($f['buyer'],$item,['type'=>'RETURN','quantity'=>$item->quantity,'reason'=>'Damaged','description'=>'Simplified review with virtual wallet accounting.']);
+    }
+
+    private function simplifiedDecision(ReturnRefundRequest $r,array $f,string $reason): void
+    {
+        if($r->isSellerReview())app(ReturnRefundService::class)->sellerDecide($r,$f['seller']->owner,'APPROVED',$reason);
+        else app(ReturnRefundService::class)->decide($r,$f['admin'],'APPROVED',$reason);
+    }
+
+    #[DataProvider('simplifiedReviewModes')]
+    public function test_admin_refund_before_release_records_liability_and_future_release_does_not_double_deduct(bool $seller): void
+    {
+        $f=$this->completed();$wallet=app(SellerWalletService::class);$original=$f['source']->fresh()->toJson();
+        config(['returns.earning_release_enabled'=>false]);$r=$this->adminRequest($f,null,$seller);
+        $calculation=app(\App\Services\ReturnRefundAllocationService::class)->calculate($f['items']->first(),2);$d=$calculation['seller_adjustment_minor'];
+        $this->simplifiedDecision($r,$f,'Verified direct request');
+        $this->assertSame(-$d,$wallet->summary($f['seller'])['available_minor']);
+        $this->assertSame($f['source']->amount_minor,$wallet->summary($f['seller'])['held_minor']);
+        $this->assertSame(0,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+        $this->assertSame($original,$f['source']->fresh()->toJson());
+        config(['returns.earning_release_enabled'=>true]);
+        $this->assertTrue($wallet->reconcileSellerOrder($f['so']));$this->assertFalse($wallet->reconcileSellerOrder($f['so']));
+        $this->simplifiedDecision($r,$f,'Replay');$wallet->creditCompleted($f['so']);
+        $this->assertSame($f['source']->amount_minor-$d,$wallet->summary($f['seller'])['available_minor']);
+        $this->assertSame(0,$wallet->summary($f['seller'])['held_minor']);
+        $this->assertSame(1,SellerWalletEntry::where('type','SALE_EARNING')->count());
+        $this->assertSame(1,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+        $this->assertSame(1,SellerWalletEntry::where('type','REFUND_ADJUSTMENT')->count());
+        $this->assertSame($f['items']->first()->id,$r->fresh()->walletAdjustment->refundRequest->order_item_id);
+        $this->assertSame($original,$f['source']->fresh()->toJson());
+    }
+
+    #[DataProvider('simplifiedReviewModes')]
+    public function test_admin_refund_after_release_and_payout_preserves_existing_deficit_rules(bool $seller): void
+    {
+        $f=$this->completed();$wallet=app(SellerWalletService::class);$wallet->reconcileSellerOrder($f['so']);
+        $p=$wallet->request($f['seller'],$f['source']->amount_minor-1000);$wallet->review($p,$f['admin'],'APPROVED');$wallet->markPaid($p,$f['admin'],'manual','Synthetic prior payout');$payout=$p->fresh()->toJson();
+        $r=$this->adminRequest($f,null,$seller);$c=app(\App\Services\ReturnRefundAllocationService::class)->calculate($f['items']->first(),2);
+        $this->simplifiedDecision($r,$f,'Verified');
+        $this->simplifiedDecision($r,$f,'Replay');
+        $this->assertSame(1000-$c['seller_adjustment_minor'],$wallet->summary($f['seller'])['available_minor']);
+        $this->assertLessThan(0,$wallet->summary($f['seller'])['available_minor']);
+        $this->assertSame($payout,$p->fresh()->toJson());
+        $this->assertSame(1,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+        $this->assertSame(1,SellerWalletEntry::where('type','REFUND_ADJUSTMENT')->count());
+        try{$wallet->request($f['seller'],1);$this->fail('Deficit funded a new payout');}catch(ValidationException $e){$this->assertArrayHasKey('amount',$e->errors());}
+        $report=app(\App\Services\MoneyReportService::class)->admin([]);
+        $this->assertSame($f['items']->first()->commission_minor,$report['commission_reversal_minor']);
+        $this->assertSame(-$c['seller_adjustment_minor'],$report['refund_adjustments_minor']);
+        $this->actingAs($f['seller']->owner)->get(route('seller.wallet'))->assertOk()->assertSee('Approved refund adjustment')->assertSee('recorded deficit')->assertSee('RR-'.$r->id);
+    }
+
+    #[DataProvider('simplifiedReviewModes')]
+    public function test_two_admin_refunds_share_original_earning_and_release_only_once(bool $seller): void
+    {
+        $f=$this->completed();$a=$this->adminRequest($f,null,$seller);$b=$this->adminRequest($f,$f['items']->last(),$seller);
+        $this->simplifiedDecision($a,$f,'First item');
+        $this->assertSame(0,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+        $this->simplifiedDecision($b,$f,'Second item');
+        $this->simplifiedDecision($b,$f,'Replay');
+        $this->assertSame(2,SellerWalletEntry::where('type','REFUND_ADJUSTMENT')->count());
+        $this->assertSame(2,DB::table('return_refund_accounting')->count());
+        $this->assertSame(1,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+        $this->assertSame(0,app(SellerWalletService::class)->summary($f['seller'])['available_minor']);
+        $this->assertSame(0,app(SellerWalletService::class)->summary($f['seller'])['held_minor']);
+    }
+
+    public function test_new_completed_earning_uses_existing_settlement_and_voucher_rules_without_duplicate_credit(): void
+    {
+        $f=$this->fixture(vouchers:true);$this->settle($f,false);
+        $f['order']->update(['status'=>'COMPLETED']);$f['so']->update(['workflow_status'=>'COMPLETED','status'=>'completed','completed_at'=>now()]);$f['shipment']->update(['workflow_status'=>'COMPLETED']);
+        $wallet=app(SellerWalletService::class);$wallet->creditCompleted($f['so']);$wallet->creditCompleted($f['so']);
+        $earning=$f['so']->subtotal_minor-$f['so']->commission_minor-$f['items']->sum('seller_funded_discount_minor');
+        $this->assertSame(35903,$earning);
+        $this->assertSame($earning,$wallet->summary($f['seller'])['available_minor']);
+        $this->assertSame($earning,$wallet->summary($f['seller'])['total_earnings_minor']);
+        $this->assertSame(1,SellerWalletEntry::where('type','SALE_EARNING')->count());
+        $this->assertSame(0,SellerWalletEntry::where('type','EARNING_RELEASE')->count());
+    }
     use RefreshDatabase;
     protected function setUp(): void
     {

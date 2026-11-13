@@ -2,7 +2,9 @@
 @section('title', 'Return / Refund Request')
 @section('page-title', 'Return / Refund Request')
 @section('content')
-@if($returnRefundRequest->isAdminReview())
+@if($returnRefundRequest->isSellerReview())
+    @include('partials.seller-review-return')
+@elseif($returnRefundRequest->isAdminReview())
     @include('partials.admin-review-return')
 @else
 @include('seller.returns.style')

@@ -88,7 +88,7 @@ class SellerReturnsManagementTest extends TestCase
         }
         $this->record(6, 'ADMIN_APPROVED', 202);
         $page = $this->page()->assertSee('Luna Buyer')->assertDontSee('Product 6');
-        $this->assertSame(['Total requests' => 5, 'Pending review' => 3, 'Approved by Admin' => 1, 'Rejected by Admin' => 1], $page->viewData('summary'));
+        $this->assertSame(['Total requests' => 5, 'Pending review' => 3, 'Approved by Seller' => 0, 'Rejected by Seller' => 0, 'Approved by Admin' => 1, 'Rejected by Admin' => 1], $page->viewData('summary'));
         $this->assertSame([5, 4, 3, 2, 1], $page->viewData('requests')->pluck('id')->all());
         $page->assertSee('<details class="rr-filter-panel">', false)->assertDontSee('<details class="rr-filter-panel" open', false);
         $this->assertSame(5, $this->page(['search' => 'missing'])->viewData('summary')['Total requests']);

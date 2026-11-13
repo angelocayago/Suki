@@ -16,6 +16,9 @@ class SellerReturnFilters
         'UNDER_REVIEW' => 'Under review',
         'ADMIN_APPROVED' => 'Approved — Refund Due',
         'ADMIN_REJECTED' => 'Rejected by Admin',
+        'SELLER_PENDING' => 'Pending Seller Review',
+        'SELLER_APPROVED' => 'Approved by Seller',
+        'SELLER_REJECTED' => 'Rejected by Seller',
     ];
 
     public const DATES = ['any' => 'Any date', 'today' => 'Today', '7' => 'Last 7 days', '30' => 'Last 30 days'];
@@ -48,7 +51,11 @@ class SellerReturnFilters
                         ->whereRaw("LOWER(COALESCE(product_name, '')) LIKE ? ESCAPE '!'", [$pattern]));
             });
         }
-        if ($criteria['status'] !== 'all') {
+        if (in_array($criteria['status'],['SELLER_PENDING','SELLER_APPROVED','SELLER_REJECTED'],true)) {
+            $status=['SELLER_PENDING'=>'SUBMITTED','SELLER_APPROVED'=>'ADMIN_APPROVED','SELLER_REJECTED'=>'ADMIN_REJECTED'][$criteria['status']];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('return_refund_requests','workflow_mode')) $query->where('workflow_mode',\App\Models\ReturnRefundRequest::SELLER_REVIEW)->where('status',$status);
+            else $query->whereRaw('1 = 0');
+        } elseif ($criteria['status'] !== 'all') {
             $query->where('status', $criteria['status']);
         }
         if ($criteria['date'] !== 'any') {

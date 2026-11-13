@@ -22,7 +22,7 @@ class ReturnRefundService
     private function requireGate(string $mode): void
     {
         $flag = match ($mode) {
-            ReturnRefundRequest::ADMIN_REVIEW => 'returns.admin_review_enabled',
+            ReturnRefundRequest::ADMIN_REVIEW, ReturnRefundRequest::SELLER_REVIEW => 'returns.admin_review_enabled',
             ReturnRefundRequest::FINANCIAL => 'returns.backend_enabled',
             default => null,
         };
@@ -141,11 +141,19 @@ class ReturnRefundService
 
     public function submitForAdmin(User $buyer, OrderItem $item, array $data): ReturnRefundRequest
     {
-        if (!app(ReturnRefundWorkflowService::class)->available()
+        if (!app(ReturnRefundWorkflowService::class)->available(ReturnRefundRequest::ADMIN_REVIEW)
             || !Schema::hasColumn('return_refund_requests', 'workflow_mode')) {
             $this->invalid('request', 'Return/refund submission is unavailable until activation and schema readiness are verified.');
         }
         return $this->submitPurchase($buyer, $item, $data, ReturnRefundRequest::ADMIN_REVIEW);
+    }
+
+    public function submitForSeller(User $buyer, OrderItem $item, array $data): ReturnRefundRequest
+    {
+        if (!app(ReturnRefundWorkflowService::class)->available(ReturnRefundRequest::SELLER_REVIEW)) {
+            $this->invalid('request','Return/refund submission is unavailable until activation and schema readiness are verified.');
+        }
+        return $this->submitPurchase($buyer,$item,$data,ReturnRefundRequest::SELLER_REVIEW);
     }
 
     private function submitPurchase(User $buyer, OrderItem $item, array $data, string $mode): ReturnRefundRequest
@@ -160,7 +168,7 @@ class ReturnRefundService
             $quote = $this->validatePurchase($item, $so, $shipment);
             $r = new ReturnRefundRequest(['buyer_id'=>$buyer->id,'order_id'=>$so->order_id,'seller_order_id'=>$so->id,'order_item_id'=>$item->id,'seller_id'=>$so->seller_id,'type'=>$data['type'],'status'=>'SUBMITTED','quantity'=>$item->quantity,'buyer_reason'=>$data['reason'],'buyer_description'=>$data['description']]);
             if (Schema::hasColumn('return_refund_requests', 'workflow_mode')) $r->workflow_mode = $mode;
-            if ($mode === ReturnRefundRequest::ADMIN_REVIEW) $r->refund_minor = $quote['buyer_refund_due_minor'];
+            if ($mode !== ReturnRefundRequest::FINANCIAL) $r->refund_minor = $quote['buyer_refund_due_minor'];
             $r->save();
             $this->event($r,$buyer,'SUBMITTED');
             if ($mode === ReturnRefundRequest::ADMIN_REVIEW) {
@@ -182,7 +190,7 @@ class ReturnRefundService
         return DB::transaction(function () use ($request,$seller,$data) {
             $r = ReturnRefundRequest::with('seller')->lockForUpdate()->findOrFail($request->id);
             abort_unless((int)$r->seller->user_id === (int)$seller->id,403);
-            if ($r->isAdminReview()) $this->invalid('request','This request is reviewed by Admin. Use Chat to coordinate after approval.');
+            if ($r->isSimplified()) $this->invalid('request','Use the authorized decision workflow for this request.');
             $this->requireGate(ReturnRefundRequest::FINANCIAL);
             if ($r->status !== 'SUBMITTED') $this->invalid('request','Request is no longer awaiting seller response.');
             $r->update(['status'=>'SELLER_RESPONDED','seller_recommendation'=>$data['recommendation'],'seller_note'=>$data['note'],'seller_responded_at'=>now()]);
@@ -195,11 +203,13 @@ class ReturnRefundService
     public function decide(ReturnRefundRequest $request, User $admin, string $decision, string $reason): ReturnRefundRequest
     {
         abort_unless($admin->isAdmin() && $admin->status === 'active' && !$admin->is_suspended,403);
+        abort_if($request->fresh()->isSellerReview(),403);
         if (!in_array($decision,['APPROVED','REJECTED'],true) || !filled($reason)) $this->invalid('decision','A valid decision and reason are required.');
         return DB::transaction(function () use ($request,$admin,$decision,$reason) {
             $reference = ReturnRefundRequest::findOrFail($request->id);
             [$item,$so,$shipment] = $this->lockedPurchase($reference->order_item_id);
             $r = ReturnRefundRequest::lockForUpdate()->findOrFail($request->id);
+            abort_if($r->isSellerReview(),403);
             if ((int)$r->order_id !== (int)$so->order_id || (int)$r->seller_order_id !== (int)$so->id
                 || (int)$r->seller_id !== (int)$so->seller_id || (int)$r->buyer_id !== (int)$so->order->buyer_id) $this->invalid('request','Request ownership linkage is inconsistent.');
             if (in_array($r->status,['ADMIN_APPROVED','ADMIN_REJECTED'],true)) {
@@ -208,16 +218,18 @@ class ReturnRefundService
             }
             if (!in_array($r->status,ReturnRefundRequest::ACTIVE_STATUSES,true)) $this->invalid('request','Request cannot be finalized.');
             if ($r->isAdminReview()) {
-                if (!app(ReturnRefundWorkflowService::class)->available()) $this->invalid('request','Return/refund review is unavailable until activation and schema readiness are verified.');
+                if (!app(ReturnRefundWorkflowService::class)->available(ReturnRefundRequest::ADMIN_REVIEW)) $this->invalid('request','Return/refund review is unavailable until activation and schema readiness are verified.');
                 $amount = $r->refund_minor;
                 if ($decision === 'APPROVED') {
                     $quote = $this->validatePurchase($item, $so, $shipment);
                     if ((int)$r->quantity !== (int)$item->quantity) $this->invalid('quantity','The request must match the full purchased quantity.');
+                    $this->recordRefundAdjustment($r, $so, $quote);
                     $amount = $quote['buyer_refund_due_minor'];
                 }
                 $r->fill(['status'=>'ADMIN_'.$decision,'admin_decision'=>$decision,'admin_reason'=>trim($reason),
                     'reviewed_by'=>$admin->id,'decided_at'=>now(),'refund_minor'=>$amount])->save();
                 $this->event($r,$admin,$r->status);
+                app(SellerWalletService::class)->reconcileSellerOrderResult($so);
                 foreach ([$r->buyer_id, $so->seller->user_id] as $recipient) {
                     app(DomainNotificationService::class)->afterCommit($recipient, 'Return/refund decision',
                         $decision === 'APPROVED' ? 'Admin approved the request. Contact the other party through Chat; approval does not confirm payment.' : 'Admin rejected the request. View the decision reason.', ['return_refund_request_id'=>$r->id]);
@@ -232,17 +244,7 @@ class ReturnRefundService
                 app(ReturnRefundWorkflowService::class)->assertApprovable($r);
                 if ((int)$r->quantity !== (int)$item->quantity) $this->invalid('quantity','Historical partial requests require support review.');
                 $c = $this->validatePurchase($item,$so,$shipment);
-                // Original HELD rows are preserved; the common reconciler may
-                // append a release only after this and all other holds clear.
-                if (!Schema::hasColumn('seller_wallet_entries','source_wallet_entry_id')) $this->invalid('accounting','Earning-release schema has not been reviewed and applied.');
-                $entries = SellerWalletEntry::where('seller_order_id',$so->id)->where('type','REFUND_ADJUSTMENT')->orderBy('id')->lockForUpdate()->get();
-                if ($entries->contains(fn($entry)=>(int)$entry->seller_id !== (int)$so->seller_id || $entry->amount_minor > 0
-                    || (int)$entry->return_refund_request_id === (int)$r->id || $entry->reference === 'RR-'.$r->id)) $this->invalid('accounting','Refund adjustment history is inconsistent; contact support.');
-                $budget = max(0, (int)$so->subtotal_minor - (int)$so->commission_minor - (int)$so->items->sum('seller_funded_discount_minor'));
-                if (-$entries->sum('amount_minor') + $c['seller_adjustment_minor'] > $budget) $this->invalid('accounting','Refund adjustments exceed authoritative seller earnings.');
-                DB::table('return_refund_accounting')->insert(['return_refund_request_id'=>$r->id,'merchandise_minor'=>$c['gross_merchandise_minor'],'seller_adjustment_minor'=>$c['seller_adjustment_minor'],'commission_reversal_minor'=>$c['commission_reversed_minor'],'seller_voucher_minor'=>$c['seller_funded_discount_minor'],'platform_voucher_minor'=>$c['platform_funded_discount_minor'],'refund_status'=>'REFUND_DUE','created_at'=>now(),'updated_at'=>now()]);
-                SellerWalletEntry::create(['return_refund_request_id'=>$r->id,'seller_id'=>$so->seller_id,'seller_order_id'=>$so->id,'type'=>'REFUND_ADJUSTMENT','status'=>'AVAILABLE','amount_minor'=>-$c['seller_adjustment_minor'],'reference'=>'RR-'.$r->id,'description'=>'Approved refund obligation; no buyer disbursement recorded']);
-                $r->refund_minor = $c['buyer_refund_due_minor'];
+                $this->recordRefundAdjustment($r, $so, $c);
             }
             $r->fill(['status'=>'ADMIN_'.$decision,'admin_decision'=>$decision,'admin_reason'=>trim($reason),'reviewed_by'=>$admin->id,'decided_at'=>now()])->save();
             $this->event($r,$admin,$r->status);
@@ -251,6 +253,54 @@ class ReturnRefundService
             app(DomainNotificationService::class)->afterCommit($so->seller->user_id,'Return/refund decision','Admin finalized a return/refund request.',['return_refund_request_id'=>$r->id]);
             return $r->fresh();
         },3);
+    }
+
+    public function sellerDecide(ReturnRefundRequest $request, User $actor, string $decision, string $reason): ReturnRefundRequest
+    {
+        abort_unless($actor->isSeller() && $actor->status === 'active' && !$actor->is_suspended,403);
+        if (!in_array($decision,['APPROVED','REJECTED'],true) || !filled($reason)) $this->invalid('decision','A valid decision and reason are required.');
+        return DB::transaction(function()use($request,$actor,$decision,$reason){
+            $reference=ReturnRefundRequest::findOrFail($request->id);
+            [$item,$so,$shipment]=$this->lockedPurchase($reference->order_item_id);
+            $r=ReturnRefundRequest::lockForUpdate()->findOrFail($request->id);
+            abort_unless((int)$so->seller->user_id===(int)$actor->id && (int)$r->seller_id===(int)$so->seller_id,404);
+            abort_unless($r->isSellerReview(),403);
+            if ((int)$r->order_id!==(int)$so->order_id || (int)$r->seller_order_id!==(int)$so->id || (int)$r->buyer_id!==(int)$so->order->buyer_id) $this->invalid('request','Request ownership linkage is inconsistent.');
+            if (in_array($r->status,['ADMIN_APPROVED','ADMIN_REJECTED'],true)) {
+                if ($r->status!=='ADMIN_'.$decision) $this->invalid('decision','A conflicting final decision cannot replace the recorded decision.');
+                return $r;
+            }
+            if (!app(ReturnRefundWorkflowService::class)->available(ReturnRefundRequest::SELLER_REVIEW)) $this->invalid('request','Seller review is unavailable until activation and schema readiness are verified.');
+            if ($r->status!=='SUBMITTED') $this->invalid('request','Request cannot be finalized.');
+            if ($decision==='APPROVED') {
+                $quote=$this->validatePurchase($item,$so,$shipment);
+                if ((int)$r->quantity!==(int)$item->quantity) $this->invalid('quantity','The request must match the full purchased quantity.');
+                $this->recordRefundAdjustment($r,$so,$quote);
+            }
+            // Reuse legacy terminal strings for ledger compatibility, never Admin decision fields.
+            $r->fill(['status'=>'ADMIN_'.$decision,'seller_recommendation'=>$decision==='APPROVED'?'APPROVE':'REJECT',
+                'seller_note'=>trim($reason),'seller_responded_at'=>now(),'reviewed_by'=>$actor->id,'decided_at'=>now()])->save();
+            $this->event($r,$actor,'SELLER_'.$decision);
+            app(SellerWalletService::class)->reconcileSellerOrderResult($so);
+            foreach ([$r->buyer_id,$actor->id] as $recipient) app(DomainNotificationService::class)->afterCommit($recipient,'Return/refund decision',
+                'Seller '.strtolower($decision).' the request. Approval does not confirm payment; use Chat to coordinate.',['return_refund_request_id'=>$r->id]);
+            return $r->fresh();
+        },3);
+    }
+
+    /** All review modes share the same request-scoped obligation, not a payment. */
+    private function recordRefundAdjustment(ReturnRefundRequest $r, SellerOrder $so, array $c): void
+    {
+        // Caller holds Seller, purchase and request locks in one transaction.
+        if (!Schema::hasColumn('seller_wallet_entries','source_wallet_entry_id')) $this->invalid('accounting','Earning-release schema has not been reviewed and applied.');
+        $entries = SellerWalletEntry::where('seller_order_id',$so->id)->where('type','REFUND_ADJUSTMENT')->orderBy('id')->lockForUpdate()->get();
+        if ($entries->contains(fn($entry)=>(int)$entry->seller_id !== (int)$so->seller_id || $entry->amount_minor > 0
+            || (int)$entry->return_refund_request_id === (int)$r->id || $entry->reference === 'RR-'.$r->id)) $this->invalid('accounting','Refund adjustment history is inconsistent; contact support.');
+        $budget = max(0, (int)$so->subtotal_minor - (int)$so->commission_minor - (int)$so->items->sum('seller_funded_discount_minor'));
+        if (-$entries->sum('amount_minor') + $c['seller_adjustment_minor'] > $budget) $this->invalid('accounting','Refund adjustments exceed authoritative seller earnings.');
+        DB::table('return_refund_accounting')->insert(['return_refund_request_id'=>$r->id,'merchandise_minor'=>$c['gross_merchandise_minor'],'seller_adjustment_minor'=>$c['seller_adjustment_minor'],'commission_reversal_minor'=>$c['commission_reversed_minor'],'seller_voucher_minor'=>$c['seller_funded_discount_minor'],'platform_voucher_minor'=>$c['platform_funded_discount_minor'],'refund_status'=>'REFUND_DUE','created_at'=>now(),'updated_at'=>now()]);
+        SellerWalletEntry::create(['return_refund_request_id'=>$r->id,'seller_id'=>$so->seller_id,'seller_order_id'=>$so->id,'type'=>'REFUND_ADJUSTMENT','status'=>'AVAILABLE','amount_minor'=>-$c['seller_adjustment_minor'],'reference'=>'RR-'.$r->id,'description'=>'Approved refund obligation; no buyer disbursement recorded']);
+        $r->refund_minor = $c['buyer_refund_due_minor'];
     }
 
     private function event(ReturnRefundRequest $r, User $actor, string $action): void

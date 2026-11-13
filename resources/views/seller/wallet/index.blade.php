@@ -22,6 +22,21 @@
             <section class="wallet-card wallet-metric" aria-label="{{ $label }}"><h2>{{ $label }}</h2><p class="wallet-value">&#8369;{{ $money((int) $wallet[$key]) }}</p><p>{{ $description }}</p></section>
         @endforeach
     </div>
+    @if($available < 0)<p class="wallet-error" role="status">Approved refund adjustments exceed currently available earnings. The recorded deficit is retained; payout requests remain unavailable. Held earnings remain subject to their existing release rules.</p>@endif
+    <section class="wallet-card wallet-history" aria-labelledby="walletLedgerHeading">
+        <div class="wallet-history-heading"><h2 id="walletLedgerHeading">Wallet Transactions</h2><p>Earnings, releases and adjustments. A refund adjustment does not confirm payment to the Buyer.</p></div>
+        <div class="wallet-table-scroll" role="region" aria-label="Wallet transaction history" tabindex="0">
+            <table><thead><tr><th>Date</th><th>Transaction</th><th>Reference / purchased item</th><th>Status</th><th>Amount</th></tr></thead><tbody>
+            @forelse($entries as $entry)
+                <tr><td>{{ \App\Support\ManilaTime::format($entry->created_at) }} PHT</td>
+                    <td>{{ ['SALE_EARNING'=>'Order earning','EARNING_RELEASE'=>'Earning release','REFUND_ADJUSTMENT'=>'Approved refund adjustment'][$entry->type] ?? str_replace('_',' ', $entry->type) }}</td>
+                    <td>{{ $entry->reference }}@if($entry->refundRequest)<a class="block" href="{{ route('seller.return-refunds.show',$entry->refundRequest) }}">Request RR-{{ $entry->refundRequest->id }} · {{ $entry->refundRequest->item?->product_name }} · {{ $entry->refundRequest->item?->variant_name }} · Qty {{ $entry->refundRequest->quantity }}</a>@endif</td>
+                    <td>{{ $entry->status }}</td><td>&#8369;{{ $money($entry->amount_minor) }}</td></tr>
+            @empty<tr><td colspan="5">No wallet transactions yet.</td></tr>@endforelse
+            </tbody></table>
+        </div>
+        {{ $entries->links() }}
+    </section>
     <section class="wallet-card wallet-request" aria-labelledby="walletRequestHeading">
         <div><h2 id="walletRequestHeading">Request Payout</h2><p>Available balance: <strong>&#8369;{{ $money($available) }}</strong></p><p>Requests are reviewed before payment.</p></div>
         @if(!empty($payoutRestriction))

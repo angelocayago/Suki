@@ -23,7 +23,7 @@ class ReturnRefundUiController extends Controller
 
     private function journey(ReturnRefundRequest $r,string $role): array
     {
-        $service=app(\App\Services\ReturnRefundWorkflowService::class);$workflow=$service->find($r);$ready=$service->available($r->isAdminReview() ? ReturnRefundRequest::ADMIN_REVIEW : ReturnRefundRequest::FINANCIAL);$approvable=false;
+        $service=app(\App\Services\ReturnRefundWorkflowService::class);$workflow=$service->find($r);$ready=$service->available($r->isSimplified() ? $r->workflow_mode : ReturnRefundRequest::FINANCIAL);$approvable=false;
         if($ready){try{$service->assertApprovable($r,true);$approvable=true;}catch(\Illuminate\Validation\ValidationException $e){}}
         $refundQuote=null;
         if($r->item){try{$refundQuote=app(\App\Services\ReturnRefundAllocationService::class)->calculate($r->item,(int)$r->quantity)['buyer_refund_due_minor'];}catch(\Illuminate\Validation\ValidationException $e){}}
@@ -52,11 +52,15 @@ class ReturnRefundUiController extends Controller
             ->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $seller->id));
         $counts = (clone $owned)->reorder()->select('status')->selectRaw('COUNT(*) AS aggregate')
             ->groupBy('status')->pluck('aggregate', 'status');
+        $sellerCounts = \Illuminate\Support\Facades\Schema::hasColumn('return_refund_requests','workflow_mode')
+            ? (clone $owned)->where('workflow_mode',ReturnRefundRequest::SELLER_REVIEW)->reorder()->select('status')->selectRaw('COUNT(*) AS aggregate')->groupBy('status')->pluck('aggregate','status') : collect();
         $summary = [
             'Total requests' => (int) $counts->sum(),
             'Pending review' => (int) $counts->only(['SUBMITTED', 'SELLER_RESPONDED', 'UNDER_REVIEW'])->sum(),
-            'Approved by Admin' => (int) ($counts['ADMIN_APPROVED'] ?? 0),
-            'Rejected by Admin' => (int) ($counts['ADMIN_REJECTED'] ?? 0),
+            'Approved by Seller' => (int) ($sellerCounts['ADMIN_APPROVED'] ?? 0),
+            'Rejected by Seller' => (int) ($sellerCounts['ADMIN_REJECTED'] ?? 0),
+            'Approved by Admin' => (int) ($counts['ADMIN_APPROVED'] ?? 0) - (int) ($sellerCounts['ADMIN_APPROVED'] ?? 0),
+            'Rejected by Admin' => (int) ($counts['ADMIN_REJECTED'] ?? 0) - (int) ($sellerCounts['ADMIN_REJECTED'] ?? 0),
         ];
         $workflows=collect();
         if(app(\App\Services\ReturnRefundWorkflowService::class)->schemaReady()){
@@ -103,7 +107,7 @@ class ReturnRefundUiController extends Controller
 
     private function requests()
     {
-        return ReturnRefundRequest::query()->with(['buyer', 'seller', 'order', 'sellerOrder', 'item']);
+        return ReturnRefundRequest::query()->with(['buyer', 'seller', 'order', 'sellerOrder', 'item'])->withCount('evidence');
     }
 
     private function evidence(ReturnRefundRequest $returnRefundRequest)

@@ -1,6 +1,8 @@
 @extends('admin.layout')
 @section('content')
-@if($returnRefundRequest->isAdminReview())
+@if($returnRefundRequest->isSellerReview())
+    @include('partials.seller-review-return')
+@elseif($returnRefundRequest->isAdminReview())
     @include('partials.admin-review-return')
 @else
 @php($money = fn ($value) => '₱'.number_format(((int) ($value ?? 0)) / 100, 2))

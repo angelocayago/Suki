@@ -17,11 +17,26 @@ class ReturnRefundWorkflowService
         }
         return true;
     }
-    public function available(string $mode = ReturnRefundRequest::ADMIN_REVIEW): bool
+    public function sellerSchemaReady(): bool
     {
-        if (!in_array($mode, [ReturnRefundRequest::ADMIN_REVIEW, ReturnRefundRequest::FINANCIAL], true)) return false;
-        $flag = $mode === ReturnRefundRequest::ADMIN_REVIEW ? 'returns.admin_review_enabled' : 'returns.backend_enabled';
+        if (!Schema::hasColumn('return_refund_requests','workflow_mode')) return false;
+        if (DB::getDriverName() === 'pgsql') {
+            $check = DB::selectOne("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='return_refund_requests'::regclass AND conname='return_refund_requests_workflow_mode_check' AND contype='c' AND convalidated");
+            return $check && str_contains($check->definition, 'SELLER_REVIEW');
+        }
+        if (DB::getDriverName() === 'sqlite') {
+            $table = DB::selectOne("SELECT sql FROM sqlite_master WHERE type='table' AND name='return_refund_requests'");
+            return $table && str_contains($table->sql, "'SELLER_REVIEW'");
+        }
+        return false;
+    }
+
+    public function available(string $mode = ReturnRefundRequest::SELLER_REVIEW): bool
+    {
+        if (!in_array($mode, [ReturnRefundRequest::SELLER_REVIEW, ReturnRefundRequest::ADMIN_REVIEW, ReturnRefundRequest::FINANCIAL], true)) return false;
+        $flag = $mode === ReturnRefundRequest::FINANCIAL ? 'returns.backend_enabled' : 'returns.admin_review_enabled';
         return config($flag,false) === true && $this->schemaReady()
+            && ($mode !== ReturnRefundRequest::SELLER_REVIEW || $this->sellerSchemaReady())
             && ($mode === ReturnRefundRequest::FINANCIAL || Schema::hasColumn('return_refund_requests','workflow_mode'))
             && app(FinancialSchemaReadiness::class)->inspect()['ready'];
     }
@@ -89,7 +104,7 @@ class ReturnRefundWorkflowService
     }
     public function assertApprovable(ReturnRefundRequest $r,bool $requireWorkflow=false): void
     {
-        if ($r->isAdminReview()) return;
+        if ($r->isSimplified()) return;
         $w=$this->find($r);
         if (!$w && !$requireWorkflow) return; // historical internal accounting remains separately reviewable
         if (!$w || $r->seller_recommendation!=='APPROVE' || $w->parcel_status!=='RECEIVED' || !$w->destination
