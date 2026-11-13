@@ -46,6 +46,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sidebar.dataset.sukiSidebarInitialized) return;
         sidebar.dataset.sukiSidebarInitialized = 'true';
         let mobileOpen = false;
+        const preferenceKey = `suki:${bodyClass}`;
+        const savedCollapsed = () => {
+            try { return localStorage.getItem(preferenceKey) === 'collapsed'; } catch (_) { return false; }
+        };
+        const setCollapsed = (collapsed) => {
+            document.body.classList.toggle(bodyClass, collapsed);
+            [close, desktopCollapse].filter(Boolean).forEach((control) => {
+                control.setAttribute('aria-expanded', String(!collapsed));
+                control.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+                control.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+                control.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
+            });
+            try { localStorage.setItem(preferenceKey, collapsed ? 'collapsed' : 'expanded'); } catch (_) {}
+            window.lucide?.createIcons();
+        };
         const focusables = () => [...sidebar.querySelectorAll('a[href],button:not([disabled])')].filter((item) => item.offsetParent !== null);
         const update = () => {
             if (isMobile.matches) {
@@ -81,19 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
         close?.addEventListener('click', () => {
             if (isMobile.matches) closeMobile();
             else {
-                const collapsed = document.body.classList.toggle(bodyClass);
-                close.setAttribute('aria-expanded', String(!collapsed));
-                close.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-                close.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
-                window.lucide?.createIcons();
+                setCollapsed(!document.body.classList.contains(bodyClass));
             }
         });
         desktopCollapse?.addEventListener('click', () => {
-            const collapsed = document.body.classList.toggle(bodyClass);
-            desktopCollapse.setAttribute('aria-expanded', String(!collapsed));
-            desktopCollapse.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-            desktopCollapse.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
-            window.lucide?.createIcons();
+            if (!isMobile.matches) setCollapsed(!document.body.classList.contains(bodyClass));
         });
         overlay.addEventListener('click', () => closeMobile());
         document.addEventListener('keydown', (event) => {
@@ -111,6 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.addEventListener('click', (event) => {
             if (isMobile.matches && event.target.closest('a[href]')) closeMobile(false);
         });
+        sidebar.querySelectorAll('a[href]').forEach((link) => {
+            if (!link.title) {
+                const label = (typeof link.getAttribute === 'function' && link.getAttribute('aria-label'))
+                    || link.textContent?.trim().replace(/\s+/g, ' ');
+                if (label) link.title = label;
+            }
+        });
+        if (!isMobile.matches && savedCollapsed()) setCollapsed(true);
         update();
     };
 

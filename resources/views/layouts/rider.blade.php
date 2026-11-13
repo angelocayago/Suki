@@ -127,7 +127,7 @@
 
         {{-- BRAND --}}
         <div
-            class="flex h-[64px]
+                class="flex h-[58px]
                    items-center
                    border-b border-white/10
                    px-6"
@@ -272,7 +272,7 @@
                        tracking-[0.18em]
                        text-white/35"
             >
-                Delivery Workspace
+                Overview
             </p>
 
 
@@ -308,7 +308,9 @@
                 </a>
 
 
-                {{-- DELIVERIES --}}
+                <p class="mb-2 mt-6 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">My Assignments</p>
+
+                {{-- Deliveries is the existing unified pickup, hub-transfer, and delivery assignment queue. --}}
                 <a
                     href="{{ route('rider.deliveries') }}"
                     class="
@@ -337,6 +339,27 @@
                 </a>
 
 
+                <p class="mb-2 mt-6 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">Active Operations</p>
+
+                <a href="{{ route('rider.shipment-scanner') }}" @if(request()->routeIs('rider.shipment-scanner*')) aria-current="page" @endif class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition {{ request()->routeIs('rider.shipment-scanner*') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
+                    <i data-lucide="scan-line" class="h-[18px] w-[18px]" aria-hidden="true"></i><span>Shipment Scanner</span>
+                </a>
+
+                <p class="mb-2 mt-6 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">Delivery Records</p>
+
+                <a href="{{ route('rider.history') }}" @if(request()->routeIs('rider.history')) aria-current="page" @endif class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition {{ request()->routeIs('rider.history') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
+                    <i data-lucide="history" class="h-[18px] w-[18px]" aria-hidden="true"></i><span>Completed Jobs</span>
+                </a>
+
+                <p class="mb-2 mt-6 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">Finance</p>
+
+                <a href="{{ route('rider.cod-remittances') }}" @if(request()->routeIs('rider.cod-remittances.*')) aria-current="page" @endif class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition {{ request()->routeIs('rider.cod-remittances.*') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
+                    <i data-lucide="banknote" class="h-[18px] w-[18px]" aria-hidden="true"></i><span>COD Remittance</span>
+                </a>
+
+
+                <p class="mb-2 mt-6 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">Support &amp; Account</p>
+
                 {{-- MESSAGES --}}
                 <a
                     href="{{ route('rider.messages.index') }}"
@@ -354,6 +377,10 @@
                 >
                     <i data-lucide="message-circle" class="h-[18px] w-[18px]"></i>
                     <span>Messages</span>
+                </a>
+
+                <a href="{{ route('rider.profile') }}" @if(request()->routeIs('rider.profile*')) aria-current="page" @endif class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition {{ request()->routeIs('rider.profile*') ? 'bg-white text-[#173F35] shadow-sm' : 'text-white/65 hover:bg-white/[0.07] hover:text-white' }}">
+                    <i data-lucide="user-round" class="h-[18px] w-[18px]" aria-hidden="true"></i><span>Profile &amp; Settings</span>
                 </a>
 
 
@@ -499,7 +526,7 @@
         >
 
             <div
-                class="flex min-h-[64px]
+                class="flex min-h-[58px]
                        items-center gap-4
                        px-4
                        sm:px-6

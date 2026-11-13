@@ -26,6 +26,11 @@
     --suki-line: #E3EAE6;
     --suki-muted: #66736D;
     --suki-soft: #EEF5F1;
+    --suki-success: #187354;
+    --suki-warning: #9A6700;
+    --suki-danger: #B42318;
+    --suki-radius: 8px;
+    --suki-radius-panel: 12px;
 
     --suki-shadow:
         0 10px 30px rgba(23, 63, 53, .055);
@@ -33,6 +38,27 @@
     --suki-shadow-hover:
         0 18px 46px rgba(23, 63, 53, .085);
 }
+
+/* Shared, opt-in controls keep new work aligned without changing existing form contracts. */
+.suki-btn { display:inline-flex; min-height:38px; align-items:center; justify-content:center; gap:.5rem; border:1px solid transparent; border-radius:var(--suki-radius); padding:.55rem .85rem; font:inherit; font-size:.8125rem; font-weight:600; line-height:1.25; text-decoration:none; transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease; }
+.suki-btn:focus-visible,.suki-control:focus-visible { outline:3px solid color-mix(in srgb,var(--suki-brand) 38%,white); outline-offset:2px; }
+.suki-btn[disabled],.suki-btn[aria-disabled="true"] { cursor:not-allowed; opacity:.6; }
+.suki-btn-primary,.suki-btn-success { background:var(--suki-brand); color:#fff; }
+.suki-btn-primary:hover,.suki-btn-success:hover { background:var(--suki-brand-dark); }
+.suki-btn-secondary { border-color:var(--suki-line); background:var(--suki-soft); color:var(--suki-ink); }
+.suki-btn-secondary:hover,.suki-btn-outline:hover { border-color:#b7cec1; background:#f6faf7; }
+.suki-btn-outline { border-color:#bfd2c6; background:#fff; color:var(--suki-brand-dark); }
+.suki-btn-warning { border-color:#f2d29a; background:#fff7e6; color:var(--suki-warning); }
+.suki-btn-danger { border-color:#efc0bd; background:#fff1f0; color:var(--suki-danger); }
+.suki-btn-ghost { background:transparent; color:var(--suki-brand-dark); }
+.suki-btn-icon { width:38px; padding:0; }
+.suki-card { border:1px solid var(--suki-line); border-radius:var(--suki-radius-panel); background:var(--suki-panel); box-shadow:var(--suki-shadow); }
+.suki-table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.suki-status { display:inline-flex; align-items:center; gap:.35rem; border:1px solid currentColor; border-radius:999px; padding:.2rem .5rem; font-size:.6875rem; font-weight:600; line-height:1.2; }
+.suki-status::before { width:.42rem; height:.42rem; border-radius:999px; background:currentColor; content:''; }
+.suki-status-success { color:var(--suki-success); background:#eefaf4; }
+.suki-status-warning { color:var(--suki-warning); background:#fff8e8; }
+.suki-status-danger { color:var(--suki-danger); background:#fff2f1; }
 
 html {
     background: var(--suki-canvas);
@@ -281,6 +307,10 @@ body {
     flex: 1;
 }
 
+.suki-dashboard-shell main { min-width: 0; }
+.suki-dashboard-shell main .overflow-x-auto { overscroll-behavior-inline: contain; }
+.suki-dashboard-shell :is(button, a, input, select, textarea):focus-visible { outline: 3px solid color-mix(in srgb, var(--suki-brand) 42%, white); outline-offset: 2px; }
+
 @media (max-width: 1023px) {
 
     .suki-dashboard-shell main [class*="rounded-2xl"][class*="bg-white"],
@@ -338,9 +368,9 @@ body {
 }
 
 /* Compact portal shells and responsive sidebars. */
-.seller-sidebar-shell .seller-sidebar-brand { height: 64px; }
-.seller-sidebar-shell .seller-topbar-row { min-height: 64px !important; }
-.suki-buyer-shell .buyer-main-header { height: 64px; }
+.seller-sidebar-shell .seller-sidebar-brand { height: 58px; }
+.seller-sidebar-shell .seller-topbar-row { min-height: 58px !important; }
+.suki-buyer-shell .buyer-main-header { height: 58px; }
 .seller-sidebar-shell .seller-sidebar-nav { padding-block: 14px; }
 .seller-sidebar-shell .seller-sidebar-link { min-height: 36px; padding-block: 8px; font-size: 12px; }
 .seller-sidebar-shell.seller-sidebar-collapsed #sellerSidebar { width: 68px; }
@@ -351,22 +381,28 @@ body {
 #logisticsSidebar .px-4.pt-5, #riderSidebar .px-4.pt-5 { padding-top: 12px; }
 body.logistics-sidebar-collapsed > div.min-h-screen { padding-left: 68px; }
 body.logistics-sidebar-collapsed #logisticsSidebar { width: 68px; }
-body.logistics-sidebar-collapsed #logisticsSidebar > div:first-child > a,
+body.logistics-sidebar-collapsed #logisticsSidebar > div:first-child > a > div,
 body.logistics-sidebar-collapsed #logisticsSidebar > div:nth-child(2),
 body.logistics-sidebar-collapsed #logisticsSidebar nav a span,
 body.logistics-sidebar-collapsed #logisticsSidebar nav a:not(:has(svg)) { display: none; }
 body.logistics-sidebar-collapsed #logisticsSidebar nav { padding-inline: 8px; }
 body.logistics-sidebar-collapsed #logisticsSidebar nav a { justify-content: center; padding-inline: 0; font-size: 0; }
 body.logistics-sidebar-collapsed #logisticsSidebar nav a svg { width: 18px; height: 18px; }
+body.logistics-sidebar-collapsed #logisticsSidebar > div:last-child { padding-inline: 8px; }
+body.logistics-sidebar-collapsed #logisticsSidebar > div:last-child button { justify-content:center; padding-inline:0; font-size:0; }
+body.logistics-sidebar-collapsed #logisticsSidebar > div:last-child button svg { width:18px; height:18px; }
 body.rider-sidebar-collapsed > div.min-h-screen { padding-left: 68px; }
 body.rider-sidebar-collapsed #riderSidebar { width: 68px; }
-body.rider-sidebar-collapsed #riderSidebar > div:first-child > a,
+body.rider-sidebar-collapsed #riderSidebar > div:first-child > a > div:last-child,
 body.rider-sidebar-collapsed #riderSidebar > div:nth-child(2),
 body.rider-sidebar-collapsed #riderSidebar nav a span,
 body.rider-sidebar-collapsed #riderSidebar nav a:not(:has(svg)) { display: none; }
 body.rider-sidebar-collapsed #riderSidebar nav { padding-inline: 8px; }
 body.rider-sidebar-collapsed #riderSidebar nav a { justify-content: center; padding-inline: 0; font-size: 0; }
 body.rider-sidebar-collapsed #riderSidebar nav a svg { width: 18px; height: 18px; }
+body.rider-sidebar-collapsed #riderSidebar > div:last-child { padding-inline: 8px; }
+body.rider-sidebar-collapsed #riderSidebar > div:last-child button { justify-content:center; padding-inline:0; font-size:0; }
+body.rider-sidebar-collapsed #riderSidebar > div:last-child button svg { width:18px; height:18px; }
 .rider-sidebar-collapse { width: 30px; height: 30px; margin-left: auto; align-items: center; justify-content: center; border-radius: 6px; color: #e1eee8; }
 .rider-sidebar-collapse:focus-visible { outline: 2px solid #b9e4d2; outline-offset: 2px; }
 .admin-growth-chart { width: 100%; min-width: 500px; height: 170px; overflow: visible; }
@@ -388,7 +424,7 @@ body.admin-sidebar-collapsed #admin-sidebar { width: 68px; }
 @media (max-width: 1023px) {
     body.logistics-sidebar-collapsed > div.min-h-screen,
     body.rider-sidebar-collapsed > div.min-h-screen { padding-left: 0; }
-    .seller-sidebar-shell .seller-topbar-row { min-height: 58px !important; }
+    .seller-sidebar-shell .seller-topbar-row { min-height: 56px !important; }
 }
 
 html[data-theme="dark"],
@@ -446,6 +482,19 @@ html[data-theme="dark"] body .admin-order-label strong,
 html[data-theme="dark"] body .admin-chart-labels,
 html[data-theme="dark"] body .admin-chart-empty { color: #b6c9bd; }
 html[data-theme="dark"] body .admin-order-track { background: #26382e; }
+
+/* Compact shopping assistant: panel remains inside the viewport on every shell. */
+.suki-assistant { position:fixed; right:1rem; bottom:1rem; z-index:45; font-family:'Poppins',sans-serif; }
+.suki-assistant-panel { width:min(24.5rem,calc(100vw - 2rem)); height:min(34rem,calc(100dvh - 7rem)); display:flex; flex-direction:column; overflow:hidden; border:1px solid #cbdccf; border-radius:12px; background:#fffdf6; box-shadow:0 24px 65px rgba(23,63,53,.22); }
+.suki-assistant-log { min-height:0; flex:1; overflow-y:auto; overscroll-behavior:contain; }
+.suki-assistant-launch { min-height:44px; border-radius:8px; }
+@media (max-width:640px) {
+    .suki-assistant { right:.5rem; bottom:max(.5rem,env(safe-area-inset-bottom)); }
+    .suki-assistant-panel { width:calc(100vw - 1rem); height:min(34rem,calc(100dvh - 5rem)); border-radius:14px 14px 10px 10px; }
+    .suki-assistant-launch { margin-left:auto; }
+}
+html[data-theme="dark"] .suki-assistant-panel { border-color:#405449; background:#19271f; color:#e5eee9; }
+html[data-theme="dark"] .suki-assistant-panel input { border-color:#405449; background:#142019; color:#edf4f0; }
 
 @media (prefers-reduced-motion: reduce) {
     .suki-theme-toggle, .suki-notification-bell { transition: none; }

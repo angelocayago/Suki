@@ -104,7 +104,7 @@
             .seller-sidebar-shell.seller-sidebar-collapsed #sellerSidebar { width: 68px; }
             .seller-sidebar-shell.seller-sidebar-collapsed #sellerMainContent { padding-left: 68px; }
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-brand { justify-content: center; padding: 6px 0; }
-            .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-brand-link,
+            .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-brand-copy,
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-link-label,
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-section-label,
             .seller-sidebar-shell.seller-sidebar-collapsed .seller-sidebar-account { display: none; }
@@ -449,6 +449,7 @@
             const main = document.getElementById('sellerMainContent');
             if (!sidebar || !overlay || !openButton || !collapseButton || !main || sidebar.dataset.initialized) return;
             sidebar.dataset.initialized = 'true';
+            const preferenceKey = 'suki:seller-sidebar-collapsed';
 
             const mobile = () => window.innerWidth < 1024;
             const mobileOpen = () => mobile() && sidebar.classList.contains('is-mobile-open');
@@ -478,7 +479,8 @@
             collapseButton.addEventListener('click', function () {
                 if (mobile()) closeSidebar();
                 else {
-                    document.body.classList.toggle('seller-sidebar-collapsed');
+                    const collapsed = document.body.classList.toggle('seller-sidebar-collapsed');
+                    try { localStorage.setItem(preferenceKey, collapsed ? 'collapsed' : 'expanded'); } catch (_) {}
                     syncSidebar();
                 }
             });
@@ -505,6 +507,9 @@
                 closeSidebar(false);
                 if (mobile() && focusWasInSidebar) openButton.focus();
             });
+            if (!mobile()) {
+                try { document.body.classList.toggle('seller-sidebar-collapsed', localStorage.getItem(preferenceKey) === 'collapsed'); } catch (_) {}
+            }
             syncSidebar();
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }, { once: true });

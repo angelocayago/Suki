@@ -4633,7 +4633,7 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:rider'])->group(fu
     Route::post('/rider/erp-orders/{sellerOrder}/decline-pickup', [RiderFulfillmentController::class, 'decline'])
         ->name('rider.database.pickup.decline');
     Route::get('/rider/shipment-scanner', [ShipmentScannerController::class, 'rider'])->name('rider.shipment-scanner');
-    Route::post('/rider/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.resolve');
+    Route::post('/rider/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'rider')->middleware('throttle:30,1')->name('rider.shipment-scanner.resolve');
     Route::post('/rider/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'rider')->name('rider.shipment-scanner.action');
     Route::post('/rider/erp-orders/{sellerOrder}/accept-delivery', [RiderFulfillmentController::class, 'acceptDelivery'])->name('rider.database.delivery.accept');
     Route::post('/rider/erp-orders/{sellerOrder}/decline-delivery', [RiderFulfillmentController::class, 'declineDelivery'])->name('rider.database.delivery.decline');
@@ -4662,7 +4662,7 @@ Route::middleware(['auth', 'not_suspended', 'approved', 'role:logistics'])->grou
     Route::delete('/logistics/riders/{rider}/service-areas/{area}', [RiderServiceAreaController::class, 'destroy'])->name('logistics.riders.service-areas.destroy');
     Route::get('/logistics/parcel-lookup', [LogisticsFulfillmentController::class, 'lookup'])->name('logistics.parcels.lookup');
     Route::get('/logistics/shipment-scanner', [ShipmentScannerController::class, 'logistics'])->name('logistics.shipment-scanner');
-    Route::post('/logistics/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.resolve');
+    Route::post('/logistics/shipment-scanner/resolve', [ShipmentScannerController::class, 'resolve'])->defaults('actorType', 'logistics')->middleware('throttle:30,1')->name('logistics.shipment-scanner.resolve');
     Route::post('/logistics/shipment-scanner/{shipment}/action', [ShipmentScannerController::class, 'action'])->defaults('actorType', 'logistics')->name('logistics.shipment-scanner.action');
     Route::get('/logistics/shipments', [LogisticsFulfillmentController::class, 'parcels'])->name('logistics.shipments');
     Route::get('/logistics/sms-notifications', [ShipmentSmsLogController::class, 'logistics'])->name('logistics.sms-notifications.index');

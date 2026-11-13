@@ -69,6 +69,7 @@
 
 <body
     class="
+        suki-dashboard-shell
         min-h-screen
         bg-[#F7F9F8]
         font-[Poppins]
@@ -117,7 +118,7 @@
     {{-- BRAND --}}
     <div
         class="
-            flex h-[64px]
+            flex h-[58px]
             items-center
             border-b
             border-white/[0.08]
@@ -130,7 +131,9 @@
             class="flex min-w-0 items-center gap-3"
         >
 
-            <x-profile-avatar :user="auth()->user()" size="h-10 w-10 shrink-0" />
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10">
+                <img src="{{ asset('images/suki-logo.png') }}" alt="SUKI SHOP" class="h-8 w-8 object-contain">
+            </span>
 
 
             <div class="min-w-0">
@@ -410,6 +413,8 @@
         </a>
 
 
+        <p class="mb-2 mt-5 px-3 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30">Routing Network</p>
+
         {{-- SORTING ZONES --}}
         <a
             href="{{ route('logistics.sorting-zones.index') }}"
@@ -420,6 +425,8 @@
             <i data-lucide="map-pinned" class="h-[17px] w-[17px]" aria-hidden="true"></i>
             Sorting Zones
         </a>
+
+        <p class="mb-2 mt-5 px-3 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30">Dispatch</p>
 
         {{-- ASSIGNMENTS --}}
         <a
@@ -545,6 +552,8 @@
         </a>
 
 
+        <p class="mb-2 mt-5 px-3 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30">Support &amp; System</p>
+
         {{-- =================================================
             RIDERS
         ================================================== --}}
@@ -560,7 +569,7 @@
                 text-white/30
             "
         >
-            Riders
+            Riders &amp; Hubs
         </p>
 
 
@@ -618,7 +627,7 @@
                 text-white/30
             "
         >
-            Insights
+            Finance &amp; Reports
         </p>
 
 
@@ -647,6 +656,11 @@
 
             Reports
 
+        </a>
+
+        <a href="{{ route('logistics.cod-remittances') }}" @if(request()->routeIs('logistics.cod-remittances.*')) aria-current="page" @endif class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition {{ request()->routeIs('logistics.cod-remittances.*') ? 'bg-white text-[#173F35]' : 'text-white/62 hover:bg-white/[0.07] hover:text-white' }}">
+            <i data-lucide="banknote" class="h-[17px] w-[17px]" aria-hidden="true"></i>
+            COD Remittance
         </a>
 
     </div>
@@ -751,7 +765,7 @@
     <header
         class="
             sticky top-0 z-30
-            h-[64px]
+            h-[58px]
             border-b
             border-[#E2E9E5]
             bg-white/95
@@ -944,7 +958,7 @@
 
     <main
         class="
-            min-h-[calc(100vh-64px)]
+            min-h-[calc(100vh-58px)]
             p-4
             sm:p-5
             xl:p-6

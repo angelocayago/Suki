@@ -104,7 +104,7 @@
 
             <button type="button" class="admin-sidebar-collapse" id="admin-sidebar-collapse" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="admin-sidebar"><i data-lucide="panel-left-close" aria-hidden="true"></i></button>
 
-            <div class="flex items-center gap-3"><x-profile-avatar :user="auth()->user()" size="h-9 w-9" /><div><h1
+            <div class="flex items-center gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10"><img src="{{ asset('images/suki-logo.png') }}" alt="SUKI SHOP" class="h-7 w-7 object-contain"></span><div><h1
                 class="
                     font-bold
                     text-lg
@@ -133,7 +133,7 @@
     @php
         $adminNavGroups = [
             'accounts' => [
-                'label' => 'Accounts & Access', 'icon' => 'users',
+                'label' => 'Accounts & Partners', 'icon' => 'users',
                 'active' => request()->routeIs('admin.users*', 'admin.buyers*', 'admin.sellers*', 'admin.applications*'),
             ],
             'marketplace' => [
@@ -141,16 +141,16 @@
                 'active' => request()->routeIs('admin.products.*', 'reviews.*', 'admin.compliance.*'),
             ],
             'support' => [
-                'label' => 'Orders & Support', 'icon' => 'messages-square',
+                'label' => 'Orders & Fulfillment', 'icon' => 'package-check',
                 'active' => request()->routeIs('admin.orders*', 'admin.return-refunds.*', 'admin.complaints.*', 'admin.messages.*', 'admin.notifications*'),
             ],
             'finance' => [
-                'label' => 'Finance & Analytics', 'icon' => 'chart-no-axes-combined',
+                'label' => 'Finance & Monitoring', 'icon' => 'chart-no-axes-combined',
                 'active' => request()->routeIs('admin.commission*', 'admin.reports*', 'admin.sms-notifications.*'),
             ],
             'system' => [
-                'label' => 'System', 'icon' => 'settings-2',
-                'active' => request()->routeIs('admin.settings*'),
+                'label' => 'System & Audit', 'icon' => 'settings-2',
+                'active' => request()->routeIs('admin.settings*', 'admin.sms-notifications.*'),
             ],
         ];
     @endphp
@@ -171,25 +171,26 @@
             </button>
             <div id="admin-nav-{{ $groupKey }}" class="admin-nav-children" @if(!$group['active']) hidden @endif>
                 @if($groupKey === 'accounts')
-                    <a href="{{ route('admin.users') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.users*')]) @if(request()->routeIs('admin.users*')) aria-current="page" @endif>User Management</a>
-                    <a href="{{ route('admin.buyers') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.buyers*')]) @if(request()->routeIs('admin.buyers*')) aria-current="page" @endif>Buyer Accounts</a>
-                    <a href="{{ route('admin.sellers') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.sellers*')]) @if(request()->routeIs('admin.sellers*')) aria-current="page" @endif>Seller Accounts</a>
-                    <a href="{{ route('admin.applications') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.applications*')]) @if(request()->routeIs('admin.applications*')) aria-current="page" @endif>Registration Approvals</a>
+                    <a href="{{ route('admin.users') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.users*')]) @if(request()->routeIs('admin.users*')) aria-current="page" @endif><i data-lucide="users" aria-hidden="true"></i><span>User Management</span></a>
+                    <a href="{{ route('admin.buyers') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.buyers*')]) @if(request()->routeIs('admin.buyers*')) aria-current="page" @endif><i data-lucide="shopping-bag" aria-hidden="true"></i><span>Buyer Accounts</span></a>
+                    <a href="{{ route('admin.sellers') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.sellers*')]) @if(request()->routeIs('admin.sellers*')) aria-current="page" @endif><i data-lucide="store" aria-hidden="true"></i><span>Seller Accounts</span></a>
+                    <a href="{{ route('admin.applications') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.applications*')]) @if(request()->routeIs('admin.applications*')) aria-current="page" @endif><i data-lucide="badge-check" aria-hidden="true"></i><span>Partner &amp; Rider Approvals</span></a>
                 @elseif($groupKey === 'marketplace')
-                    <a href="{{ route('admin.products.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.products.*')]) @if(request()->routeIs('admin.products.*')) aria-current="page" @endif>Product Moderation</a>
-                    <a href="{{ route('reviews.admin-page') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('reviews.*')]) @if(request()->routeIs('reviews.*')) aria-current="page" @endif>Review Moderation</a>
-                    <a href="{{ route('admin.compliance.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.compliance.*')]) @if(request()->routeIs('admin.compliance.*')) aria-current="page" @endif>Seller Compliance</a>
+                    <a href="{{ route('admin.products.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.products.*')]) @if(request()->routeIs('admin.products.*')) aria-current="page" @endif><i data-lucide="package-search" aria-hidden="true"></i><span>Product Moderation</span></a>
+                    <a href="{{ route('reviews.admin-page') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('reviews.*')]) @if(request()->routeIs('reviews.*')) aria-current="page" @endif><i data-lucide="star" aria-hidden="true"></i><span>Review Moderation</span></a>
+                    <a href="{{ route('admin.compliance.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.compliance.*')]) @if(request()->routeIs('admin.compliance.*')) aria-current="page" @endif><i data-lucide="shield-check" aria-hidden="true"></i><span>Seller Compliance</span></a>
                 @elseif($groupKey === 'support')
-                    <a href="{{ route('admin.orders') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.orders*')]) @if(request()->routeIs('admin.orders*')) aria-current="page" @endif>Order Management</a>
-                    <a href="{{ route('admin.return-refunds.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.return-refunds.*')]) @if(request()->routeIs('admin.return-refunds.*')) aria-current="page" @endif>Returns / Refunds</a>
-                    <a href="{{ route('admin.complaints.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.complaints.*')]) @if(request()->routeIs('admin.complaints.*')) aria-current="page" @endif>Complaints &amp; Disputes</a>
-                    <a href="{{ route('admin.messages.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.messages.*')]) @if(request()->routeIs('admin.messages.*')) aria-current="page" @endif>Messages</a>
+                    <a href="{{ route('admin.orders') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.orders*')]) @if(request()->routeIs('admin.orders*')) aria-current="page" @endif><i data-lucide="shopping-cart" aria-hidden="true"></i><span>Order Management</span></a>
+                    <a href="{{ route('admin.return-refunds.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.return-refunds.*')]) @if(request()->routeIs('admin.return-refunds.*')) aria-current="page" @endif><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Returns / Refunds</span></a>
+                    <a href="{{ route('admin.complaints.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.complaints.*')]) @if(request()->routeIs('admin.complaints.*')) aria-current="page" @endif><i data-lucide="message-square-warning" aria-hidden="true"></i><span>Complaints &amp; Disputes</span></a>
+                    <a href="{{ route('admin.messages.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.messages.*')]) @if(request()->routeIs('admin.messages.*')) aria-current="page" @endif><i data-lucide="messages-square" aria-hidden="true"></i><span>Messages</span></a>
                 @elseif($groupKey === 'finance')
-                    <a href="{{ route('admin.commission') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.commission*')]) @if(request()->routeIs('admin.commission*')) aria-current="page" @endif>Commission</a>
-                    <a href="{{ route('admin.reports') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.reports*')]) @if(request()->routeIs('admin.reports*')) aria-current="page" @endif>Reports</a>
-                    <a href="{{ route('admin.sms-notifications.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.sms-notifications.*')]) @if(request()->routeIs('admin.sms-notifications.*')) aria-current="page" @endif>SMS Delivery Log</a>
+                    <a href="{{ route('admin.commission') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.commission*')]) @if(request()->routeIs('admin.commission*')) aria-current="page" @endif><i data-lucide="percent" aria-hidden="true"></i><span>Commission</span></a>
+                    <a href="{{ route('admin.cod-remittances.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.cod-remittances.*')]) @if(request()->routeIs('admin.cod-remittances.*')) aria-current="page" @endif><i data-lucide="banknote" aria-hidden="true"></i><span>COD Settlements &amp; Remittances</span></a>
+                    <a href="{{ route('admin.reports') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.reports*')]) @if(request()->routeIs('admin.reports*')) aria-current="page" @endif><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Reports</span></a>
                 @elseif($groupKey === 'system')
-                    <a href="{{ route('admin.settings') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.settings*')]) @if(request()->routeIs('admin.settings*')) aria-current="page" @endif>Platform Settings</a>
+                    <a href="{{ route('admin.sms-notifications.index') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.sms-notifications.*')]) @if(request()->routeIs('admin.sms-notifications.*')) aria-current="page" @endif><i data-lucide="message-square-text" aria-hidden="true"></i><span>SMS Delivery Log</span></a>
+                    <a href="{{ route('admin.settings') }}" @class(['admin-nav-child', 'is-active' => request()->routeIs('admin.settings*')]) @if(request()->routeIs('admin.settings*')) aria-current="page" @endif><i data-lucide="settings-2" aria-hidden="true"></i><span>Platform Settings</span></a>
                 @endif
             </div>
         </section>
@@ -234,7 +235,8 @@
                         transition
                     "
                 >
-                    Sign Out
+                    <i data-lucide="log-out" aria-hidden="true"></i>
+                    <span>Sign Out</span>
                 </button>
 
             </form>
@@ -265,7 +267,7 @@
 
         <header
             class="
-                h-16
+                h-[58px]
                 bg-white
                 border-b
                 border-[#E3EAE6]
@@ -513,6 +515,7 @@
     .admin-nav-toggle[aria-expanded="true"] .admin-nav-chevron { transform:rotate(180deg); }
     .admin-nav-children { margin:2px 0 8px 25px; padding-left:8px; border-left:1px solid rgba(223,239,231,.22); }
     .admin-nav-child { min-height:32px; padding:7px 9px; color:#d6e5de; font-size:11px; }
+    .admin-nav-child svg { width:15px; height:15px; flex:none; }
     .admin-nav-notification a { display:flex; align-items:center; min-height:32px; padding:7px 9px; color:#d6e5de; border-radius:6px; font-size:11px; text-decoration:none; }
     .admin-nav-notification a:hover { background:#245c4c; color:white; }
     .admin-nav-toggle:focus-visible, .admin-nav-link:focus-visible, .admin-nav-child:focus-visible, .admin-nav-notification a:focus-visible { outline:2px solid #b9e4d2; outline-offset:2px; }
@@ -541,28 +544,32 @@
     .admin-mobile-menu { display:none; width:36px; height:36px; align-items:center; justify-content:center; border:1px solid #e3eae6; border-radius:6px; color:#31594a; }
     .admin-mobile-menu svg { width:18px; height:18px; }
     .admin-sidebar-overlay { display:none; }
+    .admin-sidebar-collapse { display:flex; width:30px; height:30px; align-items:center; justify-content:center; margin-left:auto; color:#e1eee8; border-radius:6px; }
+    .admin-sidebar-collapse svg { width:17px; height:17px; }
+    .admin-sidebar-collapse:focus-visible { outline:2px solid #b9e4d2; outline-offset:2px; }
     @media (max-width: 1023px) {
         .suki-dashboard-shell aside { transform:translateX(-100%); transition:transform .2s ease; }
         .suki-dashboard-shell aside.is-open { transform:translateX(0); }
         .admin-mobile-menu { display:flex; }
-    .admin-sidebar-overlay.is-visible { display:block; position:fixed; inset:0; z-index:35; border:0; background:rgba(20,42,34,.38); }
-    .admin-sidebar-collapse { display:flex; width:30px; height:30px; align-items:center; justify-content:center; margin-left:auto; color:#e1eee8; border-radius:6px; }
-    .admin-sidebar-collapse svg { width:17px; height:17px; }
-    .admin-sidebar-collapse:focus-visible { outline:2px solid #b9e4d2; outline-offset:2px; }
+        .admin-sidebar-overlay.is-visible { display:block; position:fixed; inset:0; z-index:35; border:0; background:rgba(20,42,34,.38); }
+    }
     @media (min-width:1024px) {
         body.admin-sidebar-collapsed #admin-sidebar { width:68px; }
         body.admin-sidebar-collapsed #admin-sidebar + .admin-sidebar-overlay + div { margin-left:68px; }
         body.admin-sidebar-collapsed #admin-sidebar > div:first-child { padding:12px 8px; }
-        body.admin-sidebar-collapsed #admin-sidebar > div:first-child > div { display:none; }
+        body.admin-sidebar-collapsed #admin-sidebar > div:first-child > div > div { display:none; }
         body.admin-sidebar-collapsed #admin-sidebar .admin-nav-link span,
         body.admin-sidebar-collapsed #admin-sidebar .admin-nav-toggle span,
         body.admin-sidebar-collapsed #admin-sidebar .admin-nav-chevron,
-        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-children,
-        body.admin-sidebar-collapsed #admin-sidebar > div:last-child button { display:none; }
+        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-child span,
+        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-toggle { display:none; }
         body.admin-sidebar-collapsed #admin-sidebar .admin-nav-link,
-        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-toggle { justify-content:center; padding:9px 0; }
+        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-child { justify-content:center; margin:2px 0; padding:9px 0; }
         body.admin-sidebar-collapsed #admin-sidebar .admin-nav-group { margin-bottom:4px; }
-    }
+        body.admin-sidebar-collapsed #admin-sidebar .admin-nav-children { display:block !important; margin:0; padding:0; border:0; }
+        body.admin-sidebar-collapsed #admin-sidebar > div:last-child { padding-inline:8px; }
+        body.admin-sidebar-collapsed #admin-sidebar > div:last-child button { display:flex; justify-content:center; padding-inline:0; font-size:0; }
+        body.admin-sidebar-collapsed #admin-sidebar > div:last-child button i { width:18px; height:18px; }
     }
 
     @media (prefers-reduced-motion: reduce) { .admin-nav-link, .admin-nav-toggle, .admin-nav-child, .admin-nav-toggle .admin-nav-chevron { transition:none; } }
@@ -596,6 +603,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const collapseButton = document.getElementById('admin-sidebar-collapse');
     const mobile = window.matchMedia('(max-width: 1023px)');
     const mainArea = sidebar?.nextElementSibling?.nextElementSibling;
+    const preferenceKey = 'suki:admin-sidebar-collapsed';
+    const setCollapsed = (collapsed, remember = true) => {
+        document.body.classList.toggle('admin-sidebar-collapsed', collapsed);
+        collapseButton?.setAttribute('aria-expanded', String(!collapsed));
+        collapseButton?.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        if (collapseButton) collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        if (collapseButton) collapseButton.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
+        if (remember) { try { localStorage.setItem(preferenceKey, collapsed ? '1' : '0'); } catch (_) {} }
+        window.lucide?.createIcons();
+    };
     const closeSidebar = () => {
         sidebar?.classList.remove('is-open');
         overlay?.classList.remove('is-visible');
@@ -619,11 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     collapseButton?.addEventListener('click', () => {
         if (mobile.matches) return closeSidebar();
-        const collapsed = document.body.classList.toggle('admin-sidebar-collapsed');
-        collapseButton.setAttribute('aria-expanded', String(!collapsed));
-        collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-        collapseButton.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
-        window.lucide?.createIcons();
+        setCollapsed(!document.body.classList.contains('admin-sidebar-collapsed'));
     });
     overlay?.addEventListener('click', closeSidebar);
     document.addEventListener('keydown', event => {
@@ -640,6 +653,12 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebar?.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
         if (window.matchMedia('(max-width: 1023px)').matches) closeSidebar();
     }));
+    sidebar?.querySelectorAll('a, button').forEach(item => {
+        if (!item.title) item.title = item.getAttribute('aria-label') || item.textContent.trim().replace(/\s+/g, ' ');
+    });
+    if (!mobile.matches) {
+        try { if (localStorage.getItem(preferenceKey) === '1') setCollapsed(true, false); } catch (_) {}
+    }
 });
 </script>
 
