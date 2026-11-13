@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
-use App\Models\{Order, OrderItem, Product, ProductVariant, ReturnRefundEvent, ReturnRefundRequest, Rider, RiderCodRemittance, Seller, SellerOrder, SellerWalletEntry, Shipment, User, VoucherRedemption};
+use App\Models\{Order, OrderItem, Product, ProductVariant, ReturnRefundEvent, ReturnRefundRequest, ReturnRefundWorkflow, Rider, RiderCodRemittance, Seller, SellerOrder, SellerWalletEntry, Shipment, User, VoucherRedemption};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -182,6 +182,26 @@ class ReturnRefundService
     public function escalate(ReturnRefundRequest $request, User $admin, string $reason): ReturnRefundRequest
     {
         return $this->recordAdminReviewAction($request, $admin, 'ESCALATED', $reason);
+    }
+
+    public function authorizePhysicalReturn(ReturnRefundRequest $request, User $admin, string $reason): ReturnRefundRequest
+    {
+        abort_unless($admin->isAdmin() && $admin->status === 'active' && ! $admin->is_suspended, 403);
+        return DB::transaction(function () use ($request, $admin, $reason) {
+            if (! app(ReturnRefundWorkflowService::class)->hubSchemaReadyForAuthorization()) $this->invalid('request', 'Physical return routing is unavailable pending migration rollout.');
+            $locked = ReturnRefundRequest::lockForUpdate()->findOrFail($request->id);
+            if ($locked->status === 'RETURN_AUTHORIZED') return $locked;
+            if ($locked->type !== 'RETURN' || ! in_array($locked->status, ['SELLER_RESPONDED', 'UNDER_REVIEW'], true)) $this->invalid('request', 'This request cannot be authorized for physical return.');
+            $workflow = ReturnRefundWorkflow::where('return_refund_request_id', $locked->id)->lockForUpdate()->first();
+            $shipment = Shipment::where('seller_order_id', $locked->seller_order_id)->first();
+            $hub = $shipment?->destinationHub;
+            if (! $workflow || ! $hub?->is_active || ! $shipment?->logistics_provider_id || (int) $hub->logistics_provider_id !== (int) $shipment->logistics_provider_id) $this->invalid('request', 'A valid active destination barangay hub is required for buyer drop-off.');
+            $reference = 'RR-'.str_pad((string) $locked->id, 8, '0', STR_PAD_LEFT).'-'.strtoupper(bin2hex(random_bytes(16)));
+            $locked->update(['status' => 'RETURN_AUTHORIZED']);
+            $workflow->update(['logistics_provider_id'=>$shipment->logistics_provider_id,'return_hub_id'=>$hub->id,'return_reference'=>$reference,'logistics_state'=>'AWAITING_BUYER_DROPOFF']);
+            ReturnRefundEvent::create(['return_refund_request_id'=>$locked->id,'actor_id'=>$admin->id,'action'=>'RETURN_AUTHORIZED','data'=>['reason'=>trim($reason),'return_reference'=>$reference,'hub_id'=>$hub->id]]);
+            return $locked->fresh();
+        }, 3);
     }
 
     private function recordAdminReviewAction(ReturnRefundRequest $request, User $admin, string $action, string $reason): ReturnRefundRequest

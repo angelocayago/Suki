@@ -5721,11 +5721,26 @@ Route::middleware(['auth','not_suspended','approved','role:buyer'])->group(funct
 });
 Route::middleware(['auth','not_suspended','approved'])->get('/return-refunds/{returnRefundRequest}/evidence/{evidence}',[\App\Http\Controllers\ReturnRefundController::class,'showEvidence'])->name('return-refunds.evidence.show');
 Route::middleware(['auth','not_suspended','approved','role:seller'])->group(function () {
+    Route::post('/seller/return-refunds/{returnRefundRequest}/physical-receipt',[\App\Http\Controllers\ReturnRefundController::class,'sellerReceiveReturn'])->name('seller.return-refunds.physical-receipt');
+    Route::post('/seller/return-refunds/{returnRefundRequest}/inspection',[\App\Http\Controllers\ReturnRefundController::class,'sellerInspectReturn'])->name('seller.return-refunds.inspection');
     Route::post('/seller/return-refunds/{returnRefundRequest}/receive',[\App\Http\Controllers\ReturnRefundController::class,'receive'])->name('seller.return-refunds.receive');
     Route::post('/seller/return-refunds/{returnRefundRequest}/evidence',[\App\Http\Controllers\ReturnRefundController::class,'evidence'])->name('seller.return-refunds.evidence.store');
     Route::get('/seller/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerIndex'])->name('seller.return-refunds.index');
     Route::get('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerShow'])->name('seller.return-refunds.show');
     Route::patch('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'sellerRespond'])->name('seller.return-refunds.respond');
+});
+Route::middleware(['auth','not_suspended','approved','role:logistics'])->group(function () {
+    Route::get('/logistics/return-refunds', function (\Illuminate\Http\Request $request) {
+        $provider = \App\Models\LogisticsProvider::where('user_id', $request->user()->id)->firstOrFail();
+        $requests = \App\Models\ReturnRefundRequest::query()
+            ->where('status', 'RETURN_AUTHORIZED')
+            ->whereHas('workflow', fn ($query) => $query->where('logistics_provider_id', $provider->id))
+            ->with(['buyer', 'seller', 'item', 'workflow.returnHub'])
+            ->latest()->get();
+        return view('logistics.return-refunds.index', compact('requests', 'provider'));
+    })->name('logistics.return-refunds.index');
+    Route::post('/logistics/return-refunds/{returnRefundRequest}/hub-receipt',[\App\Http\Controllers\ReturnRefundController::class,'hubReceive'])->name('logistics.return-refunds.hub-receipt');
+    Route::post('/logistics/return-refunds/{returnRefundRequest}/dispatch-to-seller',[\App\Http\Controllers\ReturnRefundController::class,'hubDispatch'])->name('logistics.return-refunds.dispatch');
 });
 Route::middleware(['auth','not_suspended','approved','role:admin,superadmin'])->group(function () {
     Route::post('/admin/return-refunds/{returnRefundRequest}/evidence',[\App\Http\Controllers\ReturnRefundController::class,'evidence'])->name('admin.return-refunds.evidence.store');
@@ -5733,4 +5748,5 @@ Route::middleware(['auth','not_suspended','approved','role:admin,superadmin'])->
     Route::get('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'adminShow'])->name('admin.return-refunds.show');
     Route::patch('/admin/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'decide'])->name('admin.return-refunds.decide');
     Route::patch('/admin/return-refunds/{returnRefundRequest}/review',[\App\Http\Controllers\ReturnRefundController::class,'review'])->name('admin.return-refunds.review');
+    Route::patch('/admin/return-refunds/{returnRefundRequest}/authorize-return',[\App\Http\Controllers\ReturnRefundController::class,'authorizeReturn'])->name('admin.return-refunds.authorize-return');
 });

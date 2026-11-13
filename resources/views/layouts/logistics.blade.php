@@ -449,6 +449,16 @@
 
         </a>
 
+        <a
+            href="{{ route('logistics.return-refunds.index') }}"
+            @if(request()->routeIs('logistics.return-refunds.*')) aria-current="page" @endif
+            class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition
+                {{ request()->routeIs('logistics.return-refunds.*') ? 'bg-white text-[#173F35]' : 'text-white/62 hover:bg-white/[0.07] hover:text-white' }}"
+        >
+            <i data-lucide="package-search" class="h-[17px] w-[17px]" aria-hidden="true"></i>
+            Return Hub Operations
+        </a>
+
 
         {{-- MESSAGES --}}
         <a

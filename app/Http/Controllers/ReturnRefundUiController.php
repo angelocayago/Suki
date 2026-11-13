@@ -39,7 +39,7 @@ class ReturnRefundUiController extends Controller
 
     public function buyerShow(Request $request, ReturnRefundRequest $returnRefundRequest)
     {
-        $returnRefundRequest = $this->requests()->where('buyer_id', $request->user()->id)->findOrFail($returnRefundRequest->id);
+        $returnRefundRequest = $this->requests()->with(['events' => fn ($query) => $query->orderBy('created_at')->orderBy('id')])->where('buyer_id', $request->user()->id)->findOrFail($returnRefundRequest->id);
         $evidence = $this->evidence($returnRefundRequest);
 
         return response()->view('buyer.returns.show', compact('returnRefundRequest', 'evidence')+$this->journey($returnRefundRequest,'buyer'))->header('Cache-Control','private, no-store');
@@ -95,7 +95,7 @@ class ReturnRefundUiController extends Controller
 
     public function adminShow(ReturnRefundRequest $returnRefundRequest)
     {
-        $returnRefundRequest = $this->requests()->findOrFail($returnRefundRequest->id);
+        $returnRefundRequest = $this->requests()->with(['events' => fn ($query) => $query->orderBy('created_at')->orderBy('id')])->findOrFail($returnRefundRequest->id);
         $evidence = $this->evidence($returnRefundRequest);
         $accounting = DB::table('return_refund_accounting')->where('return_refund_request_id', $returnRefundRequest->id)->first();
 
