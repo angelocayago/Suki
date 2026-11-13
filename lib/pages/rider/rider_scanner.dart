@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../services/rider_service.dart';
 import '../../styles/rider_style.dart';
 
 class RiderScannerPage extends StatefulWidget {
@@ -9,211 +11,148 @@ class RiderScannerPage extends StatefulWidget {
 }
 
 class _RiderScannerPageState extends State<RiderScannerPage> {
-  bool isScanned = false;
+  final TextEditingController _trackingCode = TextEditingController();
+  Map<String, dynamic>? _result;
+  bool _busy = false;
+  String? _error;
 
-  String trackingNumber = "MS-10021";
-
-  void scanParcel() {
-    setState(() {
-      isScanned = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Parcel successfully scanned.")),
-    );
+  @override
+  void dispose() {
+    _trackingCode.dispose();
+    super.dispose();
   }
 
-  void confirmPickup() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("Parcel pickup confirmed.")));
+  String _text(dynamic value, [String fallback = '—']) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
 
-    Navigator.pushNamed(context, '/delivery-details');
+  Future<void> _resolve() async {
+    if (_trackingCode.text.trim().isEmpty || _busy) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _error = null;
+      _result = null;
+    });
+    try {
+      final data = await RiderService.resolveTrackingCode(_trackingCode.text);
+      if (mounted) setState(() => _result = data);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runAction(String action) async {
+    final shipment = _result?['shipment'];
+    final shipmentId = shipment is Map ? shipment['id']?.toString() ?? '' : '';
+    if (shipmentId.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final updated = await RiderService.scannerAction(shipmentId, action);
+      if (mounted) setState(() => _result = updated);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
+    final shipment = _result?['shipment'];
+    final shipmentData = shipment is Map ? Map<String, dynamic>.from(shipment) : null;
+    final allowedAction = _text(_result?['allowed_action'], '');
+
     return Scaffold(
       backgroundColor: RiderStyle.background,
-
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-
-        elevation: 0,
-
-        centerTitle: true,
-
-        title: Text("Scan Parcel", style: RiderStyle.appTitle),
-      ),
-
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-
-            children: [
-              SizedBox(height: 25),
-
-              // =========================
-              // SCANNER BOX
-              // =========================
-              Container(
-                width: double.infinity,
-
-                height: 280,
-
-                decoration: BoxDecoration(
-                  color: Colors.black,
-
-                  borderRadius: BorderRadius.circular(18),
-                ),
-
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      Icon(
-                        Icons.qr_code_scanner,
-
-                        size: 90,
-
-                        color: Colors.white,
-                      ),
-
-                      SizedBox(height: 15),
-
-                      Text(
-                        "Align QR / Barcode\ninside the frame",
-
-                        textAlign: TextAlign.center,
-
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
+      appBar: AppBar(title: Text('Scan Parcel', style: RiderStyle.appTitle), centerTitle: true),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.qr_code_scanner, size: 42),
+                  const SizedBox(height: 12),
+                  const Text('Enter the parcel tracking code'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _trackingCode,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'Tracking code',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.confirmation_number_outlined),
+                    ),
+                    onSubmitted: (_) => _resolve(),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _busy ? null : _resolve,
+                      icon: _busy
+                          ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.search),
+                      label: const Text('LOOK UP PARCEL'),
+                    ),
+                  ),
+                ],
               ),
-
-              SizedBox(height: 25),
-
-              // =========================
-              // SCAN BUTTON
-              // =========================
-              SizedBox(
-                width: double.infinity,
-
-                height: 48,
-
-                child: ElevatedButton(
-                  style: RiderStyle.primaryButton(),
-
-                  onPressed: scanParcel,
-
-                  child: Text("SCAN PARCEL"),
-                ),
-              ),
-
-              SizedBox(height: 25),
-
-              // =========================
-              // RESULT
-              // =========================
-              if (isScanned)
-                Container(
-                  width: double.infinity,
-
-                  padding: const EdgeInsets.all(16),
-
-                  decoration: RiderStyle.cardDecoration(),
-
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      Text(
-                        "Parcel Information Found",
-
-                        style: RiderStyle.sectionTitle,
-                      ),
-
-                      SizedBox(height: 15),
-
-                      _infoRow(
-                        Icons.qr_code,
-
-                        "Tracking Number",
-
-                        trackingNumber,
-                      ),
-
-                      SizedBox(height: 10),
-
-                      _infoRow(
-                        Icons.inventory_2_outlined,
-
-                        "Status",
-
-                        "Ready for Pickup",
-                      ),
-
-                      SizedBox(height: 10),
-
-                      _infoRow(
-                        Icons.location_on_outlined,
-
-                        "Destination",
-
-                        "Brgy. San Isidro",
-                      ),
-
-                      SizedBox(height: 18),
-
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: RiderStyle.danger)),
+          ],
+          if (shipmentData != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Order ${_text(shipmentData['order_number'])}', style: RiderStyle.cardTitle),
+                    const SizedBox(height: 10),
+                    Text('Tracking: ${_text(shipmentData['tracking_code'])}'),
+                    Text('Status: ${_text(shipmentData['status']).replaceAll('_', ' ')}'),
+                    Text('Pickup: ${_text(shipmentData['pickup_address'])}'),
+                    Text('Destination: ${_text(shipmentData['address'])}'),
+                    if (allowedAction.isNotEmpty) ...[
+                      const SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
-
-                        height: 42,
-
-                        child: ElevatedButton(
-                          style: RiderStyle.primaryButton(),
-
-                          onPressed: confirmPickup,
-
-                          child: Text("CONFIRM PICKUP"),
+                        child: FilledButton(
+                          onPressed: _busy ? null : () => _runAction(allowedAction),
+                          child: Text(_label(allowedAction)),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-            ],
-          ),
-        ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: RiderStyle.primary),
-
-        SizedBox(width: 10),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              Text(label, style: RiderStyle.normalText),
-
-              Text(value, style: RiderStyle.cardTitle),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  String _label(String action) => switch (action) {
+        'accept_pickup' => 'Accept pickup',
+        'confirm_pickup' => 'Confirm pickup',
+        'accept_delivery' => 'Accept delivery',
+        'begin_delivery' => 'Begin delivery',
+        _ => action.replaceAll('_', ' ').toUpperCase(),
+      };
 }

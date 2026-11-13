@@ -9,6 +9,8 @@ import 'buyer_profile.dart';
 import 'product_details.dart';
 import 'product_list.dart';
 import '../../widgets/theme_toggle_button.dart';
+import '../../widgets/product_photo_carousel.dart';
+import '../../widgets/buyer_bottom_nav.dart';
 
 class BuyerHomePage extends StatefulWidget {
   const BuyerHomePage({super.key});
@@ -206,10 +208,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
     Navigator.pushNamed(context, '/buyer-cart');
   }
 
-  void _openNotifications() {
-    _showMessage('Notifications will be connected later.');
-  }
-
   void _openProduct(BuyerHomeItem product) {
     if (product.slug.trim().isEmpty) {
       _showMessage('Product information is unavailable.');
@@ -246,6 +244,22 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BuyerHomeStyle.background,
+      bottomNavigationBar: BuyerBottomNav(
+        selectedIndex: 0,
+        onSelected: (index) {
+          switch (index) {
+            case 1:
+              _openShop();
+              break;
+            case 2:
+              _openCart();
+              break;
+            case 3:
+              _openProfile();
+              break;
+          }
+        },
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           color: BuyerHomeStyle.primary,
@@ -361,45 +375,72 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 13),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: BuyerHomeStyle.darkGreen,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.shopping_bag_rounded,
-              color: Colors.white,
-              size: 24,
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: BuyerHomeStyle.darkGreen,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.shopping_bag_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'SUKI',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: BuyerHomeStyle.brand.copyWith(fontSize: 19),
+                ),
+              ),
+              const ThemeToggleButton(),
+              _headerIcon(
+                Icons.shopping_cart_outlined,
+                'Shopping Cart',
+                _openCart,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Material(
+            color: BuyerHomeStyle.white,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: _openShop,
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: BuyerHomeStyle.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: BuyerHomeStyle.textSecondary),
+                    const SizedBox(width: 9),
+                    Text(
+                      'Search products',
+                      style: TextStyle(
+                        color: BuyerHomeStyle.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-
-          const SizedBox(width: 9),
-
-          Expanded(
-            child: Text(
-              'MOBILE SUKI',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: BuyerHomeStyle.brand,
-            ),
-          ),
-
-          const ThemeToggleButton(),
-
-          _headerIcon(
-            Icons.notifications_none_rounded,
-            'Notifications',
-            _openNotifications,
-          ),
-
-          _headerIcon(Icons.shopping_cart_outlined, 'Shopping Cart', _openCart),
-
-          _headerIcon(Icons.person_outline_rounded, 'Profile', _openProfile),
         ],
       ),
     );
@@ -408,9 +449,8 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   Widget _headerIcon(IconData icon, String label, VoidCallback onTap) {
     return IconButton(
       tooltip: label,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 34, minHeight: 40),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      padding: EdgeInsets.zero,
       onPressed: onTap,
       icon: Icon(icon, color: BuyerHomeStyle.textPrimary, size: 21),
     );
@@ -456,7 +496,9 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(17),
         child: SizedBox(
-          height: 270,
+          height: (MediaQuery.sizeOf(context).width * 0.56)
+              .clamp(175.0, 220.0)
+              .toDouble(),
           child: Stack(
             children: [
               PageView.builder(
@@ -571,7 +613,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     slide.label,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 8,
+                                  fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -696,7 +738,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 8,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white70,
                                 ),
@@ -985,7 +1027,12 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _networkImage(product.image),
+                  ProductPhotoCarousel(
+                    images: product.images.isEmpty
+                        ? [product.image]
+                        : product.images,
+                    placeholder: BuyerHomeStyle.imageError(),
+                  ),
 
                   if (showDiscount && product.discount.isNotEmpty)
                     Positioned(
@@ -1004,7 +1051,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                           '-${product.discount}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 8,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1028,7 +1075,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                           'BEST SELLER',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 7,
+                            fontSize: 8,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1092,7 +1139,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 8,
+                                  fontSize: 10,
                                   color: BuyerHomeStyle.textSecondary,
                                 ),
                               ),
@@ -1121,7 +1168,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 9,
+                              fontSize: 10,
                               color: BuyerHomeStyle.textSecondary,
                             ),
                           ),

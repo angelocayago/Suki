@@ -18,9 +18,9 @@ class BuyerHomeStyle {
   static Color get white => AppTheme.surface;
 
   // PAGE
-  static const double horizontalPadding = 13;
-  static const double sectionSpacing = 27;
-  static const double cardRadius = 12;
+  static const double horizontalPadding = 16;
+  static const double sectionSpacing = 24;
+  static const double cardRadius = 16;
 
   // TYPOGRAPHY
   static TextStyle get brand => TextStyle(
@@ -37,19 +37,19 @@ class BuyerHomeStyle {
   );
 
   static TextStyle get sectionSubtitle => TextStyle(
-    fontSize: 10,
+    fontSize: 12,
     color: textSecondary,
   );
 
   static TextStyle get eyebrow => TextStyle(
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: FontWeight.bold,
     letterSpacing: 1,
     color: AppTheme.brandText,
   );
 
   static TextStyle get productName => TextStyle(
-    fontSize: 10,
+    fontSize: 12,
     height: 1.4,
     color: AppTheme.text,
     fontWeight: FontWeight.w500,

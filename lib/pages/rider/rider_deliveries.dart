@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../services/rider_service.dart';
 import '../../styles/rider_style.dart';
 
 class RiderDeliveriesPage extends StatefulWidget {
@@ -9,278 +11,263 @@ class RiderDeliveriesPage extends StatefulWidget {
 }
 
 class _RiderDeliveriesPageState extends State<RiderDeliveriesPage> {
-  final List<Map<String, String>> deliveries = [
-    {
-      "order": "MS-10021",
-      "customer": "Juan Dela Cruz",
-      "pickup": "Mobile Suki Warehouse",
-      "destination": "Brgy. San Isidro",
-      "payment": "₱250",
-      "status": "Available",
-    },
+  late Future<List<Map<String, dynamic>>> _deliveries;
+  final Set<String> _busyOrders = {};
 
-    {
-      "order": "MS-10022",
-      "customer": "Maria Santos",
-      "pickup": "Mobile Suki Warehouse",
-      "destination": "Brgy. San Pedro",
-      "payment": "₱180",
-      "status": "Available",
-    },
-
-    {
-      "order": "MS-10023",
-      "customer": "Pedro Reyes",
-      "pickup": "Partner Store",
-      "destination": "Brgy. Sta. Cruz",
-      "payment": "₱320",
-      "status": "Available",
-    },
-  ];
-
-  void acceptDelivery(int index) {
-    setState(() {
-      deliveries[index]["status"] = "Accepted";
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Delivery ${deliveries[index]["order"]} accepted"),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _deliveries = RiderService.getDeliveries();
   }
 
-  void rejectDelivery(int index) {
-    setState(() {
-      deliveries[index]["status"] = "Rejected";
+  Future<void> _reload() async {
+    final request = RiderService.getDeliveries();
+    setState(() => _deliveries = request);
+    try {
+      await request;
+    } catch (_) {
+      // The FutureBuilder presents the API error and retry button.
+    }
+  }
+
+  String _text(Map<String, dynamic> order, String key, [String fallback = '']) {
+    final value = order[key]?.toString().trim() ?? '';
+    return value.isEmpty ? fallback : value;
+  }
+
+  String _status(Map<String, dynamic> order) =>
+      _text(order, 'status', 'unknown').toLowerCase();
+
+  Future<void> _respond(
+    Map<String, dynamic> order, {
+    required bool accept,
+    required bool pickup,
+  }) async {
+    final id = _text(order, 'id');
+    if (id.isEmpty || _busyOrders.contains(id)) return;
+    setState(() => _busyOrders.add(id));
+    try {
+      if (pickup) {
+        if (accept) {
+          await RiderService.acceptPickup(id);
+        } else {
+          await RiderService.declinePickup(id);
+        }
+      } else if (accept) {
+        await RiderService.acceptDelivery(id);
+      } else {
+        await RiderService.declineDelivery(id);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(accept ? 'Assignment accepted.' : 'Assignment declined.')),
+        );
+        await _reload();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyOrders.remove(id));
+    }
+  }
+
+  void _openOrder(Map<String, dynamic> order) {
+    Navigator.pushNamed(context, '/delivery-details', arguments: order).then((_) {
+      if (mounted) _reload();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
-
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-
-        elevation: 0,
-
-        title: Text("My Deliveries", style: RiderStyle.appTitle),
-
+        title: Text('My Deliveries', style: RiderStyle.appTitle),
         centerTitle: true,
+        actions: [
+          IconButton(onPressed: _reload, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+        ],
       ),
-
-      body: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(18),
-
-          itemCount: deliveries.length,
-
-          itemBuilder: (context, index) {
-            final delivery = deliveries[index];
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 15),
-
-              padding: const EdgeInsets.all(15),
-
-              decoration: RiderStyle.cardDecoration(),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-                  // ORDER HEADER
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                    children: [
-                      Text(
-                        "Order #${delivery["order"]}",
-
-                        style: RiderStyle.cardTitle,
-                      ),
-
-                      _statusBadge(delivery["status"]!),
-                    ],
-                  ),
-
-                  SizedBox(height: 15),
-
-                  _deliveryInfo(
-                    Icons.person_outline,
-
-                    "Customer",
-
-                    delivery["customer"]!,
-                  ),
-
-                  SizedBox(height: 10),
-
-                  _deliveryInfo(
-                    Icons.store_outlined,
-
-                    "Pickup",
-
-                    delivery["pickup"]!,
-                  ),
-
-                  SizedBox(height: 10),
-
-                  _deliveryInfo(
-                    Icons.location_on_outlined,
-
-                    "Destination",
-
-                    delivery["destination"]!,
-                  ),
-
-                  SizedBox(height: 10),
-
-                  _deliveryInfo(
-                    Icons.payments_outlined,
-
-                    "Payment",
-
-                    delivery["payment"]!,
-                  ),
-
-                  SizedBox(height: 18),
-
-                  // BUTTONS
-                  if (delivery["status"] == "Available")
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: RiderStyle.danger,
-
-                              side: BorderSide(color: RiderStyle.danger),
-
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-
-                            onPressed: () {
-                              rejectDelivery(index);
-                            },
-
-                            child: Text("Reject"),
-                          ),
-                        ),
-
-                        SizedBox(width: 10),
-
-                        Expanded(
-                          child: ElevatedButton(
-                            style: RiderStyle.primaryButton(),
-
-                            onPressed: () {
-                              acceptDelivery(index);
-                            },
-
-                            child: Text("Accept"),
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (delivery["status"] == "Accepted")
-                    SizedBox(
-                      width: double.infinity,
-
-                      height: 42,
-
-                      child: ElevatedButton(
-                        style: RiderStyle.primaryButton(),
-
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-
-                            '/rider-parcel-information',
-
-                            arguments: delivery,
-                          );
-                        },
-
-                        child: Text("View Parcel"),
-                      ),
-                    ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _deliveries,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _MessageState(
+              message: snapshot.error.toString().replaceFirst('Exception: ', ''),
+              onRetry: _reload,
+            );
+          }
+          final orders = snapshot.data ?? const <Map<String, dynamic>>[];
+          if (orders.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: _reload,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 120),
+                  _MessageState(message: 'No deliveries are assigned to you right now.'),
                 ],
               ),
             );
-          },
+          }
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: orders.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) => _deliveryCard(orders[index]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _deliveryCard(Map<String, dynamic> order) {
+    final status = _status(order);
+    final id = _text(order, 'id');
+    final shipmentId = _text(order, 'shipment_id');
+    final isPickup = status == 'ready_for_pickup';
+    final pickupAccepted = _text(order, 'pickup_accepted_at').isNotEmpty;
+    final deliveryAccepted = _text(order, 'delivery_accepted_at').isNotEmpty;
+    final canAccept = (isPickup && !pickupAccepted) ||
+        (status == 'assigned_to_rider' && !deliveryAccepted);
+    final busy = _busyOrders.contains(id);
+    final address = _text(order, 'address', _text(order, 'navigation_address', 'Address unavailable'));
+    final amount = order['total']?.toString() ?? '—';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Order ${_text(order, 'order_number', id)}',
+                    style: RiderStyle.cardTitle,
+                  ),
+                ),
+                Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _info(Icons.person_outline, 'Buyer', _text(order, 'buyer_name', _text(order, 'customer_name', '—'))),
+            _info(Icons.store_outlined, 'Pickup', _text(order, 'pickup_address', '—')),
+            _info(Icons.location_on_outlined, 'Destination', address),
+            _info(Icons.payments_outlined, 'Collection / amount', '₱$amount'),
+            const SizedBox(height: 12),
+            if (isPickup && pickupAccepted)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: busy || shipmentId.isEmpty
+                      ? null
+                      : () => _confirmPickup(order),
+                  child: const Text('Confirm parcel pickup'),
+                ),
+              )
+            else if (canAccept)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: busy ? null : () => _respond(order, accept: false, pickup: isPickup),
+                      child: const Text('Decline'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: busy ? null : () => _respond(order, accept: true, pickup: isPickup),
+                      child: busy
+                          ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text(isPickup ? 'Accept pickup' : 'Accept delivery'),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openOrder(order),
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Open delivery'),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _deliveryInfo(IconData icon, String title, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Future<void> _confirmPickup(Map<String, dynamic> order) async {
+    final id = _text(order, 'id');
+    final shipmentId = _text(order, 'shipment_id');
+    if (id.isEmpty || shipmentId.isEmpty || _busyOrders.contains(id)) return;
+    setState(() => _busyOrders.add(id));
+    try {
+      await RiderService.scannerAction(shipmentId, 'confirm_pickup');
+      if (mounted) await _reload();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyOrders.remove(id));
+    }
+  }
 
-      children: [
-        Icon(icon, size: 18, color: RiderStyle.primary),
+  Widget _info(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: RiderStyle.primary),
+          const SizedBox(width: 8),
+          Expanded(child: Text('$label: $value')),
+        ],
+      ),
+    );
+  }
+}
 
-        SizedBox(width: 10),
+class _MessageState extends StatelessWidget {
+  const _MessageState({required this.message, this.onRetry});
 
-        Expanded(
+  final String message;
+  final Future<void> Function()? onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: RiderStyle.normalText),
-
-              Text(value, style: RiderStyle.cardTitle),
+              const Icon(Icons.local_shipping_outlined, size: 38),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+              if (onRetry != null) ...[
+                const SizedBox(height: 12),
+                FilledButton(onPressed: onRetry, child: const Text('Try again')),
+              ],
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _statusBadge(String status) {
-    Color color;
-
-    switch (status) {
-      case "Accepted":
-        color = RiderStyle.success;
-
-        break;
-
-      case "Rejected":
-        color = RiderStyle.danger;
-
-        break;
-
-      default:
-        color = RiderStyle.warning;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-
-      decoration: BoxDecoration(
-        color: color.withOpacity(.15),
-
-        borderRadius: BorderRadius.circular(20),
-      ),
-
-      child: Text(
-        status,
-
-        style: TextStyle(
-          fontSize: 10,
-
-          fontWeight: FontWeight.w700,
-
-          color: color,
-        ),
-      ),
-    );
-  }
+      );
 }

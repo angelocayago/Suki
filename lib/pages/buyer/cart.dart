@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/cart_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/buyer_bottom_nav.dart';
 
 // =========================================================
 // SUKISHOP MOBILE - BUYER CART PAGE
@@ -288,6 +289,26 @@ class _BuyerCartPageState extends State<BuyerCartPage> {
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
+      ),
+      bottomNavigationBar: BuyerBottomNav(
+        selectedIndex: 2,
+        onSelected: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/buyer-home',
+                (route) => false,
+              );
+              break;
+            case 1:
+              Navigator.pushNamed(context, '/buyer-shop');
+              break;
+            case 3:
+              Navigator.pushNamed(context, '/buyer-profile');
+              break;
+          }
+        },
       ),
 
       body: isLoading

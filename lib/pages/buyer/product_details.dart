@@ -124,6 +124,7 @@ class ProductDetailsData {
               color: variant.options['Color']?.toString() ?? '',
               size: variant.options['Size']?.toString() ?? '',
               stock: variant.stock,
+              image: variant.image,
             ),
           )
           .toList(),
@@ -171,12 +172,14 @@ class ProductVariant {
   final String color;
   final String size;
   final int stock;
+  final String image;
 
   ProductVariant({
     required this.id,
     this.color = '',
     this.size = '',
     required this.stock,
+    this.image = '',
   });
 }
 

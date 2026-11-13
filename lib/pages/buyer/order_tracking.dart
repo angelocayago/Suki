@@ -23,7 +23,7 @@ class _BuyerOrderTrackingPageState extends State<BuyerOrderTrackingPage> {
   @override
   void initState() {
     super.initState();
-    orderFuture = OrderService.getOrder(widget.orderId);
+    orderFuture = OrderService.getTracking(widget.orderId, widget.sellerOrderId);
   }
 
   @override
@@ -49,16 +49,23 @@ class _BuyerOrderTrackingPageState extends State<BuyerOrderTrackingPage> {
             );
           }
 
-          final order = snapshot.data ?? const <String, dynamic>{};
-          final status = (order['status']?.toString() ?? 'pending').toLowerCase();
-          final currentStep = status.contains('deliver')
+          final tracking = snapshot.data ?? const <String, dynamic>{};
+          final status = (tracking['status']?.toString() ?? 'pending').toLowerCase();
+          final currentStep = status == 'delivered' || status == 'completed'
               ? 3
-              : status.contains('pickup') || status.contains('ship')
+              : status.contains('delivery') ||
+                      status.contains('rider') ||
+                      status.contains('pickup') ||
+                      status.contains('ship') ||
+                      status.contains('sorting')
                   ? 2
                   : status.contains('confirm') || status.contains('prepar')
                       ? 1
                       : 0;
           const steps = ['Order placed', 'Preparing', 'On the way', 'Delivered'];
+          final latitude = tracking['latitude']?.toString();
+          final longitude = tracking['longitude']?.toString();
+          final updatedAt = tracking['updated_at']?.toString();
 
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -66,13 +73,27 @@ class _BuyerOrderTrackingPageState extends State<BuyerOrderTrackingPage> {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.local_shipping_outlined),
-                  title: Text('Order ${order['order_number'] ?? widget.orderId}'),
+                   title: Text('Tracking ${tracking['tracking_code'] ?? widget.sellerOrderId}'),
                   subtitle: Text(
-                    'Status: ${order['status'] ?? 'Pending'}'
-                    '\nShipment: ${widget.sellerOrderId}',
+                     'Status: ${tracking['status_label'] ?? tracking['status'] ?? 'Pending'}'
+                     '\nOrder: ${widget.orderId}',
                   ),
                 ),
               ),
+              if (tracking['trackable'] == true) ...[
+                const SizedBox(height: 10),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.my_location),
+                    title: const Text('Rider location'),
+                    subtitle: Text(
+                      latitude == null || longitude == null
+                          ? 'Location has not been shared yet.'
+                          : '$latitude, $longitude${updatedAt == null ? '' : '\nUpdated: $updatedAt'}',
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               ...List.generate(steps.length, (index) {
                 final complete = index <= currentStep;

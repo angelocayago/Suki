@@ -301,6 +301,80 @@ class _BuyerOrderDetailsPageState extends State<BuyerOrderDetailsPage> {
     );
   }
 
+  Future<void> _cancelOrder(Map<String, dynamic> order) async {
+    const reasons = <String, String>{
+      'changed_mind': 'I changed my mind',
+      'ordered_by_mistake': 'I ordered by mistake',
+      'found_better_price': 'I found a better price',
+      'wrong_product': 'Wrong product or variation',
+      'seller_requested': 'Seller requested cancellation',
+      'other': 'Other',
+    };
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Cancel order'),
+        children: reasons.entries
+            .map((entry) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, entry.key),
+                  child: Text(entry.value),
+                ))
+            .toList(),
+      ),
+    );
+    if (reason == null || !mounted) return;
+    await _runOrderAction(
+      () => OrderService.cancelOrder(orderId: widget.orderId, reason: reason),
+      'Order cancelled.',
+    );
+  }
+
+  Future<void> _buyAgain() async {
+    final succeeded = await _runOrderAction(() async {
+      await OrderService.buyAgain(widget.orderId);
+    }, 'Available items were added to your cart.');
+    if (succeeded && mounted) Navigator.pushNamed(context, '/buyer-cart');
+  }
+
+  Future<void> _confirmReceipt() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm receipt'),
+        content: const Text('Confirm that you received this order.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not yet')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm receipt')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _runOrderAction(
+      () => OrderService.confirmReceipt(widget.orderId),
+      'Receipt confirmed.',
+    );
+  }
+
+  Future<bool> _runOrderAction(
+    Future<void> Function() action,
+    String successMessage,
+  ) async {
+    try {
+      await action();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
+      await _reload();
+      return true;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_OrderHelpers.error(error))),
+        );
+      }
+      return false;
+    }
+  }
+
   // =========================================================
   // MAIN BUILD
   // =========================================================
@@ -368,6 +442,11 @@ class _BuyerOrderDetailsPageState extends State<BuyerOrderDetailsPage> {
     final items = _OrderHelpers.mapList(order['items']);
 
     final sellerOrders = _OrderHelpers.mapList(order['seller_orders']);
+    final canCancel = order['can_cancel'] == true || status.toLowerCase() == 'placed';
+    final canBuyAgain = order['can_buy_again'] == true ||
+        ['cancelled', 'completed', 'returned'].contains(status.toLowerCase());
+    final canConfirmReceipt = order['can_confirm_receipt'] == true ||
+        status.toLowerCase() == 'delivered';
 
     return RefreshIndicator(
       onRefresh: _reload,
@@ -404,6 +483,39 @@ class _BuyerOrderDetailsPageState extends State<BuyerOrderDetailsPage> {
               ),
 
               const SizedBox(height: 18),
+
+              if (canCancel || canBuyAgain || canConfirmReceipt)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (canCancel)
+                          OutlinedButton.icon(
+                            onPressed: () => _cancelOrder(order),
+                            icon: const Icon(Icons.cancel_outlined),
+                            label: const Text('Cancel order'),
+                          ),
+                        if (canConfirmReceipt)
+                          FilledButton.icon(
+                            onPressed: _confirmReceipt,
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text('Confirm receipt'),
+                          ),
+                        if (canBuyAgain)
+                          OutlinedButton.icon(
+                            onPressed: _buyAgain,
+                            icon: const Icon(Icons.replay),
+                            label: const Text('Buy again'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              if (canCancel || canBuyAgain || canConfirmReceipt)
+                const SizedBox(height: 18),
 
               // =====================================
               // ITEMS

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'buyer_home_api.dart';
 import 'product_details.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/product_photo_carousel.dart';
+import '../../widgets/buyer_bottom_nav.dart';
 
 // =========================================================
 // SUKISHOP MOBILE - BUYER PRODUCT LIST
@@ -273,6 +275,26 @@ class _BuyerProductListPageState extends State<BuyerProductListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_pageTitle)),
+      bottomNavigationBar: BuyerBottomNav(
+        selectedIndex: 1,
+        onSelected: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/buyer-home',
+                (route) => false,
+              );
+              break;
+            case 2:
+              Navigator.pushNamed(context, '/buyer-cart');
+              break;
+            case 3:
+              Navigator.pushNamed(context, '/buyer-profile');
+              break;
+          }
+        },
+      ),
 
       body: Column(
         children: [
@@ -536,32 +558,9 @@ class _BuyerProductListPageState extends State<BuyerProductListPage> {
   // =========================================================
 
   Widget _productImage(BuyerHomeItem item) {
-    final image = item.image.isNotEmpty
-        ? item.image
-        : item.images.isNotEmpty
-        ? item.images.first
-        : '';
-
-    if (image.isEmpty) {
-      return _imagePlaceholder();
-    }
-
-    final uri = Uri.tryParse(image);
-
-    if (uri == null ||
-        !uri.hasAuthority ||
-        (uri.scheme != 'http' && uri.scheme != 'https')) {
-      return _imagePlaceholder();
-    }
-
-    return Image.network(
-      image,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        return _imagePlaceholder();
-      },
+    return ProductPhotoCarousel(
+      images: item.images.isEmpty ? [item.image] : item.images,
+      placeholder: _imagePlaceholder(),
     );
   }
 

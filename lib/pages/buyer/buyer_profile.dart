@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'buyer_profile_style.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/theme_toggle_button.dart';
+import '../../widgets/buyer_bottom_nav.dart';
 
 class BuyerProfilePage extends StatefulWidget {
   const BuyerProfilePage({super.key});
@@ -804,6 +805,26 @@ class _BuyerProfilePageState extends State<BuyerProfilePage> {
     Theme.of(context);
     return Scaffold(
       backgroundColor: BuyerProfileStyle.background,
+      bottomNavigationBar: BuyerBottomNav(
+        selectedIndex: 3,
+        onSelected: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/buyer-home',
+                (route) => false,
+              );
+              break;
+            case 1:
+              Navigator.pushNamed(context, '/buyer-shop');
+              break;
+            case 2:
+              Navigator.pushNamed(context, '/buyer-cart');
+              break;
+          }
+        },
+      ),
 
       appBar: AppBar(
         backgroundColor: BuyerProfileStyle.white,

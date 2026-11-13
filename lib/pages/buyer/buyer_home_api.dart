@@ -285,6 +285,26 @@ class BuyerHomeItem {
       BuyerHomeVariant.fromJson,
     );
 
+    // Variant photos are part of the product's photo set too. Include them
+    // in the detail gallery and make color selection start on its photo.
+    for (final variant in variants) {
+      if (variant.image.isEmpty) continue;
+      if (!allImages.contains(variant.image)) {
+        allImages.add(variant.image);
+      }
+
+      final color = _BuyerParser.text(variant.options['Color']);
+      if (color.isEmpty) continue;
+      final colorImages = mediaByColor.putIfAbsent(color, () => <String>[]);
+      if (!colorImages.contains(variant.image)) {
+        colorImages.insert(0, variant.image);
+      }
+    }
+
+    if (primaryImage.isEmpty && allImages.isNotEmpty) {
+      primaryImage = allImages.first;
+    }
+
     // =====================================================
     // PRICES
     // =====================================================
@@ -364,12 +384,14 @@ class BuyerHomeItem {
 class BuyerHomeVariant {
   final String id;
   final String name;
+  final String image;
   final int stock;
   final Map<String, dynamic> options;
 
   const BuyerHomeVariant({
     required this.id,
     required this.name,
+    this.image = '',
     required this.stock,
     required this.options,
   });
@@ -378,6 +400,7 @@ class BuyerHomeVariant {
     return BuyerHomeVariant(
       id: _BuyerParser.text(json['id']),
       name: _BuyerParser.text(json['name']),
+      image: _BuyerParser.image(json['image']),
       stock: _BuyerParser.integer(json['stock']),
       options: _BuyerParser.object(json['options']),
     );

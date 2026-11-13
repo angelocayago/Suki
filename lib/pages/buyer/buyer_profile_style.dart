@@ -27,25 +27,25 @@ class BuyerProfileStyle {
   );
 
   static TextStyle get sectionTitle => TextStyle(
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
   static TextStyle get subtitle => TextStyle(
-    fontSize: 11,
+    fontSize: 13,
     color: textSecondary,
     height: 1.5,
   );
 
   static TextStyle get label => TextStyle(
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     color: textSecondary,
   );
 
   static TextStyle get value => TextStyle(
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
@@ -98,7 +98,7 @@ class BuyerProfileStyle {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(
-        fontSize: 12,
+        fontSize: 13,
         color: textSecondary,
       ),
       prefixIcon: icon == null

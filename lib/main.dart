@@ -52,6 +52,7 @@ import 'pages/rider/parcel_information.dart' as rider;
 import 'pages/rider/delivery_details.dart';
 import 'pages/rider/rider_earnings.dart';
 import 'pages/rider/rider_profile.dart';
+import 'pages/rider/rider_api_page.dart';
 
 // =========================================================
 // LOGISTICS PAGES
@@ -194,6 +195,9 @@ final Map<String, WidgetBuilder> _applicationRoutes = {
       const BuyerProductListPage(),
 
   '/shop': (context) =>
+      const BuyerProductListPage(),
+
+  '/buyer-shop': (context) =>
       const BuyerProductListPage(),
 
   // =======================================================
@@ -420,16 +424,10 @@ final Map<String, WidgetBuilder> _applicationRoutes = {
   // =======================================================
 
   '/rider/history': (context) =>
-      const LaravelRoutePage(
+      const RiderApiPage(
         title: 'Delivery History',
-        description:
-            'Completed and past rider deliveries.',
-        emptyTitle: 'No completed deliveries yet',
-        emptyMessage:
-            'Completed deliveries will appear here.',
-        icon: Icons.history,
-        actionLabel: 'Available deliveries',
-        actionRoute: '/rider/deliveries',
+        endpoint: '/rider/history',
+        recordsKey: 'orders',
       ),
 
   // =======================================================
@@ -437,16 +435,10 @@ final Map<String, WidgetBuilder> _applicationRoutes = {
   // =======================================================
 
   '/rider/reports': (context) =>
-      const LaravelRoutePage(
+      const RiderApiPage(
         title: 'Rider Reports',
-        description:
-            'Delivery and performance reports.',
-        emptyTitle: 'No report data yet',
-        emptyMessage:
-            'Your rider activity will appear in reports.',
-        icon: Icons.bar_chart_outlined,
-        actionLabel: 'Dashboard',
-        actionRoute: '/rider/dashboard',
+        endpoint: '/rider/reports',
+        recordsKey: 'shipments',
       ),
 
   // =======================================================
@@ -454,16 +446,10 @@ final Map<String, WidgetBuilder> _applicationRoutes = {
   // =======================================================
 
   '/rider/money': (context) =>
-      const LaravelRoutePage(
+      const RiderApiPage(
         title: 'Money Report',
-        description:
-            'Your rider earnings and payment summary.',
-        emptyTitle: 'No money report yet',
-        emptyMessage:
-            'Earnings data will appear after deliveries.',
-        icon: Icons.account_balance_wallet_outlined,
-        actionLabel: 'Earnings',
-        actionRoute: '/rider/earnings',
+        endpoint: '/rider/money',
+        recordsKey: 'earnings',
       ),
 
   // =======================================================
@@ -471,16 +457,11 @@ final Map<String, WidgetBuilder> _applicationRoutes = {
   // =======================================================
 
   '/rider/cod-remittances': (context) =>
-      const LaravelRoutePage(
+      const RiderApiPage(
         title: 'COD Remittances',
-        description:
-            'Cash-on-delivery amounts to remit.',
-        emptyTitle: 'No remittances due',
-        emptyMessage:
-            'COD remittance tasks will appear here.',
-        icon: Icons.payments_outlined,
-        actionLabel: 'Dashboard',
-        actionRoute: '/rider/dashboard',
+        endpoint: '/rider/cod-remittances',
+        recordsKey: 'remittances',
+        codRemittances: true,
       ),
 
   // =======================================================

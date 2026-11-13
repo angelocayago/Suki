@@ -527,6 +527,35 @@ class ApiServices {
     );
   }
 
+  /// Uploads multipart form data to Laravel while keeping the same timeout,
+  /// response parsing, and bearer-token behavior as the JSON helpers.
+  static Future<dynamic> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    required String fileField,
+    required String fileName,
+    required List<int> fileBytes,
+    String? token,
+  }) async {
+    return _send(() async {
+      final request = http.MultipartRequest('POST', _uri(endpoint));
+      request.headers['Accept'] = 'application/json';
+      if (token != null && token.trim().isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer ${token.trim()}';
+      }
+      request.fields.addAll(fields);
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fileField,
+          fileBytes,
+          filename: fileName,
+        ),
+      );
+      final streamed = await request.send();
+      return http.Response.fromStream(streamed);
+    });
+  }
+
   // =========================================================
   // PUT REQUEST
   // =========================================================

@@ -1,298 +1,122 @@
 import 'package:flutter/material.dart';
+
+import '../../services/rider_service.dart';
 import '../../styles/rider_style.dart';
 
-class RiderEarningsPage extends StatelessWidget {
+class RiderEarningsPage extends StatefulWidget {
   const RiderEarningsPage({super.key});
 
   @override
+  State<RiderEarningsPage> createState() => _RiderEarningsPageState();
+}
+
+class _RiderEarningsPageState extends State<RiderEarningsPage> {
+  late Future<Map<String, dynamic>> _performance;
+
+  @override
+  void initState() {
+    super.initState();
+    _performance = RiderService.getPerformance();
+  }
+
+  Future<void> _reload() async {
+    final request = RiderService.getPerformance();
+    setState(() => _performance = request);
+    try {
+      await request;
+    } catch (_) {}
+  }
+
+  int _integer(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
+
+  String _money(dynamic minor) =>
+      '₱${(_integer(minor) / 100).toStringAsFixed(2)}';
+
+  @override
   Widget build(BuildContext context) {
-    Theme.of(context);
     return Scaffold(
       backgroundColor: RiderStyle.background,
-
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-
-        elevation: 0,
-
-        centerTitle: true,
-
-        title: Text("Rider Earnings", style: RiderStyle.appTitle),
+        title: Text('Rider Earnings', style: RiderStyle.appTitle),
+        actions: [IconButton(onPressed: _reload, icon: const Icon(Icons.refresh))],
       ),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              // =========================
-              // TOTAL EARNINGS CARD
-              // =========================
-              Container(
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(20),
-
-                decoration: RiderStyle.statusCard(),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Text(
-                      "Total Earnings Today",
-
-                      style: RiderStyle.normalText,
-                    ),
-
-                    SizedBox(height: 8),
-
-                    Text("₱850.00", style: RiderStyle.amount),
-
-                    SizedBox(height: 8),
-
-                    Text(
-                      "12 completed deliveries",
-
-                      style: RiderStyle.normalText,
-                    ),
-                  ],
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _performance,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _message(snapshot.error.toString().replaceFirst('Exception: ', ''), _reload);
+          }
+          final data = snapshot.data ?? const <String, dynamic>{};
+          final raw = data['performance'];
+          final performance = raw is Map
+              ? Map<String, dynamic>.from(raw)
+              : data;
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(18),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: RiderStyle.statusCard(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Delivery fee earnings', style: RiderStyle.normalText),
+                      const SizedBox(height: 8),
+                      Text(_money(performance['shippingFeeEarningsMinor']), style: RiderStyle.amount),
+                      const SizedBox(height: 6),
+                      Text('${_integer(performance['completedDeliveries'])} completed deliveries'),
+                    ],
+                  ),
                 ),
-              ),
-
-              SizedBox(height: 22),
-
-              // =========================
-              // SUMMARY
-              // =========================
-              Text("Income Summary", style: RiderStyle.sectionTitle),
-
-              SizedBox(height: 10),
-
-              Row(
-                children: [
-                  _earningCard("₱850", "Today", Icons.today_outlined),
-
-                  SizedBox(width: 10),
-
-                  _earningCard(
-                    "₱5,600",
-
-                    "This Week",
-
-                    Icons.calendar_view_week_outlined,
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 12),
-
-              Row(
-                children: [
-                  _earningCard(
-                    "₱21,500",
-
-                    "This Month",
-
-                    Icons.calendar_month_outlined,
-                  ),
-
-                  SizedBox(width: 10),
-
-                  _earningCard(
-                    "125",
-
-                    "Deliveries",
-
-                    Icons.local_shipping_outlined,
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 22),
-
-              // =========================
-              // DELIVERY HISTORY
-              // =========================
-              Text("Recent Deliveries", style: RiderStyle.sectionTitle),
-
-              SizedBox(height: 10),
-
-              _deliveryHistory(
-                "MS-10021",
-
-                "Juan Dela Cruz",
-
-                "₱150",
-
-                "Completed",
-              ),
-
-              _deliveryHistory("MS-10020", "Maria Santos", "₱120", "Completed"),
-
-              _deliveryHistory("MS-10019", "Pedro Reyes", "₱200", "Completed"),
-
-              SizedBox(height: 22),
-
-              // =========================
-              // PAYOUT
-              // =========================
-              Text("Withdrawal", style: RiderStyle.sectionTitle),
-
-              SizedBox(height: 10),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-
-                decoration: RiderStyle.cardDecoration(),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Text(
-                      "Available Balance",
-
-                      style: RiderStyle.normalText,
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text("₱8,450.00", style: RiderStyle.amount),
-
-                    SizedBox(height: 15),
-
-                    SizedBox(
-                      width: double.infinity,
-
-                      height: 45,
-
-                      child: ElevatedButton(
-                        style: RiderStyle.primaryButton(),
-
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Payout request submitted."),
-                            ),
-                          );
-                        },
-
-                        child: Text("REQUEST PAYOUT"),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                _metric('Assigned shipments', '${_integer(performance['assigned'])}', Icons.local_shipping_outlined),
+                _metric('Pending deliveries', '${_integer(performance['pending'])}', Icons.pending_actions_outlined),
+                _metric('Failed attempts', '${_integer(performance['failedAttempts'])}', Icons.report_outlined),
+                _metric('COD collected', _money(performance['codCollectedMinor']), Icons.payments_outlined),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/rider/history'),
+                  icon: const Icon(Icons.history),
+                  label: const Text('View delivery history'),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _earningCard(String value, String label, IconData icon) {
-    return Expanded(
-      child: Container(
-        height: 110,
-
-        padding: const EdgeInsets.all(12),
-
-        decoration: RiderStyle.cardDecoration(),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Icon(icon, size: 22, color: RiderStyle.primary),
-
-            Spacer(),
-
-            Text(
-              value,
-
-              style: TextStyle(
-                fontSize: 16,
-
-                fontWeight: FontWeight.w800,
-
-                color: RiderStyle.primary,
-              ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/rider/money'),
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: const Text('Open money report'),
+                ),
+              ],
             ),
+          );
+        },
+      ),
+    );
+  }
 
-            Text(label, style: RiderStyle.normalText),
-          ],
+  Widget _metric(String label, String value, IconData icon) => Card(
+        child: ListTile(
+          leading: Icon(icon, color: RiderStyle.primary),
+          title: Text(label),
+          trailing: Text(value, style: RiderStyle.cardTitle),
         ),
-      ),
-    );
-  }
+      );
 
-  Widget _deliveryHistory(
-    String order,
-
-    String customer,
-
-    String amount,
-
-    String status,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-
-      padding: const EdgeInsets.all(14),
-
-      decoration: RiderStyle.cardDecoration(),
-
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
+  Widget _message(String message, Future<void> Function() retry) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(order, style: RiderStyle.cardTitle),
-
-              SizedBox(height: 4),
-
-              Text(customer, style: RiderStyle.normalText),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: retry, child: const Text('Try again')),
             ],
           ),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-
-            children: [
-              Text(
-                amount,
-
-                style: TextStyle(
-                  fontSize: 14,
-
-                  fontWeight: FontWeight.w800,
-
-                  color: RiderStyle.primary,
-                ),
-              ),
-
-              Text(
-                status,
-
-                style: TextStyle(
-                  fontSize: 10,
-
-                  color: RiderStyle.success,
-
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }

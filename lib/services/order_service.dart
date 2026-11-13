@@ -315,6 +315,52 @@ class OrderService {
     return data;
   }
 
+  static Future<void> cancelOrder({
+    required String orderId,
+    required String reason,
+  }) async {
+    final token = await _requiredToken();
+    final response = await ApiServices.post(
+      '/buyer/orders/${Uri.encodeComponent(orderId.trim())}/cancel',
+      {'cancel_reason': reason},
+      token: token,
+    );
+    _OrderParser.unwrap(response);
+  }
+
+  static Future<Map<String, dynamic>> buyAgain(String orderId) async {
+    final token = await _requiredToken();
+    final response = await ApiServices.post(
+      '/buyer/orders/${Uri.encodeComponent(orderId.trim())}/buy-again',
+      const {},
+      token: token,
+    );
+    return _OrderParser.unwrap(response);
+  }
+
+  static Future<void> confirmReceipt(String orderId) async {
+    final token = await _requiredToken();
+    final response = await ApiServices.post(
+      '/buyer/orders/${Uri.encodeComponent(orderId.trim())}/confirm-receipt',
+      const {},
+      token: token,
+    );
+    _OrderParser.unwrap(response);
+  }
+
+  static Future<Map<String, dynamic>> getTracking(
+    String orderId,
+    String sellerOrderId,
+  ) async {
+    final token = await _requiredToken();
+    final response = await ApiServices.get(
+      '/buyer/orders/${Uri.encodeComponent(orderId)}'
+      '/seller-orders/${Uri.encodeComponent(sellerOrderId)}/tracking',
+      token: token,
+    );
+    return _OrderParser.unwrap(response);
+  }
+
   // =======================================================
   // GET CHECKOUT DATA
   // =======================================================
