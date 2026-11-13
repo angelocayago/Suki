@@ -42,6 +42,7 @@ use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\CodRemittanceController;
 use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\ReviewPageController;
+use App\Http\Controllers\ShoppingAssistantController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\ApplicationDocumentController;
 use App\Http\Controllers\Admin\BuyerManagementController;
@@ -97,6 +98,12 @@ Route::get('/policies/{policy}', [PublicContentController::class, 'policy'])
 Route::get('/buyer/help', [PublicContentController::class, 'buyerHelp'])
     ->middleware(['auth', 'approved', 'not_suspended', 'role:buyer'])
     ->name('buyer.help');
+
+Route::prefix('shopping-assistant')->middleware('throttle:20,1')->name('shopping-assistant.')->group(function () {
+    Route::post('/message', [ShoppingAssistantController::class, 'message'])->name('message');
+    Route::post('/clear', [ShoppingAssistantController::class, 'clear'])->name('clear');
+    Route::post('/handoff/products/{product}', [ShoppingAssistantController::class, 'handoff'])->middleware(['auth','approved','not_suspended','role:buyer'])->name('handoff');
+});
 
 foreach (['admin', 'logistics', 'rider', 'seller'] as $profileArea) {
     Route::get('/'.$profileArea.'/profile', [AccountProfileController::class, 'show'])

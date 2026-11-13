@@ -856,6 +856,7 @@
 
 </footer>
 
+@include('components.shopping-assistant')
 
 </body>
 

@@ -12,9 +12,10 @@ use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Illuminate\Support\Facades\Storage;
+use Tests\Support\IsolatedStorageTestCase;
 
-class PhaseThreeMessagingContextEntryPointTest extends TestCase
+class PhaseThreeMessagingContextEntryPointTest extends IsolatedStorageTestCase
 {
     use RefreshDatabase;
 
@@ -170,6 +171,14 @@ class PhaseThreeMessagingContextEntryPointTest extends TestCase
             'price_minor' => 10000,
             'stock' => 10,
             'is_active' => true,
+        ]);
+        // Product pages use the same strict public-media rule as the catalog:
+        // this entry-point fixture represents an uploaded image, not merely a
+        // database path.
+        Storage::disk('public')->put('products/context-entry.webp', 'context entry fixture');
+        $product->images()->create([
+            'path' => 'products/context-entry.webp',
+            'position' => 1,
         ]);
         $order = $this->order($buyer);
         $sellerOrder = $this->sellerOrder($order, $seller);

@@ -54,4 +54,13 @@ return [
         'style_url' => env('MAPTILER_STYLE_URL'),
     ],
 
+    'shopping_assistant' => [
+        'enabled' => env('SHOPPING_ASSISTANT_ENABLED', false),
+        'provider' => env('SHOPPING_ASSISTANT_PROVIDER'),
+        'model' => env('SHOPPING_ASSISTANT_MODEL'),
+        'key' => env('SHOPPING_ASSISTANT_API_KEY'),
+        'endpoint' => env('SHOPPING_ASSISTANT_ENDPOINT'),
+        'timeout' => env('SHOPPING_ASSISTANT_TIMEOUT', 3),
+    ],
+
 ];

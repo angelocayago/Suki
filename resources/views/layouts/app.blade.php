@@ -49,6 +49,7 @@
          FOOTER
     =========================================== --}}
     @include('components.footer')
+    @include('components.shopping-assistant')
 
 
     {{-- ==========================================
