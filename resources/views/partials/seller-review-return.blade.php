@@ -3,6 +3,9 @@
     <section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
         <h1 class="text-2xl font-bold">Return / Refund RR-{{ $returnRefundRequest->id }}</h1>
         <p class="font-semibold text-[#1F6F5B]">{{ $returnRefundRequest->statusLabel() }}</p>
+        @if($role==='buyer' && app(\App\Services\ReturnWaybillService::class)->canPrint($returnRefundRequest))
+            <form method="POST" action="{{ route('buyer.return-refunds.waybill.store',$returnRefundRequest) }}" onsubmit="this.querySelector('button').disabled=true">@csrf<button class="rounded border border-[#1F6F5B] px-4 py-2 text-[#1F6F5B]" type="submit">Print Return Waybill</button></form>
+        @endif
         @if(session('success'))<p role="status">{{ session('success') }}</p>@endif
         @if($errors->any())<div role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
         @if(!$ready)<p role="status">New Seller decisions are unavailable until activation and schema readiness are verified. Existing requests remain readable.</p>@endif
