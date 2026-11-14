@@ -5705,6 +5705,7 @@ Route::post('/logout', function (Request $request) {
 
 // Item-scoped COD return/refund workflow. Financial finalization remains in ReturnRefundService.
 Route::middleware(['auth','not_suspended','approved','role:buyer'])->group(function () {
+    Route::get('/suki-wallet',[\App\Http\Controllers\Buyer\WalletController::class,'index'])->name('buyer.wallet');
     Route::get('/order-items/{item}/return-refunds/create',[\App\Http\Controllers\ReturnRefundUiController::class,'create'])->name('buyer.return-refunds.create');
     Route::post('/return-refunds/{returnRefundRequest}/details',[\App\Http\Controllers\ReturnRefundController::class,'details'])->name('buyer.return-refunds.details');
     Route::get('/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'buyerIndex'])->name('buyer.return-refunds.index');

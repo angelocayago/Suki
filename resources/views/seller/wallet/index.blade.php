@@ -6,6 +6,7 @@
 @php
     $money = fn (int $minor) => \App\Support\SellerWalletPage::money($minor);
     $available = (int) $wallet['available_minor'];
+    $payoutAvailable = empty($payoutRestriction) ? max(0,$available) : 0;
 @endphp
 @include('seller.wallet.style')
 <div class="seller-wallet">
@@ -14,14 +15,15 @@
     @if(($earningRelease['status'] ?? 'READY') !== 'READY')<p class="wallet-error" role="status">{{ $earningRelease['message'] }} COD and complaint updates do not by themselves confirm release of these funds.</p>@endif
     <div class="wallet-summary">
         @foreach([
-            'available_minor'=>['Available Balance', 'Balance available for payout requests.'],
-            'held_minor'=>['Held Balance', 'Funds awaiting release from wallet holds.'],
+            'available_minor'=>['Available for Payout', 'Subject to existing holds and payout reservations.'],
+            'held_minor'=>['Held Earnings', 'Funds awaiting release from wallet holds.'],
             'reserved_minor'=>['Reserved Balance', 'Funds reserved for pending or approved payouts.'],
             'paid_out_minor'=>['Paid Out', 'Payouts recorded as paid.'],
         ] as $key=>[$label, $description])
-            <section class="wallet-card wallet-metric" aria-label="{{ $label }}"><h2>{{ $label }}</h2><p class="wallet-value">&#8369;{{ $money((int) $wallet[$key]) }}</p><p>{{ $description }}</p></section>
+            <section class="wallet-card wallet-metric" aria-label="{{ $label }}"><h2>{{ $label }}</h2><p class="wallet-value">&#8369;{{ $money($key === 'available_minor' ? $payoutAvailable : (int) $wallet[$key]) }}</p><p>{{ $description }}</p></section>
         @endforeach
     </div>
+    <dl class="wallet-card"><div><dt>Signed Available Ledger</dt><dd>&#8369;{{ $money($available) }}</dd></div><div><dt>Outstanding Refund Recovery</dt><dd>&#8369;{{ $money(max(0,-$available)) }}</dd></div></dl>
     @if($available < 0)<p class="wallet-error" role="status">Approved refund adjustments exceed currently available earnings. The recorded deficit is retained; payout requests remain unavailable. Held earnings remain subject to their existing release rules.</p>@endif
     <section class="wallet-card wallet-history" aria-labelledby="walletLedgerHeading">
         <div class="wallet-history-heading"><h2 id="walletLedgerHeading">Wallet Transactions</h2><p>Earnings, releases and adjustments. A refund adjustment does not confirm payment to the Buyer.</p></div>

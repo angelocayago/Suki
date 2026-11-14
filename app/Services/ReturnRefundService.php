@@ -281,6 +281,7 @@ class ReturnRefundService
             $r->fill(['status'=>'ADMIN_'.$decision,'seller_recommendation'=>$decision==='APPROVED'?'APPROVE':'REJECT',
                 'seller_note'=>trim($reason),'seller_responded_at'=>now(),'reviewed_by'=>$actor->id,'decided_at'=>now()])->save();
             $this->event($r,$actor,'SELLER_'.$decision);
+            if($decision==='APPROVED')app(BuyerRefundFundingService::class)->recordPending($r,$actor);
             app(SellerWalletService::class)->reconcileSellerOrderResult($so);
             foreach ([$r->buyer_id,$actor->id] as $recipient) app(DomainNotificationService::class)->afterCommit($recipient,'Return/refund decision',
                 'Seller '.strtolower($decision).' the request. Approval does not confirm payment; use Chat to coordinate.',['return_refund_request_id'=>$r->id]);
