@@ -21,6 +21,12 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('public');
+    }
+
     public function test_database_cart_persists_for_its_buyer_and_rejects_hidden_products(): void
     {
         [$seller, $product] = $this->visibleProduct('Cart product');
@@ -151,6 +157,9 @@ class PhaseFiveMarketplacePartTwoTest extends TestCase
         $owner = $this->user('seller');
         $seller = Seller::create(['user_id' => $owner->id, 'name' => 'Store '.$owner->id, 'slug' => 'store-'.$owner->id, 'status' => 'approved', 'category_id' => $category->id]);
         $product = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'name' => $name, 'slug' => str($name)->slug().'-'.$seller->id, 'is_active' => true, 'moderation_status' => ProductModerationStatus::Approved->value]);
+        $path = 'products/'.$product->slug.'.webp';
+        Storage::disk('public')->put($path, 'fixture image');
+        $product->images()->create(['path' => $path, 'position' => 0]);
         ProductVariant::create(['product_id' => $product->id, 'sku' => 'SKU-'.$product->id, 'name' => 'Default', 'price_minor' => 1500, 'stock' => 5, 'is_active' => true]);
 
         return [$seller, $product];

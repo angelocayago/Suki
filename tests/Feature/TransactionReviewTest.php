@@ -17,6 +17,7 @@ use App\Models\TransactionReview;
 use App\Models\User;
 use App\Services\ProductCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\IsolatedStorageTestCase;
 
 class TransactionReviewTest extends IsolatedStorageTestCase
@@ -30,6 +31,7 @@ class TransactionReviewTest extends IsolatedStorageTestCase
         $this->assertSame('sqlite', \Illuminate\Support\Facades\DB::connection()->getDriverName());
         $this->assertSame(':memory:', \Illuminate\Support\Facades\DB::connection()->getDatabaseName());
         $this->assertStoragePathIsIsolated();
+        Storage::fake('public');
     }
 
     private function fixture(string $suffix = ''): array
@@ -39,6 +41,9 @@ class TransactionReviewTest extends IsolatedStorageTestCase
         $seller = Seller::create(['user_id' => $sellerUser->id, 'name' => 'Review shop', 'slug' => 'review-shop'.$suffix, 'status' => 'approved']);
         $category = Category::create(['name' => 'Reviews'.$suffix, 'slug' => 'reviews'.$suffix, 'is_active' => true]);
         $product = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'name' => 'Product', 'slug' => 'review-product'.$suffix, 'is_active' => true, 'moderation_status' => 'APPROVED']);
+        $path = 'products/'.$product->slug.'.webp';
+        Storage::disk('public')->put($path, 'fixture image');
+        $product->images()->create(['path' => $path, 'position' => 0]);
         $variant = ProductVariant::create(['product_id' => $product->id, 'sku' => 'REVIEW-SKU'.$suffix, 'name' => 'Chocolate / Pack of 6', 'price_minor' => 10000, 'stock' => 1, 'is_active' => true]);
         $order = Order::create(['buyer_id' => $buyer->id, 'order_number' => 'REVIEW-1'.$suffix, 'status' => 'completed', 'payment_method' => 'cod', 'payment_status' => 'PAID', 'subtotal' => 100, 'shipping_fee' => 50, 'discount_amount' => 0, 'total_amount' => 150, 'recipient_name' => 'Buyer', 'recipient_phone' => '09123456789', 'province' => 'Province', 'municipality' => 'City', 'barangay' => 'Barangay', 'street_address' => 'Street']);
         $sellerOrder = SellerOrder::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'subtotal_minor' => 10000, 'status' => 'completed', 'workflow_status' => OrderStatus::Completed, 'completed_at' => now()]);

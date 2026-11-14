@@ -50,6 +50,8 @@ class BuyerBuyAgainTest extends TestCase
         $this->buyer = User::findOrFail(1);
         Storage::fake('public');
         $this->assertStringStartsWith(strtolower(str_replace('\\', '/', sys_get_temp_dir())).'/', strtolower(str_replace('\\', '/', Storage::disk('public')->path(''))));
+        Storage::disk('public')->put('products/current.png', 'fixture image');
+        $this->product->images()->create(['path' => 'products/current.png', 'position' => 0]);
         $this->actingAs($this->buyer);
     }
 
@@ -219,9 +221,7 @@ class BuyerBuyAgainTest extends TestCase
     public function test_selected_image_is_current_and_missing_variant_image_uses_valid_product_fallback(): void
     {
         Storage::disk('public')->put('variants/current.png', 'fixture image');
-        Storage::disk('public')->put('products/current.png', 'fixture image');
         $this->variant->update(['image_path' => 'variants/current.png']);
-        $this->product->images()->create(['path' => 'products/current.png', 'position' => 0]);
         $this->reorder();
         $row = CartItem::sole();
         $service = app(CheckoutService::class);
@@ -267,6 +267,8 @@ class BuyerBuyAgainTest extends TestCase
     {
         $other = $this->product->replicate();
         $other->fill(['name' => 'Other Product', 'slug' => 'other-product'])->save();
+        Storage::disk('public')->put('products/other-product.png', 'fixture image');
+        $other->images()->create(['path' => 'products/other-product.png', 'position' => 0]);
         $variant = $other->variants()->create(['sku' => 'OTHER', 'name' => 'Extended', 'options' => ['Storage' => '256 GB', 'Capacity' => 'Extended'], 'price_minor' => 7500, 'stock' => 5, 'is_active' => true]);
         $this->item($variant, 1)->update(['product_slug' => $other->slug]);
         $this->reorder()->assertSessionHas('reorder_result.added_lines', 2);

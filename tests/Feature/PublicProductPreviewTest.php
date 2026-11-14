@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\Seller;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PublicProductPreviewTest extends TestCase
@@ -43,6 +44,7 @@ class PublicProductPreviewTest extends TestCase
         $schema['wishlist_items'] = 'id INTEGER PRIMARY KEY, user_id INTEGER, product_slug TEXT, product_name TEXT, price NUMERIC, image TEXT, created_at TEXT, updated_at TEXT';
         $schema['transaction_reviews'] .= ', created_at TEXT, updated_at TEXT, body TEXT, seller_response TEXT';
         foreach ($schema as $table => $columns) DB::statement('CREATE TABLE '.$table.' ('.$columns.')');
+        Storage::fake('public');
     }
 
     public function test_guest_can_view_an_approved_active_product_preview_and_its_details(): void
@@ -137,6 +139,9 @@ class PublicProductPreviewTest extends TestCase
             'stock' => 3,
             'is_active' => true,
         ]);
+        $path = 'products/'.$product->slug.'.webp';
+        Storage::disk('public')->put($path, 'fixture image');
+        $product->images()->create(['path' => $path, 'position' => 0]);
 
         return $product;
     }

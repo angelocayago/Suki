@@ -134,6 +134,8 @@ class BuyerAccountPresentationTest extends IsolatedStorageTestCase
         $seller = Seller::create(['user_id' => $owner->id, 'name' => 'Fixture Store', 'slug' => 'fixture-store', 'status' => 'approved']);
         $category = Category::create(['name' => 'Fixture', 'slug' => 'fixture', 'is_active' => true]);
         $product = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'name' => 'Fixture Product', 'slug' => 'fixture-product', 'is_active' => true, 'moderation_status' => 'APPROVED']);
+        Storage::disk('public')->put('products/fixture-product.webp', 'fixture image');
+        $product->images()->create(['path' => 'products/fixture-product.webp', 'position' => 0]);
         $variant = $product->variants()->create(['sku' => 'ACCOUNT-FIXTURE', 'name' => 'Default', 'price_minor' => 10000, 'stock' => 5, 'is_active' => true]);
         $row = CartItem::create(['user_id' => $this->buyer->id, 'product_slug' => $product->slug, 'product_name' => $product->name, 'product_variant_id' => $variant->id, 'quantity' => 1, 'price' => 100]);
         Address::create($this->checkoutLocationCodes() + ['user_id' => $this->buyer->id, 'recipient' => 'Fixture Buyer', 'phone' => '09000000000', 'label' => 'Home', 'line1' => 'Fixture street', 'province' => 'Province A', 'city' => 'City A', 'barangay' => 'Barangay A', 'is_default' => true]);

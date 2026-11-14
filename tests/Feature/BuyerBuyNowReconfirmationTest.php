@@ -34,6 +34,9 @@ class BuyerBuyNowReconfirmationTest extends IsolatedStorageTestCase
             $owner = User::factory()->create(['role'=>'seller','status'=>'active','is_suspended'=>false]);
             $seller = Seller::create(['user_id'=>$owner->id,'name'=>$name,'slug'=>'offer-store-'.$index,'status'=>'approved']);
             $product = Product::create(['seller_id'=>$seller->id,'category_id'=>$category->id,'name'=>'Offer product '.$index,'slug'=>'offer-product-'.$index,'is_active'=>true,'moderation_status'=>'APPROVED']);
+            $path = 'products/'.$product->slug.'.webp';
+            Storage::disk('public')->put($path, 'fixture image');
+            $product->images()->create(['path'=>$path, 'position'=>0]);
             $variants[] = $product->variants()->create(['sku'=>'OFFER-'.$index,'name'=>'Standard','options'=>['Flavor'=>'Original','Size'=>'Two'],'price_minor'=>9900,'stock'=>10,'is_active'=>true]);
             if ($index === 0) $this->product = $product; else $this->otherSeller = $seller;
             CartItem::create(['user_id'=>$this->buyer->id,'product_variant_id'=>$variants[$index]->id,'product_slug'=>$product->slug,'product_name'=>$product->name,'quantity'=>1,'price'=>99]);
