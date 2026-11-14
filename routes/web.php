@@ -5737,6 +5737,7 @@ Route::middleware(['auth','not_suspended','approved','role:seller'])->group(func
     Route::get('/seller/return-refunds',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerIndex'])->name('seller.return-refunds.index');
     Route::get('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundUiController::class,'sellerShow'])->name('seller.return-refunds.show');
     Route::patch('/seller/return-refunds/{returnRefundRequest}',[\App\Http\Controllers\ReturnRefundController::class,'sellerRespond'])->name('seller.return-refunds.respond');
+    Route::patch('/seller/return-refunds/{returnRefundRequest}/decision',[\App\Http\Controllers\ReturnRefundController::class,'sellerDecide'])->name('seller.return-refunds.decide');
 });
 Route::middleware(['auth','not_suspended','approved','role:logistics'])->group(function () {
     Route::get('/logistics/return-refunds', function (\Illuminate\Http\Request $request) {

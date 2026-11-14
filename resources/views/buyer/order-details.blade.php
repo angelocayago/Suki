@@ -321,7 +321,7 @@
                                         </a>
                                         @if(!app(\App\Services\ReturnRefundWorkflowService::class)->available())<p class="text-xs text-gray-500">Submission is temporarily disabled; view eligibility information.</p>@endif
                                     @elseif(!empty($item['return_request']))
-                                        <p class="mt-2 text-xs">Request status: {{ str_replace('_',' ',$item['return_request']->status) }}</p><a class="underline" href="{{ route('buyer.return-refunds.show',$item['return_request']) }}">View Request</a>
+                                        <p class="mt-2 text-xs">Request status: {{ $item['return_request']->isSellerReview() ? $item['return_request']->statusLabel() : str_replace('_',' ',$item['return_request']->status) }}</p><a class="underline" href="{{ route('buyer.return-refunds.show',$item['return_request']) }}">View Request</a>
                                     @endif
 
                                     <p class="mt-2 font-semibold text-gray-900">

@@ -259,7 +259,7 @@ class SellerWalletService
 
     private function hasActiveReturn(int $sellerOrderId): bool
     {
-        return ReturnRefundRequest::query()->where('seller_order_id', $sellerOrderId)->whereIn('status', ReturnRefundRequest::ACTIVE_STATUSES)->exists();
+        return ReturnRefundRequest::where('seller_order_id', $sellerOrderId)->whereIn('status', ReturnRefundRequest::ACTIVE_STATUSES)->exists();
     }
 
     /** Conservative seller-wide payout pause, including pre-existing requests.

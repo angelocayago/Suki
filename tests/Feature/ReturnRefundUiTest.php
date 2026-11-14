@@ -54,6 +54,7 @@ class ReturnRefundUiTest extends TestCase
 
     public function test_seller_queue_is_scoped_and_recommendation_uses_existing_endpoint(): void
     {
+        config(['returns.backend_enabled'=>true]);
         [$buyer, $request, $item, $sellerUser] = $this->request();
         [, $otherRequest] = $this->request();
 
