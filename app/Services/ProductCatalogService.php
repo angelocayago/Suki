@@ -48,6 +48,23 @@ class ProductCatalogService
         return $product && $this->media->hasUsableImage($product) ? $this->marketplaceItem($product) : null;
     }
 
+    /** V1 mobile clients historically identify a catalog product by its numeric id. */
+    public function marketplaceProductByIdentifier(string $identifier): ?array
+    {
+        $query = $this->marketplaceQuery()
+            ->withSum($this->completedSalesRelation(), 'quantity');
+
+        if (ctype_digit($identifier)) {
+            $query->whereKey((int) $identifier);
+        } else {
+            $query->where('products.slug', $identifier);
+        }
+
+        $product = $query->first();
+
+        return $product && $this->media->hasUsableImage($product) ? $this->marketplaceItem($product) : null;
+    }
+
     /**
      * Database-backed buyer catalog. Query parameters are filters only; all
      * marketplace visibility is enforced by marketplaceQuery().
@@ -325,9 +342,13 @@ class ProductCatalogService
             'ratings' => $product->visible_reviews_count,
             'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'category' => $product->category?->name ?? 'Uncategorized',
+            'category_id' => $product->category_id,
+            'category_name' => $product->category?->name ?? 'Uncategorized',
             'stock' => $variant?->stock ?? 0,
             'image' => $images[0] ?? null,
+            'image_url' => $images[0] ?? null,
             'images' => $images,
+            'is_available' => true,
             'video' => $this->marketplaceImageUrl($product->video_path),
             'video_mime' => $product->video_mime,
             'variants' => $product->variants->sortBy('id')->map(fn (ProductVariant $variant) => [

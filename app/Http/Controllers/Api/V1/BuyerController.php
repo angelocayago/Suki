@@ -25,4 +25,13 @@ class BuyerController extends \App\Http\Controllers\Api\BuyerController
             100,
         )]);
     }
+
+    /** Accept the Flutter client's numeric identifier without weakening catalog visibility. */
+    public function product(ProductCatalogService $catalog, string $slug): JsonResponse
+    {
+        $product = $catalog->marketplaceProductByIdentifier($slug);
+        abort_if($product === null, 404, 'Product not found.');
+
+        return response()->json(['success' => true, 'data' => $product]);
+    }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BuyerController;
 use App\Http\Controllers\Api\V1\BuyerAddressController;
 use App\Http\Controllers\Api\V1\BuyerOrdersController;
+use App\Http\Controllers\Api\V1\ProductMediaController;
 use App\Http\Middleware\EnsureBuyerApi;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,9 @@ Route::post('/login', [AuthController::class, 'login'])
 Route::get('/buyer/home', [BuyerController::class, 'home'])->name('buyer.home');
 Route::get('/products', [BuyerController::class, 'products'])->name('products.index');
 Route::get('/products/{slug}', [BuyerController::class, 'product'])->name('products.show');
+Route::get('/media/products/{path}', [ProductMediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('media.products.show');
 
 Route::middleware(['auth:sanctum', EnsureBuyerApi::class])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
