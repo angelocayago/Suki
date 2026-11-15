@@ -20,4 +20,6 @@ After reviewing the preview, an isolated local or test execution additionally re
 
 The command refuses PostgreSQL, connection URLs, production, unconfirmed database paths, and non-explicit connections. It does not overwrite or delete normal records; idempotent reruns use the internal provenance table. A production/shared-database rollout requires a separate reviewed plan, backup, and team approval. Do not run it against Supabase.
 
-The standard 60-product importer may be run separately through its own review process. Together with this bounded expansion it provides a larger presentation catalog while maintaining Batch 6A image and publication rules.
+The retained 60-product dataset and media support existing catalog cleanup and
+the shared image resolver; they do not provide a product import or bulk approval
+workflow.

@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class CleanupDemoCatalog extends Command
 {
     protected $signature = 'catalog:cleanup-demo-content {--apply : Apply the reviewed cleanup instead of only previewing it}';
-    protected $description = 'Preview or explicitly normalize known demo-import catalog records';
+    protected $description = 'Preview or explicitly normalize known demo-provenance catalog records';
 
     public function handle(CatalogDemoCleanupService $cleanup): int
     {
@@ -21,7 +21,7 @@ class CleanupDemoCatalog extends Command
             return self::SUCCESS;
         }
         $changed = $cleanup->apply();
-        $this->info('APPLIED: '.count($changed).' known importer products normalized or unpublished; audit records were written.');
+        $this->info('APPLIED: '.count($changed).' known demo-provenance products normalized or unpublished; audit records were written.');
         return self::SUCCESS;
     }
 }

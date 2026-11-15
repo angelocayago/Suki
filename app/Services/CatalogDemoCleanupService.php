@@ -7,7 +7,7 @@ use App\Models\Product;
 use App\Support\DemoProductBatch;
 use Illuminate\Support\Facades\DB;
 
-/** Converts only known importer records; it never guesses about customer catalog data. */
+/** Converts only known demo-provenance records; it never guesses about customer catalog data. */
 class CatalogDemoCleanupService
 {
     public function __construct(private readonly ProductMediaService $media) {}
@@ -21,7 +21,7 @@ class CatalogDemoCleanupService
             ->orderBy('id')->get()->map(function (Product $product) use ($rows): array {
                 $row = $rows->get($product->legacy_reference);
                 $before = ['name' => $product->name, 'description' => $product->description, 'is_active' => (bool) $product->is_active];
-                if (! $row) return compact('product', 'before') + ['action' => 'SKIP', 'reason' => 'Unknown importer provenance.'];
+                if (! $row) return compact('product', 'before') + ['action' => 'SKIP', 'reason' => 'Unknown demo provenance.'];
                 if (! $this->media->hasUsableImage($product) && $product->is_active) {
                     return compact('product', 'before') + ['action' => 'UNPUBLISH', 'reason' => 'No usable local product image.', 'after' => ['is_active' => false]];
                 }
@@ -31,7 +31,7 @@ class CatalogDemoCleanupService
                 $after = ['name' => $row['data']['name'], 'description' => $row['data']['description'], 'is_active' => (bool) $product->is_active];
                 return compact('product', 'before', 'after') + [
                     'action' => $before === $after ? 'SKIP' : 'NORMALIZE',
-                    'reason' => $before === $after ? 'Already customer-facing.' : 'Known importer provenance has customer-facing source text.',
+                    'reason' => $before === $after ? 'Already customer-facing.' : 'Known demo provenance has customer-facing source text.',
                 ];
             })->all();
     }

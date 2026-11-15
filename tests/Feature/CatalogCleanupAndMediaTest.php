@@ -94,7 +94,7 @@ class CatalogCleanupAndMediaTest extends TestCase
         $this->assertDatabaseHas('catalog_cleanup_audits', ['product_id' => $product->id, 'action' => 'unpublish']);
     }
 
-    public function test_importer_dataset_keeps_demo_provenance_out_of_customer_facing_text(): void
+    public function test_retained_dataset_keeps_demo_provenance_out_of_customer_facing_text(): void
     {
         foreach (app(DemoProductBatch::class)->dataset($this->category->id) as $row) {
             $this->assertStringStartsWith('suki-demo:', $row['reference']);
