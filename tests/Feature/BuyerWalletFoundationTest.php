@@ -52,7 +52,7 @@ class BuyerWalletFoundationTest extends IsolatedStorageTestCase {
         $this->assertSame(BuyerRefundFunding::AWAITING,$funding->status);$this->assertNull($funding->verified_at);$this->assertNull($funding->verified_by);$this->assertNull($funding->consumed_at);
         $this->assertSame($r->id,(int)$funding->return_refund_request_id);$this->assertSame('BUYER-REFUND-RR-'.$r->id,$funding->source_identity);$this->assertSame(-17899,$funding->sellerAdjustment->amount_minor);
         $this->assertSame(-17899,app(SellerWalletService::class)->summary($f['seller'])['available_minor']);$this->assertSame('REFUND_DUE',DB::table('return_refund_accounting')->sole()->refund_status);
-        $page=$this->actingAs($f['buyer'])->get(route('buyer.wallet'));$page->assertOk()->assertSee('Approved — awaiting funding')->assertSee('196.98')->assertSee('RR-'.$r->id);
+        $page=$this->actingAs($f['buyer'])->get(route('buyer.wallet'));$page->assertOk()->assertSee('Approved — Awaiting Funding')->assertSee('196.98')->assertSee('RR-'.$r->id);
         $this->assertSame(0,$page->viewData('wallet')['balance_minor']);$this->assertSame($before,$f['shipment']->fresh()->toJson());
         $this->rejectCredit($r,$f['admin']);config(['suki_wallet.refund_credit_enabled'=>true]);$this->rejectCredit($r,$f['admin']);
         $this->assertSame(2,$r->events()->count());
@@ -92,6 +92,8 @@ class BuyerWalletFoundationTest extends IsolatedStorageTestCase {
         DB::table('buyer_refund_fundings')->where('return_refund_request_id',$r->id)->update(['status'=>BuyerRefundFunding::READY,'funded_minor'=>$funding->buyer_refund_minor,'custody_funded_minor'=>$funding->buyer_refund_minor,'funding_source_type'=>'COD_REMITTANCE','funding_source_reference'=>'unverified-reference','verified_by'=>$f['admin']->id,'verified_at'=>now()]);
         config(['suki_wallet.refund_credit_enabled'=>true]);$this->rejectCredit($r,$f['admin']);
         $this->assertSame(0,app(BuyerWalletService::class)->summary($f['buyer'])['available_minor']);$this->assertSame(-18000,app(SellerWalletService::class)->summary($f['seller'])['available_minor']);
+        DB::table('buyer_refund_fundings')->where('return_refund_request_id',$r->id)->update(['status'=>BuyerRefundFunding::CREDITED,'consumed_at'=>now()]);
+        $page=$this->actingAs($f['buyer'])->get(route('buyer.wallet'));$page->assertOk()->assertSee('Wallet credit not verified')->assertDontSee('Credited to Suki Wallet');
     }
 
     public function test_history_renders_synthetic_posted_entries_and_never_exposes_them_to_another_buyer(): void{

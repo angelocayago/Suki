@@ -199,6 +199,14 @@ class SellerWalletService
 
     public function request(Seller $seller, int $amountMinor): Payout
     {
+        $simulation=app(SimulationSettlementService::class);
+        return $simulation->installed()
+            ? $simulation->payout($seller,'REQUEST',fn()=>$this->requestNative($seller,$amountMinor))
+            : $this->requestNative($seller,$amountMinor);
+    }
+
+    private function requestNative(Seller $seller, int $amountMinor): Payout
+    {
         return DB::transaction(function () use ($seller, $amountMinor): Payout {
             if ($amountMinor < 1) throw ValidationException::withMessages(['amount' => 'Enter a positive payout amount.']);
             $seller = Seller::query()->lockForUpdate()->findOrFail($seller->id);
@@ -211,6 +219,14 @@ class SellerWalletService
     }
 
     public function review(Payout $payout, User $admin, string $status, ?string $reason = null): Payout
+    {
+        $simulation=app(SimulationSettlementService::class);
+        return $simulation->installed()
+            ? $simulation->payout(Seller::findOrFail(Payout::findOrFail($payout->id)->seller_id),$status,fn()=>$this->reviewNative($payout,$admin,$status,$reason),$admin,$payout)
+            : $this->reviewNative($payout,$admin,$status,$reason);
+    }
+
+    private function reviewNative(Payout $payout, User $admin, string $status, ?string $reason = null): Payout
     {
         return DB::transaction(function () use ($payout, $admin, $status, $reason): Payout {
             if (! $admin->isAdmin() || $admin->status !== 'active' || $admin->is_suspended) {
@@ -229,6 +245,14 @@ class SellerWalletService
     }
 
     public function markPaid(Payout $payout, User $admin, string $method, ?string $reference): Payout
+    {
+        $simulation=app(SimulationSettlementService::class);
+        return $simulation->installed()
+            ? $simulation->payout(Seller::findOrFail(Payout::findOrFail($payout->id)->seller_id),'PAID',fn()=>$this->markPaidNative($payout,$admin,$method,$reference),$admin,$payout,$method)
+            : $this->markPaidNative($payout,$admin,$method,$reference);
+    }
+
+    private function markPaidNative(Payout $payout, User $admin, string $method, ?string $reference): Payout
     {
         return DB::transaction(function () use ($payout, $admin, $method, $reference): Payout {
             if (! $admin->isAdmin() || $admin->status !== 'active' || $admin->is_suspended) {

@@ -126,6 +126,23 @@ class ReturnRefundService
         return app(ReturnRefundAllocationService::class)->calculate($item, (int)$item->quantity);
     }
 
+    /** Purchase/collection proof only. Does not establish unencumbered funding. */
+    public function codCustodySnapshot(SellerOrder $so): array
+    {
+        $so->loadMissing(['items','shipment','order','seller']);
+        if($so->items->isEmpty())$this->invalid('accounting','Complete purchased-item snapshots are required.');
+        $this->validatePurchase($so->items->first(),$so,$so->shipment);
+        $totals=['merchandise_minor'=>0,'seller_discount_minor'=>0,'platform_discount_minor'=>0,'commission_minor'=>0];
+        foreach($so->items as$item){
+            $quote=app(ReturnRefundAllocationService::class)->calculate($item,(int)$item->quantity);
+            foreach(['merchandise_minor'=>'gross_merchandise_minor','seller_discount_minor'=>'seller_funded_discount_minor','platform_discount_minor'=>'platform_funded_discount_minor','commission_minor'=>'commission_reversed_minor']as$key=>$field){
+                if($quote[$field]>PHP_INT_MAX-$totals[$key])$this->invalid('accounting','Purchase totals exceed supported precision.');
+                $totals[$key]+=$quote[$field];
+            }
+        }
+        return $totals+['shipping_minor'=>(int)$so->shipping_fee_minor,'collected_minor'=>(int)$so->shipment->cod_collected_minor];
+    }
+
     /** Shared read-only proof for earning reconciliation; no processing activation. */
     public function verifiedCompletedEarning(SellerOrder $so): int
     {
@@ -161,6 +178,7 @@ class ReturnRefundService
         $this->enabled($mode);
         return DB::transaction(function () use ($buyer, $item, $data, $mode) {
             [$item, $so, $shipment] = $this->lockedPurchase($item->id);
+            app(SimulationRefundApprovalGuard::class)->assertMode($so,$mode);
             abort_unless($buyer->isBuyer() && $buyer->status === 'active' && !$buyer->is_suspended && (int)$so->order->buyer_id === (int)$buyer->id, 403);
             if (ReturnRefundRequest::where('order_item_id',$item->id)->exists()) $this->invalid('item','A lifetime request already exists for this item. View the existing request; resubmission and appeals are not supported.');
             if ((int)$data['quantity'] !== (int)$item->quantity) $this->invalid('quantity','Only the full purchased quantity is supported; partial returns are unavailable.');
@@ -212,6 +230,7 @@ class ReturnRefundService
             abort_if($r->isSellerReview(),403);
             if ((int)$r->order_id !== (int)$so->order_id || (int)$r->seller_order_id !== (int)$so->id
                 || (int)$r->seller_id !== (int)$so->seller_id || (int)$r->buyer_id !== (int)$so->order->buyer_id) $this->invalid('request','Request ownership linkage is inconsistent.');
+            app(SimulationRefundApprovalGuard::class)->assertMode($so,$r->workflow_mode ?? ReturnRefundRequest::FINANCIAL);
             if (in_array($r->status,['ADMIN_APPROVED','ADMIN_REJECTED'],true)) {
                 if ($r->status !== 'ADMIN_'.$decision) $this->invalid('decision','A conflicting final decision cannot replace the recorded decision.');
                 return $r;
@@ -257,6 +276,16 @@ class ReturnRefundService
 
     public function sellerDecide(ReturnRefundRequest $request, User $actor, string $decision, string $reason): ReturnRefundRequest
     {
+        $reference=ReturnRefundRequest::findOrFail($request->id);
+        app(SimulationRefundApprovalGuard::class)->assertMode(SellerOrder::findOrFail($reference->seller_order_id),$reference->workflow_mode ?? ReturnRefundRequest::FINANCIAL);
+        $simulation=app(SimulationSettlementService::class);
+        return $simulation->installed()
+            ? $simulation->sellerDecision($request,$actor,$decision,fn()=>$this->sellerDecideNative($request,$actor,$decision,$reason))
+            : $this->sellerDecideNative($request,$actor,$decision,$reason);
+    }
+
+    private function sellerDecideNative(ReturnRefundRequest $request, User $actor, string $decision, string $reason): ReturnRefundRequest
+    {
         abort_unless($actor->isSeller() && $actor->status === 'active' && !$actor->is_suspended,403);
         if (!in_array($decision,['APPROVED','REJECTED'],true) || !filled($reason)) $this->invalid('decision','A valid decision and reason are required.');
         return DB::transaction(function()use($request,$actor,$decision,$reason){
@@ -292,6 +321,7 @@ class ReturnRefundService
     /** All review modes share the same request-scoped obligation, not a payment. */
     private function recordRefundAdjustment(ReturnRefundRequest $r, SellerOrder $so, array $c): void
     {
+        app(SimulationRefundApprovalGuard::class)->assertCoordinated($so,$r);
         // Caller holds Seller, purchase and request locks in one transaction.
         if (!Schema::hasColumn('seller_wallet_entries','source_wallet_entry_id')) $this->invalid('accounting','Earning-release schema has not been reviewed and applied.');
         $entries = SellerWalletEntry::where('seller_order_id',$so->id)->where('type','REFUND_ADJUSTMENT')->orderBy('id')->lockForUpdate()->get();
