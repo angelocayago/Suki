@@ -555,8 +555,16 @@
                                 </div>
 
                             </label>
-
-
+                            <label class="block {{ $walletIssue ? 'cursor-not-allowed text-gray-500' : 'cursor-pointer' }}">
+                                <div class="payment-option rounded-xl border-2 border-gray-200 bg-white p-4">
+                                    <div class="flex items-center gap-3">
+                                        <input type="radio" name="payment_method" value="wallet" @disabled($walletIssue !== null) aria-disabled="{{ $walletIssue !== null ? 'true' : 'false' }}" class="payment-radio h-4 w-4 accent-[#1F6F5B]">
+                                        <span class="font-semibold">Suki Wallet{{ $walletIssue ? ' — unavailable' : '' }}</span>
+                                    </div>
+                                    @if($walletEnabled)<p class="mt-2 text-sm">Wallet balance: ₱{{ number_format($walletBalanceMinor/100,2) }} · Order total including shipping: ₱{{ number_format($total,2) }}</p>@endif
+                                    <p class="mt-2 text-xs">{{ $walletIssue ?? 'Pay once from your virtual Suki Wallet. No cash collection on delivery.' }}</p>
+                                </div>
+                            </label>
                         </div>
 
                     </section>
@@ -628,7 +636,7 @@
 
                                     <div>
                                         <p class="text-sm text-gray-500">
-                                            COD Grand Total
+                                            {{ $walletEnabled ? 'Order Total' : 'COD Grand Total' }}
                                         </p>
 
                                         <p class="mt-1 text-xs text-gray-400">

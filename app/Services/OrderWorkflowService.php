@@ -52,6 +52,12 @@ class OrderWorkflowService
                 );
             }
         });
+        // Run after the receipt transaction: wallet settlement obtains the shared
+        // financial mutex before its Seller/order locks. Native COD stays unchanged.
+        $completed=Order::findOrFail($order->id);
+        if ($completed->payment_method==='wallet' && $completed->status==='COMPLETED') {
+            foreach ($completed->sellerOrders()->get() as $parcel) app(SellerWalletService::class)->reconcileSellerOrderResult($parcel);
+        }
     }
 
     /**

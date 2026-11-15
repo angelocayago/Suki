@@ -160,7 +160,11 @@ final class SimulationSettlementService
 
     public function sellerDecision(ReturnRefundRequest $request, User $actor, string $decision, callable $native): ReturnRefundRequest
     {
-        return $this->operation(function () use ($request,$actor,$decision,$native) {
+        // Hold the coordinator lock until the decision and optional credit commit.
+        // Each existing operation still closes and validates its own mutex.
+        return DB::transaction(function () use ($request,$actor,$decision,$native) {
+          $creditAuthority=null;
+          $result=$this->operation(function () use ($request,$actor,$decision,$native,&$creditAuthority) {
             $reference=ReturnRefundRequest::findOrFail($request->id);
             Seller::whereKey($reference->seller_id)->lockForUpdate()->firstOrFail();
             $book=DB::table('simulation_settlements')->where('seller_id',$reference->seller_id)->lockForUpdate()->first();
@@ -171,9 +175,26 @@ final class SimulationSettlementService
             abort_unless($actor->isSeller() && $actor->status==='active' && !$actor->is_suspended && (int)Seller::findOrFail($book->seller_id)->user_id===(int)$actor->id,403);
             if ((int)$reference->seller_order_id!==(int)$book->seller_order_id || ($decision==='APPROVED' && (int)$book->issued_minor<1)) $this->invalid('A matching issued scenario is required before approval.');
             $result=$native();
-            if ($result->status==='ADMIN_APPROVED') { $this->allocatePending($book); $this->event($book->id,'REFUND-'.$result->id,$actor->id); }
+            if ($result->status==='ADMIN_APPROVED') {
+                $this->allocatePending($book);
+                $this->event($book->id,'REFUND-'.$result->id,$actor->id);
+                // Replays never backfill old approvals. The credit service below
+                // revalidates the original graph and full exclusive reservation.
+                if ($reference->status==='SUBMITTED' && config('academic_wallet.seller_approval_credit_enabled')===true
+                    && config('suki_wallet.enabled')===true && config('suki_wallet.refund_credit_enabled')===true
+                    && BuyerRefundFunding::whereKey($result->id)->where('status',BuyerRefundFunding::READY)->exists()) {
+                    $creditAuthority=(int)$book->issued_by;
+                }
+            }
             return $result;
-        });
+          });
+          if ($creditAuthority!==null) {
+              // Use the scenario's existing issuance authority for the system
+              // posting. The Seller remains the recorded decision actor.
+              $this->creditRefund($result,User::findOrFail($creditAuthority));
+          }
+          return $result;
+        },3);
     }
 
     /** Separate funding API; never a Buyer credit operation. */
@@ -301,6 +322,17 @@ final class SimulationSettlementService
             || (int)$so->order->buyer_id!==(int)$book->buyer_id || (int)$so->order->total_minor!==$quote['cap_minor']
             || SellerOrder::where('seller_id',$book->seller_id)->where('id','!=',$so->id)->exists()
             || (int)$book->cap_minor!==$quote['cap_minor'] || (int)$book->seller_claim_minor!==$quote['seller_minor'] || (int)$book->platform_claim_minor!==$quote['platform_minor']) $this->invalid('Scenario ownership, original quote or exclusive accounting domain changed.');
+    }
+
+    /** Revalidate an existing posted backing's source; never issue or allocate value. */
+    public function verifyWalletSource(int $scenarioId): void
+    {
+        $book=DB::table('simulation_settlements')->where('id',$scenarioId)->first();
+        if (!$book || !$book->issued_by || !$book->custody_source_id) $this->invalid('Wallet source is not an issued simulation.');
+        $this->verify($book);
+        $source=CustodySource::findOrFail($book->custody_source_id);
+        $proof=app(CustodySourceService::class)->record(LogisticsCodRemittanceItem::findOrFail($source->logistics_cod_remittance_item_id),$this->admin(User::findOrFail($book->issued_by)));
+        if ((int)$proof->id!==(int)$source->id || (int)$proof->accepted_minor!==(int)$book->issued_minor) $this->invalid('Wallet source provenance changed.');
     }
 
     private function saveBalances(object $book): void

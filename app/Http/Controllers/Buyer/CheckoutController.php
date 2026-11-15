@@ -72,7 +72,13 @@ class CheckoutController extends Controller
             ?? $eligibleAddresses->firstWhere('is_default', true) ?? $eligibleAddresses->first();
 
         $buyNowOfferId = $buyNowToken ? bin2hex(random_bytes(32)) : null;
+        $walletPayments=app(\App\Services\AcademicWalletPaymentService::class);
+        $walletEnabled=$walletPayments->enabled();
+        $walletBalance=$walletEnabled?$walletPayments->available($request->user()):0;
+        $walletIssue=$walletPayments->supportsSummary($summary);
+        if ($walletIssue===null && $walletBalance<(int)round($summary['total']*100)) $walletIssue='Insufficient Suki Wallet balance for the full total, including shipping.';
         $view = view('buyer.checkout', array_merge($summary, [
+            'walletEnabled'=>$walletEnabled,'walletBalanceMinor'=>$walletBalance,'walletIssue'=>$walletIssue,
             'buyNowToken' => $buyNowToken,
             'buyNowOfferId' => $buyNowOfferId,
             'cartSelectionToken' => $cartToken,
@@ -109,7 +115,7 @@ class CheckoutController extends Controller
         $state = $buyNowToken ? $direct->selection($request,$buyNowToken) : null;
         $validated = $request->validate([
             'address_id' => ['required'],
-            'payment_method' => ['required', 'in:cod'],
+            'payment_method' => ['required', \Illuminate\Validation\Rule::in(app(\App\Services\BuyerWalletService::class)->checkoutAvailable()?['cod','wallet']:['cod'])],
         ]);
 
         $buyer = $request->user();

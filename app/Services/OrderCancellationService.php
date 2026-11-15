@@ -35,7 +35,8 @@ class OrderCancellationService
         if (strtoupper((string) $order->status) !== 'PLACED') {
             return 'Cancellation is available only before any seller starts processing the order.';
         }
-        if ($order->payment_method !== 'cod' || strtoupper((string) $order->payment_status) !== 'UNPAID') {
+        $wallet=$order->payment_method==='wallet';
+        if ($wallet ? !app(AcademicWalletPaymentService::class)->reversible($order) : ($order->payment_method !== 'cod' || strtoupper((string) $order->payment_status) !== 'UNPAID')) {
             return 'This order needs payment review. Please contact support; cancellation cannot issue a refund.';
         }
         if ($order->cancelled_at || $this->hasAny($order, self::PROGRESSION_DATES)) {
@@ -74,10 +75,13 @@ class OrderCancellationService
         }
         // Even pending payment records are ambiguous here: this flow handles only
         // unpaid COD with no payment/settlement ledger, never automatic refunds.
-        if ($order->payments->isNotEmpty()) return 'Payment records require support review before this order can be cancelled.';
+        if (!$wallet && $order->payments->isNotEmpty()) return 'Payment records require support review before this order can be cancelled.';
         $ids = $order->sellerOrders->modelKeys();
         foreach (['seller_wallet_entries', 'rider_cod_remittances', 'rider_shipping_fee_earnings'] as $table) {
             $query = DB::table($table)->whereIn('seller_order_id', $ids)->orderBy('id');
+            if ($wallet && $table==='seller_wallet_entries') {
+                $query->where(function($q){$q->where('type','<>','SALE_EARNING')->orWhere('status','<>','HELD');});
+            }
             if ($lockFinancialRecords) $query->lockForUpdate();
             if ($query->get(['id'])->isNotEmpty()) {
                 return 'Collection or settlement records require support review before this order can be cancelled.';
@@ -93,6 +97,14 @@ class OrderCancellationService
     }
 
     public function cancelByBuyer(Order $order, User $buyer, string $reason): Order
+    {
+        if (Order::findOrFail($order->id)->payment_method==='wallet') {
+            return app(AcademicWalletPaymentService::class)->cancel($order,$buyer,fn()=>$this->cancelNativeByBuyer($order,$buyer,$reason));
+        }
+        return $this->cancelNativeByBuyer($order,$buyer,$reason);
+    }
+
+    private function cancelNativeByBuyer(Order $order,User $buyer,string $reason): Order
     {
         return DB::transaction(function () use ($order, $buyer, $reason) {
             $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
@@ -152,7 +164,10 @@ class OrderCancellationService
             Shipment::query()
                 ->whereIn('seller_order_id', $locked->sellerOrders()->pluck('id'))
                 ->update([
-                    'status' => 'cancelled',
+                    // This parcel was never dispatched. The legacy PostgreSQL
+                    // status domain has no "cancelled" value; cancellation is
+                    // authoritative on its parent Order and SellerOrder.
+                    'status' => 'unassigned',
                     'status_changed_at' => $now,
                 ]);
 

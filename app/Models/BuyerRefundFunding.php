@@ -20,7 +20,7 @@ class BuyerRefundFunding extends Model {
                 ? 'Credited to Suki Wallet' : 'Wallet credit not verified';
         }
         if($this->funding_source_type==='SIMULATION_SETTLEMENT')return $this->status===self::READY
-            ? (config('suki_wallet.refund_credit_enabled')===true?'Simulation funded — awaiting wallet credit':'Simulation funded — wallet credit disabled') : 'Simulation commitment — not spendable';
+            ? (config('suki_wallet.refund_credit_enabled')===true?'Simulation funded — awaiting wallet credit':'Simulation funded — wallet credit disabled') : 'Approved — Awaiting Funding';
         return $this->status===self::READY?'Funded — Processing Wallet Credit':'Approved — Awaiting Funding';
     }
 }
