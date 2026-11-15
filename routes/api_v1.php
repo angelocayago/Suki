@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BuyerController;
+use App\Http\Controllers\Api\V1\BuyerOrdersController;
 use App\Http\Middleware\EnsureBuyerApi;
 use Illuminate\Support\Facades\Route;
 
@@ -43,5 +44,15 @@ Route::middleware(['auth:sanctum', EnsureBuyerApi::class])->group(function (): v
 
         Route::get('/checkout', [BuyerController::class, 'checkoutData'])->name('checkout.show');
         Route::post('/checkout', [BuyerController::class, 'checkout'])->name('checkout.store');
+
+        Route::get('/orders', [BuyerOrdersController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [BuyerOrdersController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{order}/tracking', [BuyerOrdersController::class, 'tracking'])->name('orders.tracking');
+        Route::get('/orders/{order}/seller-orders/{sellerOrder}/tracking', [BuyerOrdersController::class, 'sellerOrderTracking'])
+            ->whereNumber('sellerOrder')->name('orders.seller-orders.tracking');
+        Route::post('/orders/{order}/cancel', [BuyerOrdersController::class, 'cancel'])->name('orders.cancel');
+        Route::post('/orders/{order}/received', [BuyerOrdersController::class, 'received'])->name('orders.received');
+        Route::post('/orders/{order}/confirm-receipt', [BuyerOrdersController::class, 'confirmReceipt'])->name('orders.confirm-receipt');
+        Route::post('/orders/{order}/buy-again', [BuyerOrdersController::class, 'buyAgain'])->name('orders.buy-again');
     });
 });

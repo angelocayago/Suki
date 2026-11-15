@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -83,7 +84,7 @@ class CartController extends Controller
         }, 'Item added to cart!');
     }
 
-    public function buyAgain(Request $request, string $order, CheckoutService $checkout, ProductCatalogService $catalog): RedirectResponse
+    public function buyAgain(Request $request, string $order, CheckoutService $checkout, ProductCatalogService $catalog, bool $asJson = false): RedirectResponse|JsonResponse
     {
         $previous = Order::with('items')->where('buyer_id', $request->user()->id)
             ->where('order_number', $order)->firstOrFail();
@@ -169,9 +170,11 @@ class CartController extends Controller
             }
         } catch (Throwable $exception) {
             report($exception);
+            if ($asJson) return response()->json(['success' => false, 'message' => 'Buy Again could not update your Cart. No items were added. Please try again.'], 500);
             return redirect()->route('buyer.cart')->with('error', 'Buy Again could not update your Cart. No items were added. Please try again.');
         }
 
+        if ($asJson) return response()->json(['success' => true, 'data' => $result]);
         return redirect()->route('buyer.cart')->with('reorder_result', $result);
     }
 
