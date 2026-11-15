@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Address;
-use App\Services\PhilippineAddressService;
+use App\Services\BuyerAddressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -27,49 +26,34 @@ class AccountController extends Controller
         return redirect()->route('buyer.account')->with('success', 'Your profile has been updated successfully.');
     }
 
-    public function addresses(Request $request): View
+    public function addresses(Request $request, BuyerAddressService $addresses): View
     {
-        $addresses = $this->buyer($request)->addresses()->orderByDesc('is_default')->latest()->get()->map(fn (Address $a) => ['id'=>$a->id,'name'=>$a->recipient,'phone'=>$a->phone,'region'=>$a->region,'region_code'=>$a->region_code,'province'=>$a->province,'province_code'=>$a->province_code,'municipality'=>$a->city,'city_municipality_code'=>$a->city_municipality_code,'barangay'=>$a->barangay,'barangay_code'=>$a->barangay_code,'street'=>$a->line1,'house_number'=>'','postal_code'=>$a->postal_code,'label'=>$a->label,'is_default'=>$a->is_default])->all();
-        return view('buyer.addresses', compact('addresses'));
+        $items = $addresses->all($this->buyer($request))->map(fn (Address $address) => $addresses->present($address) + ['house_number' => ''])->all();
+        return view('buyer.addresses', ['addresses' => $items]);
     }
 
-    public function storeAddress(Request $request, PhilippineAddressService $addresses): RedirectResponse
+    public function storeAddress(Request $request, BuyerAddressService $addresses): RedirectResponse
     {
-        $data = $this->addressData($request, $addresses); $user = $this->buyer($request);
-        DB::transaction(function () use ($data, $user, $request): void { $default=$request->boolean('is_default') || ! $user->addresses()->exists(); if ($default) $user->addresses()->update(['is_default'=>false]); $user->addresses()->create($data+['is_default'=>$default]); }, 3);
+        $addresses->create($this->buyer($request), $addresses->data($request->all()), $request->boolean('is_default'));
         return redirect()->route('buyer.addresses')->with('success', 'New address added successfully.');
     }
 
-    public function updateAddress(Request $request, int $address, PhilippineAddressService $addresses): RedirectResponse
+    public function updateAddress(Request $request, int $address, BuyerAddressService $addresses): RedirectResponse
     {
-        $user = $this->buyer($request);
-        $data = $this->addressData($request, $addresses);
-
-        DB::transaction(function () use ($user, $address, $data): void {
-            $owned = $user->addresses()->lockForUpdate()->findOrFail($address);
-            $owned->update($data);
-        }, 3);
-
+        $addresses->update($this->buyer($request), $address, $addresses->data($request->all()));
         return redirect()->route('buyer.addresses')->with('success', 'Address updated successfully.');
     }
 
-    public function setDefault(Request $request, int $address): RedirectResponse
+    public function setDefault(Request $request, int $address, BuyerAddressService $addresses): RedirectResponse
     {
-        $user=$this->buyer($request); DB::transaction(function () use ($user, $address): void { $owned=$user->addresses()->lockForUpdate()->findOrFail($address); $user->addresses()->update(['is_default'=>false]); $owned->update(['is_default'=>true]); }, 3);
+        $addresses->setDefault($this->buyer($request), $address);
         return redirect()->route('buyer.addresses')->with('success', 'Default address updated.');
     }
 
-    public function deleteAddress(Request $request, int $address): RedirectResponse
+    public function deleteAddress(Request $request, int $address, BuyerAddressService $addresses): RedirectResponse
     {
-        $user=$this->buyer($request); DB::transaction(function () use ($user, $address): void { $owned=$user->addresses()->lockForUpdate()->findOrFail($address); $wasDefault=$owned->is_default; $owned->delete(); if ($wasDefault && ($next=$user->addresses()->lockForUpdate()->oldest('id')->first())) $next->update(['is_default'=>true]); }, 3);
+        $addresses->delete($this->buyer($request), $address);
         return redirect()->route('buyer.addresses')->with('success', 'Address removed successfully.');
-    }
-
-    private function addressData(Request $request, PhilippineAddressService $addresses): array
-    {
-        $data=$request->validate(['name'=>['required','string','max:100'],'phone'=>['required','string','max:30'],'region'=>['required','string','max:20'],'province'=>['nullable','string','max:20'],'municipality'=>['required','string','max:20'],'barangay'=>['required','string','max:20'],'street'=>['required','string','max:255'],'postal_code'=>['nullable','string','max:20'],'label'=>['required','string','max:50']]);
-        $resolved = $addresses->resolve($data);
-        return ['label'=>$data['label'],'recipient'=>$data['name'],'phone'=>$data['phone'],'line1'=>$data['street'],'region'=>$resolved['region'],'region_code'=>$resolved['region_code'],'barangay'=>$resolved['barangay'],'barangay_code'=>$resolved['barangay_code'],'city'=>$resolved['municipality'],'city_municipality_code'=>$resolved['city_municipality_code'],'province'=>$resolved['province'],'province_code'=>$resolved['province_code'],'postal_code'=>$resolved['postal_code'] ?? null];
     }
 
     private function buyer(Request $request): \App\Models\User

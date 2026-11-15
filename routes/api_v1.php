@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BuyerController;
+use App\Http\Controllers\Api\V1\BuyerAddressController;
 use App\Http\Controllers\Api\V1\BuyerOrdersController;
 use App\Http\Middleware\EnsureBuyerApi;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,13 @@ Route::middleware(['auth:sanctum', EnsureBuyerApi::class])->group(function (): v
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     Route::prefix('buyer')->name('buyer.')->group(function (): void {
+        Route::get('/addresses', [BuyerAddressController::class, 'index'])->name('addresses.index');
+        Route::post('/addresses', [BuyerAddressController::class, 'store'])->name('addresses.store');
+        Route::get('/addresses/{address}', [BuyerAddressController::class, 'show'])->whereNumber('address')->name('addresses.show');
+        Route::match(['put', 'patch'], '/addresses/{address}', [BuyerAddressController::class, 'update'])->whereNumber('address')->name('addresses.update');
+        Route::delete('/addresses/{address}', [BuyerAddressController::class, 'destroy'])->whereNumber('address')->name('addresses.destroy');
+        Route::match(['post', 'patch'], '/addresses/{address}/default', [BuyerAddressController::class, 'setDefault'])->whereNumber('address')->name('addresses.default');
+
         Route::get('/cart', [BuyerController::class, 'cart'])->name('cart.show');
         Route::post('/cart/items', [BuyerController::class, 'addCartItem'])->name('cart.items.store');
         Route::patch('/cart/items/{item}', [BuyerController::class, 'updateCartItem'])
