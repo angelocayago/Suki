@@ -13,4 +13,7 @@ return [
     // A delivered item may be submitted for review only within this period.
     // This is deliberately configuration, not an environment override.
     'request_window_days' => 7,
+    // Display-only: Seller is responsible for return shipping, but no wallet or
+    // payment record is created by the physical-return workflow.
+    'virtual_return_shipping_fee_minor' => 0,
 ];

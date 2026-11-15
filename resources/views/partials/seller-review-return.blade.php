@@ -20,6 +20,7 @@
         <div><h2 class="font-semibold">Buyer concern</h2><p>{{ $returnRefundRequest->buyer_reason }}</p><p class="whitespace-pre-wrap">{{ $returnRefundRequest->buyer_description }}</p></div>
         <div><h2 class="font-semibold">Private proof images</h2>@forelse($evidence as $file)<a class="block underline" href="{{ route('return-refunds.evidence.show',[$returnRefundRequest,$file]) }}">View private proof image{{ $file->description ? ': '.$file->description : '' }}</a>@empty<p>No proof image attached.</p>@endforelse</div>
         @if($returnRefundRequest->decided_at)<div><h2 class="font-semibold">Seller decision reason</h2><p class="whitespace-pre-wrap">{{ $returnRefundRequest->seller_note }}</p><p>{{ \App\Support\ManilaTime::format($returnRefundRequest->decided_at) }} PHT</p></div>@endif
+        @if($returnRefundRequest->status==='RETURN_AUTHORIZED')<p class="rounded border border-green-200 bg-green-50 p-3 text-sm">Physical return authorized. Seller-paid return shipping is virtual/display-only. <a class="font-semibold underline" href="{{ route('return-refunds.waybill',$returnRefundRequest) }}">Print return waybill</a></p>@endif
         @if($role==='seller' && $returnRefundRequest->status==='SUBMITTED')
             <form method="POST" action="{{ route('seller.return-refunds.decide',$returnRefundRequest) }}" onsubmit="this.querySelector('button[type=submit]').disabled=true">
                 @csrf @method('PATCH')

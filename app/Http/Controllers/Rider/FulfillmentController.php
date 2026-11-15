@@ -10,6 +10,7 @@ use App\Models\Shipment;
 use App\Models\ShipmentAssignment;
 use App\Models\DeliveryEvent;
 use App\Models\RiderShippingFeeEarning;
+use App\Models\ReturnPickupAssignment;
 use App\Services\OrderWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,6 +62,7 @@ class FulfillmentController extends Controller
             'riderName' => $rider->user->full_name,
             'availability' => $rider->availability,
             'hubTransferAssignments' => ShipmentAssignment::query()->with(['shipment.sellerOrder.order', 'shipment.sellerOrder.seller.pickupAddress', 'originHub', 'destinationHub'])->where('rider_id', $rider->id)->where('assignment_type', 'HUB_TRANSFER')->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->latest()->get(),
+            'returnPickupAssignments' => ReturnPickupAssignment::query()->with(['request.buyer','request.seller','request.item','request.workflow.returnHub'])->where('rider_id',$rider->id)->whereIn('status',['ASSIGNED','ACCEPTED'])->latest()->get(),
         ]);
     }
 

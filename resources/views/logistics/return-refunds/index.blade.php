@@ -12,12 +12,21 @@
         @php($workflow = $return->workflow)
         <section class="rounded-xl border border-[#DDE6E1] bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-3"><div><h2 class="font-semibold text-[#173F35]">RR-{{ $return->id }} · {{ $return->item?->product_name ?? 'Return item' }}</h2><p class="mt-1 text-sm">Buyer: {{ $return->buyer?->name ?? 'Buyer' }} · Hub: {{ $workflow?->returnHub?->name ?? 'Unavailable' }}</p><p class="mt-1 text-xs uppercase tracking-wide text-[#617169]">{{ str_replace('_', ' ', $workflow?->logistics_state ?? '') }}</p></div></div>
-            @if($workflow?->logistics_state === 'AWAITING_BUYER_DROPOFF')
+            @if($workflow?->logistics_state === 'FOR_PICKUP')
+                <form method="POST" action="{{ route('logistics.return-refunds.pickup.assign', $return) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf
+                    <label class="text-sm font-medium">Eligible return pickup rider<select name="rider_id" required class="mt-1 block rounded border border-[#B9CBC2] px-3 py-2"><option value="">Select rider</option>@foreach($riders as $rider)<option value="{{ $rider->id }}">{{ $rider->user?->full_name ?? 'Rider' }}</option>@endforeach</select></label>
+                    <button class="rounded bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">Assign return pickup</button>
+                </form>
+            @elseif($workflow?->logistics_state === 'AWAITING_BUYER_DROPOFF')
                 <form method="POST" action="{{ route('logistics.return-refunds.hub-receipt', $return) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf
                     <input type="hidden" name="hub_id" value="{{ $workflow->return_hub_id }}">
                     <label class="text-sm font-medium">Scan / verify return reference<input name="return_reference" required maxlength="100" class="mt-1 block rounded border border-[#B9CBC2] px-3 py-2" autocomplete="off"></label>
                     <label class="text-sm font-medium">Note (optional)<input name="note" maxlength="2000" class="mt-1 block rounded border border-[#B9CBC2] px-3 py-2"></label>
                     <button class="rounded bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">Receive at hub</button>
+                </form>
+            @elseif($workflow?->logistics_state === 'PICKED_UP')
+                <form method="POST" action="{{ route('logistics.return-refunds.hub-receipt', $return) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf
+                    <input type="hidden" name="hub_id" value="{{ $workflow->return_hub_id }}"><label class="text-sm font-medium">Verify return reference<input name="return_reference" required maxlength="100" class="mt-1 block rounded border border-[#B9CBC2] px-3 py-2"></label><button class="rounded bg-[#173F35] px-4 py-2 text-sm font-semibold text-white">Receive at return hub</button>
                 </form>
             @elseif($workflow?->logistics_state === 'RECEIVED_AT_RETURN_HUB')
                 <form method="POST" action="{{ route('logistics.return-refunds.dispatch', $return) }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf

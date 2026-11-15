@@ -362,18 +362,22 @@ class ReturnRefundService
             }
             if (!app(ReturnRefundWorkflowService::class)->available(ReturnRefundRequest::SELLER_REVIEW)) $this->invalid('request','Seller review is unavailable until activation and schema readiness are verified.');
             if ($r->status!=='SUBMITTED') $this->invalid('request','Request cannot be finalized.');
-            if ($decision==='APPROVED') {
-                $quote=$this->validatePurchase($item,$so,$shipment);
-                if ((int)$r->quantity!==(int)$item->quantity) $this->invalid('quantity','The request must match the full purchased quantity.');
-                $this->recordRefundAdjustment($r,$so,$quote);
+            if ($decision === 'REJECTED') {
+                $r->fill(['status'=>'ADMIN_REJECTED','seller_recommendation'=>'REJECT','seller_note'=>trim($reason),'seller_responded_at'=>now(),'reviewed_by'=>$actor->id,'decided_at'=>now()])->save();
+                $this->event($r,$actor,'SELLER_REJECTED');
+                return $r->fresh();
             }
-            // Reuse legacy terminal strings for ledger compatibility, never Admin decision fields.
-            $r->fill(['status'=>'ADMIN_'.$decision,'seller_recommendation'=>$decision==='APPROVED'?'APPROVE':'REJECT',
-                'seller_note'=>trim($reason),'seller_responded_at'=>now(),'reviewed_by'=>$actor->id,'decided_at'=>now()])->save();
-            $this->event($r,$actor,'SELLER_'.$decision);
-            app(SellerWalletService::class)->reconcileSellerOrderResult($so);
-            foreach ([$r->buyer_id,$actor->id] as $recipient) app(DomainNotificationService::class)->afterCommit($recipient,'Return/refund decision',
-                'Seller '.strtolower($decision).' the request. Approval does not confirm payment; use Chat to coordinate.',['return_refund_request_id'=>$r->id]);
+            if ($r->type !== 'RETURN') $this->invalid('decision','A refund-only request requires the authorized financial review workflow.');
+            if (!app(ReturnRefundWorkflowService::class)->hubSchemaReadyForAuthorization()) $this->invalid('request','Physical return routing is unavailable pending migration rollout.');
+            $workflow=ReturnRefundWorkflow::where('return_refund_request_id',$r->id)->lockForUpdate()->first();
+            $hub=$shipment?->destinationHub;
+            if (!$workflow || !$hub?->is_active || !$shipment?->logistics_provider_id || (int)$hub->logistics_provider_id !== (int)$shipment->logistics_provider_id) $this->invalid('request','A valid active designated return hub is required.');
+            $reference=$workflow->return_reference ?: 'RR-'.str_pad((string)$r->id,8,'0',STR_PAD_LEFT).'-'.strtoupper(bin2hex(random_bytes(12)));
+            $r->fill(['status'=>'RETURN_AUTHORIZED','seller_recommendation'=>'APPROVE','seller_note'=>trim($reason),'seller_responded_at'=>now()])->save();
+            $workflow->update(['logistics_provider_id'=>$shipment->logistics_provider_id,'return_hub_id'=>$hub->id,'return_reference'=>$reference,'logistics_state'=>'FOR_PICKUP','virtual_shipping_fee_minor'=>(int)config('returns.virtual_return_shipping_fee_minor',0)]);
+            $this->event($r,$actor,'RETURN_AUTHORIZED');
+            ReturnRefundEvent::create(['return_refund_request_id'=>$r->id,'actor_id'=>$actor->id,'action'=>'RETURN_PICKUP_QUEUED','data'=>['return_reference'=>$reference,'hub_id'=>$hub->id]]);
+            foreach ([$r->buyer_id,$actor->id] as $recipient) app(DomainNotificationService::class)->afterCommit($recipient,'Physical return authorized','Logistics will arrange return pickup. No refund payment has been recorded.',['return_refund_request_id'=>$r->id]);
             return $r->fresh();
         },3);
     }
