@@ -52,7 +52,7 @@ class ProductCatalogService
      * Database-backed buyer catalog. Query parameters are filters only; all
      * marketplace visibility is enforced by marketplaceQuery().
      */
-    public function marketplacePage(array $filters, int $perPage = 24): LengthAwarePaginator
+    public function marketplacePage(array $filters, int $perPage = 24, int $maximumPerPage = 48): LengthAwarePaginator
     {
         // Standard SQL COALESCE keeps unsold products at zero on both databases,
         // including PostgreSQL where descending NULLs otherwise precede sales.
@@ -107,7 +107,8 @@ class ProductCatalogService
             default => $query->orderByDesc('products.created_at'),
         };
 
-        $perPage = min(max($perPage, 1), 48);
+        $maximumPerPage = min(max($maximumPerPage, 1), 100);
+        $perPage = min(max($perPage, 1), $maximumPerPage);
         // Storage existence cannot be expressed safely in SQL. Resolve files before
         // slicing so totals and pagination never advertise an unusable product.
         $visible = $query->orderByDesc('products.id')->get()

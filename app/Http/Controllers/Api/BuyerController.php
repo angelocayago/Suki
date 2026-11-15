@@ -31,17 +31,22 @@ class BuyerController extends Controller
 
     public function products(Request $request, ProductCatalogService $catalog): JsonResponse
     {
-        $filters = $request->validate([
-            'q'=>['nullable','string','max:100'], 'category'=>['nullable','string','max:100'],
-            'seller'=>['nullable','string','max:100'], 'in_stock'=>['nullable','in:0,1'],
-            'min_price'=>['nullable','numeric','min:0'], 'max_price'=>['nullable','numeric','min:0','gte:min_price'],
-            'sort'=>['nullable','in:newest,price_asc,price_desc,name,best_selling'],
-            'page'=>['nullable','integer','min:1'], 'per_page'=>['nullable','integer','min:1','max:2147483647'],
-        ]);
+        $filters = $this->productFilters($request, 2147483647);
         return response()->json(['success' => true, 'data' => $catalog->marketplacePage(
             $filters,
             (int) ($filters['per_page'] ?? 24)
         )]);
+    }
+
+    protected function productFilters(Request $request, int $maximumPerPage): array
+    {
+        return $request->validate([
+            'q'=>['nullable','string','max:100'], 'category'=>['nullable','string','max:100'],
+            'seller'=>['nullable','string','max:100'], 'in_stock'=>['nullable','in:0,1'],
+            'min_price'=>['nullable','numeric','min:0'], 'max_price'=>['nullable','numeric','min:0','gte:min_price'],
+            'sort'=>['nullable','in:newest,price_asc,price_desc,name,best_selling'],
+            'page'=>['nullable','integer','min:1'], 'per_page'=>['nullable','integer','min:1','max:'.$maximumPerPage],
+        ]);
     }
 
     public function product(ProductCatalogService $catalog, string $slug): JsonResponse
