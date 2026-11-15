@@ -3,8 +3,8 @@
     <section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
         <h1 class="text-2xl font-bold">Return / Refund RR-{{ $returnRefundRequest->id }}</h1>
         <p class="font-semibold text-[#1F6F5B]">{{ $returnRefundRequest->statusLabel() }}</p>
-        @if($role==='buyer' && app(\App\Services\ReturnWaybillService::class)->canPrint($returnRefundRequest))
-            <form method="POST" action="{{ route('buyer.return-refunds.waybill.store',$returnRefundRequest) }}" onsubmit="this.querySelector('button').disabled=true">@csrf<button class="rounded border border-[#1F6F5B] px-4 py-2 text-[#1F6F5B]" type="submit">Print Return Waybill</button></form>
+        @if($role==='buyer' && $returnRefundRequest->status==='RETURN_AUTHORIZED' && $workflow?->return_reference)
+            <a class="inline-flex rounded bg-[#173F35] px-4 py-2 font-semibold text-white" href="{{ route('return-refunds.waybill',$returnRefundRequest) }}">PRINT RETURN WAYBILL</a>
         @endif
         @if(session('success'))<p role="status">{{ session('success') }}</p>@endif
         @if($errors->any())<div role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
@@ -23,7 +23,7 @@
         <div><h2 class="font-semibold">Buyer concern</h2><p>{{ $returnRefundRequest->buyer_reason }}</p><p class="whitespace-pre-wrap">{{ $returnRefundRequest->buyer_description }}</p></div>
         <div><h2 class="font-semibold">Private proof images</h2>@forelse($evidence as $file)<a class="block underline" href="{{ route('return-refunds.evidence.show',[$returnRefundRequest,$file]) }}">View private proof image{{ $file->description ? ': '.$file->description : '' }}</a>@empty<p>No proof image attached.</p>@endforelse</div>
         @if($returnRefundRequest->decided_at)<div><h2 class="font-semibold">Seller decision reason</h2><p class="whitespace-pre-wrap">{{ $returnRefundRequest->seller_note }}</p><p>{{ \App\Support\ManilaTime::format($returnRefundRequest->decided_at) }} PHT</p></div>@endif
-        @if($returnRefundRequest->status==='RETURN_AUTHORIZED')<p class="rounded border border-green-200 bg-green-50 p-3 text-sm">Physical return authorized. Seller-paid return shipping is virtual/display-only. <a class="font-semibold underline" href="{{ route('return-refunds.waybill',$returnRefundRequest) }}">Print return waybill</a></p>@endif
+        @if($returnRefundRequest->status==='RETURN_AUTHORIZED')<div class="rounded border border-green-200 bg-green-50 p-3 text-sm"><p>Physical return authorized. Seller-paid return shipping is virtual/display-only.</p><p class="mt-1">Reference: <strong>{{ $workflow?->return_reference }}</strong> · Hub: {{ $workflow?->returnHub?->name ?? 'Pending hub assignment' }}</p><p class="mt-1">{{ $workflow?->logistics_state ? str_replace('_',' ',$workflow->logistics_state) : 'Awaiting logistics pickup' }}</p>@if($role==='buyer')<p class="mt-1">Keep the item ready for the assigned rider. The rider verifies the secure return reference at pickup.</p>@endif</div>@endif
         @if($role==='seller' && $returnRefundRequest->status==='SUBMITTED')
             <form method="POST" action="{{ route('seller.return-refunds.decide',$returnRefundRequest) }}" onsubmit="this.querySelector('button[type=submit]').disabled=true">
                 @csrf @method('PATCH')
