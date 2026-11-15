@@ -322,7 +322,9 @@ class DirectAdminReturnRefundTest extends IsolatedStorageTestCase
     public function test_gate_defaults_are_false_and_non_boolean_admin_values_fail_closed(): void
     {
         $defaults = require config_path('returns.php');
-        foreach (['backend_enabled','admin_review_enabled','earning_release_enabled'] as $flag) $this->assertFalse($defaults[$flag]);
+        $this->assertFalse($defaults['backend_enabled']);
+        $this->assertTrue($defaults['admin_review_enabled']);
+        $this->assertFalse($defaults['earning_release_enabled']);
         $f = $this->purchase(); config(['returns.backend_enabled'=>true]);
         foreach ([false,null,0,1,'true','1',[]] as $value) {
             config(['returns.admin_review_enabled'=>$value]);

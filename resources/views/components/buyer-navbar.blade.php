@@ -397,6 +397,10 @@
                                     My Returns &amp; Refunds
                                 </a>
 
+                                @if(config('suki_wallet.enabled',false) === true)
+                                    <a href="{{ route('buyer.wallet') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#52635B] hover:bg-[#F3F7F5] hover:text-[#173F35]"><i data-lucide="wallet" class="h-4 w-4" aria-hidden="true"></i> Suki Wallet</a>
+                                @endif
+
                                 <a
                                     href="{{ route('buyer.messages.index') }}"
                                     class="flex items-center gap-3

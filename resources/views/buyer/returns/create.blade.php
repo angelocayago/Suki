@@ -23,4 +23,34 @@
     </form>
     <a class="underline" href="{{ route('buyer.return-refunds.index') }}">My Returns &amp; Refunds</a>
 </main>
+<script>
+(() => {
+    const section = document.querySelector('[data-proof-upload]');
+    if (!section) return;
+    const input = section.querySelector('input[type="file"]');
+    const choose = section.querySelector('[data-proof-choose]');
+    const filename = section.querySelector('[data-proof-filename]');
+    const remove = section.querySelector('[data-proof-remove]');
+    if (!input || !choose || !filename || !remove) return;
+
+    const refresh = () => {
+        const file = input.files && input.files[0];
+        filename.textContent = file ? file.name : 'No file selected';
+        remove.hidden = !file;
+    };
+    // Enhance only after controls are available; the native input is the fallback.
+    input.classList.add('sr-only', 'peer');
+    input.setAttribute('aria-describedby', 'return-proof-help return-proof-filename');
+    choose.hidden = false;
+    filename.hidden = false;
+    refresh();
+    input.addEventListener('change', refresh);
+    // Native cancellation preserves the selection; do not reset on picker open/cancel.
+    remove.addEventListener('click', () => {
+        input.value = '';
+        refresh();
+        input.focus();
+    });
+})();
+</script>
 @endsection

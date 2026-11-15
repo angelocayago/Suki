@@ -10,6 +10,46 @@ use Tests\TestCase;
 /** Minimal guarded in-memory fixtures; no application migrations are invoked. */
 class SellerReviewsPageTest extends TestCase
 {
+    public static function optionSnapshots(): array
+    {
+        return [
+            'valid'=>['{"Color":"Blue","Size":"Large"}',['Color'=>'Blue','Size'=>'Large']],
+            'empty'=>['[]',[]],
+            'null column'=>[null,[]],
+            'JSON null'=>['null',[]],
+            'malformed legacy JSON'=>['not-json',[]],
+            'non-array JSON'=>['"legacy option"',[]],
+            'nested'=>['{"Pack":{"Color":"Blue","Sizes":["Small","Large"]}}',['Pack.Color'=>'Blue','Pack.Sizes.0'=>'Small','Pack.Sizes.1'=>'Large']],
+            'empty nested values'=>['{"Unused":[],"Pack":{"Size":"Large","Empty":[]}}',['Pack.Size'=>'Large']],
+            'text and numeric'=>[json_encode(['<Color>'=>'<script>alert("x")</script> & "Blue"','Number'=>0]),['<Color>'=>'<script>alert("x")</script> & "Blue"','Number'=>0]],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('optionSnapshots')]
+    public function test_optional_and_nested_options_render_safely_without_changing_review_data(?string $variation,array $expected): void
+    {
+        $this->review(1);DB::table('order_items')->where('id',1)->update(['variation'=>$variation]);
+        $before=DB::table('transaction_reviews')->get()->toJson();$snapshot=DB::table('order_items')->get()->toJson();
+        $page=$this->listing()->assertSee('5/5')->assertSee('Magandang quality. Thank you!')->assertSee('PHT');
+        $this->assertSame($expected,$page->viewData('reviews')->first()['options']);
+        foreach($expected as$name=>$value){$page->assertSee(e((string)$name),false)->assertSee(e((string)$value),false);}
+        $page->assertDontSee('<script>alert("x")</script>',false);
+        $this->assertSame($before,DB::table('transaction_reviews')->get()->toJson());$this->assertSame($snapshot,DB::table('order_items')->get()->toJson());
+    }
+
+    public function test_a_missing_historical_item_has_no_options_and_other_purchased_variants_stay_distinct(): void
+    {
+        $this->review(1);$this->review(2);
+        DB::table('order_items')->where('id',2)->update(['product_id'=>3,'product_name'=>'Purchased Red Product','variant_name'=>'Red / Small','variation'=>'{"Color":"Red","Size":"Small"}']);
+        DB::table('transaction_reviews')->where('id',2)->update(['product_id'=>3]);
+        $page=$this->listing()->assertSee('Purchased Blue Product')->assertSee('Purchased Red Product')->assertSee('Red / Small');
+        $this->assertSame([2,1],$page->viewData('reviews')->pluck('id')->all());
+        $this->assertSame(['Color'=>'Red','Size'=>'Small'],$page->viewData('reviews')->first()['options']);
+        DB::table('order_items')->where('id',1)->delete();
+        $page=$this->listing()->assertSee('Current Blue Product')->assertSee('Purchased Red Product');
+        $this->assertSame([],$page->viewData('reviews')->firstWhere('id',1)['options']);
+    }
+
     private User $seller;
 
     protected function setUp(): void

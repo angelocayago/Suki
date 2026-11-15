@@ -15,6 +15,14 @@ use Tests\TestCase;
 /** Guarded memory-only fixtures. No migrations or shared financial writes. */
 class SellerWalletPageTest extends TestCase
 {
+    public function test_recovery_and_payout_labels_preserve_signed_ledger_and_held_funds(): void
+    {
+        $this->entry('REFUND_ADJUSTMENT','AVAILABLE',-29900);$this->entry('SALE_EARNING','HELD',119900);
+        $before=DB::table('seller_wallet_entries')->get()->toJson();
+        $this->page()->assertSee('Available for Payout')->assertSee('Held Earnings')->assertSee('Signed Available Ledger')->assertSee('Outstanding Refund Recovery')
+            ->assertSee('&#8369;0.00',false)->assertSee('&#8369;-299.00',false)->assertSee('&#8369;299.00',false)->assertSee('&#8369;1,199.00',false)->assertSee('data-available-minor="-29900"',false);
+        $this->assertSame($before,DB::table('seller_wallet_entries')->get()->toJson());
+    }
     private User $owner;
     private Seller $shop;
 

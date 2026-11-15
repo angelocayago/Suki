@@ -87,7 +87,9 @@ class SellerReviews
                 'date'=>$review->created_at?->setTimezone('Asia/Manila'), 'rating'=>(int)$review->rating,
                 'body'=>$review->body, 'hidden'=>$review->hidden_at !== null, 'response'=>$review->seller_response,
                 'product'=>$review->kind === 'product' ? ($item?->product_name ?: $product?->name ?: 'Product no longer available') : null,
-                'variant'=>$item?->variant_name, 'options'=>is_array($item?->variation) ? Arr::dot($item->variation) : [],
+                'variant'=>$item?->variant_name,
+                // Arr::dot retains empty nested arrays; they have no option text to render.
+                'options'=>is_array($item?->variation) ? array_filter(Arr::dot($item->variation),fn($value)=>is_scalar($value) || $value === null) : [],
                 'image'=>$review->kind === 'product' ? self::image($item?->image ?: $product?->review_thumbnail) : null,
             ];
         });
