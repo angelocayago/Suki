@@ -40,7 +40,7 @@
         <h2 class="font-semibold text-[#173F35]">Return Pickup Assignments</h2>
         <div class="mt-3 space-y-3">
             @foreach($returnPickupAssignments as $assignment)
-                @php($return = $assignment->request)
+                @php $return = $assignment->request; @endphp
                 <article class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E5ECE8] p-3">
                     <div><p class="text-sm font-semibold">RETURN PICKUP · {{ $return?->workflow?->return_reference }}</p><p class="text-xs text-[#617169]">{{ $return?->item?->product_name }} × {{ $return?->quantity }} · {{ $return?->workflow?->returnHub?->name }}</p><p class="text-xs text-[#617169]">Seller destination: {{ $return?->workflow?->return_address }}</p></div>
                     <div class="flex flex-wrap gap-2">
