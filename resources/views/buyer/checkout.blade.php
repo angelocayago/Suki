@@ -555,6 +555,8 @@
                                 </div>
 
                             </label>
+                            {{-- Wallet checkout is gated off (suki_wallet.checkout_enabled=false); COD is the only active method. --}}
+                            @if($walletEnabled ?? false)
                             <label class="block {{ $walletIssue ? 'cursor-not-allowed text-gray-500' : 'cursor-pointer' }}">
                                 <div class="payment-option rounded-xl border-2 border-gray-200 bg-white p-4">
                                     <div class="flex items-center gap-3">
@@ -565,6 +567,7 @@
                                     <p class="mt-2 text-xs">{{ $walletIssue ?? 'Pay once from your virtual Suki Wallet. No cash collection on delivery.' }}</p>
                                 </div>
                             </label>
+                            @endif
                         </div>
 
                     </section>
