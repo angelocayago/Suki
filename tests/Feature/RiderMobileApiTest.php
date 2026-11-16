@@ -174,6 +174,35 @@ class RiderMobileApiTest extends TestCase
         $this->assertSame('HUB-CASH-1', $remittance->fresh()->reference);
     }
 
+    public function test_cod_review_accepts_both_team_vocabularies_and_rejects_arbitrary_statuses(): void
+    {
+        Storage::fake('delivery_proofs');
+        extract($this->context(OrderStatus::OutForDelivery));
+        $shipment->update(['delivery_accepted_at' => now()]);
+        $token = $this->riderToken($deliveryUser);
+        $this->api($token, 'POST', "/api/rider/erp-orders/{$sellerOrder->id}/delivery-proof", ['received_by' => 'Buyer', 'cod_collected' => '1', 'proof_photo' => DeliveryProofFile::image()])->assertOk();
+        $remittance = RiderCodRemittance::query()->where('shipment_id', $shipment->id)->firstOrFail();
+        $service = app(\App\Services\CodRemittanceService::class);
+
+        // Original call shape: (remittance, actor, reference).
+        $service->submitRider($remittance, $deliveryUser, 'LEGACY-REF');
+        $this->assertSame(['SUBMITTED', 15000, 'LEGACY-REF'], [$remittance->fresh()->status, (int) $remittance->fresh()->submitted_minor, $remittance->fresh()->reference]);
+
+        $owner = $provider->owner ?? User::findOrFail($provider->user_id);
+        try {
+            $service->reviewRider($remittance, $owner, 'PAID', null);
+            $this->fail('An arbitrary review status must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException) {
+        }
+        $this->assertSame('SUBMITTED', $remittance->fresh()->status);
+
+        $service->reviewRider($remittance, $owner, 'ACCEPTED', null);
+        $this->assertSame(['ACCEPTED', 15000], [$remittance->fresh()->status, (int) $remittance->fresh()->accepted_minor]);
+        // Idempotent across vocabularies.
+        $service->reviewRider($remittance, $owner, 'VERIFIED', null);
+        $this->assertSame('ACCEPTED', $remittance->fresh()->status);
+    }
+
     public function test_profile_changes_cannot_bypass_verified_rider_details_and_password_change_revokes_other_tokens(): void
     {
         extract($this->context());
