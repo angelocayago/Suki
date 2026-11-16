@@ -2194,7 +2194,7 @@ Route::post('/my-account/password', function (
 
 Route::get('/my-account/addresses', function () use ($requireBuyer) {
 
-    return app(\App\Http\Controllers\Buyer\AccountController::class)->addresses(request());
+    return app()->call([app(\App\Http\Controllers\Buyer\AccountController::class), 'addresses'], ['request' => request()]);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2294,7 +2294,7 @@ Route::post('/my-account/addresses', function (
 })->name('buyer.addresses.store');
 
 Route::patch('/my-account/addresses/{addressId}', function (Request $request, $addressId) {
-    return app(\App\Http\Controllers\Buyer\AccountController::class)->updateAddress($request, (int) $addressId, app(PhilippineAddressService::class));
+    return app()->call([app(\App\Http\Controllers\Buyer\AccountController::class), 'updateAddress'], ['request' => $request, 'address' => (int) $addressId]);
 })->name('buyer.addresses.update');
 
 
@@ -2306,7 +2306,7 @@ Route::post('/my-account/addresses/{address}/default', function (
     $addressId
 ) use ($requireBuyer) {
 
-    return app(\App\Http\Controllers\Buyer\AccountController::class)->setDefault(request(), (int) $addressId);
+    return app()->call([app(\App\Http\Controllers\Buyer\AccountController::class), 'setDefault'], ['request' => request(), 'address' => (int) $addressId]);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
@@ -2342,7 +2342,7 @@ Route::post('/my-account/addresses/{address}/delete', function (
     $addressId
 ) use ($requireBuyer) {
 
-    return app(\App\Http\Controllers\Buyer\AccountController::class)->deleteAddress(request(), (int) $addressId);
+    return app()->call([app(\App\Http\Controllers\Buyer\AccountController::class), 'deleteAddress'], ['request' => request(), 'address' => (int) $addressId]);
 
     if ($redirect = $requireBuyer()) {
         return $redirect;
