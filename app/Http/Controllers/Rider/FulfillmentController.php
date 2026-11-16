@@ -24,7 +24,8 @@ class FulfillmentController extends Controller
     {
         $rider = $this->riderFor($request);
         $orders = $this->databaseOrders($rider);
-        $delivered = Shipment::query()->where('delivered_by', $rider->id)->whereIn('workflow_status', [OrderStatus::Delivered->value, OrderStatus::Completed->value]);
+        // delivered_by stores the delivering rider's user id (DeliveryCompletionService).
+        $delivered = Shipment::query()->where('delivered_by', $rider->user_id)->whereIn('workflow_status', [OrderStatus::Delivered->value, OrderStatus::Completed->value]);
         $completedDeliveries = (clone $delivered)->count();
         $failedAttempts = DeliveryEvent::query()->where('user_id', $rider->user_id)->where('status', 'DELIVERY_ATTEMPT_FAILED')->count();
         $assigned = Shipment::query()->where('rider_id', $rider->id)->count();
