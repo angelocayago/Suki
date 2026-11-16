@@ -3,7 +3,7 @@
 @section('content')
 
 @php
-    $paymentMethod = strtoupper($order['payment_method'] ?? 'COD');
+    $paymentMethod = ($order['payment_method'] ?? '') === 'wallet' ? 'Suki Wallet — Paid' : strtoupper($order['payment_method'] ?? 'COD');
     $shippingMethod = strtoupper($order['shipping_method'] ?? 'J&T');
 @endphp
 

@@ -126,7 +126,9 @@ class FulfillmentController extends Controller
 
         if (strtoupper($validated['status']) === 'DELIVERED') {
             app(\App\Services\DeliveryCompletionService::class)->deliver($sellerOrder, $request->user(), $request->all());
-            return back()->with('success', 'Delivery proof saved and COD collection recorded. Awaiting buyer receipt.');
+            return back()->with('success', $sellerOrder->order->payment_method==='wallet'
+                ? 'Delivery proof saved. Paid through Suki Wallet; no COD collection. Awaiting buyer receipt.'
+                : 'Delivery proof saved and COD collection recorded. Awaiting buyer receipt.');
         }
 
         if ($sellerOrder->shipment()->exists()

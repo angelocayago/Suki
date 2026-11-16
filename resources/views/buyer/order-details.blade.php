@@ -420,7 +420,7 @@
 
                                     {{ ($order['payment_method'] ?? '') === 'cod'
                                         ? 'Cash on Delivery'
-                                        : strtoupper($order['payment_method'] ?? 'N/A') }}
+                                        : (($order['payment_method'] ?? '') === 'wallet' ? 'Suki Wallet' : strtoupper($order['payment_method'] ?? 'N/A')) }}
 
                                 </span>
 

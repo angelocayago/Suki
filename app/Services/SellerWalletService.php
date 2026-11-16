@@ -21,6 +21,9 @@ class SellerWalletService
 
     public function creditCompleted(SellerOrder $sellerOrder): void
     {
+        // Wallet checkout already creates a HELD earning backed by its payment.
+        // Never use the historical non-COD fallback to mint an AVAILABLE earning.
+        if ($sellerOrder->order?->payment_method==='wallet') return;
         DB::transaction(function () use ($sellerOrder): void {
             $order = SellerOrder::query()->with('items')->lockForUpdate()->findOrFail($sellerOrder->id);
             if ($this->status($order) !== OrderStatus::Completed->value || $order->status === 'cancelled') return;
@@ -63,7 +66,9 @@ class SellerWalletService
             Log::notice('Earning reconciliation deferred', ['seller_order_id'=>$sellerOrder->id,'status'=>$readiness['status'],'issues'=>$readiness['issues']]);
             return $readiness;
         }
-        $released = $this->releaseCompletedEarning($sellerOrder);
+        $released = $sellerOrder->order?->payment_method==='wallet'
+            ? app(AcademicWalletPaymentService::class)->release($sellerOrder)
+            : $this->releaseCompletedEarning($sellerOrder);
         return ['status'=>$released?'RELEASED':'NO_RELEASE','message'=>$released?'Verified earning released.':'No release created: already reconciled, no held earning, or purchase/settlement/hold evidence is not eligible.','issues'=>[]];
     }
 
@@ -177,12 +182,16 @@ class SellerWalletService
         $hasReleaseSchema = app(FinancialSchemaReadiness::class)->inspect()['ready'];
         $release = $hasReleaseSchema ? $this->validReleaseSql('seller_wallet_entries') : '1 = 0';
         $unreleased = $hasReleaseSchema ? 'NOT EXISTS (SELECT 1 FROM seller_wallet_entries wallet_release WHERE wallet_release.source_wallet_entry_id = seller_wallet_entries.id AND '.$this->validReleaseSql('wallet_release').')' : '1 = 1';
+        $earned="type = 'SALE_EARNING'";
+        if (\Illuminate\Support\Facades\Schema::hasTable('academic_wallet_reversals')) {
+            $earned.=' AND NOT EXISTS (SELECT 1 FROM academic_wallet_payments ap JOIN academic_wallet_reversals ar ON ar.payment_id=ap.id WHERE ap.earning_entry_id=seller_wallet_entries.id)';
+        }
         $totals = DB::table('seller_wallet_entries')->when($sellerId !== null,fn($q)=>$q->where('seller_id',$sellerId))
             ->selectRaw("COALESCE(SUM(CASE WHEN (type IN ('SALE_EARNING', 'REFUND_ADJUSTMENT') AND status = 'AVAILABLE') OR ($release) THEN amount_minor ELSE 0 END), 0) AS available_credits_minor")
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'PAYOUT_RESERVATION' AND status = 'RESERVED' THEN amount_minor ELSE 0 END), 0) AS reserved_minor")
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'SALE_EARNING' AND status = 'HELD' AND ($unreleased) THEN amount_minor ELSE 0 END), 0) AS held_minor")
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'PAYOUT_COMPLETED' THEN amount_minor ELSE 0 END), 0) AS paid_out_minor")
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'SALE_EARNING' THEN amount_minor ELSE 0 END), 0) AS total_earnings_minor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN ($earned) THEN amount_minor ELSE 0 END), 0) AS total_earnings_minor")
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'REFUND_ADJUSTMENT' AND status = 'AVAILABLE' THEN amount_minor ELSE 0 END), 0) AS refund_adjustments_minor")
             ->selectSub($paid, 'completed_minor')->first();
 

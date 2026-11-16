@@ -60,8 +60,9 @@ class CheckoutService
 
     private function selectionSummary(User $buyer, Collection $selection, array $voucherCodes, bool $directOffer = false): array
     {
+        $commissionPreview=0;
         $items = $selection
-            ->mapWithKeys(function (CartItem $cartItem) {
+            ->mapWithKeys(function (CartItem $cartItem) use (&$commissionPreview) {
                 $variant = $this->displayVariant($cartItem);
                 $product = $variant?->product;
                 $available = $variant
@@ -81,6 +82,7 @@ class CheckoutService
                     : ($cartItem->image && ! Str::startsWith($cartItem->image, ['http://', 'https://']) ? Storage::disk('public')->url($cartItem->image) : $cartItem->image);
 
                 if (\App\Support\DemoProductImages::canonical($image)) $image = \App\Support\DemoProductImages::url($image);
+                if($available)$commissionPreview+=$this->commissionMinor((int)$variant->price_minor*(int)$cartItem->quantity,(int)$product->commission_bps);
 
                 return [
                     $cartItem->id => [
@@ -121,6 +123,7 @@ class CheckoutService
             ->map(fn (Collection $sellerItems) => $sellerItems->sum(fn (array $item) => $item['price_minor'] * $item['quantity']));
         $voucherPreview = app(VoucherService::class)->preview($voucherCodes, $sellerSubtotals, $buyer);
         $discountMinor = collect($voucherPreview['redemptions'])->sum('amount');
+        $walletSellerPreview=$subtotalMinor-$commissionPreview-(int)collect($voucherPreview['redemptions'])->filter(fn($r)=>$r['voucher']->scope==='SELLER')->sum('amount');
 
         $summary = [
             'cart' => $items,
@@ -136,6 +139,8 @@ class CheckoutService
             'has_unavailable_items' => collect($items)->contains(
                 fn (array $item) => ! $item['available']
             ),
+            'wallet_allocation_issue' => $walletSellerPreview<1 || $shippingMinor!==5000 ? 'unsupported_earning_or_shipping'
+                : ($subtotalMinor-$discountMinor-$walletSellerPreview<0 ? 'additional_subsidy_required' : null),
         ];
         if ($directOffer) $summary['buy_now_terms'] = $this->buyNowTerms($items, $subtotalMinor, $shippingMinor, $voucherCodes, $voucherPreview['redemptions']);
         return $summary;
@@ -173,6 +178,20 @@ class CheckoutService
         ?array $cartSnapshot = null,
         ?array $directOffer = null
     ): Order {
+        if ($paymentMethod === 'wallet') {
+            return app(AcademicWalletPaymentService::class)->checkout($buyer,$reference,
+                fn()=>$this->checkoutNative($buyer,$address,$paymentMethod,$voucherCodes,$directSelection,$reference,$cartSnapshot,$directOffer));
+        }
+        if ($paymentMethod !== 'cod') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Wallet checkout is unavailable until payment backing and reversal protection are installed. Choose Cash on Delivery.',
+            ]);
+        }
+        return $this->checkoutNative($buyer,$address,$paymentMethod,$voucherCodes,$directSelection,$reference,$cartSnapshot,$directOffer);
+    }
+
+    private function checkoutNative(User $buyer,array $address,string $paymentMethod,array $voucherCodes=[],?array $directSelection=null,?string $reference=null,?array $cartSnapshot=null,?array $directOffer=null): Order
+    {
         return DB::transaction(function () use ($buyer, $address, $paymentMethod, $voucherCodes, $directSelection, $reference, $cartSnapshot, $directOffer) {
             if ($cartSnapshot !== null) {
                 abort_unless((int) $cartSnapshot['buyer_id'] === (int) $buyer->id && !$directSelection, 403);

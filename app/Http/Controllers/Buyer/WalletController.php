@@ -19,6 +19,6 @@ class WalletController extends Controller {
             ->whereExists(fn($q)=>$q->selectRaw('1')->from('return_refund_accounting')->whereColumn('return_refund_request_id','return_refund_requests.id')->where('refund_status','REFUND_DUE'))
             ->whereNotExists(fn($q)=>$q->selectRaw('1')->from('buyer_refund_fundings')->whereColumn('return_refund_request_id','return_refund_requests.id'))
             ->with(['order'=>fn($q)=>$q->where('buyer_id',$buyer->id)])->orderByDesc('decided_at')->orderByDesc('id')->paginate(15,['*'],'historical_page')->withQueryString();
-        return response()->view('buyer.wallet.index',['wallet'=>$wallet->summary($buyer),'entries'=>$entries,'fundings'=>$fundings,'historical'=>$historical])->header('Cache-Control','private, no-store');
+        return response()->view('buyer.wallet.index',['wallet'=>$wallet->summary($buyer),'checkoutAvailable'=>$wallet->checkoutAvailable(),'entries'=>$entries,'fundings'=>$fundings,'historical'=>$historical])->header('Cache-Control','private, no-store');
     }
 }

@@ -6,9 +6,9 @@
     <p class="mt-2 text-sm text-gray-600">Your internal SUKI SHOP balance. This is not a bank account or confirmation of an external cash transfer.</p>
     <div class="my-6 grid gap-4 sm:grid-cols-2">
         <section class="rounded-2xl border bg-white p-5"><h2 class="font-semibold">Suki Wallet Balance</h2><p class="mt-2 text-2xl font-bold text-[#1F6F5B]">₱{{ $money($wallet['balance_minor']) }}</p></section>
-        <section class="rounded-2xl border bg-white p-5"><h2 class="font-semibold">Available to Spend</h2><p class="mt-2 text-2xl font-bold text-[#1F6F5B]">₱{{ $money($wallet['available_minor']) }}</p></section>
+        <section class="rounded-2xl border bg-white p-5"><h2 class="font-semibold">Available to Spend</h2><p class="mt-2 text-2xl font-bold text-[#1F6F5B]">₱{{ $money($checkoutAvailable ? $wallet['available_minor'] : 0) }}</p>@unless($checkoutAvailable)<p class="mt-2 text-sm text-gray-600">Wallet checkout is currently unavailable. Your credited balance is retained.</p>@endunless</section>
     </div>
-    <p class="mb-5 rounded-xl border border-[#D6E8E1] bg-[#F1F8F5] p-4 text-sm">Approved refunds are not spendable until funding is verified and the wallet credit is posted. Wallet payments at Checkout are not available yet.</p>
+    <p class="mb-5 rounded-xl border border-[#D6E8E1] bg-[#F1F8F5] p-4 text-sm">Approved refunds are not spendable until funding is verified and the wallet credit is posted. {{ $checkoutAvailable ? 'Use your available backed balance for eligible single-shop purchases, including shipping.' : 'Wallet payments at Checkout are not available yet.' }}</p>
     <section class="mb-6 overflow-hidden rounded-2xl border bg-white">
         <h2 class="p-5 font-semibold">Recent Transactions</h2>
         <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="border-y"><th class="p-3">Date (PHT)</th><th class="p-3">Type</th><th class="p-3">Reference</th><th class="p-3">Amount</th><th class="p-3">Status</th></tr></thead><tbody>
