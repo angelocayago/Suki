@@ -5730,7 +5730,8 @@ Route::middleware(['auth','not_suspended','approved','role:buyer'])->group(funct
     Route::post('/return-refunds/{returnRefundRequest}/evidence',[\App\Http\Controllers\ReturnRefundController::class,'evidence'])->name('return-refunds.evidence.store');
 });
 Route::middleware(['auth','not_suspended','approved'])->get('/return-refunds/{returnRefundRequest}/evidence/{evidence}',[\App\Http\Controllers\ReturnRefundController::class,'showEvidence'])->name('return-refunds.evidence.show');
-Route::middleware(['auth','not_suspended','approved'])->get('/return-refunds/{returnRefundRequest}/waybill',[\App\Http\Controllers\ReturnRefundController::class,'waybill'])->name('return-refunds.waybill');
+// Distinct URI: /waybill belongs to the Buyer label (buyer.return-refunds.waybill.show).
+Route::middleware(['auth','not_suspended','approved'])->get('/return-refunds/{returnRefundRequest}/return-waybill',[\App\Http\Controllers\ReturnRefundController::class,'waybill'])->name('return-refunds.waybill');
 Route::middleware(['auth','not_suspended','approved','role:seller'])->group(function () {
     Route::post('/seller/return-refunds/{returnRefundRequest}/physical-receipt',[\App\Http\Controllers\ReturnRefundController::class,'sellerReceiveReturn'])->name('seller.return-refunds.physical-receipt');
     Route::post('/seller/return-refunds/{returnRefundRequest}/inspection',[\App\Http\Controllers\ReturnRefundController::class,'sellerInspectReturn'])->name('seller.return-refunds.inspection');

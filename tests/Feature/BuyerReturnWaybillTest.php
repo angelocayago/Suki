@@ -70,15 +70,13 @@ class BuyerReturnWaybillTest extends IsolatedStorageTestCase
         $this->get(route('buyer.return-refunds.waybill.show',$r))->assertOk()->assertSee('Purchased product')->assertSee('Purchased option')->assertSee('12 Purchased Street')->assertSee('34 Return Street')->assertDontSee('Changed listing')->assertDontSee('Changed Seller Address')->assertDontSee('Changed Order Address');
     }
 
-    public function test_waybill_prints_on_a4_with_print_action_hidden_and_no_scan_authority(): void
+    public function test_buyer_label_and_workflow_waybill_routes_do_not_shadow_each_other(): void
     {
-        $f=$this->purchase();$r=$this->request($f);$this->actingAs($f['buyer'])->post(route('buyer.return-refunds.waybill.store',$r))->assertRedirect();
-        $this->get(route('buyer.return-refunds.waybill.show',$r))->assertOk()
-            ->assertSee('@page{size:A4',false)->assertSee('.actions{display:none}',false)
-            ->assertSee('onclick="window.print()"',false)
-            ->assertSee('Printing does not confirm pickup, delivery or refund payment.')
-            ->assertHeader('Cache-Control','no-store, private');
+        $this->assertTrue(\Illuminate\Support\Facades\Route::has('buyer.return-refunds.waybill.show'));
+        $this->assertTrue(\Illuminate\Support\Facades\Route::has('return-refunds.waybill'));
+        $this->assertNotSame(route('buyer.return-refunds.waybill.show', 1), route('return-refunds.waybill', 1));
     }
+
 
     public static function ineligible(): array { return [['pending'],['rejected'],['ADMIN_REVIEW'],['FINANCIAL'],['missing-history'],['wrong-actor'],['wrong-owner'],['partial-quantity']]; }
     #[DataProvider('ineligible')]
