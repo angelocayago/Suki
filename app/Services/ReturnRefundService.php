@@ -134,6 +134,8 @@ class ReturnRefundService
         if ($days < 1 || ! $deliveredAt || $deliveredAt->lt(now()->subDays($days))) {
             $this->invalid('item', 'Return/refund requests must be submitted within '.$days.' days of verified delivery.');
         }
+    }
+
     /** Purchase/collection proof only. Does not establish unencumbered funding. */
     public function codCustodySnapshot(SellerOrder $so): array
     {
