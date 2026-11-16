@@ -70,6 +70,16 @@ class BuyerReturnWaybillTest extends IsolatedStorageTestCase
         $this->get(route('buyer.return-refunds.waybill.show',$r))->assertOk()->assertSee('Purchased product')->assertSee('Purchased option')->assertSee('12 Purchased Street')->assertSee('34 Return Street')->assertDontSee('Changed listing')->assertDontSee('Changed Seller Address')->assertDontSee('Changed Order Address');
     }
 
+    public function test_waybill_prints_on_a4_with_print_action_hidden_and_no_scan_authority(): void
+    {
+        $f=$this->purchase();$r=$this->request($f);$this->actingAs($f['buyer'])->post(route('buyer.return-refunds.waybill.store',$r))->assertRedirect();
+        $this->get(route('buyer.return-refunds.waybill.show',$r))->assertOk()
+            ->assertSee('@page{size:A4',false)->assertSee('.actions{display:none}',false)
+            ->assertSee('onclick="window.print()"',false)
+            ->assertSee('Printing does not confirm pickup, delivery or refund payment.')
+            ->assertHeader('Cache-Control','no-store, private');
+    }
+
     public static function ineligible(): array { return [['pending'],['rejected'],['ADMIN_REVIEW'],['FINANCIAL'],['missing-history'],['wrong-actor'],['wrong-owner'],['partial-quantity']]; }
     #[DataProvider('ineligible')]
     public function test_ineligible_or_inconsistent_requests_never_issue_labels(string $case): void
